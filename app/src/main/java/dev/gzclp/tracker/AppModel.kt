@@ -18,6 +18,9 @@ import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
 import dev.gzclp.tracker.ui.Fmt
+import dev.gzclp.tracker.ui.LaptopTheme
+import dev.gzclp.tracker.ui.Palette
+import dev.gzclp.tracker.ui.Palettes
 import dev.gzclp.tracker.ui.RestUi
 import dev.gzclp.tracker.ui.SyncUi
 import dev.gzclp.tracker.ui.restLabel
@@ -37,6 +40,10 @@ class AppModel private constructor(private val context: Context) {
 
     var theme by mutableStateOf(prefs.theme)
         private set
+    /** Null until a laptop theme file has been read once. */
+    var laptop by mutableStateOf(prefs.laptopTheme?.let { LaptopTheme.parse(it, Palettes.jade) })
+        private set
+    val palette: Palette get() = if (theme == LaptopTheme.ID) laptop ?: Palettes.jade else Palettes.of(theme)
     var restTargets by mutableStateOf(prefs.restTargets())
         private set
     var sync by mutableStateOf(syncUi())
@@ -73,6 +80,20 @@ class AppModel private constructor(private val context: Context) {
         notificationsAllowed = context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
         sync = syncUi()
         syncLater()
+        readLaptopTheme()
+    }
+
+    /** Never writes the file; a missing or unreadable one keeps the cached palette. */
+    private fun readLaptopTheme() {
+        val uri = prefs.folderUri?.let(Uri::parse) ?: return
+        io.execute {
+            val text = runCatching { mirror.read(uri, LaptopTheme.FILE) }.getOrNull() ?: return@execute
+            main.post {
+                val next = LaptopTheme.parse(text, laptop ?: Palettes.jade)
+                prefs.laptopTheme = LaptopTheme.encode(next)
+                laptop = next
+            }
+        }
     }
 
     fun chooseTheme(id: String) {
@@ -105,6 +126,7 @@ class AppModel private constructor(private val context: Context) {
     fun setFolder(uri: Uri) {
         prefs.folderUri = uri.toString()
         sync = syncUi()
+        readLaptopTheme()
     }
 
     fun hasFolder() = prefs.folderUri != null

@@ -90,6 +90,29 @@ class ScreenShots {
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
     }
 
+    /** The Laptop theme for the synced jade-horse file and two Omarchy themes, one of them light. */
+    @Test fun laptopThemes() {
+        val (live, now) = history()
+        val idle = live.copy(active = null)
+        val ex = live.exercises(live.active!!.program, live.active!!.day)
+        for (name in listOf("jade-horse", "tokyo-night", "catppuccin-latte")) {
+            val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText(), Palettes.jade)
+            val file = p.copy(id = "laptop-$name")
+            shot(file, "03-workout-rest") {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+            }
+            shot(file, "14-workout-full", tall = true) {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+            }
+            for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
+                SettingsScreen(
+                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
+                )
+            }
+        }
+    }
+
     @Test fun allScreensAllThemes() {
         val (live, now) = history()
         val idle = live.copy(active = null)
@@ -140,13 +163,13 @@ class ScreenShots {
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "12-settings-full", tall = true) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }

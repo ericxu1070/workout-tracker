@@ -36,9 +36,9 @@ class Mirror(private val context: Context, private val prefs: Prefs) {
         }
     }
 
-    /** The mirrored log's text, or null if the folder has none. */
-    fun read(uri: Uri): String? {
-        val doc = file(uri, create = false) ?: return null
+    /** The text of [name] in the folder (the mirrored log by default), or null if the folder has none. */
+    fun read(uri: Uri, name: String = NAME): String? {
+        val doc = DocumentFile.fromTreeUri(context, uri)?.findFile(name) ?: return null
         return context.contentResolver.openInputStream(doc.uri)?.use { it.readBytes().decodeToString() }
     }
 

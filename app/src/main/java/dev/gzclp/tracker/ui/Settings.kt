@@ -28,6 +28,7 @@ fun SettingsScreen(
     programId: String,
     increments: Increments,
     themeId: String,
+    laptop: Palette?,
     restTargets: Map<Tier, Int>,
     sync: SyncUi,
     notificationsAllowed: Boolean,
@@ -89,7 +90,15 @@ fun SettingsScreen(
                     if (t.id == themeId) Icon(Icons.check, p.accent, 20.dp)
                 }
             }
+            GroupRow(first = false, onClick = { onTheme(LaptopTheme.ID) }) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Laptop", Type.body)
+                    Txt(laptop?.name ?: "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
+                }
+                if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
+            }
         }
+        GroupFooter("Laptop follows the Omarchy theme your laptop syncs to this folder, updated each time you open the app.")
 
         GroupHeader("Rest timer")
         Group {

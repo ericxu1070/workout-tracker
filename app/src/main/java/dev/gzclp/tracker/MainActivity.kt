@@ -44,7 +44,6 @@ import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HomeScreen
-import dev.gzclp.tracker.ui.Palettes
 import dev.gzclp.tracker.ui.SettingsScreen
 import dev.gzclp.tracker.ui.SetupScreen
 import dev.gzclp.tracker.ui.Sheet
@@ -60,7 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val palette = Palettes.of(model.theme)
+            val palette = model.palette
             LaunchedEffect(palette.dark) {
                 val style = if (palette.dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(style, style)
@@ -185,7 +184,7 @@ private fun App(model: AppModel) {
             )
             route == Route.Settings -> SettingsScreen(
                 started = state.started, programId = state.programId, increments = state.increments,
-                themeId = model.theme, restTargets = model.restTargets,
+                themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
                 sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
                 weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes,
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,

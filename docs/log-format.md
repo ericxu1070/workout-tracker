@@ -10,6 +10,7 @@ The `body_weight` and `body_weight_clear` types were added within version 2. A r
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
+- The folder may also hold `omarchy-theme.toml`, written by the laptop for the app's Laptop theme. The app only reads it; it is not part of the log.
 - Encoding: UTF-8 JSON Lines. One JSON object per line, each line ends with `\n`.
 - Append-only. Lines are never edited or removed. A later line can supersede an earlier one (see "Set identity").
 - The phone keeps its own copy in app-private storage and mirrors it to the folder. The mirror can lag behind the phone, but it is always a prefix of the phone's log, or equal to it.

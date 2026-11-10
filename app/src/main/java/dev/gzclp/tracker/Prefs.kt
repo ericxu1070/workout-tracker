@@ -11,6 +11,11 @@ class Prefs(context: Context) {
         get() = p.getString("theme", "jade")!!
         set(v) = p.edit().putString("theme", v).apply()
 
+    /** The last good laptop theme, in omarchy-theme.toml's format. */
+    var laptopTheme: String?
+        get() = p.getString("laptop_theme", null)
+        set(v) = p.edit().putString("laptop_theme", v).apply()
+
     fun rest(tier: Tier): Int = p.getInt("rest_${tier.id}", tier.defaultRestSec)
     fun setRest(tier: Tier, sec: Int) = p.edit().putInt("rest_${tier.id}", sec).apply()
     fun restTargets(): Map<Tier, Int> = Tier.entries.associateWith { rest(it) }
