@@ -1,0 +1,23 @@
+pkgname=gzclp-desk
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Training dashboard for the GZCLP phone log synced by Syncthing'
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland')
+makedepends=('gcc' 'make')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/.."
+  ./bin/build
+}
+
+package() {
+  cd "$startdir/.."
+  install -Dm755 build/gzclp-desk "$pkgdir/usr/bin/gzclp-desk"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/gzclp-desk.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/gzclp-desk.svg"
+  install -Dm644 "$startdir/gzclp-desk.desktop" "$pkgdir/usr/share/applications/gzclp-desk.desktop"
+}

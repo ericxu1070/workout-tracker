@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Main.qml</file>
+        <file>Roles.qml</file>
+        <file>Txt.qml</file>
+        <file>Module.qml</file>
+        <file>Tip.qml</file>
+        <file>Segmented.qml</file>
+        <file>LineChart.qml</file>
+        <file>BarChart.qml</file>
+        <file>StallTimeline.qml</file>
+        <file>RestChart.qml</file>
+        <file>chart.js</file>
+    </qresource>
+</RCC>

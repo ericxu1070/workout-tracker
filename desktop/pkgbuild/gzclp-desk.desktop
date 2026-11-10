@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Training
+Comment=Strength, volume, stalls, sessions, rest, and body weight from the GZCLP log
+Exec=gzclp-desk
+Icon=gzclp-desk
+Terminal=false
+Categories=Utility;
+StartupWMClass=gzclp-desk

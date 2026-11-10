@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+mkdir -p "$ROOT/build/tests"
+python3 "$ROOT/tests/make_fixture.py" "$ROOT/build/tests/fixture.jsonl"
+cd "$ROOT/build/tests"
+
+qmake6 "$ROOT/tests/gzclp-desk_tests.pro"
+make -j"$(nproc)"
+QT_QPA_PLATFORM=offscreen GZCLP_FIXTURE="$ROOT/build/tests/fixture.jsonl" \
+  GZCLP_LOG_DOC="$ROOT/../docs/log-format.md" ./gzclp-desk_tests
