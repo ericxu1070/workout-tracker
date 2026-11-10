@@ -93,7 +93,7 @@ fun SettingsScreen(
             GroupRow(first = false, onClick = { onTheme(LaptopTheme.ID) }) {
                 Column(Modifier.weight(1f)) {
                     Txt("Laptop", Type.body)
-                    Txt(laptop?.name ?: "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
+                    Txt(laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
                 }
                 if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
             }

@@ -90,13 +90,14 @@ class ScreenShots {
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
     }
 
-    /** The Laptop theme for the synced jade-horse file and two Omarchy themes, one of them light. */
+    /** The Laptop theme for every Omarchy theme on the laptop, as the laptop hook syncs it. */
     @Test fun laptopThemes() {
         val (live, now) = history()
         val idle = live.copy(active = null)
         val ex = live.exercises(live.active!!.program, live.active!!.day)
-        for (name in listOf("jade-horse", "tokyo-night", "catppuccin-latte")) {
-            val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText(), Palettes.jade)
+        val themes = File(javaClass.getResource("/themes")!!.toURI()).list()!!.filter { it.endsWith(".raw.toml") }.map { it.removeSuffix(".raw.toml") }
+        for (name in themes.sorted()) {
+            val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
             val file = p.copy(id = "laptop-$name")
             shot(file, "03-workout-rest") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }

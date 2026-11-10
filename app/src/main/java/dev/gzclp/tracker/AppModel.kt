@@ -41,7 +41,7 @@ class AppModel private constructor(private val context: Context) {
     var theme by mutableStateOf(prefs.theme)
         private set
     /** Null until a laptop theme file has been read once. */
-    var laptop by mutableStateOf(prefs.laptopTheme?.let { LaptopTheme.parse(it, Palettes.jade) })
+    var laptop by mutableStateOf(prefs.laptopTheme?.let(LaptopTheme::parse))
         private set
     val palette: Palette get() = if (theme == LaptopTheme.ID) laptop ?: Palettes.jade else Palettes.of(theme)
     var restTargets by mutableStateOf(prefs.restTargets())
@@ -83,13 +83,13 @@ class AppModel private constructor(private val context: Context) {
         readLaptopTheme()
     }
 
-    /** Never writes the file; a missing or unreadable one keeps the cached palette. */
+    /** Never writes the file; a missing or unreadable one keeps the whole cached palette. */
     private fun readLaptopTheme() {
         val uri = prefs.folderUri?.let(Uri::parse) ?: return
         io.execute {
             val text = runCatching { mirror.read(uri, LaptopTheme.FILE) }.getOrNull() ?: return@execute
             main.post {
-                val next = LaptopTheme.parse(text, laptop ?: Palettes.jade)
+                val next = LaptopTheme.parse(text) ?: return@post
                 prefs.laptopTheme = LaptopTheme.encode(next)
                 laptop = next
             }
