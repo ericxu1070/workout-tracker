@@ -38,6 +38,9 @@ import dev.gzclp.tracker.ui.Type.tabular
 import java.time.OffsetDateTime
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 @Composable
 fun HistoryScreen(state: AppState, onOpen: (String) -> Unit) {
@@ -110,24 +113,36 @@ fun SetList(sets: List<SetLogged>) {
     }
 }
 
+/** About three gridlines over [range], on a 1, 2, 2.5 or 5 step. */
 private fun niceStep(range: Float): Float {
     val raw = range / 3f
-    return listOf(5f, 10f, 20f, 25f, 50f, 100f).firstOrNull { it >= raw } ?: (ceil(raw / 100f) * 100f)
+    val mag = 10f.pow(floor(log10(raw)))
+    return listOf(1f, 2f, 2.5f, 5f, 10f).first { it * mag >= raw * 0.999f } * mag
 }
+
+/** 180, 1.6, 2.25: no trailing zeros. */
+private fun tick(v: Float) = "%.2f".format(v).trimEnd('0').trimEnd('.')
 
 data class Pt(val t: OffsetDateTime, val v: Float)
 
 @Composable
-fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) {
+fun LineChart(
+    series: List<Pair<List<Pt>, Color>>,
+    names: List<String>,
+    unit: String = " lb",
+    minSpan: Float = 15f,
+    value: (Float) -> String = { it.roundToInt().toString() },
+) {
     val p = LocalPalette.current
     val tm = rememberTextMeasurer()
     val all = series.flatMap { it.first }
     val times = all.map { it.t.toEpochSecond() }.distinct().sorted()
     val lo0 = all.minOf { it.v }
     val hi0 = all.maxOf { it.v }
-    val step = niceStep((hi0 - lo0).coerceAtLeast(15f))
-    val lo = floor(lo0 / step) * step
-    val hi = (ceil(hi0 / step) * step).let { if (it <= lo) lo + step else it }
+    val step = niceStep((hi0 - lo0).coerceAtLeast(minSpan))
+    val lo = floor(lo0 / step + 0.001f) * step
+    val hi = (ceil(hi0 / step - 0.001f) * step).let { if (it <= lo) lo + step else it }
+    val ticks = (0..((hi - lo) / step).roundToInt()).map { lo + it * step }
     Canvas(Modifier.fillMaxWidth().height(200.dp)) {
         val left = 48.dp.toPx()
         val right = size.width - 64.dp.toPx()
@@ -135,11 +150,9 @@ fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) {
         val bottom = size.height - 24.dp.toPx()
         fun x(t: Long) = if (times.size < 2) (left + right) / 2 else left + (right - left) * times.indexOf(t) / (times.size - 1)
         fun y(v: Float) = bottom - (bottom - top) * (v - lo) / (hi - lo)
-        var g = lo
-        while (g <= hi + 0.1f) {
+        ticks.forEachIndexed { i, g ->
             drawLine(p.separator, Offset(left, y(g)), Offset(size.width, y(g)), 1.dp.toPx())
-            label(tm, if (g + step > hi + 0.1f) "${g.toInt()} lb" else "${g.toInt()}", Offset(0f, y(g)), p.fg2, alignY = 0.5f)
-            g += step
+            label(tm, if (i == ticks.lastIndex) tick(g) + unit else tick(g), Offset(0f, y(g)), p.fg2, alignY = 0.5f)
         }
         all.minByOrNull { it.t }?.let { label(tm, Fmt.shortDate(it.t), Offset(left, bottom + 6.dp.toPx()), p.fg2) }
         all.maxByOrNull { it.t }?.let { label(tm, Fmt.shortDate(it.t), Offset(right, bottom + 6.dp.toPx()), p.fg2, alignX = 1f) }
@@ -155,7 +168,7 @@ fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) {
             val last = pts.last()
             val end = Offset(x(last.t.toEpochSecond()), y(last.v))
             drawCircle(color, 4.dp.toPx(), end)
-            ends += Triple(end, "${names[si]} ${last.v.toInt()}", color)
+            ends += Triple(end, listOf(names[si], value(last.v)).filter { it.isNotEmpty() }.joinToString(" "), color)
         }
         // End labels sit beside their points, pushed apart vertically so two close series never overlap.
         val gap = 16.dp.toPx()

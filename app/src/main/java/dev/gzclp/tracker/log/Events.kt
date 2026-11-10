@@ -73,6 +73,13 @@ data class SetCleared(val sessionId: String, val exercise: String, val tier: Str
 @Serializable @SerialName("session_end")
 data class SessionEnd(val sessionId: String, val program: String, val day: String, val startedAt: String, val durationSec: Long) : Event
 
+/** One weigh-in. [entryId] is its identity: a later line with the same id is an edit. [at] is when it was weighed. */
+@Serializable @SerialName("body_weight")
+data class BodyWeightLogged(val entryId: String, val at: String, val weight: Double) : Event
+
+@Serializable @SerialName("body_weight_clear")
+data class BodyWeightCleared(val entryId: String) : Event
+
 data class Entry(val seq: Long, val ts: OffsetDateTime, val event: Event)
 
 object LogCodec {

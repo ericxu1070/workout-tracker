@@ -10,9 +10,22 @@ object Fmt {
     private val short = DateTimeFormatter.ofPattern("MMM d", Locale.US)
 
     fun lb(w: Int) = "$w lb"
+    /** Body weight, always one decimal: 182.4 lb, 181.0 lb. */
+    fun lb(w: Double) = "${tenths(w)} lb"
+    fun tenths(w: Double) = "%.1f".format(Locale.US, w)
+    fun ratio(r: Double) = "%.2f×".format(Locale.US, r)
+    /** 7:00 AM from minutes after midnight. */
+    fun clockTime(minutes: Int): String = time.format(java.time.LocalTime.of(minutes / 60, minutes % 60))
     fun time(t: OffsetDateTime): String = time.format(t)
     fun date(t: OffsetDateTime): String = date.format(t)
-    fun shortDate(t: OffsetDateTime): String = short.format(t)
+    fun shortDate(t: java.time.temporal.TemporalAccessor): String = short.format(t)
+
+    /** Today, 7:02 AM; Yesterday, 7:02 AM; Sun, Nov 8, 7:02 AM. */
+    fun weighInTime(t: OffsetDateTime, today: java.time.LocalDate): String = when (t.toLocalDate()) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> date(t)
+    } + ", " + time(t)
 
     /** 1:47, or 1:04:18 past an hour. */
     fun clock(totalSec: Long): String {

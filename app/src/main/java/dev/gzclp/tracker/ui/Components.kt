@@ -243,6 +243,26 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     }
 }
 
+/** A small round step button, for the − and + beside a value in a row. */
+@Composable
+fun MiniStep(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Pressable(onClick, Modifier.size(44.dp), CircleShape, p.fill, enabled = enabled, label = label) { Icon(icon, p.fg, 18.dp) }
+}
+
+/** An on/off switch: accent track when on, the knob slides across. */
+@Composable
+fun Toggle(on: Boolean, label: String, onChange: (Boolean) -> Unit) {
+    val p = LocalPalette.current
+    val x by androidx.compose.animation.core.animateDpAsState(if (on) 22.dp else 2.dp, tween(200), label = "knob")
+    Pressable(
+        { onChange(!on) }, Modifier.size(width = 51.dp, height = 31.dp), CircleShape,
+        if (on) p.accent else p.fillPressed, label = label,
+    ) {
+        Box(Modifier.align(Alignment.CenterStart).padding(start = x).size(27.dp).clip(CircleShape).background(Color.White))
+    }
+}
+
 /** Bottom sheet over a scrim; tapping the scrim dismisses. */
 @Composable
 fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {

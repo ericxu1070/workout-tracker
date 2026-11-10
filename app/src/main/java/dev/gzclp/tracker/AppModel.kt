@@ -13,6 +13,8 @@ import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.Store
+import dev.gzclp.tracker.log.hasWeighIn
+import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
 import dev.gzclp.tracker.ui.Fmt
@@ -42,6 +44,16 @@ class AppModel private constructor(private val context: Context) {
     var notice by mutableStateOf<String?>(null)
     var notificationsAllowed by mutableStateOf(true)
         private set
+    var weighInReminder by mutableStateOf(prefs.weighInReminder)
+        private set
+    var weighInMinutes by mutableStateOf(prefs.weighInMinutes)
+        private set
+    /** Set when the weigh-in notification is tapped; the UI opens the log sheet and clears it. */
+    var logWeightRequested by mutableStateOf(false)
+
+    init {
+        WeighIn.schedule(context)
+    }
 
     fun now(): OffsetDateTime = OffsetDateTime.now().withNano(0)
 
@@ -71,6 +83,23 @@ class AppModel private constructor(private val context: Context) {
     fun setRest(tier: Tier, sec: Int) {
         prefs.setRest(tier, sec)
         restTargets = prefs.restTargets()
+    }
+
+    fun chooseWeighInReminder(on: Boolean) {
+        prefs.weighInReminder = on
+        weighInReminder = on
+        WeighIn.schedule(context)
+    }
+
+    fun chooseWeighInTime(minutes: Int) {
+        prefs.weighInMinutes = minutes
+        weighInMinutes = minutes
+        WeighIn.schedule(context)
+    }
+
+    fun dispatchWeighIn(build: (AppState) -> List<Event>) {
+        dispatch(build)
+        if (store.state.value.hasWeighIn(java.time.LocalDate.now())) WeighIn.dismiss(context)
     }
 
     fun setFolder(uri: Uri) {

@@ -12,6 +12,9 @@ import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
+import dev.gzclp.tracker.log.weighIns
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -66,6 +69,12 @@ class ScreenShots {
         for (k in 0 until 5) store.workout(t0.plusDays(day).also { day += 2 }.plusMinutes(k * 17L), k)
         store.dispatch(t0) { Commands.chooseProgram(it, "ppl") }
         for (k in 5 until 17) store.workout(t0.plusDays(day).also { day += if (k % 6 == 5) 2 else 1 }.plusMinutes(k * 11L % 50), k)
+        // Morning weigh-ins from day 4: a slow drift down with day-to-day noise, plus one evening weigh-in.
+        for (d in 4L..day) {
+            val at = t0.plusDays(d).withHour(6).withMinute(40 + (d * 7 % 15).toInt())
+            store.dispatch(at) { Commands.logBodyWeight(it, null, at, 184.6 - d * 0.12 + listOf(0.0, 0.8, -0.4, 0.5, -0.6, 0.2, 0.9)[(d % 7).toInt()]) }
+        }
+        t0.plusDays(day - 1).withHour(21).let { at -> store.dispatch(at) { Commands.logBodyWeight(it, null, at, 183.8) } }
         val start = t0.plusDays(day).withHour(18).withMinute(42)
         store.workout(start, 17, end = false)
         return store.state.value to start.plusMinutes(14).plusSeconds(18)
@@ -106,21 +115,39 @@ class ScreenShots {
                 }
             }
             shot(p, "06-upcoming-full", tall = true) { TabFrame(Tab.Upcoming, {}) { UpcomingScreen(idle, today, {}) } }
-            shot(p, "08-exercises") { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}) } }
-            shot(p, "09-exercise-detail") { ExerciseScreen(idle, bench, {}) }
-            shot(p, "08-exercises-full", tall = true) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}) } }
+            shot(p, "08-exercises") { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+            shot(p, "09-exercise-detail") { ExerciseScreen(idle, bench, {}, {}) }
+            shot(p, "09-exercise-relative") { ExerciseScreen(idle, bench, {}, {}, initialRelative = true) }
+            shot(p, "09-exercise-relative-empty") { ExerciseScreen(idle.copy(bodyWeights = emptyMap()), bench, {}, {}, initialRelative = true) }
+            shot(p, "08-exercises-full", tall = true) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+            shot(p, "15-body-weight") { BodyWeightScreen(idle, today, {}, {}, {}) }
+            shot(p, "15-body-weight-full", tall = true) { BodyWeightScreen(idle, today, {}, {}, {}) }
+            shot(p, "15-body-weight-empty") { BodyWeightScreen(idle.copy(bodyWeights = emptyMap()), today, {}, {}, {}) }
+            val lastWeight = idle.weighIns().last()
+            shot(p, "16-log-weight-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    BodyWeightScreen(idle, today, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, TextFieldValue("182.4", TextRange(5)), now, today), idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "16-edit-weight-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    BodyWeightScreen(idle, today, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, TextFieldValue(Fmt.tenths(lastWeight.lb)), lastWeight.at, today), idle, {}, {}, {}) }
+                }
+            }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, {}) } }
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false,
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "12-settings-full", tall = true) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false,
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }

@@ -5,6 +5,8 @@ The phone writes the log. The desktop app only reads it.
 
 Version 2 adds programs (GZCLP and the 3-week cycle splits), a weight per set, cycle weeks and cycle events. It renames `lift` to `exercise`. Version 1 lines are not read.
 
+The `body_weight` and `body_weight_clear` types were added within version 2. A reader that predates them skips them as unknown types.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -39,7 +41,7 @@ Names used in several types:
 - `tier`: `t1`, `t2`, or `t3` for GZCLP; `cycle` for an exercise in a cycle program. The same exercise can have GZCLP state and cycle state at once; they are separate.
 - `stage`: the scheme, `<sets>x<reps>`, with `+` when the last set is AMRAP. T1 is `5x3+`, `6x2+`, or `10x1+`. T2 is `3x10`, `3x8`, or `3x6`. T3 is `3x15+`. Cycle stages map one to one to cycle weeks: `3x12` is week 1, `3x10` week 2, `3x8` week 3.
 - `day`: a day id within its program. GZCLP: `A1`, `B1`, `A2`, `B2`. Bro split: `chest`, `back`, `shoulders`, `legs`, `arms`. Push, pull, legs: `push_a`, `pull_a`, `legs_a`, `push_b`, `pull_b`, `legs_b`. Upper, lower: `upper_a`, `lower_a`, `upper_b`, `lower_b`. Full body: `a`, `b`, `c`. Chest, back, legs: `chest`, `back`, `legs`. Each program rotates through its days in that order.
-- Weights are integers in pounds (lb). Prescribed weights are multiples of 5. A logged set weight is what the user entered and can be any integer. For dumbbell lifts it is usually per dumbbell.
+- Weights are integers in pounds (lb), except body weight, which can have one decimal. Prescribed weights are multiples of 5. A logged set weight is what the user entered and can be any integer. For dumbbell lifts it is usually per dumbbell.
 - Durations are integer seconds.
 
 ## The 3-week cycle
@@ -191,6 +193,28 @@ The user removed a logged set. It no longer counts.
 A session with no sets still gets a `session_end` (an accidental start). It does not advance the rotation and should not count as a workout.
 At most one session is open at a time. A `session_start` without a `session_end` is the workout in progress.
 
+### `body_weight`
+
+A weigh-in, or an edit of one. Written when the user logs or corrects their body weight.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `entry_id` | string | Unique id of the weigh-in, such as `w1794326520`. |
+| `at` | string | When the user weighed in, same format as `ts`. Usually equal to `ts`; differs when the entry is for an earlier day or was edited later. |
+| `weight` | number | Body weight in lb, at most one decimal: `182.4`, `181.0`. |
+
+**Weigh-in identity.** A weigh-in is identified by `entry_id`. An edit writes a new `body_weight` line with the same `entry_id`. The newest one wins.
+
+**Day value.** A day can have several weigh-ins. The day's body weight is the one with the earliest `at` that day (the morning weigh-in), in the offset `at` was written with.
+
+### `body_weight_clear`
+
+The user deleted a weigh-in. It no longer counts.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `entry_id` | string | The weigh-in. |
+
 ## Computing the desktop metrics
 
 First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets from sessions with no `session_end`.
@@ -207,6 +231,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 | Actual rest vs target | `rest_sec` against `rest_target_sec` on each `set`. Group by the previous set's tier, which is the tier the target came from. |
 | Prescribed vs used weight | `weight` against `target_weight` on each `set`. |
 | Working weight over time | Replay `progression` lines, or take `weight` from `set` lines. |
+| Body weight | Resolve weigh-ins (newest `body_weight` per `entry_id`, drop cleared ones), take each day's value, and plot it with the mean of the day values in the 7 days ending on each day. |
+| Relative strength | Each session's best estimated 1RM divided by the body weight in effect that day: the latest day value on or before the session's day. Sessions before the first weigh-in have no ratio. |
 
 ## Example
 
@@ -226,4 +252,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":61,"ts":"2026-11-03T07:00:00-08:00","type":"program","program":"ppl"}
 {"v":2,"seq":90,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"squat","tier":"cycle","kind":"cycle_up","from_weight":180,"to_weight":165,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":165}
 {"v":2,"seq":91,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"leg_curl","tier":"cycle","kind":"cycle_repeat","from_weight":80,"to_weight":70,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":70}
+{"v":2,"seq":92,"ts":"2026-11-21T07:02:00-08:00","type":"body_weight","entry_id":"w1795791720","at":"2026-11-21T07:02:00-08:00","weight":182.4}
+{"v":2,"seq":93,"ts":"2026-11-21T07:05:00-08:00","type":"body_weight","entry_id":"w1795791720","at":"2026-11-21T07:02:00-08:00","weight":181.4}
+{"v":2,"seq":94,"ts":"2026-11-21T20:30:00-08:00","type":"body_weight","entry_id":"w1795710600","at":"2026-11-20T07:10:00-08:00","weight":182.0}
+{"v":2,"seq":95,"ts":"2026-11-21T20:31:00-08:00","type":"body_weight_clear","entry_id":"w1795710600"}
 ```

@@ -3,6 +3,7 @@ package dev.gzclp.tracker
 import android.Manifest
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -22,7 +23,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.remind.WeighIn
+import dev.gzclp.tracker.ui.BodyWeightScreen
+import dev.gzclp.tracker.ui.Fmt
+import java.time.LocalDate
 import dev.gzclp.tracker.log.SetKey
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.ui.DaysScreen
@@ -58,6 +67,12 @@ class MainActivity : ComponentActivity() {
             }
             GzTheme(palette) { App(model) }
         }
+        if (savedInstanceState == null) onNewIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == WeighIn.ACTION_LOG) model.logWeightRequested = true
     }
 
     override fun onResume() {
@@ -67,7 +82,7 @@ class MainActivity : ComponentActivity() {
 }
 
 /** A screen pushed over the tabs; [arg] is a session or exercise id. */
-private enum class Route { Settings, Days, Session, Exercise }
+private enum class Route { Settings, Days, Session, Exercise, BodyWeight }
 
 @Composable
 private fun App(model: AppModel) {
@@ -116,12 +131,29 @@ private fun App(model: AppModel) {
         arg = a
         route = r
     }
+    fun requestNotifications() {
+        if (!model.notificationsAllowed && Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    /** Opens the weigh-in sheet: a new one prefilled with the latest weight, or [entry] to edit. */
+    fun logWeight(entry: BodyWeight? = null) {
+        val text = (entry ?: model.store.state.value.weighIns().lastOrNull())?.lb?.let(Fmt::tenths) ?: ""
+        open(SheetState.BodyWeight(entry?.id, TextFieldValue(text, TextRange(0, text.length)), entry?.at ?: model.now(), LocalDate.now()))
+    }
+    LaunchedEffect(model.logWeightRequested, state.started) {
+        if (model.logWeightRequested && state.started) {
+            model.logWeightRequested = false
+            route = null
+            tab = Tab.Exercises
+            logWeight()
+        }
+    }
+
     /** Asks for each missing starting weight in turn, then starts the workout. */
     fun startFlow() {
         val missing = Commands.missingWeight(model.store.state.value)
         if (missing != null) return open(SheetState.Weight(missing, 45))
         close()
-        if (!model.notificationsAllowed) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        requestNotifications()
         model.dispatch { Commands.start(it, model.now()) }
     }
     fun finishWorkout(fiveRm: Int?) {
@@ -155,11 +187,17 @@ private fun App(model: AppModel) {
                 started = state.started, programId = state.programId, increments = state.increments,
                 themeId = model.theme, restTargets = model.restTargets,
                 sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
+                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes,
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
                 onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                 onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
                 onDays = { push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
                 onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                onWeighInReminder = {
+                    model.chooseWeighInReminder(it)
+                    if (it) requestNotifications()
+                },
+                onWeighInTime = model::chooseWeighInTime,
             )
             route == Route.Days -> DaysScreen(
                 state, { route = Route.Settings },
@@ -167,7 +205,8 @@ private fun App(model: AppModel) {
                 onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
             )
             route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
-            route == Route.Exercise && log != null -> ExerciseScreen(state, log) { route = null }
+            route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
+            route == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
             else -> TabFrame(tab, { tab = it }) {
                     when (tab) {
                         Tab.Workout -> if (state.active == null) HomeScreen(
@@ -190,7 +229,7 @@ private fun App(model: AppModel) {
                             },
                         )
                         Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
-                        Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) })
+                        Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
                         Tab.History -> HistoryScreen(state, onOpen = { push(Route.Session, it) })
                     }
             }
@@ -207,6 +246,15 @@ private fun App(model: AppModel) {
                         }
                         is SheetState.FiveRm -> finishWorkout(c.fiveRm)
                         is SheetState.EndConfirm -> endFlow()
+                        is SheetState.BodyWeight -> {
+                            val lb = c.lb
+                            when {
+                                c.delete && c.id != null -> model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
+                                lb != null -> model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, lb) }
+                            }
+                            close()
+                            if (model.weighInReminder) requestNotifications()
+                        }
                         is SheetState.AddExercise -> {
                             model.dispatch { Commands.addExercise(it, it.program, c.day, c.name) }
                             close()

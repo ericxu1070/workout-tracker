@@ -31,6 +31,8 @@ fun SettingsScreen(
     restTargets: Map<Tier, Int>,
     sync: SyncUi,
     notificationsAllowed: Boolean,
+    weighInReminder: Boolean,
+    weighInMinutes: Int,
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onRest: (Tier, Int) -> Unit,
@@ -40,6 +42,8 @@ fun SettingsScreen(
     onChooseFolder: () -> Unit,
     onRestore: () -> Unit,
     onAllowNotifications: () -> Unit,
+    onWeighInReminder: (Boolean) -> Unit,
+    onWeighInTime: (Int) -> Unit,
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -100,6 +104,27 @@ fun SettingsScreen(
             }
         }
 
+        GroupHeader("Weigh-in")
+        Group {
+            GroupRow(first = true) {
+                Txt("Morning reminder", Type.body, Modifier.weight(1f))
+                Toggle(weighInReminder, "Morning reminder", onWeighInReminder)
+            }
+            if (weighInReminder) GroupRow(first = false) {
+                Txt("Time", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Earlier reminder") { onWeighInTime((weighInMinutes - 15).mod(24 * 60)) }
+                Txt(Fmt.clockTime(weighInMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "Later reminder") { onWeighInTime((weighInMinutes + 15) % (24 * 60)) }
+            }
+        }
+        GroupFooter(
+            when {
+                !weighInReminder -> "Turn on for a daily nudge to log your weight."
+                !notificationsAllowed -> "Allow notifications below to get the reminder."
+                else -> "Skipped on days you have already weighed in."
+            },
+        )
+
         GroupHeader("Sync folder")
         Group {
             GroupRow(first = true, onClick = onChooseFolder) {
@@ -125,18 +150,12 @@ fun SettingsScreen(
             GroupHeader("Notifications")
             Group {
                 GroupRow(first = true, onClick = onAllowNotifications) {
-                    Txt("Allow rest alerts", Type.body, color = p.accent)
+                    Txt("Allow notifications", Type.body, color = p.accent)
                 }
             }
-            GroupFooter("Rest-over alerts need notifications to reach you with the screen off.")
+            GroupFooter("Rest-over alerts and the weigh-in reminder need notifications to reach you with the screen off.")
         }
     }
-}
-
-@Composable
-private fun MiniStep(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    val p = LocalPalette.current
-    Pressable(onClick, Modifier.size(44.dp), CircleShape, p.fill, label = label) { Icon(icon, p.fg, 18.dp) }
 }
 
 @Composable

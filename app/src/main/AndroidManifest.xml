@@ -5,6 +5,8 @@
     <!-- Rest timer is a timer: USE_EXACT_ALARM is granted at install on 33+; 31-32 use SCHEDULE_EXACT_ALARM. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <!-- Re-arms the weigh-in reminder after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
@@ -22,5 +24,13 @@
             </intent-filter>
         </activity>
         <receiver android:name=".rest.RestAlarmReceiver" android:exported="false" />
+        <receiver android:name=".remind.WeighInReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

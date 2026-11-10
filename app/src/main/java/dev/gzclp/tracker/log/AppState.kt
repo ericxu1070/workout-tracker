@@ -49,6 +49,8 @@ data class AppState(
     val next: Map<String, Int> = emptyMap(),
     val active: ActiveSession? = null,
     val sessions: List<SessionRecord> = emptyList(),
+    /** Weigh-ins by entry id. */
+    val bodyWeights: Map<String, BodyWeight> = emptyMap(),
     val lastSeq: Long = 0,
 ) {
     val started: Boolean get() = fiveRm.isNotEmpty()
@@ -100,6 +102,8 @@ data class AppState(
                 val tier = Tier.of(e.tier) ?: return s
                 s.copy(active = a.copy(sets = a.sets - SetKey(e.exercise, tier, e.setIndex)))
             }
+            is BodyWeightLogged -> s.copy(bodyWeights = bodyWeights + (e.entryId to BodyWeight(e.entryId, OffsetDateTime.parse(e.at, LogCodec.TS), e.weight)))
+            is BodyWeightCleared -> s.copy(bodyWeights = bodyWeights - e.entryId)
             is SessionEnd -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val record = SessionRecord(a.id, a.program, a.day, a.startedAt, e.durationSec, a.sets.values.sortedBy { it.ts }.map { it.event })

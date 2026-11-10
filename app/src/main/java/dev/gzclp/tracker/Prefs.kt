@@ -42,4 +42,12 @@ class Prefs(context: Context) {
     var restLabel: String
         get() = p.getString("rest_label", "")!!
         set(v) = p.edit().putString("rest_label", v).apply()
+
+    var weighInReminder: Boolean
+        get() = p.getBoolean("weigh_in_reminder", true)
+        set(v) = p.edit().putBoolean("weigh_in_reminder", v).apply()
+    /** Minutes after midnight. */
+    var weighInMinutes: Int
+        get() = p.getInt("weigh_in_minutes", 7 * 60)
+        set(v) = p.edit().putInt("weigh_in_minutes", v).apply()
 }

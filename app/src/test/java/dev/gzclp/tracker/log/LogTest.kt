@@ -63,6 +63,8 @@ class LogTest {
             SetLogged("s1", "squat", "t1", "5x3+", 5, 3, 7, 225, 230, true, 182, 180),
             SetCleared("s1", "squat", "t1", 5),
             SessionEnd("s1", "gzclp", "A1", "2026-11-10T18:00:00-08:00", 3120),
+            BodyWeightLogged("w1794326400", "2026-11-10T07:02:00-08:00", 182.4),
+            BodyWeightCleared("w1794326400"),
         )
         events.forEachIndexed { i, e ->
             val line = LogCodec.encode(Entry(i + 1L, t0, e))

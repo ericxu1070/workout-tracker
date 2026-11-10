@@ -187,4 +187,19 @@ object Commands {
     /** The editable list for a day: the T3s in GZCLP, every exercise otherwise. */
     fun dayList(state: AppState, program: Program, day: ProgramDay): List<String> =
         state.slots(program, day).filter { !program.gzclp || it.tier == Tier.T3 }.map { it.ex }
+
+    /** Logs a weigh-in, or edits the one with [id]. [lb] is kept to one decimal; nonsense weights write nothing. */
+    fun logBodyWeight(state: AppState, id: String?, at: OffsetDateTime, lb: Double): List<Event> {
+        val w = Math.round(lb * 10) / 10.0
+        if (w !in BODY_WEIGHT_RANGE) return emptyList()
+        val entryId = id ?: generateSequence(0) { it + 1 }.map { "w${at.toEpochSecond()}" + if (it == 0) "" else "_$it" }.first { it !in state.bodyWeights }
+        val event = BodyWeightLogged(entryId, LogCodec.TS.format(at), w)
+        val old = state.bodyWeights[entryId]
+        return if (old != null && old.lb == w && old.at == at) emptyList() else listOf(event)
+    }
+
+    fun clearBodyWeight(state: AppState, id: String): List<Event> =
+        if (id in state.bodyWeights) listOf(BodyWeightCleared(id)) else emptyList()
+
+    val BODY_WEIGHT_RANGE = 50.0..1000.0
 }
