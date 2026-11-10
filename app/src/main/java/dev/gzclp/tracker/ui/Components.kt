@@ -1,0 +1,278 @@
+package dev.gzclp.tracker.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun Txt(
+    text: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    color: Color = LocalPalette.current.fg,
+    maxLines: Int = Int.MAX_VALUE,
+    align: TextAlign? = null,
+) = BasicText(
+    text, modifier,
+    style = style.copy(color = color, textAlign = align ?: TextAlign.Unspecified),
+    maxLines = maxLines, overflow = TextOverflow.Ellipsis,
+)
+
+@Composable
+fun Icon(icon: ImageVector, tint: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) =
+    Image(icon, null, modifier.size(size), colorFilter = ColorFilter.tint(tint))
+
+/**
+ * The one press surface: gives to 0.97 within a frame and steps its fill, eases back slower,
+ * shows a 2dp accent ring on keyboard focus. Every tappable thing in the app is one of these.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Pressable(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(Radius.md),
+    fill: Color = Color.Transparent,
+    pressedFill: Color = LocalPalette.current.fillPressed,
+    border: Color? = null,
+    enabled: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
+    label: String? = null,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val p = LocalPalette.current
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val focused by source.collectIsFocusedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(if (pressed) 80 else 200), label = "press")
+    val ring = when {
+        focused -> p.accent
+        else -> border
+    }
+    Box(
+        modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(shape)
+            .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
+            .then(if (ring != null) Modifier.border(2.dp, ring, shape) else Modifier)
+            .alpha(if (enabled) 1f else 0.4f)
+            .combinedClickable(
+                interactionSource = source, indication = null, enabled = enabled,
+                role = Role.Button, onClickLabel = label, onLongClick = onLongClick, onClick = onClick,
+            )
+            .focusable(enabled, source),
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
+}
+
+private fun Color.compositeOver(under: Color): Color {
+    if (under.alpha == 0f) return this
+    val a = alpha + under.alpha * (1 - alpha)
+    fun ch(c: Float, u: Float) = (c * alpha + u * under.alpha * (1 - alpha)) / a
+    return Color(ch(red, under.red), ch(green, under.green), ch(blue, under.blue), a)
+}
+
+@Composable
+fun PillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    onSurface: Boolean = false,
+) {
+    val p = LocalPalette.current
+    val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
+    val fill = when {
+        primary -> p.accent
+        onSurface -> p.fill
+        else -> p.elevated
+    }
+    val fg = if (primary) p.onAccent else p.fg
+    Pressable(
+        onClick, modifier.heightIn(min = 52.dp), CircleShape, fill,
+        pressedFill = if (primary) Color.Black.copy(alpha = 0.14f) else p.fillPressed, enabled = enabled,
+    ) {
+        Row(Modifier.padding(horizontal = Space.xl), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, fg, 18.dp)
+                Spacer(Modifier.width(Space.sm))
+            }
+            Txt(text, Type.headline, color = fg, maxLines = 1)
+        }
+    }
+}
+
+/** A compact pill for secondary in-place actions (Skip rest). */
+@Composable
+fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Pressable(onClick, modifier.heightIn(min = 44.dp), CircleShape, p.fill) {
+        Txt(text, Type.subhead.copy(fontWeight = Type.headline.fontWeight), Modifier.padding(horizontal = Space.lg), maxLines = 1)
+    }
+}
+
+@Composable
+fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = LocalPalette.current.fg) =
+    Pressable(onClick, modifier.size(44.dp), CircleShape, label = label) { Icon(icon, tint, 22.dp) }
+
+@Composable
+fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
+    Box(modifier.padding(start = start).fillMaxWidth().height(1.dp).background(LocalPalette.current.separator))
+
+@Composable
+fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) =
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(LocalPalette.current.elevated), content = content)
+
+@Composable
+fun GroupHeader(text: String, modifier: Modifier = Modifier) =
+    Txt(text, Type.footnote, modifier.padding(start = Space.lg, top = Space.xxl, bottom = Space.sm), LocalPalette.current.fg2)
+
+@Composable
+fun GroupFooter(text: String, modifier: Modifier = Modifier, color: Color = LocalPalette.current.fg2) =
+    Txt(text, Type.footnote, modifier.padding(start = Space.lg, end = Space.lg, top = Space.sm), color)
+
+/** A row inside a [Group]; rows below the first get a hairline on the text column. */
+@Composable
+fun GroupRow(
+    first: Boolean,
+    onClick: (() -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Column {
+        if (!first) Hairline(start = Space.lg)
+        val inner: @Composable () -> Unit = {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = Space.lg, vertical = Space.sm),
+                verticalAlignment = Alignment.CenterVertically, content = content,
+            )
+        }
+        if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape) { inner() } else inner()
+    }
+}
+
+@Composable
+fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier, unit: String? = null) {
+    val p = LocalPalette.current
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Pressable(onMinus, Modifier.size(64.dp), CircleShape, p.fill, label = "Decrease") { Icon(Icons.minus, p.fg, 24.dp) }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Txt(value, Type.display)
+            if (unit != null) Txt(" $unit", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
+        }
+        Pressable(onPlus, Modifier.size(64.dp), CircleShape, p.fill, label = "Increase") { Icon(Icons.plus, p.fg, 24.dp) }
+    }
+}
+
+@Composable
+fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Row(modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)) {
+        options.forEachIndexed { i, o ->
+            Pressable(
+                { onSelect(i) }, Modifier.weight(1f).height(36.dp), CircleShape,
+                if (i == selected) p.elevated else Color.Transparent,
+            ) {
+                Txt(o, Type.subhead.copy(fontWeight = if (i == selected) Type.headline.fontWeight else Type.subhead.fontWeight), maxLines = 1)
+            }
+        }
+    }
+}
+
+/** Bottom sheet over a scrim; tapping the scrim dismisses. */
+@Composable
+fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val p = LocalPalette.current
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(visible, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
+            Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
+        }
+        AnimatedVisibility(
+            visible, Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(tween(280)) { it }, exit = slideOutVertically(tween(180)) { it },
+        ) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl))
+                    .background(p.elevated)
+                    .clickable(remember { MutableInteractionSource() }, null) {}
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .imePadding()
+                    .padding(Space.xl),
+                verticalArrangement = Arrangement.spacedBy(Space.lg),
+                content = content,
+            )
+        }
+    }
+}
+
+/** Two equal pills on a hairline, pinned to the bottom of a screen. */
+@Composable
+fun BottomBar(content: @Composable RowScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().background(LocalPalette.current.bg)) {
+        Hairline()
+        Row(
+            Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.exclude(WindowInsets.ime)).padding(Space.lg),
+            horizontalArrangement = Arrangement.spacedBy(Space.md), content = content,
+        )
+    }
+}

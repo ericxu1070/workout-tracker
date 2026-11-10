@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launcher_bg">#142620</color>
+    <style name="Theme.GZCLP" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/launcher_bg</item>
+    </style>
+</resources>

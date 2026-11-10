@@ -44,3 +44,7 @@ dependencies {
 }
 
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+tasks.withType<Test>().configureEach {
+    systemProperty("gzclp.shots", providers.gradleProperty("gzclpShots").getOrElse(layout.buildDirectory.dir("shots").get().asFile.path))
+}
