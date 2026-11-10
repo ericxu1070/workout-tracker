@@ -4,6 +4,20 @@ An Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Br
 
 The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. All data stays on the phone. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
+## Screenshots
+
+Rendered by the Roborazzi screenshot test (`ScreenShots.kt`) from its demo data.
+
+| Next workout | Rest timer | Exercise |
+| :---: | :---: | :---: |
+| <img src="docs/images/workout.png" width="250" alt="Next workout screen"> | <img src="docs/images/rest-timer.png" width="250" alt="Workout in progress with the rest timer"> | <img src="docs/images/exercise.png" width="250" alt="Exercise detail with estimated 1RM chart"> |
+| **History** | **Body weight** | **Laptop theme (Everforest)** |
+| <img src="docs/images/history.png" width="250" alt="Workout history"> | <img src="docs/images/body-weight.png" width="250" alt="Body weight with 7-day average"> | <img src="docs/images/laptop-theme.png" width="250" alt="Workout screen in the synced Omarchy Everforest theme"> |
+
+The desktop analysis app (`desktop/`) reads the synced log:
+
+<img src="docs/images/desktop.png" alt="Desktop analysis app: strength, weekly volume, stalls, sessions, rest, and body weight charts">
+
 ## Build
 
 Requirements: JDK 21 and an Android SDK with `platforms;android-35` and `build-tools;35.0.0`. The Gradle wrapper downloads Gradle itself.
