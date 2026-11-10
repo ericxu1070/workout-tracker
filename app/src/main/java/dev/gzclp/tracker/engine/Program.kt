@@ -16,10 +16,9 @@ enum class Lift(val id: String, val label: String, val upper: Boolean) {
     }
 }
 
-enum class Tier(val id: String, val defaultRestSec: Int) {
-    T1("t1", 180), T2("t2", 120), T3("t3", 60);
-
-    val label: String get() = name
+/** GZCLP tiers, plus [CYCLE] for exercises in the 3-week cycle programs. */
+enum class Tier(val id: String, val defaultRestSec: Int, val label: String) {
+    T1("t1", 180, "T1"), T2("t2", 120, "T2"), T3("t3", 60, "T3"), CYCLE("cycle", 90, "Cycle");
 
     companion object {
         fun of(id: String): Tier? = entries.firstOrNull { it.id == id }
@@ -43,23 +42,11 @@ object Schemes {
         Tier.T1 -> t1
         Tier.T2 -> t2
         Tier.T3 -> t3
+        Tier.CYCLE -> Cycle.weeks
     }
 
     fun stageIndex(tier: Tier, label: String): Int =
         of(tier).indexOfFirst { it.label == label }.coerceAtLeast(0)
-}
-
-enum class Day(val t1: Lift, val t2: Lift, val defaultT3: String) {
-    A1(Lift.SQUAT, Lift.BENCH, "lat_pulldown"),
-    B1(Lift.OHP, Lift.DEADLIFT, "dumbbell_row"),
-    A2(Lift.BENCH, Lift.SQUAT, "lat_pulldown"),
-    B2(Lift.DEADLIFT, Lift.OHP, "dumbbell_row");
-
-    val next: Day get() = entries[(ordinal + 1) % entries.size]
-
-    companion object {
-        fun of(id: String): Day? = entries.firstOrNull { it.name == id }
-    }
 }
 
 fun round5(lb: Double): Int = (lb / 5.0).roundToInt() * 5
@@ -72,7 +59,10 @@ enum class ChangeKind(val id: String) {
     WEIGHT_INCREASE("weight_increase"),
     STAGE_CHANGE("stage_change"),
     RESET("reset"),
-    MANUAL_EDIT("manual_edit");
+    MANUAL_EDIT("manual_edit"),
+    WEEK_ADVANCE("week_advance"),
+    CYCLE_UP("cycle_up"),
+    CYCLE_REPEAT("cycle_repeat");
 
     companion object {
         fun of(id: String): ChangeKind? = entries.firstOrNull { it.id == id }

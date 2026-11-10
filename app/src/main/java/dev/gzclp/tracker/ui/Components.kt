@@ -27,8 +27,12 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -56,6 +60,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -274,5 +279,44 @@ fun BottomBar(content: @Composable RowScope.() -> Unit) {
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.exclude(WindowInsets.ime)).padding(Space.lg),
             horizontalArrangement = Arrangement.spacedBy(Space.md), content = content,
         )
+    }
+}
+
+enum class Tab(val label: String) { Workout("Workout"), Upcoming("Upcoming"), Exercises("Exercises"), History("History") }
+
+private fun Tab.icon(): ImageVector = when (this) {
+    Tab.Workout -> Icons.dumbbell
+    Tab.Upcoming -> Icons.calendar
+    Tab.Exercises -> Icons.chartLine
+    Tab.History -> Icons.history
+}
+
+/** The app's bottom tab bar: four destinations, the current one in the accent. */
+@Composable
+fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
+    val p = LocalPalette.current
+    Column(Modifier.fillMaxWidth().background(p.bg)) {
+        Hairline()
+        Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp)) {
+            Tab.entries.forEach { t ->
+                val c = if (t == selected) p.accent else p.fg2
+                Pressable({ onSelect(t) }, Modifier.weight(1f).fillMaxHeight(), RectangleShape, label = t.label) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Icon(t.icon(), c, 24.dp)
+                        Txt(t.label, Type.caption.copy(fontWeight = if (t == selected) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A tab's screen above the tab bar; the bar steps aside while the keyboard is up. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TabFrame(tab: Tab, onSelect: (Tab) -> Unit, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).consumeWindowInsets(WindowInsets.navigationBars)) { content() }
+        if (!WindowInsets.isImeVisible) TabBar(tab, onSelect)
     }
 }

@@ -75,7 +75,7 @@ class ProgressionTest {
     }
 
     @Test fun rotationAndSchemeLabels() {
-        assertEquals(listOf(Day.B1, Day.A2, Day.B2, Day.A1), Day.entries.map { it.next })
+        assertEquals(listOf("A1", "B1", "A2", "B2"), Programs.of(Programs.GZCLP).days.map { it.id })
         assertEquals(listOf("5x3+", "6x2+", "10x1+"), Schemes.t1.map { it.label })
         assertEquals(listOf("3x10", "3x8", "3x6"), Schemes.t2.map { it.label })
         assertEquals("3x15+", Schemes.t3[0].label)

@@ -19,16 +19,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import dev.gzclp.tracker.engine.Day
+import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Exercise
 
 /** Which sheet is open; values being edited live here so the sheet is a pure view. */
 sealed interface SheetState {
-    data class Reps(val ex: Exercise, val setIndex: Int, val reps: Int, val logged: Boolean) : SheetState
-    data class Weight(val ex: Exercise, val weight: Int) : SheetState
+    /** The working weight; [starting] when the exercise has none yet and the workout waits on it. */
+    data class Weight(val ex: Exercise, val weight: Int, val starting: Boolean = ex.weight == null) : SheetState
     data class FiveRm(val ex: Exercise, val fiveRm: Int) : SheetState
     data class EndConfirm(val unlogged: Int) : SheetState
-    data class AddT3(val day: Day, val name: String, val weight: Int) : SheetState
+    data class AddExercise(val day: ProgramDay, val name: String) : SheetState
 }
 
 @Composable
@@ -40,24 +41,16 @@ private fun SheetTitle(title: String, body: String?) {
 }
 
 @Composable
-fun ColumnScope.SheetContent(s: SheetState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit, onClear: (SheetState.Reps) -> Unit) {
+fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit) {
     when (s) {
-        is SheetState.Reps -> {
-            val amrap = s.ex.scheme.amrap && s.setIndex == s.ex.scheme.sets
-            SheetTitle(
-                "${s.ex.name} · " + if (amrap) "last set" else "set ${s.setIndex}",
-                "Target ${s.ex.scheme.reps}${if (amrap) "+" else ""} reps at ${Fmt.lb(s.ex.state.weight)}",
-            )
-            Stepper(s.reps.toString(), { update(s.copy(reps = (s.reps - 1).coerceAtLeast(0))) }, { update(s.copy(reps = s.reps + 1)) }, unit = "reps")
-            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                if (s.logged) PillButton("Clear set", { onClear(s) }, Modifier.weight(1f), onSurface = true)
-                PillButton("Log ${s.reps} reps", { onConfirm(s) }, Modifier.weight(1f), primary = true)
-            }
-        }
         is SheetState.Weight -> {
-            SheetTitle("${s.ex.name} ${s.ex.tier.label}", "${s.ex.scheme.display} · saved as a manual edit")
+            if (s.starting) SheetTitle("Starting weight for ${s.ex.name.lowercase()}", "${s.ex.detail()}. Pick a weight you can lift for every rep.")
+            else SheetTitle("${s.ex.name} weight", "${s.ex.detail()} · saved as a manual edit")
             Stepper(s.weight.toString(), { update(s.copy(weight = (s.weight - 5).coerceAtLeast(0))) }, { update(s.copy(weight = s.weight + 5)) }, unit = "lb")
-            PillButton("Save ${Fmt.lb(s.weight)}", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.weight != s.ex.state.weight)
+            PillButton(
+                if (s.starting) "Save and continue" else "Save ${Fmt.lb(s.weight)}", { onConfirm(s) }, Modifier.fillMaxWidth(),
+                primary = true, enabled = s.starting || s.weight != s.ex.weight,
+            )
         }
         is SheetState.FiveRm -> {
             SheetTitle("New 5RM for ${s.ex.name.lowercase()}", "${s.ex.name} missed 10×1+. It restarts at 5×3+ with 85% of this 5RM: ${Fmt.lb(dev.gzclp.tracker.engine.Progression.t1FromFiveRm(s.fiveRm))}.")
@@ -67,16 +60,16 @@ fun ColumnScope.SheetContent(s: SheetState, update: (SheetState) -> Unit, onDism
         is SheetState.EndConfirm -> {
             SheetTitle(
                 "End workout?",
-                "${s.unlogged} ${if (s.unlogged == 1) "set is" else "sets are"} not logged. A lift with some sets logged counts the rest as missed; a lift with none keeps its weight.",
+                "${s.unlogged} ${if (s.unlogged == 1) "set is" else "sets are"} not logged. An exercise with some sets logged counts the rest as missed; one with none stays where it is.",
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 PillButton("Keep going", onDismiss, Modifier.weight(1f), onSurface = true)
                 PillButton("End workout", { onConfirm(s) }, Modifier.weight(1f), primary = true)
             }
         }
-        is SheetState.AddT3 -> {
+        is SheetState.AddExercise -> {
             val p = LocalPalette.current
-            SheetTitle("Add accessory to ${s.day.name}", "3×15+, adds 5 lb when the last set reaches 25.")
+            SheetTitle("Add to ${s.day.title}", null)
             Box(
                 Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.lg),
                 contentAlignment = Alignment.CenterStart,
@@ -88,8 +81,14 @@ fun ColumnScope.SheetContent(s: SheetState, update: (SheetState) -> Unit, onDism
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
             }
-            Stepper(s.weight.toString(), { update(s.copy(weight = (s.weight - 5).coerceAtLeast(0))) }, { update(s.copy(weight = s.weight + 5)) }, unit = "lb")
-            PillButton(if (s.name.isBlank()) "Add accessory" else "Add ${s.name.trim()}", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
+            val q = s.name.trim()
+            val matches = state.moves.values.filter { q.isNotEmpty() && it.name.contains(q, ignoreCase = true) && !it.name.equals(q, ignoreCase = true) }.take(4)
+            if (matches.isNotEmpty()) Group {
+                matches.forEachIndexed { i, m ->
+                    GroupRow(first = i == 0, onClick = { onConfirm(s.copy(name = m.name)) }) { Txt(m.name, Type.body, color = p.accent) }
+                }
+            }
+            PillButton(if (q.isEmpty()) "Add exercise" else "Add $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = q.isNotEmpty())
         }
     }
 }

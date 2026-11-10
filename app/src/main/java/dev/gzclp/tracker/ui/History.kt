@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,128 +30,83 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.SessionRecord
+import dev.gzclp.tracker.log.SetLogged
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.OffsetDateTime
 import kotlin.math.ceil
 import kotlin.math.floor
 
 @Composable
-fun HistoryScreen(state: AppState, onBack: () -> Unit, initialTab: Int = 0, initialLift: Int = 0) {
-    var tab by remember { mutableIntStateOf(initialTab) }
+fun HistoryScreen(state: AppState, onOpen: (String) -> Unit) {
+    val p = LocalPalette.current
+    val done = state.sessions.filter { it.sets.isNotEmpty() }
+    ScreenFrame {
+        Spacer(Modifier.height(52.dp))
+        Txt("History", Type.largeTitle)
+        if (done.isEmpty()) {
+            Spacer(Modifier.height(Space.xxl))
+            Txt("No workouts yet", Type.headline)
+            Txt("Finished workouts show up here with every set you logged.", Type.subhead, Modifier.padding(vertical = Space.xs), p.fg2)
+            return@ScreenFrame
+        }
+        val recent = done.takeLast(16)
+        val avg = recent.sumOf { it.durationSec } / recent.size
+        Spacer(Modifier.height(Space.xxl))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Txt(Fmt.minutes(avg), Type.title1)
+            Spacer(Modifier.width(Space.sm))
+            Txt("average workout, last ${recent.size}", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
+        }
+        Spacer(Modifier.height(Space.md))
+        BarChart(recent)
+        GroupHeader("${done.size} ${if (done.size == 1) "workout" else "workouts"}")
+        Group {
+            done.asReversed().forEachIndexed { i, s ->
+                GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
+                    Column(Modifier.weight(1f)) {
+                        Txt("${s.day.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
+                        Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) }, Type.footnote, color = p.fg2, maxLines = 1)
+                    }
+                    Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                    Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                }
+            }
+        }
+    }
+}
+
+/** One finished workout: every logged set with its own weight and reps. */
+@Composable
+fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit) {
+    val p = LocalPalette.current
     ScreenFrame {
         NavRow(onBack)
-        Txt("History", Type.largeTitle)
-        Spacer(Modifier.height(Space.lg))
-        Segmented(listOf("Workouts", "Charts"), tab, { tab = it })
-        if (tab == 0) Sessions(state) else Charts(state, initialLift)
+        Txt(s.day.title, Type.largeTitle)
+        Spacer(Modifier.height(Space.xs))
+        Txt("${Fmt.date(s.startedAt)}, ${Fmt.time(s.startedAt)} · ${Fmt.minutes(s.durationSec)} · ${s.program.name}", Type.subhead, color = p.fg2)
+        s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
+            val first = sets.first()
+            GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
+            SetList(sets.sortedBy { it.setIndex })
+        }
     }
 }
 
-private fun liftName(state: AppState, id: String) = Lift.of(id)?.label ?: state.t3[id]?.name ?: id
-
+/** Logged sets as rows: "Set 1", then weight × reps right-aligned, short sets in red. */
 @Composable
-private fun Sessions(state: AppState) {
+fun SetList(sets: List<SetLogged>) {
     val p = LocalPalette.current
-    val done = state.sessions.filter { it.sets.isNotEmpty() }.asReversed()
-    Spacer(Modifier.height(Space.xxl))
-    if (done.isEmpty()) {
-        Txt("No workouts yet", Type.headline, Modifier.padding(horizontal = Space.lg))
-        Txt("Finished workouts show up here with every set you logged.", Type.subhead, Modifier.padding(horizontal = Space.lg, vertical = Space.xs), p.fg2)
-        return
-    }
-    var open by remember { mutableStateOf(done.first().id) }
     Group {
-        done.forEachIndexed { i, s ->
-            GroupRow(first = i == 0, onClick = { open = if (open == s.id) "" else s.id }) {
-                Column(Modifier.weight(1f)) {
-                    Txt("${s.day.name} · ${Fmt.date(s.startedAt)}", Type.headline)
-                    if (open == s.id) SessionDetail(state, s) else Txt(
-                        s.sets.map { it.lift }.distinct().joinToString(", ") { liftName(state, it) },
-                        Type.footnote, color = p.fg2, maxLines = 1,
-                    )
-                }
-                Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.align(Alignment.Top).padding(top = 1.dp), p.fg2)
+        sets.forEachIndexed { i, set ->
+            GroupRow(first = i == 0) {
+                Txt("Set ${set.setIndex}" + if (set.amrap) " (AMRAP)" else "", Type.body, Modifier.weight(1f), maxLines = 1)
+                Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), color = p.fg2)
+                Txt("${set.actualReps}", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
             }
         }
-    }
-}
-
-@Composable
-private fun SessionDetail(state: AppState, s: SessionRecord) {
-    val p = LocalPalette.current
-    Column(Modifier.padding(top = Space.sm, bottom = Space.xs), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-        s.sets.groupBy { it.lift to it.tier }.forEach { (key, sets) ->
-            val sorted = sets.sortedBy { it.setIndex }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Txt(liftName(state, key.first), Type.subhead, maxLines = 1)
-                    Txt("${key.second.uppercase()} · ${Fmt.lb(sorted.first().weight)}", Type.footnote, color = p.fg2)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
-                    sorted.forEach { Txt(it.actualReps.toString(), Type.subhead.tabular(), color = if (it.actualReps < it.targetReps) p.red else p.fg) }
-                }
-            }
-        }
-    }
-}
-
-private data class Pt(val t: OffsetDateTime, val v: Float)
-
-private fun weightSeries(state: AppState, lift: Lift, tier: Tier): List<Pt> = state.sessions.mapNotNull { s ->
-    s.sets.filter { it.lift == lift.id && it.tier == tier.id }.maxOfOrNull { it.weight }?.let { Pt(s.startedAt, it.toFloat()) }
-}
-
-@Composable
-private fun Charts(state: AppState, initialLift: Int) {
-    val p = LocalPalette.current
-    var liftIx by remember { mutableIntStateOf(initialLift) }
-    val lift = Lift.entries[liftIx]
-    Spacer(Modifier.height(Space.xxl))
-    Segmented(listOf("Squat", "Bench", "Deadlift", "OHP"), liftIx, { liftIx = it })
-    val t1 = weightSeries(state, lift, Tier.T1)
-    val t2 = weightSeries(state, lift, Tier.T2)
-    Spacer(Modifier.height(Space.xxl))
-    Txt("${lift.label} weight", Type.headline)
-    if (t1.isEmpty() && t2.isEmpty()) {
-        Txt("Shows up after your first ${lift.label.lowercase()} workout.", Type.subhead, Modifier.padding(top = Space.xs), p.fg2)
-    } else {
-        val lead = t1.lastOrNull() ?: t2.last()
-        val first = (t1.ifEmpty { t2 }).first()
-        val delta = (lead.v - first.v).toInt()
-        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = Space.xs)) {
-            Txt(Fmt.lb(lead.v.toInt()), Type.title1)
-            Spacer(Modifier.padding(start = Space.sm))
-            Txt(
-                (if (t1.isEmpty()) "T2" else "T1") + when {
-                    delta > 0 -> ", up $delta lb since ${Fmt.shortDate(first.t)}"
-                    delta < 0 -> ", down ${-delta} lb since ${Fmt.shortDate(first.t)}"
-                    else -> " working weight"
-                },
-                Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2,
-            )
-        }
-        Spacer(Modifier.height(Space.md))
-        LineChart(listOf(t1 to p.accent, t2 to p.fg2), listOf("T1", "T2"))
-    }
-
-    val sessions = state.sessions.filter { it.sets.isNotEmpty() }.takeLast(16)
-    Spacer(Modifier.height(Space.x3))
-    Txt("Workout length", Type.headline)
-    if (sessions.isEmpty()) {
-        Txt("Shows up after your first workout.", Type.subhead, Modifier.padding(top = Space.xs), p.fg2)
-    } else {
-        val avg = sessions.sumOf { it.durationSec } / sessions.size
-        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = Space.xs)) {
-            Txt(Fmt.minutes(avg), Type.title1)
-            Spacer(Modifier.padding(start = Space.sm))
-            Txt("average over ${sessions.size} workouts", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
-        }
-        Spacer(Modifier.height(Space.md))
-        BarChart(sessions)
     }
 }
 
@@ -159,8 +115,10 @@ private fun niceStep(range: Float): Float {
     return listOf(5f, 10f, 20f, 25f, 50f, 100f).firstOrNull { it >= raw } ?: (ceil(raw / 100f) * 100f)
 }
 
+data class Pt(val t: OffsetDateTime, val v: Float)
+
 @Composable
-private fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) {
+fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) {
     val p = LocalPalette.current
     val tm = rememberTextMeasurer()
     val all = series.flatMap { it.first }
@@ -172,7 +130,7 @@ private fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) 
     val hi = (ceil(hi0 / step) * step).let { if (it <= lo) lo + step else it }
     Canvas(Modifier.fillMaxWidth().height(200.dp)) {
         val left = 48.dp.toPx()
-        val right = size.width - 44.dp.toPx()
+        val right = size.width - 64.dp.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 24.dp.toPx()
         fun x(t: Long) = if (times.size < 2) (left + right) / 2 else left + (right - left) * times.indexOf(t) / (times.size - 1)
@@ -185,6 +143,7 @@ private fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) 
         }
         all.minByOrNull { it.t }?.let { label(tm, Fmt.shortDate(it.t), Offset(left, bottom + 6.dp.toPx()), p.fg2) }
         all.maxByOrNull { it.t }?.let { label(tm, Fmt.shortDate(it.t), Offset(right, bottom + 6.dp.toPx()), p.fg2, alignX = 1f) }
+        val ends = mutableListOf<Triple<Offset, String, Color>>()
         series.forEachIndexed { si, (pts, color) ->
             if (pts.isEmpty()) return@forEachIndexed
             val path = Path()
@@ -194,15 +153,23 @@ private fun LineChart(series: List<Pair<List<Pt>, Color>>, names: List<String>) 
             }
             drawPath(path, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             val last = pts.last()
-            val lo2 = Offset(x(last.t.toEpochSecond()), y(last.v))
-            drawCircle(color, 4.dp.toPx(), lo2)
-            label(tm, "${names[si]} ${last.v.toInt()}", Offset(lo2.x + 8.dp.toPx(), lo2.y), color, alignY = 0.5f)
+            val end = Offset(x(last.t.toEpochSecond()), y(last.v))
+            drawCircle(color, 4.dp.toPx(), end)
+            ends += Triple(end, "${names[si]} ${last.v.toInt()}", color)
+        }
+        // End labels sit beside their points, pushed apart vertically so two close series never overlap.
+        val gap = 16.dp.toPx()
+        var floorY = Float.NEGATIVE_INFINITY
+        ends.sortedBy { it.first.y }.forEach { (end, text, color) ->
+            val ly = maxOf(end.y, floorY + gap)
+            floorY = ly
+            label(tm, text, Offset(end.x + 8.dp.toPx(), ly), color, alignY = 0.5f)
         }
     }
 }
 
 @Composable
-private fun BarChart(sessions: List<SessionRecord>) {
+fun BarChart(sessions: List<SessionRecord>) {
     val p = LocalPalette.current
     val tm = rememberTextMeasurer()
     val mins = sessions.map { it.durationSec / 60f }
@@ -234,7 +201,7 @@ private fun BarChart(sessions: List<SessionRecord>) {
     }
 }
 
-private fun DrawScope.label(tm: TextMeasurer, text: String, at: Offset, color: Color, alignX: Float = 0f, alignY: Float = 0f) {
+fun DrawScope.label(tm: TextMeasurer, text: String, at: Offset, color: Color, alignX: Float = 0f, alignY: Float = 0f) {
     val r = tm.measure(text, Type.caption.tabular().copy(color = color))
     drawText(r, topLeft = Offset(at.x - r.size.width * alignX, at.y - r.size.height * alignY))
 }

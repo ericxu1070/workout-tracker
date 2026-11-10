@@ -51,7 +51,11 @@ class Store(private val file: File) {
     private fun load(): AppState {
         if (!file.exists()) return AppState()
         dropTornTail()
-        return AppState.fold(file.readLines().filter { it.isNotBlank() }.mapNotNull { LogCodec.decode(it) })
+        val lines = file.readLines().filter { it.isNotBlank() }
+        val entries = lines.mapNotNull { LogCodec.decode(it) }
+        // A log from an older schema version reads as nothing; set it aside so new seq numbers never collide with it.
+        if (lines.isNotEmpty() && entries.isEmpty()) file.renameTo(File(file.parentFile, file.name + ".old"))
+        return AppState.fold(entries)
     }
 
     /** A crash mid-append can leave a partial last line; drop it so the next append starts clean. */

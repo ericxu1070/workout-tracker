@@ -12,7 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.gzclp.tracker.engine.Day
+import dev.gzclp.tracker.engine.Increments
+import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.engine.Slot
+import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.ui.Type.tabular
@@ -22,6 +25,8 @@ data class SyncUi(val folder: String?, val lastSync: String?, val error: String?
 @Composable
 fun SettingsScreen(
     started: Boolean,
+    programId: String,
+    increments: Increments,
     themeId: String,
     restTargets: Map<Tier, Int>,
     sync: SyncUi,
@@ -29,7 +34,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onRest: (Tier, Int) -> Unit,
-    onAccessories: () -> Unit,
+    onProgram: (String) -> Unit,
+    onIncrements: (Increments) -> Unit,
+    onDays: () -> Unit,
     onChooseFolder: () -> Unit,
     onRestore: () -> Unit,
     onAllowNotifications: () -> Unit,
@@ -38,6 +45,37 @@ fun SettingsScreen(
     ScreenFrame {
         NavRow(onBack)
         Txt("Settings", Type.largeTitle)
+
+        if (started) {
+            GroupHeader("Program")
+            ProgramPicker(programId, onProgram)
+            Spacer(Modifier.height(Space.lg))
+            Group {
+                GroupRow(first = true, onClick = onDays) {
+                    Txt("Exercises per workout", Type.body, Modifier.weight(1f))
+                    Icon(Icons.chevronRight, p.fg3, 20.dp)
+                }
+            }
+            GroupFooter("Switching keeps your history. Each exercise keeps its own progress.")
+
+            GroupHeader("Cycle steps")
+            Group {
+                val rows = listOf(
+                    Triple("Upper body", increments.upperStep) { v: Int -> increments.copy(upperStep = v) },
+                    Triple("Lower body", increments.lowerStep) { v: Int -> increments.copy(lowerStep = v) },
+                    Triple("Next cycle", increments.cycleBump) { v: Int -> increments.copy(cycleBump = v) },
+                )
+                rows.forEachIndexed { i, (label, v, with) ->
+                    GroupRow(first = i == 0) {
+                        Txt(label, Type.body, Modifier.weight(1f), maxLines = 1)
+                        MiniStep(Icons.minus, "Smaller step for $label") { onIncrements(with((v - 5).coerceAtLeast(0))) }
+                        Txt("+$v lb", Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                        MiniStep(Icons.plus, "Larger step for $label") { onIncrements(with((v + 5).coerceAtMost(50))) }
+                    }
+                }
+            }
+            GroupFooter("Cycle programs add a step each week: 3×12, then 3×10, then 3×8. Lower body covers squat, deadlift, Romanian deadlift, and leg press; everything else uses the upper body step. After a heavy week with every set at 8 or more, the next cycle starts higher by the next-cycle amount.")
+        }
 
         GroupHeader("Theme")
         Group {
@@ -58,16 +96,6 @@ fun SettingsScreen(
                     MiniStep(Icons.minus, "Shorter ${tier.label} rest") { onRest(tier, (v - 15).coerceAtLeast(15)) }
                     Txt(Fmt.clock(v.toLong()), Type.body.tabular(), Modifier.width(56.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
                     MiniStep(Icons.plus, "Longer ${tier.label} rest") { onRest(tier, (v + 15).coerceAtMost(600)) }
-                }
-            }
-        }
-
-        if (started) {
-            GroupHeader("Program")
-            Group {
-                GroupRow(first = true, onClick = onAccessories) {
-                    Txt("Accessories", Type.body, Modifier.weight(1f))
-                    Icon(Icons.chevronRight, p.fg3, 20.dp)
                 }
             }
         }
@@ -112,31 +140,38 @@ private fun MiniStep(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 }
 
 @Composable
-fun AccessoriesScreen(state: AppState, onBack: () -> Unit, onAdd: (Day) -> Unit, onRemove: (Day, String) -> Unit) {
+fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit, onRemove: (ProgramDay, String) -> Unit) {
     val p = LocalPalette.current
+    val program = state.program
     ScreenFrame {
         NavRow(onBack)
-        Txt("Accessories", Type.largeTitle)
+        Txt(program.name, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
-        Txt("T3 lifts per workout, 3×15+. Weight goes up 5 lb when the last set reaches 25.", Type.subhead, color = p.fg2)
-        Day.entries.forEach { day ->
-            GroupHeader("${day.name} · ${day.t1.label}, ${day.t2.label}")
+        Txt(
+            if (program.gzclp) "T3 lifts per workout, 3×15+. Weight goes up 5 lb when the last set reaches 25."
+            else "Exercises per workout. Each one runs the 3-week cycle.",
+            Type.subhead, color = p.fg2,
+        )
+        program.days.forEach { day ->
+            val fixed = state.slots(program, day).filter { program.gzclp && it.tier != Tier.T3 }
+            GroupHeader(day.title + fixed.joinToString("") { ", ${state.name(it.ex)} ${it.tier.label}" })
             Group {
-                val ids = state.dayT3[day].orEmpty()
-                ids.mapNotNull { state.t3[it] }.forEachIndexed { i, t ->
+                val ids = Commands.dayList(state, program, day)
+                ids.forEachIndexed { i, id ->
+                    val ex = state.exercise(Slot(id, if (program.gzclp) Tier.T3 else Tier.CYCLE))
                     GroupRow(first = i == 0) {
                         Column(Modifier.weight(1f)) {
-                            Txt(t.name, Type.body, maxLines = 1)
-                            Txt(Fmt.lb(t.state.weight), Type.footnote.tabular(), color = p.fg2)
+                            Txt(ex.name, Type.body, maxLines = 1)
+                            Txt(ex.weight?.let(Fmt::lb) ?: "Starting weight asked at the workout", Type.footnote.tabular(), color = p.fg2)
                         }
-                        IconButton(Icons.x, "Remove ${t.name}", { onRemove(day, t.id) }, tint = p.fg2)
+                        IconButton(Icons.x, "Remove ${ex.name}", { onRemove(day, id) }, tint = p.fg2)
                     }
                 }
                 GroupRow(first = ids.isEmpty(), onClick = { onAdd(day) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.plus, p.accent, 20.dp)
                         Spacer(Modifier.width(Space.sm))
-                        Txt("Add accessory", Type.body, color = p.accent)
+                        Txt("Add exercise", Type.body, color = p.accent)
                     }
                 }
             }

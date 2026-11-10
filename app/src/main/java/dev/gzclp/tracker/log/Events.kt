@@ -19,11 +19,23 @@ import java.time.format.DateTimeFormatter
 sealed interface Event
 
 @Serializable @SerialName("program_start")
-data class ProgramStart(val fiveRm: Map<String, Int>) : Event
+data class ProgramStart(val fiveRm: Map<String, Int>, val program: String) : Event
+
+@Serializable @SerialName("program")
+data class ProgramChosen(val program: String) : Event
+
+@Serializable @SerialName("increments")
+data class IncrementsSet(val upperStep: Int, val lowerStep: Int, val cycleBump: Int) : Event
+
+@Serializable @SerialName("exercise_define")
+data class ExerciseDefine(val exercise: String, val name: String, val lower: Boolean) : Event
+
+@Serializable @SerialName("day_exercises")
+data class DayExercises(val program: String, val day: String, val exercises: List<String>) : Event
 
 @Serializable @SerialName("progression")
 data class ProgressionEvent(
-    val lift: String,
+    val exercise: String,
     val tier: String,
     val kind: String,
     val fromWeight: Int? = null,
@@ -32,26 +44,23 @@ data class ProgressionEvent(
     val toStage: String,
     val sessionId: String? = null,
     val fiveRm: Int? = null,
+    val cycleWeek: Int? = null,
+    val cycleBase: Int? = null,
 ) : Event
 
-@Serializable @SerialName("t3_define")
-data class T3Define(val lift: String, val name: String) : Event
-
-@Serializable @SerialName("t3_day")
-data class T3Day(val day: String, val lifts: List<String>) : Event
-
 @Serializable @SerialName("session_start")
-data class SessionStart(val sessionId: String, val day: String) : Event
+data class SessionStart(val sessionId: String, val program: String, val day: String) : Event
 
 @Serializable @SerialName("set")
 data class SetLogged(
     val sessionId: String,
-    val lift: String,
+    val exercise: String,
     val tier: String,
     val stage: String,
     val setIndex: Int,
     val targetReps: Int,
     val actualReps: Int,
+    val targetWeight: Int,
     val weight: Int,
     val amrap: Boolean,
     val restSec: Int? = null,
@@ -59,15 +68,15 @@ data class SetLogged(
 ) : Event
 
 @Serializable @SerialName("set_clear")
-data class SetCleared(val sessionId: String, val lift: String, val tier: String, val setIndex: Int) : Event
+data class SetCleared(val sessionId: String, val exercise: String, val tier: String, val setIndex: Int) : Event
 
 @Serializable @SerialName("session_end")
-data class SessionEnd(val sessionId: String, val day: String, val startedAt: String, val durationSec: Long) : Event
+data class SessionEnd(val sessionId: String, val program: String, val day: String, val startedAt: String, val durationSec: Long) : Event
 
 data class Entry(val seq: Long, val ts: OffsetDateTime, val event: Event)
 
 object LogCodec {
-    const val VERSION = 1
+    const val VERSION = 2
     val TS: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -89,10 +98,10 @@ object LogCodec {
         return JsonObject(head + body).toString()
     }
 
-    /** Null for a line this version cannot read (unknown type, newer schema, garbage). */
+    /** Null for a line this version cannot read (unknown type, other schema version, garbage). */
     fun decode(line: String): Entry? = runCatching {
         val obj = json.parseToJsonElement(line).jsonObject
-        if (obj.getValue("v").jsonPrimitive.int > VERSION) return null
+        if (obj.getValue("v").jsonPrimitive.int != VERSION) return null
         val event = json.decodeFromJsonElement(Event.serializer(), JsonObject(obj - setOf("v", "seq", "ts")))
         Entry(obj.getValue("seq").jsonPrimitive.long, OffsetDateTime.parse(obj.getValue("ts").jsonPrimitive.content, TS), event)
     }.getOrNull()

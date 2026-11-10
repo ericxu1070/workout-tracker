@@ -24,7 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.SetKey
-import dev.gzclp.tracker.ui.AccessoriesScreen
+import dev.gzclp.tracker.log.exerciseLogs
+import dev.gzclp.tracker.ui.DaysScreen
+import dev.gzclp.tracker.ui.ExerciseScreen
+import dev.gzclp.tracker.ui.ExercisesScreen
+import dev.gzclp.tracker.ui.SessionScreen
+import dev.gzclp.tracker.ui.Tab
+import dev.gzclp.tracker.ui.TabFrame
+import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HomeScreen
@@ -59,12 +66,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { Main, History, Settings, Accessories }
+/** A screen pushed over the tabs; [arg] is a session or exercise id. */
+private enum class Route { Settings, Days, Session, Exercise }
 
 @Composable
 private fun App(model: AppModel) {
     val state by model.store.state.collectAsState()
-    var route by rememberSaveable { mutableStateOf(Route.Main) }
+    var tab by rememberSaveable { mutableStateOf(Tab.Workout) }
+    var route by rememberSaveable { mutableStateOf<Route?>(null) }
+    var arg by rememberSaveable { mutableStateOf("") }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
@@ -102,6 +112,18 @@ private fun App(model: AppModel) {
     fun close() {
         sheet = null
     }
+    fun push(r: Route, a: String = "") {
+        arg = a
+        route = r
+    }
+    /** Asks for each missing starting weight in turn, then starts the workout. */
+    fun startFlow() {
+        val missing = Commands.missingWeight(model.store.state.value)
+        if (missing != null) return open(SheetState.Weight(missing, 45))
+        close()
+        if (!model.notificationsAllowed) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        model.dispatch { Commands.start(it, model.now()) }
+    }
     fun finishWorkout(fiveRm: Int?) {
         model.dispatch { Commands.end(it, model.now(), fiveRm) }
         model.cancelRest()
@@ -109,100 +131,87 @@ private fun App(model: AppModel) {
     }
     fun endFlow() {
         val pending = Commands.pendingFiveRm(state)
-        if (pending != null) open(SheetState.FiveRm(pending, pending.state.weight)) else finishWorkout(null)
+        if (pending != null) open(SheetState.FiveRm(pending, pending.weight ?: 0)) else finishWorkout(null)
     }
 
-    BackHandler(sheet != null || route != Route.Main) {
+    BackHandler(sheet != null || route != null || tab != Tab.Workout) {
         when {
             sheet != null -> close()
-            route == Route.Accessories -> route = Route.Settings
-            else -> route = Route.Main
+            route == Route.Days -> route = Route.Settings
+            route != null -> route = null
+            else -> tab = Tab.Workout
         }
     }
 
     Box(Modifier.fillMaxSize()) {
-        when (route) {
-            Route.History -> HistoryScreen(state, { route = Route.Main })
-            Route.Settings -> SettingsScreen(
-                started = state.started, themeId = model.theme, restTargets = model.restTargets,
+        val session = state.sessions.firstOrNull { it.id == arg }
+        val log = state.exerciseLogs().firstOrNull { it.id == arg }
+        when {
+            !state.started && route != Route.Settings -> SetupScreen(
+                onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
+                onRestore = ::restore, message = model.notice,
+            )
+            route == Route.Settings -> SettingsScreen(
+                started = state.started, programId = state.programId, increments = state.increments,
+                themeId = model.theme, restTargets = model.restTargets,
                 sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
-                onBack = { route = Route.Main }, onTheme = model::chooseTheme, onRest = model::setRest,
-                onAccessories = { route = Route.Accessories }, onChooseFolder = { folderPicker.launch(null) },
+                onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
+                onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
+                onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
+                onDays = { push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
                 onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
             )
-            Route.Accessories -> AccessoriesScreen(
+            route == Route.Days -> DaysScreen(
                 state, { route = Route.Settings },
-                onAdd = { open(SheetState.AddT3(it, "", 50)) },
-                onRemove = { day, id -> model.dispatch { s -> Commands.removeT3(s, day, id) } },
+                onAdd = { open(SheetState.AddExercise(it, "")) },
+                onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
             )
-            Route.Main -> when {
-                !state.started -> SetupScreen(
-                    onStart = { rm -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm) } },
-                    onRestore = ::restore, message = model.notice,
-                )
-                state.active == null -> HomeScreen(
-                    state,
-                    onStart = {
-                        if (!model.notificationsAllowed) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        model.dispatch { Commands.start(it, model.now()) }
-                    },
-                    onHistory = { route = Route.History }, onSettings = { route = Route.Settings },
-                    onEditWeight = { open(SheetState.Weight(it, it.state.weight)) },
-                )
-                else -> WorkoutScreen(
-                    state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
-                    onSet = { ex, i ->
-                        val logged = state.active?.sets?.get(SetKey(ex.liftId, ex.tier, i))?.event
-                        val amrap = ex.scheme.amrap && i == ex.scheme.sets
-                        when {
-                            logged != null -> open(SheetState.Reps(ex, i, logged.actualReps, true))
-                            amrap -> open(SheetState.Reps(ex, i, ex.scheme.reps, false))
-                            else -> {
-                                model.dispatch { Commands.logSet(it, ex, i, ex.scheme.reps, model.now(), model.restTargets) }
-                                model.startRest(ex, i)
-                            }
-                        }
-                    },
-                    onLongSet = { ex, i ->
-                        val logged = state.active?.sets?.get(SetKey(ex.liftId, ex.tier, i))?.event
-                        open(SheetState.Reps(ex, i, logged?.actualReps ?: ex.scheme.reps, logged != null))
-                    },
-                    onEditWeight = { open(SheetState.Weight(it, it.state.weight)) },
-                    onSkipRest = model::cancelRest,
-                    onHistory = { route = Route.History },
-                    onEnd = {
-                        val n = unloggedSets(state)
-                        if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
-                    },
-                )
+            route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
+            route == Route.Exercise && log != null -> ExerciseScreen(state, log) { route = null }
+            else -> TabFrame(tab, { tab = it }) {
+                    when (tab) {
+                        Tab.Workout -> if (state.active == null) HomeScreen(
+                            state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
+                            onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                        ) else WorkoutScreen(
+                            state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
+                            onLog = { ex, i, w, r ->
+                                val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
+                                model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets) }
+                                if (!wasLogged) model.startRest(ex, i)
+                            },
+                            onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
+                            onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                            onSkipRest = model::cancelRest,
+                            onSettings = { push(Route.Settings) },
+                            onEnd = {
+                                val n = unloggedSets(state)
+                                if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
+                            },
+                        )
+                        Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
+                        Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) })
+                        Tab.History -> HistoryScreen(state, onOpen = { push(Route.Session, it) })
+                    }
             }
         }
         Sheet(sheet != null, ::close) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
-                s, update = { sheet = it; lastSheet = it }, onDismiss = ::close,
+                s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close,
                 onConfirm = { c ->
                     when (c) {
-                        is SheetState.Reps -> {
-                            model.dispatch { Commands.logSet(it, c.ex, c.setIndex, c.reps, model.now(), model.restTargets) }
-                            if (!c.logged) model.startRest(c.ex, c.setIndex)
-                            close()
-                        }
                         is SheetState.Weight -> {
-                            model.dispatch { Commands.editWeight(c.ex, c.weight) }
-                            close()
+                            model.dispatch { Commands.editWeight(it, c.ex, c.weight) }
+                            if (c.starting && state.active == null && tab == Tab.Workout && route == null) startFlow() else close()
                         }
                         is SheetState.FiveRm -> finishWorkout(c.fiveRm)
                         is SheetState.EndConfirm -> endFlow()
-                        is SheetState.AddT3 -> {
-                            model.dispatch { Commands.addT3(it, c.day, c.name, c.weight) }
+                        is SheetState.AddExercise -> {
+                            model.dispatch { Commands.addExercise(it, it.program, c.day, c.name) }
                             close()
                         }
                     }
-                },
-                onClear = { c ->
-                    model.dispatch { Commands.clearSet(it, c.ex, c.setIndex) }
-                    close()
                 },
             )
         }
