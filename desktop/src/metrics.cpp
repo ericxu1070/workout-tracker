@@ -35,15 +35,16 @@ QVariantMap strength(const Log &log) {
     for (const Session &s : log.sessions)
         sessionStart.insert(s.id, s.start);
 
-    // Best estimate per (lift, session): GZCLP counts its T1 AMRAP sets, cycle programs any set with reps.
+    // Best estimate per (lift, session): GZCLP counts its T1 AMRAP sets, cycle programs and custom splits any set with reps.
     QMap<QString, QMap<QDateTime, double>> best;
-    bool gzclp = false, cycle = false;
+    bool gzclp = false, cycle = false, custom = false;
     for (const LoggedSet &s : log.sets) {
-        const bool amrap = s.tier == "t1" && s.amrap, cycleSet = s.tier == "cycle" && s.reps > 0;
-        if (!kMainLifts.contains(s.exercise) || !(amrap || cycleSet) || s.reps <= 0)
+        const bool amrap = s.tier == "t1" && s.amrap, cycleSet = s.tier == "cycle", customSet = s.tier == "custom";
+        if (!kMainLifts.contains(s.exercise) || !(amrap || cycleSet || customSet) || s.reps <= 0)
             continue;
         gzclp |= amrap;
         cycle |= cycleSet;
+        custom |= customSet;
         double &value = best[s.exercise][sessionStart.value(s.session)];
         value = std::max(value, epley(s.weight, s.reps));
     }
@@ -65,7 +66,7 @@ QVariantMap strength(const Log &log) {
                                  {"firstT", double(best[lift].firstKey().toMSecsSinceEpoch())},
                                  {"ratio", weight > 0 ? latest / weight : 0.0}});
     }
-    return {{"lifts", lifts}, {"gzclp", gzclp}, {"cycle", cycle}};
+    return {{"lifts", lifts}, {"gzclp", gzclp}, {"cycle", cycle}, {"custom", custom}};
 }
 
 }  // namespace
@@ -161,7 +162,7 @@ QVariantMap dashboard(const Log &log) {
         previousTier[s.session] = s.tier;
     }
     QVariantList restRows;
-    for (const QString &tier : {QStringLiteral("t1"), QStringLiteral("t2"), QStringLiteral("t3"), QStringLiteral("cycle")})
+    for (const QString &tier : {QStringLiteral("t1"), QStringLiteral("t2"), QStringLiteral("t3"), QStringLiteral("cycle"), QStringLiteral("custom")})
         if (rest.contains(tier))
             restRows.append(QVariantMap{{"tier", tier},
                                         {"n", int(rest[tier].first.size())},

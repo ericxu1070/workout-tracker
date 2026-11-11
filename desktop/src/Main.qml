@@ -28,6 +28,7 @@ ApplicationWindow {
     property string volumeTier: "all"
     property string volumeLift: "all"
 
+    function tierName(t) { return t === "cycle" ? qsTr("Cycle") : t === "custom" ? qsTr("Custom") : t.toUpperCase() }
     function plural(n, one, many) { return (n === 1 ? one : many).arg(n) }
     function hm(min) { const m = Math.round(min), h = Math.floor(m / 60); return h ? (m % 60 ? qsTr("%1 hr %2 min").arg(h).arg(m % 60) : qsTr("%1 hr").arg(h)) : qsTr("%1 min").arg(m) }
     function median(xs) { const s = xs.slice().sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : 0 }
@@ -118,7 +119,8 @@ ApplicationWindow {
                             role: "footnote"; color: pal.labelSecondary; width: parent.width; wrapMode: Text.Wrap
                             text: [qsTr("Estimated 1RM in lb (Epley), × body weight on that day."),
                                    strength.s.gzclp ? qsTr("GZCLP: T1 AMRAP sets.") : "",
-                                   strength.s.cycle ? qsTr("Cycle programs: best set per session.") : ""].filter(x => x).join(" ")
+                                   strength.s.cycle ? qsTr("Cycle programs: best set per session.") : "",
+                                   strength.s.custom ? qsTr("Custom splits: best set per session.") : ""].filter(x => x).join(" ")
                         }
                     }
                 }
@@ -133,7 +135,7 @@ ApplicationWindow {
                         for (const r of rows) out[r.week] += win.volumeMetric === "tonnage" ? r.tonnage : r.reps
                         return out
                     }
-                    readonly property var tiers: ["t1", "t2", "t3", "cycle"].filter(t => (d.volume || []).some(r => r.tier === t))
+                    readonly property var tiers: ["t1", "t2", "t3", "cycle", "custom"].filter(t => (d.volume || []).some(r => r.tier === t))
                     readonly property var lifts: ["squat", "bench", "deadlift", "ohp", "other"].filter(l => (d.volume || []).some(r => r.lift === l))
                     title: qsTr("Weekly volume")
                     fact: win.volumeMetric === "tonnage" ? qsTr("Pounds lifted per week (weight × reps)") : qsTr("Reps per week")
@@ -147,7 +149,7 @@ ApplicationWindow {
                             Segmented { value: win.volumeMetric; onPicked: v => win.volumeMetric = v
                                         options: [{ value: "tonnage", label: qsTr("Tonnage") }, { value: "reps", label: qsTr("Reps") }] }
                             Segmented { value: win.volumeTier; onPicked: v => win.volumeTier = v
-                                        options: [{ value: "all", label: qsTr("All tiers") }].concat(volume.tiers.map(t => ({ value: t, label: t === "cycle" ? qsTr("Cycle") : t.toUpperCase() }))) }
+                                        options: [{ value: "all", label: qsTr("All tiers") }].concat(volume.tiers.map(t => ({ value: t, label: win.tierName(t) }))) }
                             Segmented { value: win.volumeLift; onPicked: v => win.volumeLift = v
                                         options: [{ value: "all", label: qsTr("All lifts") }].concat(volume.lifts.map(l => ({ value: l, label: win.shortName[l] }))) }
                         }
