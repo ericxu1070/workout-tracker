@@ -12,6 +12,7 @@ import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
+import dev.gzclp.tracker.log.ExerciseDefine
 import dev.gzclp.tracker.log.ExerciseSwap
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
@@ -161,6 +162,8 @@ class ScreenShots {
         val today = now.toLocalDate()
         val bench = live.exerciseLogs().first { it.id == "bench" }
         val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "overhead_tricep_extension")))
+        val newSub = live.apply(Entry(live.lastSeq + 1, now, ExerciseDefine("cable_kickback", "Cable kickback", false)))
+            .let { it.apply(Entry(it.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "cable_kickback"))) }
         val (gzLive, gzNow) = gzclpLive()
         val food = meals(today)
         for (p in Palettes.all) {
@@ -231,12 +234,27 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "fly"), swapped, {}, {}, {}) }
                 }
             }
+            shot(p, "17-workout-new-substitute", tall = true) {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(newSub, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+            }
+            shot(p, "17-swap-create-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "Incl", create = true), swapped, {}, {}, {}) }
+                }
+            }
             shot(p, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) } }
             shot(p, "18-food-empty") { TabFrame(Tab.Food, {}) { FoodScreen(food, today.minusDays(1), today, null, {}, {}, {}) } }
             shot(p, "18-meal-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Meal(food[1], today), idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "18-meal-delete-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.Meal(food[1], today, delete = true), idle, {}, {}, {}) }
                 }
             }
             shot(p, "17-swap-back-sheet") {

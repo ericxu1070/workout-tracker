@@ -84,10 +84,10 @@ object Commands {
         return listOf(SetCleared(a.id, ex.id, ex.tier.id, setIndex))
     }
 
-    /** The weight to prefill for an unlogged set: the latest weight logged for this exercise this session, else the prescription. */
-    fun setWeight(state: AppState, ex: Exercise, setIndex: Int): Int {
+    /** The weight to prefill for an unlogged set: the latest weight logged for this exercise this session, else the prescription; null when neither exists (a first-time substitute). */
+    fun setWeight(state: AppState, ex: Exercise, setIndex: Int): Int? {
         val sets = state.active?.sets.orEmpty()
-        return (setIndex - 1 downTo 1).firstNotNullOfOrNull { sets[SetKey(ex.id, ex.tier, it)]?.event?.weight } ?: ex.weight ?: 0
+        return (setIndex - 1 downTo 1).firstNotNullOfOrNull { sets[SetKey(ex.id, ex.tier, it)]?.event?.weight } ?: ex.weight
     }
 
     fun editWeight(state: AppState, ex: Exercise, weight: Int): List<Event> {

@@ -39,6 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.layout.ime
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
@@ -71,14 +78,14 @@ import dev.gzclp.tracker.ui.Type.tabular
 import java.time.Duration
 import java.time.OffsetDateTime
 
-/** A full-height screen: scrolling content under the status bar, optional bottom bar. */
+/** A full-height screen: scrolling content below the status bar, optional bottom bar. */
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxSize().background(p.bg).imePadding()) {
+    // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
+    Column(Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = Space.lg).padding(bottom = Space.x3),
             content = content,
         )
@@ -176,7 +183,11 @@ fun NumberField(
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    Box(modifier.width(width).height(44.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.md), contentAlignment = Alignment.CenterEnd) {
+    // Re-asks as the keyboard slides up, so the field ends in the shrunken viewport, not behind a bottom bar.
+    val bring = remember { BringIntoViewRequester() }
+    val ime = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(focused, ime) { if (focused) bring.bringIntoView() }
+    Box(modifier.bringIntoViewRequester(bring).width(width).height(44.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.md), contentAlignment = Alignment.CenterEnd) {
         if (value.isEmpty()) Txt(placeholder, Type.body.tabular(), color = p.fg3, align = TextAlign.End)
         BasicTextField(
             value, onChange,
@@ -370,7 +381,7 @@ fun SetRow(
     index: Int,
     amrap: Boolean,
     targetReps: Int,
-    defaultWeight: Int,
+    defaultWeight: Int?,
     logged: SetLogged?,
     current: Boolean,
     exName: String,
@@ -380,17 +391,22 @@ fun SetRow(
 ) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
-    var w by remember(logged?.weight, defaultWeight) { mutableStateOf((logged?.weight ?: defaultWeight).toString()) }
+    var w by remember(logged?.weight, defaultWeight) { mutableStateOf((logged?.weight ?: defaultWeight)?.toString() ?: "") }
+    val weightFocus = remember { FocusRequester() }
     var r by remember(logged?.actualReps) { mutableStateOf(logged?.actualReps?.toString() ?: if (amrap) "" else targetReps.toString()) }
     fun weight() = w.toIntOrNull() ?: logged?.weight ?: defaultWeight
     var e by remember(logged?.rpe) { mutableStateOf(logged?.rpe?.let(Fmt::rpe) ?: "") }
     fun reps() = r.toIntOrNull() ?: logged?.actualReps ?: targetReps
-    val commit = { if (logged != null) onLog(weight(), reps(), e.toDoubleOrNull()) }
+    val commit = { if (logged != null) onLog(weight() ?: logged.weight, reps(), e.toDoubleOrNull()) }
     val short = logged != null && logged.actualReps < targetReps
     val name = "$exName set $index"
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         Txt(if (amrap) "$index+" else "$index", Type.headline.tabular(), Modifier.width(SET_COL), if (current) p.fg else p.fg2)
-        NumberField(w, { w = it.filter(Char::isDigit).take(4) }, last = false, width = WEIGHT_COL, onCommit = commit, label = "$name weight")
+        // No weight known (a first-time substitute) leaves the field empty; the check then asks for one instead of logging 0.
+        NumberField(
+            w, { w = it.filter(Char::isDigit).take(4) }, last = false, Modifier.focusRequester(weightFocus), placeholder = "",
+            width = WEIGHT_COL, onCommit = commit, label = "$name weight",
+        )
         NumberField(
             r, { r = it.filter(Char::isDigit).take(3) }, width = REPS_COL, placeholder = if (amrap) "$targetReps+" else "$targetReps",
             color = if (short) p.red else p.fg, onCommit = commit, label = "$name reps",
@@ -404,7 +420,12 @@ fun SetRow(
         Pressable(
             {
                 focus.clearFocus()
-                if (logged != null) onClear() else onLog(weight(), reps(), e.toDoubleOrNull())
+                val wt = weight()
+                when {
+                    logged != null -> onClear()
+                    wt == null -> weightFocus.requestFocus()
+                    else -> onLog(wt, reps(), e.toDoubleOrNull())
+                }
             },
             Modifier.size(44.dp), CircleShape,
             fill = when {
@@ -419,7 +440,8 @@ fun SetRow(
             Icon(Icons.check, if (hit) p.onAccent else if (short) p.red else p.fg3, 20.dp)
         }
     }
-    if (plates != null) Txt(plates.perSideLabel(weight()) ?: "Not loadable with your plates", Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1)
+    val wt = weight()
+    if (plates != null && wt != null) Txt(plates.perSideLabel(wt) ?: "Not loadable with your plates", Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1)
 }
 
 /** A warm-up: fixed weight and reps, and a check that only lives on screen (never logged). */

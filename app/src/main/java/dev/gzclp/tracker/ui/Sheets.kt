@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.ProgramDay
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Exercise
+import dev.gzclp.tracker.log.ExerciseDefine
 
 /** Which sheet is open; values being edited live here so the sheet is a pure view. */
 sealed interface SheetState {
@@ -45,10 +46,10 @@ sealed interface SheetState {
     data class FiveRm(val ex: Exercise, val fiveRm: Int) : SheetState
     data class EndConfirm(val unlogged: Int) : SheetState
     data class AddExercise(val day: ProgramDay, val name: String) : SheetState
-    /** Swaps [ex] for the exercise named [name], for the active workout only. */
-    data class Swap(val ex: Exercise, val name: String) : SheetState
-    /** A logged meal's photo, with Delete as the confirm action. */
-    data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate) : SheetState
+    /** Swaps [ex] for the exercise named [name], for the active workout only; [create] asks before adding [name] as a new exercise. */
+    data class Swap(val ex: Exercise, val name: String, val create: Boolean = false) : SheetState
+    /** A logged meal's photo, with Delete as the confirm action once [delete] has asked. */
+    data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate, val delete: Boolean = false) : SheetState
     /** A new weigh-in when [id] is null, else an edit of that one; [delete] marks the Delete button. */
     data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
         val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
@@ -87,6 +88,15 @@ private fun Suggestions(items: List<Pair<String, String>>, onPick: (String) -> U
         items.forEachIndexed { i, (label, name) ->
             GroupRow(first = i == 0, onClick = { onPick(name) }) { Txt(label, Type.body, color = LocalPalette.current.accent) }
         }
+    }
+}
+
+/** Cancel beside a primary [action], for a sheet's confirm step. */
+@Composable
+private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+        PillButton("Cancel", onCancel, Modifier.weight(1f), onSurface = true)
+        PillButton(action, onAction, Modifier.weight(1f), primary = true)
     }
 }
 
@@ -151,7 +161,10 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
                 PillButton(save, { onConfirm(s) }, Modifier.weight(1f), primary = true, enabled = lb != null)
             }
         }
-        is SheetState.Meal -> MealSheet(s.meal, s.today, { onConfirm(s) }, onDismiss)
+        is SheetState.Meal -> if (!s.delete) MealSheet(s.meal, s.today, { update(s.copy(delete = true)) }, onDismiss) else {
+            SheetTitle("Delete this meal?", "Its photo is deleted from this phone and can't be recovered.")
+            CancelOr("Delete", { update(s.copy(delete = false)) }) { onConfirm(s) }
+        }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)
             NameField(s.name) { update(s.copy(name = it)) }
@@ -160,7 +173,11 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
             Suggestions(matches.take(4).map { it.name to it.name }) { onConfirm(s.copy(name = it)) }
             PillButton(if (q.isEmpty()) "Add exercise" else "Add $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = q.isNotEmpty())
         }
-        is SheetState.Swap -> {
+        is SheetState.Swap -> if (s.create) {
+            val q = s.name.trim()
+            SheetTitle("Create \"$q\"?", "No exercise is named $q yet. This adds it as a new exercise and swaps it in for this workout.")
+            CancelOr("Create", { update(s.copy(create = false)) }) { onConfirm(s) }
+        } else {
             val original = state.name(s.ex.swappedFrom ?: s.ex.id)
             SheetTitle("Swap ${s.ex.name.lowercase()}", "For this workout only. $original keeps its weight and stage, and comes back next time.")
             NameField(s.name) { update(s.copy(name = it)) }
@@ -170,7 +187,11 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
                 q.isNotEmpty() && it.contains(q, ignoreCase = true) && !it.equals(q, ignoreCase = true) && Commands.swap(state, s.ex, it).isNotEmpty()
             }
             Suggestions(back + matches.take(4).map { it to it }) { onConfirm(s.copy(name = it)) }
-            PillButton(if (q.isEmpty()) "Swap exercise" else "Swap for $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = Commands.swap(state, s.ex, q).isNotEmpty())
+            val events = Commands.swap(state, s.ex, q)
+            PillButton(
+                if (q.isEmpty()) "Swap exercise" else "Swap for $q", { if (events.any { it is ExerciseDefine }) update(s.copy(create = true)) else onConfirm(s) },
+                Modifier.fillMaxWidth(), primary = true, enabled = events.isNotEmpty(),
+            )
         }
     }
 }
