@@ -67,6 +67,10 @@ data class SetLogged(
     val restTargetSec: Int? = null,
 ) : Event
 
+/** In [sessionId], the slot ([exercise], [tier]) is done as [substitute]; a null [substitute] puts the original back. */
+@Serializable @SerialName("exercise_swap")
+data class ExerciseSwap(val sessionId: String, val exercise: String, val tier: String, val substitute: String? = null) : Event
+
 @Serializable @SerialName("set_clear")
 data class SetCleared(val sessionId: String, val exercise: String, val tier: String, val setIndex: Int) : Event
 

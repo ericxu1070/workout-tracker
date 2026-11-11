@@ -10,6 +10,8 @@ import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Entry
+import dev.gzclp.tracker.log.ExerciseSwap
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
@@ -100,10 +102,10 @@ class ScreenShots {
             val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
             val file = p.copy(id = "laptop-$name")
             shot(file, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(file, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
@@ -122,13 +124,14 @@ class ScreenShots {
         val gz = idle.copy(programId = Programs.GZCLP)
         val today = now.toLocalDate()
         val bench = live.exerciseLogs().first { it.id == "bench" }
+        val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "overhead_tricep_extension")))
         for (p in Palettes.all) {
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }
             shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
             shot(p, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "04-gzclp-next") { TabFrame(Tab.Workout, {}) { HomeScreen(gz, {}, {}, {}) } }
             shot(p, "05-starting-weight-sheet") {
@@ -176,7 +179,22 @@ class ScreenShots {
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }
             shot(p, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+            }
+            shot(p, "17-workout-swapped", tall = true) {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+            }
+            shot(p, "17-swap-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "fly"), swapped, {}, {}, {}) }
+                }
+            }
+            shot(p, "17-swap-back-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[3], ""), swapped, {}, {}, {}) }
+                }
             }
         }
     }

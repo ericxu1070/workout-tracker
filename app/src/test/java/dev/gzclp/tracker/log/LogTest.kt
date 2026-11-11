@@ -62,6 +62,8 @@ class LogTest {
             SessionStart("s1", "gzclp", "A1"),
             SetLogged("s1", "squat", "t1", "5x3+", 5, 3, 7, 225, 230, true, 182, 180),
             SetCleared("s1", "squat", "t1", 5),
+            ExerciseSwap("s1", "squat", "t1", "leg_press"),
+            ExerciseSwap("s1", "squat", "t1"),
             SessionEnd("s1", "gzclp", "A1", "2026-11-10T18:00:00-08:00", 3120),
             BodyWeightLogged("w1794326400", "2026-11-10T07:02:00-08:00", 182.4),
             BodyWeightCleared("w1794326400"),
@@ -216,6 +218,60 @@ class LogTest {
         assertEquals(listOf(3, 2, null, null, null), Commands.reps(s.state.value, ex))
         s.dispatch(t0) { Commands.clearSet(it, ex, 2) }
         assertEquals(listOf(3, null, null, null, null), Commands.reps(s.state.value, ex))
+    }
+
+    @Test fun aSwapLastsOneSessionAndLeavesTheSlotsLiftAlone() {
+        val f = File(tmp.root, "log.jsonl")
+        val s = store(f)
+        s.fillWeights()
+        s.dispatch(t0) { Commands.addExercise(it, gzclp, gzclp.days[0], "Face pull") }
+        s.fillWeights()
+        val before = s.state.value
+        s.dispatch(t0) { Commands.start(it, t0) }
+        val (squat, _, lat) = s.state.value.sessionExercises()
+        assertTrue("another exercise of this session at that tier", Commands.swap(s.state.value, lat, "Face pull").isEmpty())
+        s.dispatch(t0) { Commands.swap(it, squat, "Hack squat") }
+        val hack = s.state.value.sessionExercises().first()
+        assertEquals(listOf("hack_squat", "squat", "Hack squat"), listOf(hack.id, hack.swappedFrom, hack.name))
+        assertEquals(squat.scheme to Tier.T1, hack.scheme to hack.tier)
+        assertNull("never logged, so no suggestion", hack.weight)
+        assertTrue("a substitute has no prescription to edit", Commands.editWeight(s.state.value, hack, 300).isEmpty())
+        // Every set short: this would stall squat if it counted for squat.
+        for (i in 1..hack.scheme.sets) s.dispatch(t0.plusMinutes(i.toLong())) { Commands.logSet(it, hack, i, 1, 200, t0.plusMinutes(i.toLong()), rest) }
+        assertTrue("no swapping back once sets are logged", Commands.swap(s.state.value, hack, "Squat").isEmpty())
+        assertNull("only the 10x1+ failure asks for a 5RM", Commands.pendingFiveRm(s.state.value))
+        val end = t0.plusHours(1)
+        s.dispatch(end) { Commands.end(it, end, null) }
+
+        val st = s.state.value
+        assertEquals(before.gz["squat" to Tier.T1], st.gz["squat" to Tier.T1])
+        assertNull(st.gz["hack_squat" to Tier.T1])
+        val lines = f.readLines().mapNotNull { LogCodec.decode(it)?.event }
+        assertTrue(lines.filterIsInstance<ProgressionEvent>().none { it.sessionId != null && it.exercise in setOf("squat", "hack_squat") })
+        assertEquals(setOf("hack_squat"), st.sessions.last().sets.filter { it.tier == "t1" }.map { it.exercise }.toSet())
+        assertEquals("B1", st.nextDay.id)
+
+        // The next session goes back to the original lift.
+        s.fillWeights()
+        s.dispatch(end) { Commands.start(it, end) }
+        assertEquals(listOf("ohp", "deadlift"), s.state.value.sessionExercises().take(2).map { it.id })
+        assertTrue(s.state.value.sessionExercises().none { it.swappedFrom != null })
+        assertEquals("rebuild from the log equals live state", s.state.value, Store(f).state.value)
+    }
+
+    @Test fun aSwapCanBeUndoneAndSuggestsTheLastWeight() {
+        val s = store()
+        s.doWorkout(t0.plusDays(1)) // logs lat_pulldown at 50
+        s.doWorkout(t0.plusDays(2))
+        s.fillWeights()
+        s.dispatch(t0.plusDays(3)) { Commands.start(it, t0.plusDays(3)) }
+        val t1 = s.state.value.sessionExercises().first()
+        s.dispatch(t0) { Commands.swap(it, t1, "lat pulldown") }
+        val sub = s.state.value.sessionExercises().first()
+        assertEquals("lat_pulldown" to 50, sub.id to sub.weight)
+        assertTrue("same swap twice writes nothing", Commands.swap(s.state.value, sub, "Lat pulldown").isEmpty())
+        s.dispatch(t0) { Commands.swap(it, sub, "Bench press") }
+        assertEquals(t1, s.state.value.sessionExercises().first())
     }
 
     @Test fun emptySessionDoesNotAdvanceRotation() {

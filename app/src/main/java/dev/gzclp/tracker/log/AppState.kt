@@ -21,15 +21,19 @@ data class SetKey(val exercise: String, val tier: Tier, val setIndex: Int)
 
 data class LoggedSet(val event: SetLogged, val ts: OffsetDateTime)
 
-data class ActiveSession(val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val sets: Map<SetKey, LoggedSet>)
+/** [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. */
+data class ActiveSession(
+    val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val sets: Map<SetKey, LoggedSet>,
+    val swaps: Map<Pair<String, Tier>, String> = emptyMap(),
+)
 
 data class SessionRecord(val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>)
 
 /**
  * One exercise as prescribed in a workout. [weight] is null until the user gives its starting weight;
- * [week] is the 0-based cycle week for [Tier.CYCLE].
+ * [week] is the 0-based cycle week for [Tier.CYCLE]. [swappedFrom] is the slot's own exercise when this one stands in for it.
  */
-data class Exercise(val id: String, val name: String, val tier: Tier, val scheme: Scheme, val weight: Int?, val week: Int? = null) {
+data class Exercise(val id: String, val name: String, val tier: Tier, val scheme: Scheme, val weight: Int?, val week: Int? = null, val swappedFrom: String? = null) {
     val key: Pair<String, Tier> get() = id to tier
 }
 
@@ -79,6 +83,19 @@ data class AppState(
     fun exercises(program: Program, day: ProgramDay): List<Exercise> = slots(program, day).map(::exercise)
     fun exercises(day: ProgramDay): List<Exercise> = exercises(program, day)
 
+    /**
+     * [ex] as done in the active session: its substitute when swapped, keeping the slot's tier and scheme,
+     * suggested at the substitute's last logged weight. The substitute has no progression of its own.
+     */
+    fun performed(ex: Exercise): Exercise {
+        val sub = active?.swaps?.get(ex.key) ?: return ex
+        val last = sessions.asReversed().firstNotNullOfOrNull { s -> s.sets.lastOrNull { it.exercise == sub }?.weight }
+        return ex.copy(id = sub, name = name(sub), weight = last, swappedFrom = ex.id)
+    }
+
+    /** The active session's exercises as done, swaps applied. */
+    fun sessionExercises(): List<Exercise> = active?.let { a -> exercises(a.program, a.day).map(::performed) }.orEmpty()
+
     fun apply(entry: Entry): AppState {
         val s = copy(lastSeq = maxOf(lastSeq, entry.seq))
         return when (val e = entry.event) {
@@ -96,6 +113,11 @@ data class AppState(
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val tier = Tier.of(e.tier) ?: return s
                 s.copy(active = a.copy(sets = a.sets + (SetKey(e.exercise, tier, e.setIndex) to LoggedSet(e, entry.ts))))
+            }
+            is ExerciseSwap -> {
+                val a = active?.takeIf { it.id == e.sessionId } ?: return s
+                val key = e.exercise to (Tier.of(e.tier) ?: return s)
+                s.copy(active = a.copy(swaps = if (e.substitute == null) a.swaps - key else a.swaps + (key to e.substitute)))
             }
             is SetCleared -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s

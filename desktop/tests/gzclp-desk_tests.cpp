@@ -38,7 +38,7 @@ class Tests : public QObject {
 private slots:
     void docExampleResolves() {
         const Log log = parseLog(docExample());
-        QCOMPARE(log.sets.size(), 2);
+        QCOMPARE(log.sets.size(), 3);
         QCOMPARE(log.name("squat"), QString("Squat"));
         QCOMPARE(log.name("leg_curl"), QString("Leg curl"));
         QCOMPARE(log.bodyWeight.size(), 1);  // the Nov 20 weigh-in was cleared
@@ -48,10 +48,12 @@ private slots:
         const QVariantMap d = dashboard(log);
         QCOMPARE(d["workouts"].toInt(), 1);
         QVERIFY(d["strength"].toMap()["lifts"].toList().isEmpty());  // no AMRAP or cycle sets
-        const QVariantMap volume = d["volume"].toList().value(0).toMap();
-        QCOMPARE(volume["lift"].toString(), QString("squat"));
+        const QVariantMap volume = find(d["volume"].toList(), "lift", "squat");
         QCOMPARE(volume["reps"].toInt(), 6);
         QCOMPARE(volume["tonnage"].toDouble(), 210.0 * 3 + 215 * 3);  // each set's own weight
+        // The exercise_swap line is skipped; the set counts for the substitute actually done, not lat_pulldown.
+        QCOMPARE(log.sets[2].exercise, QString("seated_cable_row"));
+        QCOMPARE(find(d["volume"].toList(), "lift", "other")["tonnage"].toDouble(), 100.0 * 15);
         QCOMPARE(d["weeks"].toList().value(0).toMap()["label"].toString(), QString("Nov 2"));
         const QVariantMap rest = d["rest"].toList().value(0).toMap();
         QCOMPARE(rest["tier"].toString(), QString("t1"));

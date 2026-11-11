@@ -45,6 +45,8 @@ sealed interface SheetState {
     data class FiveRm(val ex: Exercise, val fiveRm: Int) : SheetState
     data class EndConfirm(val unlogged: Int) : SheetState
     data class AddExercise(val day: ProgramDay, val name: String) : SheetState
+    /** Swaps [ex] for the exercise named [name], for the active workout only. */
+    data class Swap(val ex: Exercise, val name: String) : SheetState
     /** A new weigh-in when [id] is null, else an edit of that one; [delete] marks the Delete button. */
     data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
         val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
@@ -56,6 +58,33 @@ private fun SheetTitle(title: String, body: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
         Txt(title, Type.title2)
         if (body != null) Txt(body, Type.subhead, color = LocalPalette.current.fg2)
+    }
+}
+
+/** A one-line exercise name field. */
+@Composable
+private fun NameField(name: String, onChange: (String) -> Unit) {
+    val p = LocalPalette.current
+    Box(
+        Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.lg),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (name.isEmpty()) Txt("Name, e.g. Face pull", Type.body, color = p.fg3)
+        BasicTextField(
+            name, { onChange(it.take(40)) }, Modifier.fillMaxWidth(),
+            textStyle = Type.body.copy(color = p.fg), singleLine = true, cursorBrush = SolidColor(p.accent),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        )
+    }
+}
+
+/** Tappable (label, exercise name) rows under a [NameField]. */
+@Composable
+private fun Suggestions(items: List<Pair<String, String>>, onPick: (String) -> Unit) {
+    if (items.isNotEmpty()) Group {
+        items.forEachIndexed { i, (label, name) ->
+            GroupRow(first = i == 0, onClick = { onPick(name) }) { Txt(label, Type.body, color = LocalPalette.current.accent) }
+        }
     }
 }
 
@@ -121,27 +150,24 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
             }
         }
         is SheetState.AddExercise -> {
-            val p = LocalPalette.current
             SheetTitle("Add to ${s.day.title}", null)
-            Box(
-                Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.lg),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (s.name.isEmpty()) Txt("Name, e.g. Face pull", Type.body, color = p.fg3)
-                BasicTextField(
-                    s.name, { update(s.copy(name = it.take(40))) }, Modifier.fillMaxWidth(),
-                    textStyle = Type.body.copy(color = p.fg), singleLine = true, cursorBrush = SolidColor(p.accent),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                )
-            }
+            NameField(s.name) { update(s.copy(name = it)) }
             val q = s.name.trim()
-            val matches = state.moves.values.filter { q.isNotEmpty() && it.name.contains(q, ignoreCase = true) && !it.name.equals(q, ignoreCase = true) }.take(4)
-            if (matches.isNotEmpty()) Group {
-                matches.forEachIndexed { i, m ->
-                    GroupRow(first = i == 0, onClick = { onConfirm(s.copy(name = m.name)) }) { Txt(m.name, Type.body, color = p.accent) }
-                }
-            }
+            val matches = state.moves.values.filter { q.isNotEmpty() && it.name.contains(q, ignoreCase = true) && !it.name.equals(q, ignoreCase = true) }
+            Suggestions(matches.take(4).map { it.name to it.name }) { onConfirm(s.copy(name = it)) }
             PillButton(if (q.isEmpty()) "Add exercise" else "Add $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = q.isNotEmpty())
+        }
+        is SheetState.Swap -> {
+            val original = state.name(s.ex.swappedFrom ?: s.ex.id)
+            SheetTitle("Swap ${s.ex.name.lowercase()}", "For this workout only. $original keeps its weight and stage, and comes back next time.")
+            NameField(s.name) { update(s.copy(name = it)) }
+            val q = s.name.trim()
+            val back = if (s.ex.swappedFrom != null && q.isEmpty()) listOf("Back to $original" to original) else emptyList()
+            val matches = state.moves.values.map { it.name }.filter {
+                q.isNotEmpty() && it.contains(q, ignoreCase = true) && !it.equals(q, ignoreCase = true) && Commands.swap(state, s.ex, it).isNotEmpty()
+            }
+            Suggestions(back + matches.take(4).map { it to it }) { onConfirm(s.copy(name = it)) }
+            PillButton(if (q.isEmpty()) "Swap exercise" else "Swap for $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = Commands.swap(state, s.ex, q).isNotEmpty())
         }
     }
 }
