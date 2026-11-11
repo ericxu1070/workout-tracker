@@ -191,7 +191,7 @@ private fun WeekBars(labels: List<String>, mins: List<Float>) {
         mins.forEachIndexed { i, m ->
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
-            drawRoundRect(if (i == mins.lastIndex) p.accent else p.fg3, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
+            if (m > 0f) drawRoundRect(if (i == mins.lastIndex) p.accent else p.fg3, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
             label(tm, labels[i], Offset(x + barW / 2, bottom + 6.dp.toPx()), p.fg2, alignX = 0.5f)
         }
     }
@@ -279,7 +279,7 @@ fun CardioStopSheet(s: SheetState.CardioStop, state: AppState, update: (SheetSta
         val unit = s.unit
         if (unit != null) Column {
             val longest = state.cardio.values.filter { it.activity == s.run.activity }.mapNotNull { it.distanceM }.maxOrNull()
-            val max = distanceMax(unit, longest, s.distance)
+            val max = distanceMax(unit, longest, maxOf(s.reach, if (s.distanceText != null) s.distance else 0.0))
             Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
                 Txt("Distance", Type.body, Modifier.weight(1f))
                 if (s.distanceText != null) {
@@ -288,7 +288,7 @@ fun CardioStopSheet(s: SheetState.CardioStop, state: AppState, update: (SheetSta
                     NumberField(
                         s.distanceText, { if (distanceInput(unit).matches(it)) update(s.copy(distanceText = it, distance = it.toDoubleOrNull() ?: 0.0)) },
                         modifier = Modifier.focusRequester(focus), keyboardType = KeyboardType.Decimal, label = "Distance in ${unit.label}",
-                        onCommit = { update(s.copy(distanceText = null)) },
+                        onCommit = { update(s.copy(distanceText = null, reach = maxOf(s.reach, s.distance))) },
                     )
                     Txt(" ${unit.label}", Type.body, color = p.fg2)
                 } else Pressable({ update(s.copy(distanceText = if (s.distance > 0) distanceValue(s.distance, unit) else "")) }, Modifier.heightIn(min = 44.dp), label = "Type the distance") {

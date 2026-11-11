@@ -61,11 +61,12 @@ sealed interface SheetState {
     }
     /**
      * Stopping [run]; [maxSec] is its elapsed time when Stop was tapped. [distance] is in the activity's unit and [rpe] is a
-     * slider stop (1 is RPE 1, 19 is RPE 10), both 0 for none. [distanceText] holds the distance while it is being typed.
+     * slider stop (1 is RPE 1, 19 is RPE 10), both 0 for none. [distanceText] holds the distance while it is being typed;
+     * [reach] is the longest distance typed, which keeps the slider stretched to it.
      */
     data class CardioStop(
         val run: CardioRun, val maxSec: Long, val durationSec: Long = maxSec, val distance: Double = 0.0,
-        val distanceText: String? = null, val rpe: Int = 0, val notes: String = "",
+        val distanceText: String? = null, val rpe: Int = 0, val notes: String = "", val reach: Double = 0.0,
     ) : SheetState {
         val unit: DistanceUnit? get() = Activities.of(run.activity)?.unit
         val distanceM: Int? get() = unit?.let { Math.round(distance * it.meters).toInt() }?.takeIf { it > 0 }
