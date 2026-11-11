@@ -8,8 +8,12 @@ import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.WeightRecord
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.Store
@@ -18,6 +22,7 @@ import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
 import dev.gzclp.tracker.ui.Fmt
+import dev.gzclp.tracker.ui.HealthUi
 import dev.gzclp.tracker.ui.LaptopTheme
 import dev.gzclp.tracker.ui.Palette
 import dev.gzclp.tracker.ui.Palettes
@@ -29,6 +34,7 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.concurrent.Executors
+import kotlinx.coroutines.runBlocking
 
 /** Process-wide owner of the store, settings and sync; outlives activity recreation. */
 class AppModel private constructor(private val context: Context) {
@@ -57,6 +63,8 @@ class AppModel private constructor(private val context: Context) {
         private set
     var weighInMinutes by mutableStateOf(prefs.weighInMinutes)
         private set
+    var health by mutableStateOf(HealthUi(prefs.healthConnect, null))
+        private set
     /** Set when the weigh-in notification is tapped; the UI opens the log sheet and clears it. */
     var logWeightRequested by mutableStateOf(false)
 
@@ -67,8 +75,46 @@ class AppModel private constructor(private val context: Context) {
     fun now(): OffsetDateTime = OffsetDateTime.now().withNano(0)
 
     fun dispatch(build: (AppState) -> List<Event>) {
-        store.dispatch(now(), build)
+        val before = store.state.value
+        val entries = store.dispatch(now(), build)
         syncLater()
+        if (prefs.healthConnect && entries.isNotEmpty()) writeHealth(before, entries)
+    }
+
+    /** Best effort: a failed write is shown in Settings and never blocks logging. Not retried. */
+    private fun writeHealth(before: AppState, entries: List<Entry>) = io.execute {
+        val error = runCatching {
+            val w = HealthRecords.of(before, entries)
+            if (!w.isEmpty) runBlocking {
+                val client = HealthConnectClient.getOrCreate(context)
+                if (w.upserts.isNotEmpty()) client.insertRecords(w.upserts)
+                if (w.deletedWeights.isNotEmpty()) client.deleteRecords(WeightRecord::class, emptyList(), w.deletedWeights)
+            }
+        }.exceptionOrNull()
+        main.post { if (health.on) health = health.copy(message = error?.let { "Last write failed: ${it.message ?: it.javaClass.simpleName}" }) }
+    }
+
+    /** Null when Health Connect can be used, otherwise why not. */
+    fun healthUnavailable(): String? = when (HealthConnectClient.getSdkStatus(context)) {
+        HealthConnectClient.SDK_AVAILABLE -> null
+        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "Update Health Connect from the Play Store, then turn this on again."
+        else -> "Health Connect is not available on this phone."
+    }
+
+    fun setHealth(on: Boolean, message: String? = null) {
+        prefs.healthConnect = on
+        health = HealthUi(on, message)
+    }
+
+    /** Turns writing off if Health Connect went away or its access was removed since the last check. */
+    private fun checkHealth() {
+        if (!prefs.healthConnect) return
+        io.execute {
+            val reason = healthUnavailable() ?: runCatching {
+                runBlocking { HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions() }
+            }.getOrNull()?.takeUnless { it.containsAll(HealthRecords.PERMISSIONS) }?.let { "Health Connect access was removed, so writing stopped." }
+            if (reason != null) main.post { setHealth(false, reason) }
+        }
     }
 
     fun syncLater() {
@@ -83,6 +129,7 @@ class AppModel private constructor(private val context: Context) {
         sync = syncUi()
         syncLater()
         readLaptopTheme()
+        checkHealth()
     }
 
     /** Never writes the file; a missing or unreadable one keeps the whole cached palette. */

@@ -25,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.health.connect.client.PermissionController
+import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.weighIns
@@ -103,6 +105,9 @@ private fun App(model: AppModel) {
     }
 
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { model.refresh() }
+    val healthPermissions = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        if (granted.containsAll(HealthRecords.PERMISSIONS)) model.setHealth(true) else model.setHealth(false, "Health Connect access was not allowed, so nothing is written.")
+    }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -186,7 +191,7 @@ private fun App(model: AppModel) {
                 started = state.started, programId = state.programId, increments = state.increments,
                 themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
                 sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
-                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes,
+                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health,
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
                 onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                 onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
@@ -198,6 +203,10 @@ private fun App(model: AppModel) {
                 },
                 onWeighInTime = model::chooseWeighInTime,
                 warmups = model.warmups, onWarmups = model::chooseWarmups,
+                onHealthConnect = { on ->
+                    val unavailable = if (on) model.healthUnavailable() else null
+                    if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
+                },
             )
             route == Route.Days -> DaysScreen(
                 state, { route = Route.Settings },
