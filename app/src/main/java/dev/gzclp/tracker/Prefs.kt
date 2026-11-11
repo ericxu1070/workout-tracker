@@ -48,6 +48,10 @@ class Prefs(context: Context) {
         get() = p.getString("rest_label", "")!!
         set(v) = p.edit().putString("rest_label", v).apply()
 
+    var warmups: Boolean
+        get() = p.getBoolean("warmups", true)
+        set(v) = p.edit().putBoolean("warmups", v).apply()
+
     var weighInReminder: Boolean
         get() = p.getBoolean("weigh_in_reminder", true)
         set(v) = p.edit().putBoolean("weigh_in_reminder", v).apply()

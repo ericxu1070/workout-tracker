@@ -173,6 +173,8 @@ One logged set. Written when the user taps the set done, and again when they cor
 
 The line's `ts` is when the set was logged.
 
+Only working sets are logged. The warm-up sets the app shows before GZCLP T1 lifts are never written to the log, so every `set` line counts toward progression and the metrics below.
+
 **Set identity.** A set is identified by (`session_id`, `exercise`, `tier`, `set_index`). If the user corrects a set, a new `set` line with the same identity is written. The newest one wins. A correction keeps the original `rest_sec` and `rest_target_sec`.
 
 ### `exercise_swap`

@@ -82,6 +82,14 @@ class ScreenShots {
         return store.state.value to start.plusMinutes(14).plusSeconds(18)
     }
 
+    /** A GZCLP A1 ten minutes in, to show the T1 warm-ups. */
+    private fun gzclpLive(): Pair<AppState, OffsetDateTime> {
+        val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
+        store.dispatch(t0) { Commands.setup(mapOf(Lift.SQUAT to 245, Lift.BENCH to 175, Lift.DEADLIFT to 295, Lift.OHP to 115), Programs.GZCLP) }
+        store.workout(t0, 0, end = false)
+        return store.state.value to t0.plusMinutes(11)
+    }
+
     /** [tall] renders the whole scrolling page on a very tall screen, to review everything below the fold. */
     private fun shot(p: Palette, name: String, tall: Boolean = false, content: @Composable () -> Unit) {
         out.mkdirs()
@@ -125,6 +133,7 @@ class ScreenShots {
         val today = now.toLocalDate()
         val bench = live.exerciseLogs().first { it.id == "bench" }
         val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "overhead_tricep_extension")))
+        val (gzLive, gzNow) = gzclpLive()
         for (p in Palettes.all) {
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
@@ -134,6 +143,9 @@ class ScreenShots {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "04-gzclp-next") { TabFrame(Tab.Workout, {}) { HomeScreen(gz, {}, {}, {}) } }
+            shot(p, "04-gzclp-warmups", tall = true) {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+            }
             shot(p, "05-starting-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) }
