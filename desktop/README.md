@@ -1,6 +1,6 @@
 # Training (gzclp-desk)
 
-A desktop dashboard for the GZCLP phone app. It reads the log the phone mirrors to `~/GZCLP/gzclp-log.jsonl` through Syncthing and redraws whenever Syncthing replaces the file. It never writes to the folder.
+A desktop dashboard for the Plateline phone app. It reads the log the phone mirrors to `~/GZCLP/gzclp-log.jsonl` through Syncthing and redraws whenever Syncthing replaces the file. It never writes to the folder.
 
 One scrolling page, top to bottom:
 

@@ -18,7 +18,7 @@
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="GZCLP"
+        android:label="Plateline"
         android:theme="@style/Theme.GZCLP">
         <activity
             android:name=".MainActivity"

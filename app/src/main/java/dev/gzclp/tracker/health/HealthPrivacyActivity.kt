@@ -26,7 +26,7 @@ class HealthPrivacyActivity : ComponentActivity() {
                     Txt("Health Connect", Type.largeTitle)
                     Spacer(Modifier.height(Space.lg))
                     Txt(
-                        "GZCLP writes each finished workout (its sets and reps, with weights in the notes), each cardio session, and each weigh-in to Health Connect. " +
+                        "Plateline writes each finished workout (its sets and reps, with weights in the notes), each cardio session, and each weigh-in to Health Connect. " +
                             "It never reads your health data and sends nothing off this phone. Turn it off in Settings or revoke access in Health Connect at any time.",
                         Type.body, color = LocalPalette.current.fg2,
                     )
