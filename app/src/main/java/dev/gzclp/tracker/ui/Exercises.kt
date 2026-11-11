@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Cycle
 import dev.gzclp.tracker.engine.Schemes
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.engine.Wave
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.ExerciseLog
 import dev.gzclp.tracker.log.exerciseLogs
@@ -129,6 +130,11 @@ fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogW
                 val w = Cycle.weight(c, state.step(log.id))
                 add("Cycle" to "Week ${c.week + 1} of ${Cycle.weeks.size}, ${Cycle.weeks[c.week].display} at ${Fmt.lb(w)}")
             }
+            // A split's cycle per sets × reps, labeled by its wave, e.g. "5 × 8·6·5".
+            state.custom.filterKeys { it.first == log.id }.forEach { (k, c) ->
+                val wave = Wave.of(k.second) ?: return@forEach
+                add(wave.display to "Week ${c.week + 1} of ${wave.weeks.size}, ${wave.weeks[c.week].display} at ${Fmt.lb(Cycle.weight(c, state.step(log.id)))}")
+            }
             listOf(Tier.T1, Tier.T2, Tier.T3).forEach { t ->
                 state.gz[log.id to t]?.let { add("GZCLP ${t.label}" to "${Schemes.of(t)[it.stage].display} at ${Fmt.lb(it.weight)}") }
             }
@@ -138,7 +144,7 @@ fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogW
             Group {
                 now.forEachIndexed { i, (k, v) ->
                     GroupRow(first = i == 0) {
-                        Txt(k, Type.body, Modifier.weight(1f))
+                        Txt(k, Type.body, Modifier.weight(1f), maxLines = 1)
                         Txt(v, Type.body.tabular(), color = p.fg2)
                     }
                 }

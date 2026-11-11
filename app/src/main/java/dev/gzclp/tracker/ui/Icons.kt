@@ -31,6 +31,7 @@ object Icons {
     val plus = lucide("plus", "M5 12h14", "M12 5v14")
     val minus = lucide("minus", "M5 12h14")
     val x = lucide("x", "M18 6 6 18", "m6 6 12 12")
+    val grip = lucide("equal", "M5 9h14", "M5 15h14")
     val check = lucide("check", "M20 6 9 17l-5-5")
     val play = lucide("play", "M6 3 20 12 6 21z")
     val dumbbell = lucide(

@@ -204,7 +204,10 @@ fun NumberField(
 
 /** "T1 · 5×3+" or "Week 2 of 3 · 3×10". */
 fun Exercise.detail(): String =
-    if (tier == Tier.CYCLE) "Week ${(week ?: 0) + 1} of ${Cycle.weeks.size} · ${scheme.display}" else "${tier.label} · ${scheme.display}"
+    if (tier.cyclic) "Week ${(week ?: 0) + 1} of ${weeks.size} · ${scheme.display}" else "${tier.label} · ${scheme.display}"
+
+/** Warm-ups go before a GZCLP T1 lift and before a split's barbell lift on a week of 6 reps or fewer. */
+fun Exercise.warmsUp(): Boolean = tier == Tier.T1 || (tier == Tier.CUSTOM && id in Catalog.barbell && scheme.reps <= 6)
 
 @Composable
 fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onEditWeight: (Exercise) -> Unit, onCardio: () -> Unit = {}) {
@@ -347,7 +350,7 @@ private fun ExerciseBlock(
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         val plates = LocalPlates.current
         // A substitute never logged before has no weight to warm up to.
-        if (warmups && ex.tier == Tier.T1 && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
+        if (warmups && ex.warmsUp() && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
             WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, plates)
         }
         for (i in 1..ex.scheme.sets) {

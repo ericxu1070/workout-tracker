@@ -89,6 +89,30 @@ class ScreenShots {
         return store.state.value to start.plusMinutes(14).plusSeconds(18)
     }
 
+    private fun AppState.then(at: OffsetDateTime, build: (AppState) -> List<dev.gzclp.tracker.log.Event>): AppState =
+        build(this).fold(this) { s, e -> s.apply(Entry(s.lastSeq + 1, at, e)) }
+
+    /**
+     * [base] with "My PPL" copied from push, pull, legs and in use: 5 × 8·6·5 presses and 3 × 15·12·10 lateral raises on Push A,
+     * starting weights from the estimates, and one full rotation done, so Push A is next at week 2.
+     */
+    private fun split(base: AppState, now: OffsetDateTime): AppState {
+        var s = base.then(now) { Commands.copySplit(it, "ppl", "My PPL") }
+        val id = s.customPrograms.keys.last()
+        val press = dev.gzclp.tracker.engine.Wave(5, listOf(8, 6, 5))
+        s = s.then(now) { Commands.setWave(it, id, "push_a", "bench", press) }.then(now) { Commands.setWave(it, id, "push_a", "ohp", press) }
+            .then(now) { Commands.setWave(it, id, "push_a", "lateral_raise", dev.gzclp.tracker.engine.Wave(3, listOf(15, 12, 10))) }
+            .then(now) { Commands.chooseProgram(it, id) }
+        for (d in s.program.days) for (ex in s.exercises(d)) if (ex.weight == null) s = s.then(now) { Commands.startingWeight(it, ex, Commands.estimate(it, ex, Plates()) ?: 45) }
+        for (k in 0L until 6L) {
+            val at = now.plusDays(k)
+            s = s.then(at) { Commands.start(it, at) }
+            for (ex in s.sessionExercises()) for (i in 1..ex.scheme.sets) s = s.then(at) { Commands.logSet(it, ex, i, ex.scheme.reps, ex.weight!!, at, rest) }
+            s = s.then(at) { Commands.end(it, at.plusMinutes(50), null) }
+        }
+        return s
+    }
+
     /** A GZCLP A1 ten minutes in, to show the T1 warm-ups. */
     private fun gzclpLive(): Pair<AppState, OffsetDateTime> {
         val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
@@ -244,7 +268,52 @@ class ScreenShots {
             val at = today.minusDays(back).atTime(7, 5 + i).atOffset(t0.offset)
             "c$i" to Cardio("c$i", a, Activities.of(a)!!.name, at, min * 60L + 17, if (a == "yoga") null else (min * 160.9 + i * 300).toInt() * if (a == "cycling") 3 else 1)
         }.toMap())
+        val mine = split(idle, now.plusDays(1))
+        val splitNow = now.plusDays(7)
+        val mineLive = mine.then(splitNow) { Commands.start(it, splitNow) }
+        val ppl = mine.program
+        val pushA = ppl.days.first()
+        fun settings(p: Palette) = @Composable {
+            SettingsScreen(
+                true, mine.programId, mine.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(),
+            )
+        }
         for (p in Palettes.all) {
+            shot(p, "23-settings-splits") { settings(p)() }
+            shot(p, "23-start-from-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    settings(p)()
+                    Sheet(true, {}) { SheetContent(SheetState.NewSplit(), mine, {}, {}, {}) }
+                }
+            }
+            shot(p, "24-split") { SplitScreen(mine, ppl, {}, {}, {}, {}) }
+            shot(p, "24-split-edit") { SplitScreen(mine, ppl, {}, {}, {}, {}, initialEditing = true) }
+            shot(p, "24-split-delete-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    SplitScreen(mine, ppl, {}, {}, {}, {}, initialEditing = true)
+                    Sheet(true, {}) { SheetContent(SheetState.DeleteSplit(ppl.id, null), mine, {}, {}, {}) }
+                }
+            }
+            shot(p, "25-split-day") { SplitDayScreen(mine, ppl, pushA, {}, {}, {}) }
+            shot(p, "25-split-day-edit") { SplitDayScreen(mine, ppl, pushA, {}, {}, {}, initialEditing = true) }
+            shot(p, "26-split-wave-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    SplitDayScreen(mine, ppl, pushA, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.SplitWave(ppl.id, pushA.id, "bench", "Bench press", pushA.slots.first().wave!!), mine, {}, {}, {}) }
+                }
+            }
+            shot(p, "26-split-name-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    SplitScreen(mine, ppl, {}, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.SplitName(ppl.id, null, "", add = true), mine, {}, {}, {}) }
+                }
+            }
+            shot(p, "27-split-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(mine, {}, {}, {}) } }
+            shot(p, "27-split-workout-full", tall = true) {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(mineLive, splitNow.plusMinutes(3), null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+            }
+            shot(p, "27-split-exercise-detail") { ExerciseScreen(mine, mine.exerciseLogs().first { it.id == "bench" }, {}, {}) }
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }

@@ -97,7 +97,7 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
             w.lifts.forEachIndexed { i, l ->
                 GroupRow(first = i == 0, onClick = { onExercise(l.exercise) }) {
                     Column(Modifier.weight(1f)) {
-                        val slot = if (l.tier == Tier.CYCLE) "" else "${l.tier.label} "
+                        val slot = if (l.tier.cyclic) "" else "${l.tier.label} "
                         Txt("${state.name(l.exercise)} · $slot${l.stage.replace("x", "×")}", Type.body, maxLines = 1)
                         Txt(top(l.now) + (l.prev?.let { " vs ${top(it)}, ${Fmt.shortDate(it.at)}" } ?: ""), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
                     }

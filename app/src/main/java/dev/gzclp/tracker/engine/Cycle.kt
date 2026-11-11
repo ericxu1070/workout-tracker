@@ -13,12 +13,28 @@ data class Wave(val sets: Int, val reps: List<Int>) {
     val weeks: List<Scheme> get() = reps.map { Scheme(sets, it, false) }
     val key: String get() = "${sets}x${reps.joinToString(",")}"
     val valid: Boolean get() = sets in SETS && reps.size == Cycle.weeks.size && reps.all { it in REPS }
+    /** "5 × 8·6·5". */
+    val display: String get() = "$sets × ${reps.joinToString("·")}"
 
     companion object {
         /** The built-in cycle, 3 x 12·10·8: where a copied preset starts. */
         val DEFAULT = Wave(3, listOf(12, 10, 8))
         val SETS = 1..10
         val REPS = 1..50
+
+        /** The wave a log `scheme` key such as "5x8,6,5" names, or null when it is not one. */
+        fun of(key: String): Wave? {
+            val sets = key.substringBefore('x').toIntOrNull() ?: return null
+            val reps = key.substringAfter('x', "").split(',').map { it.toIntOrNull() ?: return null }
+            return Wave(sets, reps).takeIf { it.valid }
+        }
+
+        /** Rest before the next set of a split exercise, by that week's [reps]: heavier sets rest longer. */
+        fun restSec(reps: Int): Int = when {
+            reps <= 5 -> 180
+            reps <= 10 -> 120
+            else -> 90
+        }
     }
 }
 

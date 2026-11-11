@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Activities
 import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.engine.Programs
+import dev.gzclp.tracker.engine.Wave
 import dev.gzclp.tracker.log.CardioRun
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Exercise
@@ -48,7 +50,16 @@ sealed interface SheetState {
     data class Weight(val ex: Exercise, val weight: Int, val starting: Boolean = ex.weight == null) : SheetState
     data class FiveRm(val ex: Exercise, val fiveRm: Int) : SheetState
     data class EndConfirm(val unlogged: Int) : SheetState
-    data class AddExercise(val day: ProgramDay, val name: String) : SheetState
+    /** Adds an exercise to [day]: of the active built-in program, or of custom [split] when set. */
+    data class AddExercise(val day: ProgramDay, val name: String, val split: String? = null) : SheetState
+    /** "Start from": the preset a new split copies; confirmed with the picked [from]. */
+    data class NewSplit(val from: String = "") : SheetState
+    /** Names split [split]: a new day when [add], else day [day] when set, else the split itself. */
+    data class SplitName(val split: String, val day: String?, val name: String, val add: Boolean = false) : SheetState
+    /** Sets and week reps for exercise [ex] of [day], or for every exercise in [split] ("Set all") when [ex] is null. */
+    data class SplitWave(val split: String, val day: String?, val ex: String?, val title: String, val wave: Wave) : SheetState
+    /** Confirms deleting day [day] of [split], or the whole split when [day] is null. */
+    data class DeleteSplit(val split: String, val day: String?) : SheetState
     /** Swaps [ex] for the exercise named [name], for the active workout only; [create] asks before adding [name] as a new exercise. */
     data class Swap(val ex: Exercise, val name: String, val create: Boolean = false) : SheetState
     /** A logged meal's photo, with Delete as the confirm action once [delete] has asked. */
@@ -219,6 +230,59 @@ fun ColumnScope.SheetContent(
             val matches = state.moves.values.filter { q.isNotEmpty() && it.name.contains(q, ignoreCase = true) && !it.name.equals(q, ignoreCase = true) }
             Suggestions(matches.take(4).map { it.name to it.name }) { onConfirm(s.copy(name = it)) }
             PillButton(if (q.isEmpty()) "Add exercise" else "Add $q", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = q.isNotEmpty())
+        }
+        is SheetState.NewSplit -> {
+            val p = LocalPalette.current
+            SheetTitle("Start from", null)
+            Group {
+                Programs.all.filter { !it.gzclp }.forEachIndexed { i, prog ->
+                    GroupRow(first = i == 0, onClick = { onConfirm(s.copy(from = prog.id)) }) {
+                        Txt(prog.name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        Txt("${prog.days.size} days", Type.body, color = p.fg2)
+                    }
+                }
+            }
+            PillButton("Cancel", onDismiss, Modifier.fillMaxWidth(), onSurface = true)
+        }
+        is SheetState.SplitName -> {
+            SheetTitle(if (s.add) "Add day" else if (s.day != null) "Rename day" else "Rename split", null)
+            NameField(s.name, if (s.day == null && !s.add) "Name, e.g. My PPL" else "Name, e.g. Push A", Commands.SPLIT_NAME_MAX) { update(s.copy(name = it)) }
+            PillButton(if (s.add) "Add day" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
+        }
+        is SheetState.SplitWave -> {
+            val p = LocalPalette.current
+            val w = s.wave
+            SheetTitle(s.title, null)
+            Column {
+                Txt("Sets", Type.footnote, color = p.fg2)
+                Stepper(
+                    w.sets.toString(),
+                    { update(s.copy(wave = w.copy(sets = (w.sets - 1).coerceAtLeast(Wave.SETS.first)))) },
+                    { update(s.copy(wave = w.copy(sets = (w.sets + 1).coerceAtMost(Wave.SETS.last)))) },
+                )
+            }
+            Group {
+                w.reps.forEachIndexed { i, r ->
+                    fun set(v: Int) = update(s.copy(wave = w.copy(reps = w.reps.toMutableList().also { it[i] = v.coerceIn(Wave.REPS) })))
+                    GroupRow(first = i == 0) {
+                        Txt("Week ${i + 1}", Type.body, Modifier.weight(1f))
+                        MiniStep(Icons.minus, "Fewer week ${i + 1} reps", enabled = r > Wave.REPS.first) { set(r - 1) }
+                        Txt("$r", Type.body.tabular(), Modifier.width(56.dp), align = TextAlign.Center)
+                        MiniStep(Icons.plus, "More week ${i + 1} reps", enabled = r < Wave.REPS.last) { set(r + 1) }
+                    }
+                }
+            }
+            PillButton(if (s.ex == null) "Set all" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
+        }
+        is SheetState.DeleteSplit -> {
+            val split = state.customPrograms[s.split]
+            val day = s.day?.let { split?.day(it) }
+            SheetTitle(
+                "Delete ${day?.title ?: split?.name}?",
+                // Deleting the split in use hands the workout to its preset; say which.
+                if (s.day == null && state.programId == s.split) split?.from?.let { "${Programs.of(it).name} takes over." } else null,
+            )
+            CancelOr("Delete", onDismiss) { onConfirm(s) }
         }
         is SheetState.Swap -> if (s.create) {
             val q = s.name.trim()
