@@ -28,6 +28,9 @@ object Catalog {
         Move("leg_extension", "Leg extension"),
         Move("calf_raise", "Calf raise"),
     )
+
+    /** Exercises loaded on a barbell: their targets round to what the plates make, and each set shows its plates. */
+    val barbell = setOf("squat", "bench", "deadlift", "ohp", "barbell_row", "barbell_curl", "romanian_deadlift")
 }
 
 /** One exercise slot in a program day. Cycle programs use [Tier.CYCLE] for every slot. */

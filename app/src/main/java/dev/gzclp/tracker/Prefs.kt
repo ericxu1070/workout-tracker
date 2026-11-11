@@ -1,6 +1,7 @@
 package dev.gzclp.tracker
 
 import android.content.Context
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
 
 /** Device-local settings. Program data never lives here; it lives in the log. */
@@ -51,6 +52,14 @@ class Prefs(context: Context) {
     var warmups: Boolean
         get() = p.getBoolean("warmups", true)
         set(v) = p.edit().putBoolean("warmups", v).apply()
+
+    var plates: Plates
+        get() = Plates(p.getInt("plate_bar", 45), Plates.SIZES.associateWith { p.getInt("plate_pairs_${Plates.label(it)}", Plates.DEFAULT.getValue(it)) })
+        set(v) {
+            val e = p.edit().putInt("plate_bar", v.bar)
+            v.pairs.forEach { (size, n) -> e.putInt("plate_pairs_${Plates.label(size)}", n) }
+            e.apply()
+        }
 
     var weighInReminder: Boolean
         get() = p.getBoolean("weigh_in_reminder", true)

@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Increments
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.ProgramDay
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.log.Commands
@@ -38,6 +39,7 @@ fun SettingsScreen(
     weighInReminder: Boolean,
     weighInMinutes: Int,
     health: HealthUi,
+    plates: Plates,
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onRest: (Tier, Int) -> Unit,
@@ -50,6 +52,7 @@ fun SettingsScreen(
     onWeighInReminder: (Boolean) -> Unit,
     onWeighInTime: (Int) -> Unit,
     onHealthConnect: (Boolean) -> Unit,
+    onPlates: (Plates) -> Unit,
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
 ) {
@@ -88,6 +91,27 @@ fun SettingsScreen(
             }
             GroupFooter("Cycle programs add a step each week: 3×12, then 3×10, then 3×8. Lower body covers squat, deadlift, Romanian deadlift, and leg press; everything else uses the upper body step. After a heavy week with every set at 8 or more, the next cycle starts higher by the next-cycle amount.")
         }
+
+        GroupHeader("Bar and plates")
+        Group {
+            GroupRow(first = true) {
+                Txt("Bar", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Lighter bar") { onPlates(plates.copy(bar = (plates.bar - 5).coerceAtLeast(5))) }
+                Txt(Fmt.lb(plates.bar), Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "Heavier bar") { onPlates(plates.copy(bar = (plates.bar + 5).coerceAtMost(100))) }
+            }
+            Plates.SIZES.forEach { size ->
+                val n = plates.pairs[size] ?: 0
+                val name = "${Plates.label(size)} lb"
+                GroupRow(first = false) {
+                    Txt("$name plates", Type.body, Modifier.weight(1f), maxLines = 1)
+                    MiniStep(Icons.minus, "One less pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n - 1).coerceAtLeast(0)))) }
+                    Txt(if (n == 1) "1 pair" else "$n pairs", Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                    MiniStep(Icons.plus, "One more pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n + 1).coerceAtMost(20)))) }
+                }
+            }
+        }
+        GroupFooter("Barbell lifts round each target to the nearest weight this bar and these plates make, and every set shows the plates for one side.")
 
         GroupHeader("Theme")
         Group {

@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.WeightRecord
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
@@ -51,6 +52,8 @@ class AppModel private constructor(private val context: Context) {
         private set
     val palette: Palette get() = if (theme == LaptopTheme.ID) laptop ?: Palettes.jade else Palettes.of(theme)
     var restTargets by mutableStateOf(prefs.restTargets())
+        private set
+    var plates by mutableStateOf(prefs.plates)
         private set
     var sync by mutableStateOf(syncUi())
         private set
@@ -158,6 +161,11 @@ class AppModel private constructor(private val context: Context) {
     fun chooseWarmups(on: Boolean) {
         prefs.warmups = on
         warmups = on
+    }
+
+    fun choosePlates(v: Plates) {
+        prefs.plates = v
+        plates = v
     }
 
     fun chooseWeighInReminder(on: Boolean) {
