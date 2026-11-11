@@ -38,7 +38,10 @@ import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.ui.ActivitiesScreen
 import dev.gzclp.tracker.ui.CardioRunScreen
 import dev.gzclp.tracker.ui.CardioScreen
+import dev.gzclp.tracker.ui.cardioEdit
+import dev.gzclp.tracker.ui.cardioPast
 import dev.gzclp.tracker.ui.durationEndingAt
+import dev.gzclp.tracker.ui.withActivity
 import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.Commands
@@ -101,7 +104,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** A screen pushed over the tabs; [arg] is a session or exercise id. */
+/** A screen pushed over the tabs; [arg] is a session or exercise id, or for [Activities] "log" or "change" (blank starts a session). */
 private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities }
 
 @Composable
@@ -223,6 +226,22 @@ private fun App(model: AppModel) {
             open(c.copy(durationSec = durationEndingAt(c.run.startedAt, h, m, c.maxSec)))
         }, end.hour, end.minute, DateFormat.is24HourFormat(context)).show()
     }
+    fun pickCardioStart(s: SheetState.CardioStop) {
+        TimePickerDialog(context, { _, h, m ->
+            val c = sheet as? SheetState.CardioStop ?: return@TimePickerDialog
+            open(c.copy(run = c.run.copy(startedAt = c.run.startedAt.withHour(h).withMinute(m).withSecond(0).withNano(0))))
+        }, s.run.startedAt.hour, s.run.startedAt.minute, DateFormat.is24HourFormat(context)).show()
+    }
+    /** Leaves the activity picker; changing a sheet's activity goes back to that sheet, with [a] when one was picked. */
+    fun closeActivities(a: Activity? = null) {
+        val draft = lastSheet as? SheetState.CardioStop
+        route = null
+        when {
+            arg == "log" && a != null -> open(cardioPast(a, model.now()))
+            arg == "change" && draft != null -> open(if (a == null) draft else draft.withActivity(a))
+            a != null -> startCardio(a)
+        }
+    }
     LaunchedEffect(model.stopCardioRequested, state.cardioActive) {
         if (!model.stopCardioRequested) return@LaunchedEffect
         model.stopCardioRequested = false
@@ -254,6 +273,7 @@ private fun App(model: AppModel) {
         when {
             sheet != null -> close()
             route == Route.Days -> route = Route.Settings
+            route == Route.Activities -> closeActivities()
             route != null -> route = null
             else -> tab = Tab.Workout
         }
@@ -298,7 +318,10 @@ private fun App(model: AppModel) {
             route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
             route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
             route == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
-            route == Route.Activities -> ActivitiesScreen(state, { route = null }, ::startCardio)
+            route == Route.Activities -> ActivitiesScreen(
+                state, { closeActivities() }, ::closeActivities,
+                title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
+            )
             else -> TabFrame(tab, { tab = it }) {
                     when (tab) {
                         Tab.Workout -> if (run != null) CardioRunScreen(
@@ -307,6 +330,7 @@ private fun App(model: AppModel) {
                         ) else if (state.active == null && model.cardioMode) CardioScreen(
                             state, LocalDate.now(), model.cardioGoalMin, onLifting = { model.chooseCardioMode(false) },
                             onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
+                            onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
                         ) else if (state.active == null) HomeScreen(
                             state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
                             onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
@@ -331,7 +355,9 @@ private fun App(model: AppModel) {
                         )
                         Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
                         Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
-                        Tab.History -> HistoryScreen(state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }) {
+                        Tab.History -> HistoryScreen(
+                            state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
+                        ) {
                             val today = LocalDate.now()
                             val thisWeek = mondayOf(today)
                             WeekView(
@@ -354,6 +380,7 @@ private fun App(model: AppModel) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
                 s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime, onPickEnd = ::pickCardioEnd,
+                onPickStart = ::pickCardioStart, onActivity = { close(); push(Route.Activities, "change") },
                 onConfirm = { c ->
                     when (c) {
                         is SheetState.Weight -> {
@@ -389,7 +416,8 @@ private fun App(model: AppModel) {
                             close()
                         }
                         is SheetState.CardioStop -> {
-                            model.dispatch { Commands.stopCardio(it, model.now(), c.durationSec, c.distanceM, c.rpeValue, c.notes) }
+                            if (c.now == null) model.dispatch { Commands.stopCardio(it, model.now(), c.durationSec, c.distanceM, c.rpeValue, c.notes) }
+                            else model.dispatch { Commands.logCardio(it, c.run.id.ifEmpty { null }, Activity(c.run.activity, c.run.name), c.run.startedAt, c.durationSec, c.distanceM, c.rpeValue, c.notes, model.now()) }
                             close()
                         }
                         is SheetState.CardioDiscard -> {

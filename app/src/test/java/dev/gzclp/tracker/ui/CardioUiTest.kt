@@ -67,4 +67,22 @@ class CardioUiTest {
         ).associateBy { it.id })
         assertEquals(listOf("sun2", "mon"), s.cardioWeek(LocalDate.parse("2026-11-09")).map { it.id })
     }
+
+    @Test fun editSheetPrefillsAndSavesNothingWhenUnchanged() {
+        val now = start.plusDays(1)
+        val c = Cardio("c1", "running", "Running", start, 41 * 60 + 7, 4989, 7.5, "Easy")
+        val state = AppState(cardio = mapOf(c.id to c))
+        val s = cardioEdit(c, now)
+        assertEquals(7.5, s.rpeValue!!, 1e-9)
+        assertEquals(4989, s.distanceM)
+        val run = s.run
+        assertEquals(
+            emptyList<Any>(),
+            dev.gzclp.tracker.log.Commands.logCardio(state, run.id, dev.gzclp.tracker.engine.Activity(run.activity, run.name), run.startedAt, s.durationSec, s.distanceM, s.rpeValue, s.notes, now),
+        )
+        // Same unit keeps the distance; a unitless activity drops it.
+        assertEquals(4989, s.withActivity(dev.gzclp.tracker.engine.Activities.of("walking")!!).distanceM)
+        assertNull(s.withActivity(dev.gzclp.tracker.engine.Activities.of("yoga")!!).distanceM)
+        assertNull(cardioEdit(c.copy(rpe = null), now).rpeValue)
+    }
 }
