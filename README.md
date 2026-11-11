@@ -8,13 +8,23 @@ The app logs a weight and reps for every set, shows the next eight workouts and 
 
 Rendered by the Roborazzi screenshot test (`ScreenShots.kt`) from its demo data.
 
-| Next workout | Rest timer | Exercise |
+| Next workout (Dark) | T1 warm-ups (Jade) | Swap an exercise (Light) |
 | :---: | :---: | :---: |
-| <img src="docs/images/workout.png" width="250" alt="Next workout screen"> | <img src="docs/images/rest-timer.png" width="250" alt="Workout in progress with the rest timer"> | <img src="docs/images/exercise.png" width="250" alt="Exercise detail with estimated 1RM chart"> |
-| **History** | **Body weight** | **Laptop theme (Everforest)** |
-| <img src="docs/images/history.png" width="250" alt="Workout history"> | <img src="docs/images/body-weight.png" width="250" alt="Body weight with 7-day average"> | <img src="docs/images/laptop-theme.png" width="250" alt="Workout screen in the synced Omarchy Everforest theme"> |
-| **Food** | | |
-| <img src="docs/images/food.png" width="250" alt="Food log: today's meal photos with their times"> | | |
+| <img src="docs/images/workout.png" width="250" alt="Next workout screen"> | <img src="docs/images/warmups.png" width="250" alt="GZCLP T1 warm-up sets with plates per side"> | <img src="docs/images/swap.png" width="250" alt="Sheet to swap an exercise for one workout"> |
+| **Exercise (Tokyo Night)** | **History (Light)** | **Body weight (Dark)** |
+| <img src="docs/images/exercise.png" width="250" alt="Exercise detail with estimated 1RM chart"> | <img src="docs/images/history.png" width="250" alt="Workout history"> | <img src="docs/images/body-weight.png" width="250" alt="Body weight with 7-day average"> |
+| **Food (Jade)** | **Settings (Tokyo Night)** |  |
+| <img src="docs/images/food.png" width="250" alt="Food log: today's meal photos with their times"> | <img src="docs/images/settings.png" width="250" alt="Settings: warm-ups, weigh-in reminder, Health Connect, sync folder"> |  |
+
+The workout in progress, with the rest timer, plates per side, and RPE, in each app theme and in the Laptop theme following eight Omarchy themes:
+
+| Jade | Tokyo Night | Dark | Light |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/themes/jade.png" width="190" alt="Workout screen in the Jade theme"> | <img src="docs/images/themes/tokyo.png" width="190" alt="Workout screen in the Tokyo Night theme"> | <img src="docs/images/themes/dark.png" width="190" alt="Workout screen in the Dark theme"> | <img src="docs/images/themes/light.png" width="190" alt="Workout screen in the Light theme"> |
+| **Laptop: Everforest** | **Laptop: Catppuccin Latte** | **Laptop: Rosé Pine** | **Laptop: City 783** |
+| <img src="docs/images/themes/laptop-everforest.png" width="190" alt="Workout screen in the Laptop: Everforest theme"> | <img src="docs/images/themes/laptop-catppuccin-latte.png" width="190" alt="Workout screen in the Laptop: Catppuccin Latte theme"> | <img src="docs/images/themes/laptop-rose-pine.png" width="190" alt="Workout screen in the Laptop: Rosé Pine theme"> | <img src="docs/images/themes/laptop-city-783.png" width="190" alt="Workout screen in the Laptop: City 783 theme"> |
+| **Laptop: Deep Ocean** | **Laptop: Desert Dusk** | **Laptop: Hackerman** | **Laptop: Miasma** |
+| <img src="docs/images/themes/laptop-deep-ocean.png" width="190" alt="Workout screen in the Laptop: Deep Ocean theme"> | <img src="docs/images/themes/laptop-desert-dusk.png" width="190" alt="Workout screen in the Laptop: Desert Dusk theme"> | <img src="docs/images/themes/laptop-hackerman.png" width="190" alt="Workout screen in the Laptop: Hackerman theme"> | <img src="docs/images/themes/laptop-miasma.png" width="190" alt="Workout screen in the Laptop: Miasma theme"> |
 
 The desktop analysis app (`desktop/`) reads the synced log:
 
