@@ -323,10 +323,10 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 | Metric | How |
 |---|---|
 | Estimated 1RM, GZCLP | From `set` lines with `amrap: true` and `tier: t1` (optionally `t3`). Epley: `weight * (1 + actual_reps / 30)`. Plot by `ts`. |
-| Estimated 1RM, cycle programs | Epley on any set with `actual_reps > 0`; take the best per session. |
+| Estimated 1RM, cycle programs and custom splits | Epley on any `cycle` or `custom` set with `actual_reps > 0`; take the best per session. |
 | Weekly volume and tonnage per exercise | Volume = sum of `actual_reps`. Tonnage = sum of `weight * actual_reps`, using each set's own `weight`. Group by `exercise`, `tier`, and the ISO week of `ts`. |
 | GZCLP stalls and resets | `progression` lines with `kind` `stage_change` (stall) and `reset`, by `ts`, with `from_stage`, `to_stage`, and weights. |
-| Cycle timeline | `progression` lines with `tier: cycle`: `cycle_up` and `cycle_repeat` mark the end of each cycle (repeats are the cycle's stalls); `cycle_week` and `cycle_base` give the position after each. |
+| Cycle timeline | `progression` lines with `tier` `cycle` or `custom`: `cycle_up` and `cycle_repeat` mark the end of each cycle (repeats are the cycle's stalls); `cycle_week` and `cycle_base` give the position after each, and `scheme` tells a `custom` exercise's cycles apart. |
 | Session duration | `session_end.duration_sec`, by `started_at`. |
 | Workouts per week | Count of `session_end` lines whose session has at least one set, by ISO week of `started_at`. Group by `program` to compare programs. |
 | Actual rest vs target | `rest_sec` against `rest_target_sec` on each `set`. Group by the previous set's tier, which is the tier the target came from. |

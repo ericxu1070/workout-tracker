@@ -14,7 +14,7 @@ Item {
     implicitHeight: rows.length * rowH + 28
     function px(t) { return nameW + 10 + (tEnd > tStart ? (t - tStart) / (tEnd - tStart) * (plotW - 20) : (plotW - 20) / 2) }
     function describe(row, e) {
-        const tier = e.tier === "cycle" ? qsTr("Cycle") : e.tier.toUpperCase()
+        const tier = win.tierName(e.tier)
         if (e.kind === "cycle_repeat")
             return qsTr("%1 %2 week 3 short, repeats at %3 lb · %4").arg(row.name).arg(tier).arg(e.toWeight).arg(C.day(e.t))
         if (e.kind === "reset")

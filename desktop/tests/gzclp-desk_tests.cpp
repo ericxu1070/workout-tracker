@@ -96,11 +96,11 @@ private slots:
     void fixtureMetrics() {
         const Log log = parseLog(readFile("GZCLP_FIXTURE"));
         const QVariantMap d = dashboard(log);
-        // 18 GZCLP and 6 cycle workouts; the accidental start and the open session do not count.
-        QCOMPARE(d["workouts"].toInt(), 24);
+        // 18 GZCLP, 6 cycle, and 3 custom workouts; the accidental start and the open session do not count.
+        QCOMPARE(d["workouts"].toInt(), 27);
         QCOMPARE(d["perWeek"].toList().size(), 8);
         QCOMPARE(d["perWeek"].toList().first().toInt(), 3);
-        QCOMPARE(log.sessions.size(), 25);
+        QCOMPARE(log.sessions.size(), 28);
 
         // 50 days, 7 skipped, one cleared; the morning weigh-in wins over the evening one.
         const QVariantList body = d["bodyWeight"].toList();
@@ -151,9 +151,23 @@ private slots:
         QCOMPARE(activities.value(1).toMap()["minutes"].toDouble(), 195.0);
 
         const QVariantList rest = d["rest"].toList();
-        QCOMPARE(rest.size(), 4);
+        QCOMPARE(rest.size(), 5);
         QCOMPARE(find(rest, "tier", "t1")["target"].toDouble(), 180.0);
         QVERIFY(find(rest, "tier", "t1")["actual"].toDouble() > 180.0);
+
+        // The custom split: bench at 5x8,6,5, deleted after one repeated cycle. Its sets count like cycle sets.
+        QVERIFY(strength["custom"].toBool());
+        const QVariantMap bench = find(strength["lifts"].toList(), "id", "bench");
+        QCOMPARE(bench["latest"].toDouble(), 165 * (1 + 5 / 30.0));  // week 3: best set of 5x5 at 165, last one short
+        qint64 customReps = 0;
+        for (const QVariant &v : d["volume"].toList())
+            if (v.toMap()["tier"] == "custom")
+                customReps += v.toMap()["reps"].toInt();
+        QCOMPARE(customReps, 5 * 8 + 5 * 6 + 4 * 5 + 4);
+        QCOMPARE(find(rest, "tier", "custom")["target"].toDouble(), 120.0);
+        const QVariantMap repeat = find(rows, "id", "bench")["events"].toList().last().toMap();
+        QCOMPARE(repeat["kind"].toString(), QString("cycle_repeat"));
+        QCOMPARE(repeat["tier"].toString(), QString("custom"));
     }
 
     void backendFollowsRenames() {
@@ -176,7 +190,7 @@ private slots:
         deliver(docExample());
         QTRY_COMPARE(backend.data()["workouts"].toInt(), 1);
         deliver(readFile("GZCLP_FIXTURE"));
-        QTRY_COMPARE(backend.data()["workouts"].toInt(), 24);
+        QTRY_COMPARE(backend.data()["workouts"].toInt(), 27);
     }
 
     void themeReadsColorsAndMode() {

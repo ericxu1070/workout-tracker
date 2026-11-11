@@ -4,9 +4,9 @@ A desktop dashboard for the Plateline phone app. It reads the log the phone mirr
 
 One scrolling page, top to bottom:
 
-1. Strength. Estimated 1RM per main lift (Epley), from GZCLP T1 AMRAP sets and the best set of each cycle-program session, with the latest value and its multiple of body weight at each line's end.
-2. Weekly volume. Tonnage or reps per ISO week, filtered by tier and lift.
-3. Stalls and resets. GZCLP stage changes and resets, and repeated cycles, per lift on one timeline.
+1. Strength. Estimated 1RM per main lift (Epley), from GZCLP T1 AMRAP sets and the best set of each cycle-program or custom-split session, with the latest value and its multiple of body weight at each line's end.
+2. Weekly volume. Tonnage or reps per ISO week, filtered by tier (T1, T2, T3, Cycle, Custom) and lift.
+3. Stalls and resets. GZCLP stage changes and resets, and repeated cycles of cycle programs and custom splits, per lift on one timeline.
 4. Sessions. Duration per workout and workouts per week.
 5. Cardio. Cardio minutes per week, and sessions, time, and distance per activity over the last 8 weeks.
 6. Rest. Median rest taken against the timer's target, by the tier of the set before.
@@ -26,7 +26,7 @@ bin/test                           # parser and metrics tests, on the doc exampl
 cd pkgbuild && makepkg -f          # builds the package; install it with pacman -U
 ```
 
-`tests/make_fixture.py OUT.jsonl` writes a deterministic log with eight weeks of lifting and cardio and the reader's edge cases.
+`tests/make_fixture.py OUT.jsonl` writes a deterministic log with eight weeks of lifting (GZCLP, a cycle program, and a custom split) and cardio, and the reader's edge cases.
 
 ## Shortcuts
 

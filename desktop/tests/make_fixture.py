@@ -1,4 +1,4 @@
-"""Writes a deterministic log with six weeks of GZCLP, two weeks of push/pull/legs,
+"""Writes a deterministic log with six weeks of GZCLP, two weeks of push/pull/legs, a custom split,
 weigh-ins, cardio, and the edge cases the reader must handle (a corrected set, a
 cleared set, a cleared and an edited weigh-in, an edited and a discarded cardio
 session, an accidental session, an open session, and a partial last line).
@@ -30,7 +30,7 @@ for ex, name in names.items():
     emit(start, "exercise_define", exercise=ex, name=name, lower=ex in ("squat", "deadlift"))
 emit(start, "future_type", note="readers skip unknown types")
 
-REST = {"t1": 180, "t2": 120, "t3": 60, "cycle": 90}
+REST = {"t1": 180, "t2": 120, "t3": 60, "cycle": 90, "custom": 120}
 t1 = {"squat": 210, "bench": 150, "deadlift": 250, "ohp": 100}
 t2 = {"squat": 160, "bench": 115, "deadlift": 190, "ohp": 75}
 t3 = {"lat_pulldown": 100, "dumbbell_row": 50}
@@ -41,7 +41,7 @@ days = {"A1": [("squat", "t1"), ("bench", "t2"), ("lat_pulldown", "t3")],
         "A2": [("bench", "t1"), ("squat", "t2"), ("lat_pulldown", "t3")],
         "B2": [("deadlift", "t1"), ("ohp", "t2"), ("dumbbell_row", "t3")]}
 SCHEME = {"5x3+": (5, 3), "6x2+": (6, 2), "10x1+": (10, 1), "3x10": (3, 10), "3x8": (3, 8), "3x6": (3, 6),
-          "3x15+": (3, 15), "3x12": (3, 12)}
+          "3x15+": (3, 15), "3x12": (3, 12), "5x8": (5, 8), "5x6": (5, 6), "5x5": (5, 5)}
 
 
 def run_session(when, program, day, plan, minutes_per_set=3):
@@ -159,6 +159,29 @@ for n, day in enumerate(["push_a", "legs_a", "push_a", "legs_a", "push_a", "legs
                  cycle_base=base + 5, **common)
     emit(end, "session_end", session_id=sid, program="ppl", day=day,
          started_at=when.isoformat(timespec="seconds"), duration_sec=int((end - when).total_seconds()) + 300)
+
+# A custom split from Chest and back, arms, legs: one cycle of bench at 5x8,6,5, the last
+# week-3 set short (a repeat), then the split is deleted. All in the last week, before the open session.
+emit(datetime(2026, 11, 19, 21, 0, tzinfo=TZ), "program_define", program="my_split", name="My split",
+     days=[{"day": "chest_back", "title": "Chest and back", "exercises": [{"exercise": "bench", "sets": 5, "reps": [8, 6, 5]}]}],
+     **{"from": "chest_back_arms_legs"})
+emit(datetime(2026, 11, 19, 21, 0, tzinfo=TZ), "program", program="my_split")
+custom = dict(exercise="bench", tier="custom", scheme="5x8,6,5", cycle_base=155)
+for week, when in enumerate([datetime(2026, 11, 20, 6, 0, tzinfo=TZ), datetime(2026, 11, 20, 19, 0, tzinfo=TZ),
+                             datetime(2026, 11, 22, 9, 0, tzinfo=TZ)], start=1):
+    reps = [8, 6, 5][week - 1]
+    weight = 155 + 5 * (week - 1)
+    sid, end = run_session(when, "my_split", "chest_back",
+                           [("bench", "custom", f"5x{reps}", weight, [reps] * 4 + [reps - (week == 3)])])
+    if week < 3:
+        emit(end, "progression", kind="week_advance", session_id=sid, from_weight=weight, to_weight=weight + 5,
+             from_stage=f"5x{reps}", to_stage=f"5x{[8, 6, 5][week]}", cycle_week=week + 1, **custom)
+    else:
+        emit(end, "progression", kind="cycle_repeat", session_id=sid, from_weight=weight, to_weight=155,
+             from_stage="5x5", to_stage="5x8", cycle_week=1, **custom)
+    emit(end, "session_end", session_id=sid, program="my_split", day="chest_back",
+         started_at=when.isoformat(timespec="seconds"), duration_sec=int((end - when).total_seconds()) + 300)
+emit(datetime(2026, 11, 22, 12, 0, tzinfo=TZ), "program_remove", program="my_split")
 
 # Weigh-ins most mornings, drifting down; one later edit and one deletion.
 for d in range(50):

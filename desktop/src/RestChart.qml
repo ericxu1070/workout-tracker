@@ -11,7 +11,6 @@ Item {
     readonly property real maxSec: Math.max(1, ...rows.map(r => Math.max(r.actual, r.target))) * 1.08
     readonly property real rowH: 36
     implicitHeight: rows.length * rowH
-    function tierName(t) { return t === "cycle" ? qsTr("Cycle") : t.toUpperCase() }
 
     Repeater {
         model: rc.rows
@@ -20,7 +19,7 @@ Item {
             required property int index
             y: index * rc.rowH
             width: rc.width; height: rc.rowH
-            Txt { role: "callout"; text: rc.tierName(modelData.tier); anchors.verticalCenter: parent.verticalCenter; width: rc.labelW }
+            Txt { role: "callout"; text: win.tierName(modelData.tier); anchors.verticalCenter: parent.verticalCenter; width: rc.labelW }
             Rectangle {
                 x: rc.labelW; anchors.verticalCenter: parent.verticalCenter
                 width: Math.max(2, rc.barW * modelData.actual / rc.maxSec); height: 10; radius: 3
