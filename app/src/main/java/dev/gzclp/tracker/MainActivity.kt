@@ -42,6 +42,7 @@ import dev.gzclp.tracker.ui.Fmt
 import java.time.LocalDate
 import dev.gzclp.tracker.log.SetKey
 import dev.gzclp.tracker.log.exerciseLogs
+import dev.gzclp.tracker.log.mondayOf
 import dev.gzclp.tracker.ui.DaysScreen
 import dev.gzclp.tracker.ui.ExerciseScreen
 import dev.gzclp.tracker.ui.ExercisesScreen
@@ -59,6 +60,7 @@ import dev.gzclp.tracker.ui.SetupScreen
 import dev.gzclp.tracker.ui.Sheet
 import dev.gzclp.tracker.ui.SheetContent
 import dev.gzclp.tracker.ui.SheetState
+import dev.gzclp.tracker.ui.WeekView
 import dev.gzclp.tracker.ui.WorkoutScreen
 import dev.gzclp.tracker.ui.photoTimeNote
 import dev.gzclp.tracker.ui.unloggedSets
@@ -104,6 +106,8 @@ private fun App(model: AppModel) {
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
     var foodDay by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows today across midnight
+    var historyAll by rememberSaveable { mutableStateOf(false) }
+    var historyWeek by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows this week across Sunday midnight
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -282,7 +286,14 @@ private fun App(model: AppModel) {
                         )
                         Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
                         Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
-                        Tab.History -> HistoryScreen(state, onOpen = { push(Route.Session, it) })
+                        Tab.History -> HistoryScreen(state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }) {
+                            val today = LocalDate.now()
+                            val thisWeek = mondayOf(today)
+                            WeekView(
+                                state, model.meals, historyWeek ?: thisWeek, today,
+                                onWeek = { historyWeek = it.takeIf { m -> m < thisWeek } }, onExercise = { push(Route.Exercise, it) },
+                            )
+                        }
                         Tab.Food -> {
                             val today = LocalDate.now()
                             FoodScreen(

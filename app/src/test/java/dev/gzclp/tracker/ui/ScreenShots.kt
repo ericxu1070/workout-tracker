@@ -17,6 +17,9 @@ import dev.gzclp.tracker.log.ExerciseSwap
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.Cardio
+import dev.gzclp.tracker.log.mondayOf
+import dev.gzclp.tracker.engine.Activities
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Test
@@ -166,6 +169,13 @@ class ScreenShots {
             .let { it.apply(Entry(it.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "cable_kickback"))) }
         val (gzLive, gzNow) = gzclpLive()
         val food = meals(today)
+        // Cardio this week and last, by days before today.
+        val withCardio = idle.copy(cardio = listOf(
+            Triple("running", 3L, 32), Triple("cycling", 2L, 48), Triple("running", 0L, 41), Triple("running", 8L, 30), Triple("yoga", 5L, 55),
+        ).mapIndexed { i, (a, back, min) ->
+            val at = today.minusDays(back).atTime(7, 5 + i).atOffset(t0.offset)
+            "c$i" to Cardio("c$i", a, Activities.of(a)!!.name, at, min * 60L + 17, if (a == "yoga") null else (min * 160.9 + i * 300).toInt() * if (a == "cycling") 3 else 1)
+        }.toMap())
         for (p in Palettes.all) {
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
@@ -207,7 +217,13 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, TextFieldValue(Fmt.tenths(lastWeight.lb)), lastWeight.at, today), idle, {}, {}, {}) }
                 }
             }
-            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, {}) } }
+            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}) {} } }
+            for (tall in listOf(false, true)) shot(p, if (tall) "10-history-week-full" else "10-history-week", tall) {
+                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, false, {}, {}) { WeekView(withCardio, food, mondayOf(today), today, {}, {}) } }
+            }
+            shot(p, "10-history-week-empty") {
+                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, false, {}, {}) { WeekView(withCardio, food, mondayOf(today).minusDays(70), today, {}, {}) } }
+            }
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
