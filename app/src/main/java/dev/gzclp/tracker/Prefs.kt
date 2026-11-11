@@ -59,4 +59,9 @@ class Prefs(context: Context) {
     var weighInMinutes: Int
         get() = p.getInt("weigh_in_minutes", 7 * 60)
         set(v) = p.edit().putInt("weigh_in_minutes", v).apply()
+
+    /** Opted in to writing workouts and weigh-ins to Health Connect. */
+    var healthConnect: Boolean
+        get() = p.getBoolean("health_connect", false)
+        set(v) = p.edit().putBoolean("health_connect", v).apply()
 }

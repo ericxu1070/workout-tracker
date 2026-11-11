@@ -22,6 +22,9 @@ import dev.gzclp.tracker.ui.Type.tabular
 
 data class SyncUi(val folder: String?, val lastSync: String?, val error: String?)
 
+/** [message] explains a failed write or why writing turned off. */
+data class HealthUi(val on: Boolean, val message: String?)
+
 @Composable
 fun SettingsScreen(
     started: Boolean,
@@ -34,6 +37,7 @@ fun SettingsScreen(
     notificationsAllowed: Boolean,
     weighInReminder: Boolean,
     weighInMinutes: Int,
+    health: HealthUi,
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onRest: (Tier, Int) -> Unit,
@@ -45,6 +49,7 @@ fun SettingsScreen(
     onAllowNotifications: () -> Unit,
     onWeighInReminder: (Boolean) -> Unit,
     onWeighInTime: (Int) -> Unit,
+    onHealthConnect: (Boolean) -> Unit,
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
 ) {
@@ -143,6 +148,18 @@ fun SettingsScreen(
                 !notificationsAllowed -> "Allow notifications below to get the reminder."
                 else -> "Skipped on days you have already weighed in."
             },
+        )
+
+        GroupHeader("Health Connect")
+        Group {
+            GroupRow(first = true) {
+                Txt("Write workouts and weight", Type.body, Modifier.weight(1f))
+                Toggle(health.on, "Write workouts and weight to Health Connect", onHealthConnect)
+            }
+        }
+        GroupFooter(
+            health.message ?: if (health.on) "Each finished workout and weigh-in goes to Health Connect from now on. Nothing is read back."
+            else "Off. Turn on to send finished workouts and weigh-ins to Health Connect.",
         )
 
         GroupHeader("Sync folder")
