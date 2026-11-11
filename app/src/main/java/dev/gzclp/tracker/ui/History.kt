@@ -52,7 +52,6 @@ fun HistoryScreen(state: AppState, onOpen: (String) -> Unit) {
         if (done.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt("No workouts yet", Type.headline)
-            Txt("Finished workouts show up here with every set you logged.", Type.subhead, Modifier.padding(vertical = Space.xs), p.fg2)
             return@ScreenFrame
         }
         val recent = done.takeLast(16)

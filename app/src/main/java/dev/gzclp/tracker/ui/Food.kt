@@ -50,7 +50,6 @@ fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: Strin
         if (shown.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt(if (day == today) "No meals yet today" else "No meals logged", Type.headline)
-            Txt("Each meal is saved at the time its photo was taken.", Type.subhead, Modifier.padding(vertical = Space.xs), p.fg2)
             return@ScreenFrame
         }
         GroupHeader("${shown.size} ${if (shown.size == 1) "meal" else "meals"}")
