@@ -86,6 +86,28 @@ data class BodyWeightLogged(val entryId: String, val at: String, val weight: Dou
 @Serializable @SerialName("body_weight_clear")
 data class BodyWeightCleared(val entryId: String) : Event
 
+/** A cardio session started now ([Entry.ts] is its start); open until a [CardioLogged] or [CardioCleared] with its [entryId]. */
+@Serializable @SerialName("cardio_start")
+data class CardioStart(val entryId: String, val activity: String, val name: String) : Event
+
+/** A finished cardio session, or an edit of one: the newest line per [entryId] wins. [durationSec] is active time. */
+@Serializable @SerialName("cardio")
+data class CardioLogged(
+    val entryId: String,
+    val activity: String,
+    val name: String,
+    val startedAt: String,
+    val durationSec: Long,
+    val distanceM: Int? = null,
+    /** 1 to 10 in half steps, as on [SetLogged]. */
+    val rpe: Double? = null,
+    val notes: String? = null,
+) : Event
+
+/** Deletes a finished cardio session, or discards the one in progress. */
+@Serializable @SerialName("cardio_clear")
+data class CardioCleared(val entryId: String) : Event
+
 data class Entry(val seq: Long, val ts: OffsetDateTime, val event: Event)
 
 object LogCodec {

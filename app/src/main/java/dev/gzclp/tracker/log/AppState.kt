@@ -29,6 +29,17 @@ data class ActiveSession(
 
 data class SessionRecord(val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>)
 
+/** The cardio session in progress, started at [startedAt]. */
+data class CardioRun(val id: String, val activity: String, val name: String, val startedAt: OffsetDateTime)
+
+/** A finished cardio session as its newest `cardio` line has it. */
+data class Cardio(
+    val id: String, val activity: String, val name: String, val startedAt: OffsetDateTime, val durationSec: Long,
+    val distanceM: Int? = null, val rpe: Double? = null, val notes: String? = null,
+)
+
+fun CardioLogged.toCardio() = Cardio(entryId, activity, name, OffsetDateTime.parse(startedAt, LogCodec.TS), durationSec, distanceM, rpe, notes)
+
 /**
  * One exercise as prescribed in a workout. [weight] is null until the user gives its starting weight;
  * [week] is the 0-based cycle week for [Tier.CYCLE]. [swappedFrom] is the slot's own exercise when this one stands in for it.
@@ -55,6 +66,10 @@ data class AppState(
     val sessions: List<SessionRecord> = emptyList(),
     /** Weigh-ins by entry id. */
     val bodyWeights: Map<String, BodyWeight> = emptyMap(),
+    /** Finished cardio sessions by entry id. */
+    val cardio: Map<String, Cardio> = emptyMap(),
+    /** At most one cardio session runs, independent of [active]; commands keep the two from overlapping. */
+    val cardioActive: CardioRun? = null,
     val lastSeq: Long = 0,
 ) {
     val started: Boolean get() = fiveRm.isNotEmpty()
@@ -126,6 +141,12 @@ data class AppState(
             }
             is BodyWeightLogged -> s.copy(bodyWeights = bodyWeights + (e.entryId to BodyWeight(e.entryId, OffsetDateTime.parse(e.at, LogCodec.TS), e.weight)))
             is BodyWeightCleared -> s.copy(bodyWeights = bodyWeights - e.entryId)
+            is CardioStart -> s.copy(cardioActive = CardioRun(e.entryId, e.activity, e.name, entry.ts))
+            is CardioLogged -> s.copy(
+                cardio = cardio + (e.entryId to e.toCardio()),
+                cardioActive = cardioActive?.takeIf { it.id != e.entryId },
+            )
+            is CardioCleared -> s.copy(cardio = cardio - e.entryId, cardioActive = cardioActive?.takeIf { it.id != e.entryId })
             is SessionEnd -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val record = SessionRecord(a.id, a.program, a.day, a.startedAt, e.durationSec, a.sets.values.sortedBy { it.ts }.map { it.event })
