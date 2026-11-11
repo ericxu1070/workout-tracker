@@ -271,7 +271,7 @@ private fun App(model: AppModel) {
             route == Route.Settings -> SettingsScreen(
                 started = state.started, programId = state.programId, increments = state.increments,
                 themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
-                sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
+                sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                 weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
                 onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },

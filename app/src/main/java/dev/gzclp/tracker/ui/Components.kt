@@ -203,7 +203,7 @@ fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
 
 @Composable
 fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = LocalPalette.current.fg) =
-    Pressable(onClick, modifier.size(44.dp), CircleShape, label = label) { Icon(icon, tint, 22.dp) }
+    Pressable(onClick, modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, label = label) { Icon(icon, tint, 22.dp) }
 
 @Composable
 fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
@@ -306,7 +306,7 @@ fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, lab
 @Composable
 fun MiniStep(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Pressable(onClick, Modifier.size(44.dp), CircleShape, p.fill, enabled = enabled, label = label) { Icon(icon, p.fg, 18.dp) }
+    Pressable(onClick, Modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, p.fill, enabled = enabled, label = label) { Icon(icon, p.fg, 18.dp) }
 }
 
 /** An on/off switch: accent track when on, the knob slides across. */

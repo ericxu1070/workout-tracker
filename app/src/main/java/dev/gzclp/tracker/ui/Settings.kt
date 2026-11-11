@@ -22,7 +22,8 @@ import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.ui.Type.tabular
 
-data class SyncUi(val folder: String?, val lastSync: String?, val error: String?)
+/** [notice] is a one-off result such as a restore count, shown apart from sync status. */
+data class SyncUi(val folder: String?, val lastSync: String?, val error: String?, val notice: String? = null)
 
 /** [message] explains a failed write or why writing turned off. */
 data class HealthUi(val on: Boolean, val message: String?)
@@ -209,6 +210,7 @@ fun SettingsScreen(
                 else -> "Not synced yet"
             },
         )
+        sync.notice?.let { GroupFooter(it) }
 
         if (!notificationsAllowed) {
             GroupHeader("Notifications")
