@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HomeScreen
+import dev.gzclp.tracker.ui.LocalPlates
 import dev.gzclp.tracker.ui.SettingsScreen
 import dev.gzclp.tracker.ui.SetupScreen
 import dev.gzclp.tracker.ui.Sheet
@@ -66,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 val style = if (palette.dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(style, style)
             }
-            GzTheme(palette) { App(model) }
+            GzTheme(palette) { CompositionLocalProvider(LocalPlates provides model.plates) { App(model) } }
         }
         if (savedInstanceState == null) onNewIntent(intent)
     }
@@ -191,7 +193,7 @@ private fun App(model: AppModel) {
                 started = state.started, programId = state.programId, increments = state.increments,
                 themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
                 sync = model.sync.copy(error = model.notice ?: model.sync.error), notificationsAllowed = model.notificationsAllowed,
-                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health,
+                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
                 onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                 onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
@@ -201,7 +203,7 @@ private fun App(model: AppModel) {
                     model.chooseWeighInReminder(it)
                     if (it) requestNotifications()
                 },
-                onWeighInTime = model::chooseWeighInTime,
+                onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
                 warmups = model.warmups, onWarmups = model::chooseWarmups,
                 onHealthConnect = { on ->
                     val unavailable = if (on) model.healthUnavailable() else null

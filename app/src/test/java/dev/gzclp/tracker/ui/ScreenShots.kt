@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.gzclp.tracker.engine.Lift
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
@@ -117,8 +118,8 @@ class ScreenShots {
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
         }
@@ -179,14 +180,14 @@ class ScreenShots {
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "12-settings-full", tall = true) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }
