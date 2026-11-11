@@ -64,7 +64,7 @@ adb shell am start -n dev.gzclp.tracker/.MainActivity
 
 After a reinstall, tap Restore log on the first screen and pick the same folder.
 
-To send workouts and weigh-ins to Health Connect, turn on Health Connect in Settings and allow access. From then on, each finished workout becomes a strength-training session (one segment per set with its reps, every set's weight in the notes) and each weigh-in becomes a weight record; editing or deleting a weigh-in updates Health Connect too. The app only writes and never reads. Workouts and weigh-ins from before you turned it on are not sent. Without Health Connect, or with access denied, everything else works the same.
+To send workouts, cardio, and weigh-ins to Health Connect, turn on Health Connect in Settings and allow access. From then on, each finished workout becomes a strength-training session (one segment per set with its reps, every set's weight in the notes), each finished cardio session becomes an exercise session of its activity's type (distance, pace or speed, and RPE in the notes), and each weigh-in becomes a weight record; editing or deleting a cardio session or weigh-in updates Health Connect too. The app only writes and never reads. Workouts, cardio, and weigh-ins from before you turned it on are not sent. Without Health Connect, or with access denied, everything else works the same.
 
 In Settings you can switch programs (history and each exercise's progress carry over), add or remove exercises per workout, and change the cycle steps (5 lb upper body, 10 lb lower body, 5 lb per new cycle by default), and set your bar and plates (a 45 lb bar; pairs of 45, 35, 25, 10, 5, and 2.5 lb plates by default). Barbell lifts round each target to the nearest weight those plates make, and every set shows the plates for one side. Progression still counts from the program's own weight.
 
@@ -78,5 +78,5 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 - `rest/` holds the rest alarm and its notifications.
 - `remind/` holds the daily weigh-in reminder.
 - `food/` keeps the meal photos in app-private storage, one JPEG per meal named for its time.
-- `health/` turns finished workouts and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
+- `health/` turns finished workouts, cardio sessions, and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
 - `ui/` holds the Compose screens and the four color themes.

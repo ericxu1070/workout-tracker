@@ -7,25 +7,30 @@ import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Mass
+import dev.gzclp.tracker.engine.Activities
+import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.ActiveSession
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.BodyWeightCleared
 import dev.gzclp.tracker.log.BodyWeightLogged
+import dev.gzclp.tracker.log.CardioCleared
+import dev.gzclp.tracker.log.CardioLogged
 import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.LogCodec
 import dev.gzclp.tracker.log.SessionEnd
 import java.time.Duration
 import java.time.OffsetDateTime
+import java.util.Locale
 
-/** What one dispatch writes to Health Connect. [deletedWeights] are weigh-in entry ids. */
-data class HealthWrites(val upserts: List<Record>, val deletedWeights: List<String>) {
-    val isEmpty: Boolean get() = upserts.isEmpty() && deletedWeights.isEmpty()
+/** What one dispatch writes to Health Connect. [deletedWeights] are weigh-in entry ids, [deletedSessions] cardio entry ids. */
+data class HealthWrites(val upserts: List<Record>, val deletedWeights: List<String>, val deletedSessions: List<String> = emptyList()) {
+    val isEmpty: Boolean get() = upserts.isEmpty() && deletedWeights.isEmpty() && deletedSessions.isEmpty()
 }
 
 /**
  * Turns appended log entries into Health Connect records. Pure. Each record's client id is its log id
- * (session id or weigh-in entry id) and its version is the entry's seq, so an edit replaces the earlier record.
+ * (session id, cardio or weigh-in entry id) and its version is the entry's seq, so an edit replaces the earlier record.
  */
 object HealthRecords {
     val PERMISSIONS = setOf(
@@ -39,17 +44,21 @@ object HealthRecords {
     fun of(before: AppState, entries: List<Entry>): HealthWrites {
         val upserts = mutableListOf<Record>()
         val deletes = mutableListOf<String>()
+        val deletedSessions = mutableListOf<String>()
         var s = before
         for (entry in entries) {
             when (val e = entry.event) {
                 is BodyWeightLogged -> upserts += weight(e, entry.seq)
                 is BodyWeightCleared -> deletes += e.entryId
+                is CardioLogged -> upserts += cardio(e, entry.seq)
+                // A discarded session in progress was never written.
+                is CardioCleared -> if (e.entryId in s.cardio) deletedSessions += e.entryId
                 is SessionEnd -> s.active?.takeIf { it.id == e.sessionId && it.sets.isNotEmpty() }?.let { upserts += session(s, it, e, entry.seq) }
                 else -> {}
             }
             s = s.apply(entry)
         }
-        return HealthWrites(upserts, deletes)
+        return HealthWrites(upserts, deletes, deletedSessions)
     }
 
     fun weight(e: BodyWeightLogged, seq: Long): WeightRecord {
@@ -83,6 +92,102 @@ object HealthRecords {
             notes = notes.take(1000),
             segments = segments,
         )
+    }
+
+    /** One cardio session; distance, pace or speed, and RPE lead the notes, since writing a distance record needs a new permission. */
+    fun cardio(e: CardioLogged, seq: Long): ExerciseSessionRecord {
+        val at = OffsetDateTime.parse(e.startedAt, LogCodec.TS)
+        val unit = Activities.of(e.activity)?.unit ?: DistanceUnit.MI
+        val stats = listOfNotNull(
+            e.distanceM?.let { distance(it, unit) },
+            e.distanceM?.let { pace(e.activity, unit, it, e.durationSec) },
+            e.rpe?.let { "RPE " + if (it % 1 == 0.0) "${it.toInt()}" else "$it" },
+        ).joinToString(" · ")
+        return ExerciseSessionRecord(
+            startTime = at.toInstant(), startZoneOffset = at.offset,
+            endTime = at.toInstant().plusSeconds(e.durationSec), endZoneOffset = at.offset,
+            metadata = Metadata.manualEntry(e.entryId, seq),
+            exerciseType = cardioType(e.activity),
+            title = e.name,
+            notes = listOf(stats, e.notes.orEmpty()).filter { it.isNotEmpty() }.joinToString("\n").ifEmpty { null }?.take(1000),
+        )
+    }
+
+    /** 5.00 mi, 1500 yd, 2000 m. */
+    fun distance(meters: Int, unit: DistanceUnit): String =
+        if (unit == DistanceUnit.MI) "%.2f mi".format(Locale.US, meters / unit.meters) else "${Math.round(meters / unit.meters)} ${unit.label}"
+
+    private val PACED = setOf("running", "treadmill", "walking", "hiking", "snowshoeing")
+
+    /** 8:18 /mi on foot, 2:05 /100 yd swimming, 2:01 /500 m rowing, else 14.2 mph. */
+    fun pace(activity: String, unit: DistanceUnit, meters: Int, durationSec: Long): String {
+        val per = when (unit) {
+            DistanceUnit.YD -> 100 to "/100 yd"
+            DistanceUnit.M -> 500 to "/500 m"
+            DistanceUnit.MI -> if (activity in PACED) 1 to "/mi" else
+                return "%.1f mph".format(Locale.US, meters / unit.meters / (durationSec / 3600.0))
+        }
+        val sec = Math.round(durationSec * per.first * unit.meters / meters)
+        val clock = if (sec >= 3600) "%d:%02d:%02d".format(sec / 3600, sec % 3600 / 60, sec % 60) else "%d:%02d".format(sec / 60, sec % 60)
+        return "$clock ${per.second}"
+    }
+
+    /** Health Connect's exercise type for an activity; ones it has no type for (and custom ones) are other workouts, titled by name. */
+    fun cardioType(activity: String): Int = when (activity) {
+        "running" -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+        "treadmill" -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
+        "walking" -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
+        "hiking" -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
+        "cycling" -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
+        "stationary_bike" -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
+        "swimming" -> ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL
+        "open_water_swim" -> ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER
+        "rowing_machine" -> ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE
+        "rowing" -> ExerciseSessionRecord.EXERCISE_TYPE_ROWING
+        "paddling" -> ExerciseSessionRecord.EXERCISE_TYPE_PADDLING
+        "elliptical" -> ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL
+        "inline_skating" -> ExerciseSessionRecord.EXERCISE_TYPE_SKATING
+        "cross_country_skiing", "skiing" -> ExerciseSessionRecord.EXERCISE_TYPE_SKIING
+        "snowshoeing" -> ExerciseSessionRecord.EXERCISE_TYPE_SNOWSHOEING
+        "wheelchair" -> ExerciseSessionRecord.EXERCISE_TYPE_WHEELCHAIR
+        "stair_climber" -> ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING_MACHINE
+        "stairs" -> ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING
+        "hiit" -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING
+        "boot_camp" -> ExerciseSessionRecord.EXERCISE_TYPE_BOOT_CAMP
+        "fitness_class" -> ExerciseSessionRecord.EXERCISE_TYPE_EXERCISE_CLASS
+        "calisthenics" -> ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS
+        "yoga" -> ExerciseSessionRecord.EXERCISE_TYPE_YOGA
+        "pilates" -> ExerciseSessionRecord.EXERCISE_TYPE_PILATES
+        "stretching" -> ExerciseSessionRecord.EXERCISE_TYPE_STRETCHING
+        "dancing" -> ExerciseSessionRecord.EXERCISE_TYPE_DANCING
+        "boxing" -> ExerciseSessionRecord.EXERCISE_TYPE_BOXING
+        "kickboxing", "martial_arts" -> ExerciseSessionRecord.EXERCISE_TYPE_MARTIAL_ARTS
+        "climbing" -> ExerciseSessionRecord.EXERCISE_TYPE_ROCK_CLIMBING
+        "gymnastics" -> ExerciseSessionRecord.EXERCISE_TYPE_GYMNASTICS
+        "basketball" -> ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL
+        "soccer" -> ExerciseSessionRecord.EXERCISE_TYPE_SOCCER
+        "american_football" -> ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN
+        "volleyball" -> ExerciseSessionRecord.EXERCISE_TYPE_VOLLEYBALL
+        "baseball" -> ExerciseSessionRecord.EXERCISE_TYPE_BASEBALL
+        "softball" -> ExerciseSessionRecord.EXERCISE_TYPE_SOFTBALL
+        "ice_hockey" -> ExerciseSessionRecord.EXERCISE_TYPE_ICE_HOCKEY
+        "roller_hockey" -> ExerciseSessionRecord.EXERCISE_TYPE_ROLLER_HOCKEY
+        "rugby" -> ExerciseSessionRecord.EXERCISE_TYPE_RUGBY
+        "ultimate" -> ExerciseSessionRecord.EXERCISE_TYPE_FRISBEE_DISC
+        "cricket" -> ExerciseSessionRecord.EXERCISE_TYPE_CRICKET
+        "handball" -> ExerciseSessionRecord.EXERCISE_TYPE_HANDBALL
+        "water_polo" -> ExerciseSessionRecord.EXERCISE_TYPE_WATER_POLO
+        "tennis" -> ExerciseSessionRecord.EXERCISE_TYPE_TENNIS
+        "badminton" -> ExerciseSessionRecord.EXERCISE_TYPE_BADMINTON
+        "squash" -> ExerciseSessionRecord.EXERCISE_TYPE_SQUASH
+        "racquetball" -> ExerciseSessionRecord.EXERCISE_TYPE_RACQUETBALL
+        "table_tennis" -> ExerciseSessionRecord.EXERCISE_TYPE_TABLE_TENNIS
+        "golf" -> ExerciseSessionRecord.EXERCISE_TYPE_GOLF
+        "fencing" -> ExerciseSessionRecord.EXERCISE_TYPE_FENCING
+        "snowboarding" -> ExerciseSessionRecord.EXERCISE_TYPE_SNOWBOARDING
+        "ice_skating" -> ExerciseSessionRecord.EXERCISE_TYPE_ICE_SKATING
+        "surfing" -> ExerciseSessionRecord.EXERCISE_TYPE_SURFING
+        else -> ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT
     }
 
     /** Health Connect's closest named movement, or plain weightlifting. */
