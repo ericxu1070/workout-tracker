@@ -140,7 +140,7 @@ class ScreenShots {
             shot(file, "03-workout-rest") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
-            shot(file, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, now.toLocalDate(), now.toLocalDate(), null, {}, {}, {}) } }
+            shot(file, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, now.toLocalDate(), now.toLocalDate(), null, {}, {}, {}, {}) } }
             shot(file, "14-workout-full", tall = true) {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
@@ -243,18 +243,24 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "Incl", create = true), swapped, {}, {}, {}) }
                 }
             }
-            shot(p, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) } }
-            shot(p, "18-food-empty") { TabFrame(Tab.Food, {}) { FoodScreen(food, today.minusDays(1), today, null, {}, {}, {}) } }
+            shot(p, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}, {}) } }
+            shot(p, "18-food-empty") { TabFrame(Tab.Food, {}) { FoodScreen(food, today.minusDays(1), today, null, {}, {}, {}, {}) } }
             shot(p, "18-meal-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) }
+                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Meal(food[1], today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "18-meal-delete-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) }
+                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Meal(food[1], today, delete = true), idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "18-add-meal-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.AddMeal(food[2].file, now, now, photoTimeNote(null, now)), idle, {}, {}, {}) }
                 }
             }
             shot(p, "17-swap-back-sheet") {
