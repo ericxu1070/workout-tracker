@@ -59,6 +59,7 @@ import dev.gzclp.tracker.engine.Progression
 import dev.gzclp.tracker.engine.Cycle
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.engine.Warmup
 import dev.gzclp.tracker.log.SetLogged
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
@@ -237,6 +238,7 @@ fun WorkoutScreen(
     onSkipRest: () -> Unit,
     onSettings: () -> Unit,
     onEnd: () -> Unit,
+    warmups: Boolean = true,
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
@@ -261,7 +263,7 @@ fun WorkoutScreen(
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
             Spacer(Modifier.height(Space.x3))
-            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight)
+            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, warmups)
         }
     }
 }
@@ -299,6 +301,7 @@ private fun ExerciseBlock(
     onLog: (Exercise, Int, Int, Int) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onEditWeight: (Exercise) -> Unit,
+    warmups: Boolean,
 ) {
     val p = LocalPalette.current
     val sets = state.active?.sets.orEmpty()
@@ -319,6 +322,9 @@ private fun ExerciseBlock(
         Txt("Reps", Type.caption, Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
     }
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+        if (warmups && ex.tier == Tier.T1) Warmup.sets(ex.weight ?: 0).forEachIndexed { i, (w, r) ->
+            WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r)
+        }
         for (i in 1..ex.scheme.sets) {
             val key = SetKey(ex.id, ex.tier, i)
             SetRow(
@@ -387,6 +393,26 @@ fun SetRow(
             label = if (logged != null) "Clear $name" else "Log $name",
         ) {
             Icon(Icons.check, if (hit) p.onAccent else if (short) p.red else p.fg3, 20.dp)
+        }
+    }
+}
+
+/** A warm-up: fixed weight and reps, and a check that only lives on screen (never logged). */
+@Composable
+private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int) {
+    val p = LocalPalette.current
+    var done by rememberSaveable(sessionId) { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+        Txt("W", Type.headline, Modifier.width(SET_COL), p.fg3)
+        Txt("$weight", Type.body.tabular(), Modifier.width(WEIGHT_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
+        Txt("$reps", Type.body.tabular(), Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
+        Spacer(Modifier.weight(1f))
+        Pressable(
+            { done = !done }, Modifier.size(44.dp), CircleShape,
+            fill = if (done) p.accent.copy(alpha = 0.18f) else p.fill,
+            label = if (done) "Undo $name" else "Done $name",
+        ) {
+            Icon(Icons.check, if (done) p.accent else p.fg3, 20.dp)
         }
     }
 }
