@@ -1,5 +1,7 @@
 package dev.gzclp.tracker.log
 
+import dev.gzclp.tracker.engine.Activities
+import dev.gzclp.tracker.engine.Activity
 import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.engine.ChangeKind
 import dev.gzclp.tracker.engine.Cycle
@@ -56,7 +58,7 @@ object Commands {
     }
 
     fun start(state: AppState, now: OffsetDateTime): List<Event> =
-        if (state.active != null || !state.started || missingWeight(state) != null) emptyList()
+        if (state.active != null || state.cardioActive != null || !state.started || missingWeight(state) != null) emptyList()
         else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, state.nextDay.id))
 
     /** Logs a set, or corrects one already logged (keeping its rest fields). [rpe] outside 1 to 10 is dropped, others round to a half. */
@@ -220,4 +222,59 @@ object Commands {
         if (id in state.bodyWeights) listOf(BodyWeightCleared(id)) else emptyList()
 
     val BODY_WEIGHT_RANGE = 50.0..1000.0
+
+    /** Starts a cardio session; nothing while a lifting workout or another cardio session is running. */
+    fun startCardio(state: AppState, activity: Activity, now: OffsetDateTime): List<Event> {
+        val name = activity.name.trim().take(Activities.NAME_MAX)
+        if (state.active != null || state.cardioActive != null || activity.id.isBlank() || name.isEmpty()) return emptyList()
+        return listOf(CardioStart(cardioId(state, now), activity.id, name))
+    }
+
+    /** Finishes the running session with what the stop sheet says. */
+    fun stopCardio(state: AppState, now: OffsetDateTime, durationSec: Long, distanceM: Int?, rpe: Double?, notes: String?): List<Event> {
+        val run = state.cardioActive ?: return emptyList()
+        return listOfNotNull(cardioLine(run.id, Activity(run.activity, run.name), run.startedAt, durationSec, distanceM, rpe, notes, now))
+    }
+
+    /** Logs a past session ([id] null), or edits the finished one with [id]. An edit that changes nothing writes nothing. */
+    fun logCardio(
+        state: AppState, id: String?, activity: Activity, startedAt: OffsetDateTime, durationSec: Long,
+        distanceM: Int?, rpe: Double?, notes: String?, now: OffsetDateTime,
+    ): List<Event> {
+        if (id != null && id !in state.cardio) return emptyList()
+        val line = cardioLine(id ?: cardioId(state, startedAt), activity, startedAt, durationSec, distanceM, rpe, notes, now) ?: return emptyList()
+        return if (id != null && line.toCardio() == state.cardio[id]) emptyList() else listOf(line)
+    }
+
+    /** Deletes a finished session, or discards the running one. */
+    fun clearCardio(state: AppState, id: String): List<Event> =
+        if (id in state.cardio || state.cardioActive?.id == id) listOf(CardioCleared(id)) else emptyList()
+
+    /** The last [n] distinct activities done, newest first. */
+    fun recentActivities(state: AppState, n: Int): List<Activity> =
+        state.cardio.values.sortedByDescending { it.startedAt }.distinctBy { it.activity }.take(n)
+            .map { Activities.of(it.activity) ?: Activity(it.activity, it.name) }
+
+    private fun cardioId(state: AppState, at: OffsetDateTime): String =
+        generateSequence(0) { it + 1 }.map { "c${at.toEpochSecond()}" + if (it == 0) "" else "_$it" }
+            .first { it !in state.cardio && it != state.cardioActive?.id }
+
+    /** The checked line, or null when the duration, start or name is out of bounds. Bad distance or RPE is dropped. */
+    private fun cardioLine(
+        id: String, activity: Activity, startedAt: OffsetDateTime, durationSec: Long,
+        distanceM: Int?, rpe: Double?, notes: String?, now: OffsetDateTime,
+    ): CardioLogged? {
+        val name = activity.name.trim().take(Activities.NAME_MAX)
+        if (durationSec !in CARDIO_DURATION_SEC || startedAt.isAfter(now) || activity.id.isBlank() || name.isEmpty()) return null
+        return CardioLogged(
+            id, activity.id, name, LogCodec.TS.format(startedAt), durationSec,
+            distanceM?.takeIf { it in CARDIO_DISTANCE_M },
+            rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
+            notes?.trim()?.take(CARDIO_NOTES_MAX)?.trim()?.ifEmpty { null },
+        )
+    }
+
+    val CARDIO_DURATION_SEC = 60L..86_400L
+    val CARDIO_DISTANCE_M = 1..1_000_000
+    const val CARDIO_NOTES_MAX = 200
 }

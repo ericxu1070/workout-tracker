@@ -11,6 +11,8 @@ The `exercise_swap` type was added within version 2 the same way. A reader that 
 
 The optional `rpe` field on `set` was added within version 2. A reader that predates it ignores it as an unknown field.
 
+The `cardio_start`, `cardio`, and `cardio_clear` types were added within version 2. A reader that predates them skips them as unknown types and sees only lifting.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -46,8 +48,10 @@ Names used in several types:
 - `tier`: `t1`, `t2`, or `t3` for GZCLP; `cycle` for an exercise in a cycle program. The same exercise can have GZCLP state and cycle state at once; they are separate.
 - `stage`: the scheme, `<sets>x<reps>`, with `+` when the last set is AMRAP. T1 is `5x3+`, `6x2+`, or `10x1+`. T2 is `3x10`, `3x8`, or `3x6`. T3 is `3x15+`. Cycle stages map one to one to cycle weeks: `3x12` is week 1, `3x10` week 2, `3x8` week 3.
 - `day`: a day id within its program. GZCLP: `A1`, `B1`, `A2`, `B2`. Bro split: `chest`, `back`, `shoulders`, `legs`, `arms`. Push, pull, legs: `push_a`, `pull_a`, `legs_a`, `push_b`, `pull_b`, `legs_b`. Upper, lower: `upper_a`, `lower_a`, `upper_b`, `lower_b`. Full body: `a`, `b`, `c`. Chest, back, legs: `chest`, `back`, `legs`. Each program rotates through its days in that order.
+- `activity`: a cardio activity id. The built-in ids are `running`, `treadmill`, `walking`, `hiking`, `cycling`, `stationary_bike`, `swimming`, `open_water_swim`, `rowing_machine`, `rowing`, `paddling`, `elliptical`, `inline_skating`, `cross_country_skiing`, `snowshoeing`, `wheelchair`, `stair_climber`, `stairs`, `jump_rope`, `hiit`, `boot_camp`, `fitness_class`, `calisthenics`, `yoga`, `pilates`, `stretching`, `dancing`, `boxing`, `kickboxing`, `martial_arts`, `climbing`, `gymnastics`, `basketball`, `soccer`, `american_football`, `volleyball`, `baseball`, `softball`, `ice_hockey`, `roller_hockey`, `rugby`, `lacrosse`, `ultimate`, `cricket`, `handball`, `water_polo`, `tennis`, `pickleball`, `badminton`, `squash`, `racquetball`, `table_tennis`, `golf`, `fencing`, `skiing`, `snowboarding`, `ice_skating`, `surfing`, `other`. An activity the user types gets an id made from its name, such as `spikeball`. Every cardio line also carries `name`, the display name (at most 40 characters), so readers never need this list.
 - Weights are integers in pounds (lb), except body weight, which can have one decimal. Prescribed weights are multiples of 5. A logged set weight is what the user entered and can be any integer. For dumbbell lifts it is usually per dumbbell.
 - Durations are integer seconds.
+- Distances are integer meters.
 
 ## The 3-week cycle
 
@@ -241,6 +245,43 @@ The user deleted a weigh-in. It no longer counts.
 |---|---|---|
 | `entry_id` | string | The weigh-in. |
 
+### `cardio_start`
+
+The user started a cardio session. The line's `ts` is the start time.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `entry_id` | string | Unique id of the session, such as `c1795363200`: `c` and the epoch second of its start, with `_1`, `_2` added on a collision. |
+| `activity` | string | Activity id. |
+| `name` | string | Activity display name. |
+
+A `cardio_start` with no later `cardio` or `cardio_clear` for its `entry_id` is the cardio session in progress. At most one is open, and never while a lifting session is open.
+
+### `cardio`
+
+A finished cardio session, or an edit of one. Written when the user stops a session, enters a past one by hand, or edits one.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `entry_id` | string | The session. A new `entry_id` with no `cardio_start` is a session entered by hand. |
+| `activity` | string | Activity id. An edit can change it. |
+| `name` | string | Activity display name. |
+| `started_at` | string | When the session started, same format as `ts`. |
+| `duration_sec` | int | Active time, 60 to 86400. Set by the user, so it need not equal the time to this line's `ts`. |
+| `distance_m` | int, optional | Distance in meters, 1 to 1000000. Absent when not given. |
+| `rpe` | number, optional | Rate of perceived exertion for the session, same format as on `set`. Absent when not given. |
+| `notes` | string, optional | The user's note, at most 200 characters. Absent when not given. |
+
+**Cardio identity.** A cardio session is identified by `entry_id`. An edit writes a new `cardio` line with the same `entry_id`. The newest `cardio` or `cardio_clear` line for an `entry_id` decides it.
+
+### `cardio_clear`
+
+The user deleted a finished cardio session, or discarded the one in progress. It no longer counts.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `entry_id` | string | The session. |
+
 ## Computing the desktop metrics
 
 First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets from sessions with no `session_end`.
@@ -258,6 +299,7 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 | Prescribed vs used weight | `weight` against `target_weight` on each `set`. |
 | Working weight over time | Replay `progression` lines, or take `weight` from `set` lines. |
 | Body weight | Resolve weigh-ins (newest `body_weight` per `entry_id`, drop cleared ones), take each day's value, and plot it with the mean of the day values in the 7 days ending on each day. |
+| Cardio time per week | Resolve cardio (newest `cardio` per `entry_id`, drop cleared ones, ignore `cardio_start`), sum `duration_sec` by the Monday week of the local date of `started_at`, grouped by `activity`. |
 | Relative strength | Each session's best estimated 1RM divided by the body weight in effect that day: the latest day value on or before the session's day. Sessions before the first weigh-in have no ratio. |
 
 ## Example
@@ -284,4 +326,10 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":93,"ts":"2026-11-21T07:05:00-08:00","type":"body_weight","entry_id":"w1795791720","at":"2026-11-21T07:02:00-08:00","weight":181.4}
 {"v":2,"seq":94,"ts":"2026-11-21T20:30:00-08:00","type":"body_weight","entry_id":"w1795710600","at":"2026-11-20T07:10:00-08:00","weight":182.0}
 {"v":2,"seq":95,"ts":"2026-11-21T20:31:00-08:00","type":"body_weight_clear","entry_id":"w1795710600"}
+{"v":2,"seq":96,"ts":"2026-11-22T08:00:00-08:00","type":"cardio_start","entry_id":"c1795363200","activity":"running","name":"Running"}
+{"v":2,"seq":97,"ts":"2026-11-22T08:41:30-08:00","type":"cardio","entry_id":"c1795363200","activity":"running","name":"Running","started_at":"2026-11-22T08:00:00-08:00","duration_sec":2490,"distance_m":8047,"rpe":7.0}
+{"v":2,"seq":98,"ts":"2026-11-22T20:15:00-08:00","type":"cardio","entry_id":"c1795312800","activity":"basketball","name":"Basketball","started_at":"2026-11-21T18:00:00-08:00","duration_sec":4500,"notes":"Pickup at the Y"}
+{"v":2,"seq":99,"ts":"2026-11-22T20:16:00-08:00","type":"cardio","entry_id":"c1795312800","activity":"basketball","name":"Basketball","started_at":"2026-11-21T18:00:00-08:00","duration_sec":3900,"notes":"Pickup at the Y"}
+{"v":2,"seq":100,"ts":"2026-11-23T07:00:00-08:00","type":"cardio_start","entry_id":"c1795446000","activity":"cycling","name":"Cycling"}
+{"v":2,"seq":101,"ts":"2026-11-23T07:00:20-08:00","type":"cardio_clear","entry_id":"c1795446000"}
 ```
