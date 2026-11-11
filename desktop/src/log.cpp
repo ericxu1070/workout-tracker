@@ -69,6 +69,7 @@ Log parseLog(const QByteArray &bytes) {
             s.amrap = o["amrap"].toBool();
             s.rest = o["rest_sec"].toInt(-1);
             s.restTarget = o["rest_target_sec"].toInt(-1);
+            s.rpe = o["rpe"].toDouble();
             // A correction replaces the values but the set keeps its place in the session.
             const auto previous = sets.constFind(key);
             s.ts = previous != sets.cend() ? previous->ts : parseTime(o["ts"]);

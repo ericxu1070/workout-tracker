@@ -59,7 +59,9 @@ class ScreenShots {
             }
             val w = (ex.weight ?: 0) + if (k == 7 && i == 3 && ex.tier == Tier.CYCLE) 5 else 0
             t = t.plusSeconds(rest.getValue(ex.tier) + 25L + (k * 13 + i * 7) % 40)
-            dispatch(t) { Commands.logSet(it, ex, i, reps, w, t, rest) }
+            // RPE on last sets only, like a lifter who rates just the hard ones.
+            val rpe = if (i == ex.scheme.sets) 8.0 + (k + i) % 4 * 0.5 else null
+            dispatch(t) { Commands.logSet(it, ex, i, reps, w, t, rest, rpe) }
         }
         if (end) t.plusSeconds(90).let { e -> dispatch(e) { Commands.end(it, e, null) } }
     }
@@ -111,10 +113,10 @@ class ScreenShots {
             val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
             val file = p.copy(id = "laptop-$name")
             shot(file, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(file, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
@@ -141,11 +143,11 @@ class ScreenShots {
             }
             shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
             shot(p, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "04-gzclp-next") { TabFrame(Tab.Workout, {}) { HomeScreen(gz, {}, {}, {}) } }
             shot(p, "04-gzclp-warmups", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "05-starting-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
@@ -192,20 +194,20 @@ class ScreenShots {
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }
             shot(p, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "17-workout-swapped", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "17-swap-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "fly"), swapped, {}, {}, {}) }
                 }
             }
             shot(p, "17-swap-back-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[3], ""), swapped, {}, {}, {}) }
                 }
             }

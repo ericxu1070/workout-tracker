@@ -171,6 +171,7 @@ fun NumberField(
     color: Color = LocalPalette.current.fg,
     onCommit: () -> Unit = {},
     label: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Number,
 ) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
@@ -184,7 +185,7 @@ fun NumberField(
                 .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
             textStyle = Type.body.tabular().copy(color = color, textAlign = TextAlign.End),
             singleLine = true, cursorBrush = SolidColor(p.accent),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = if (last) ImeAction.Done else ImeAction.Next),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = if (last) ImeAction.Done else ImeAction.Next),
             keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
         )
     }
@@ -234,7 +235,7 @@ fun WorkoutScreen(
     state: AppState,
     now: OffsetDateTime,
     rest: RestUi?,
-    onLog: (Exercise, Int, Int, Int) -> Unit,
+    onLog: (Exercise, Int, Int, Int, Double?) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onEditWeight: (Exercise) -> Unit,
     onSwap: (Exercise) -> Unit,
@@ -301,7 +302,7 @@ private fun ExerciseBlock(
     state: AppState,
     ex: Exercise,
     next: SetKey?,
-    onLog: (Exercise, Int, Int, Int) -> Unit,
+    onLog: (Exercise, Int, Int, Int, Double?) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onEditWeight: (Exercise) -> Unit,
     onSwap: (Exercise) -> Unit,
@@ -328,6 +329,7 @@ private fun ExerciseBlock(
         // Header labels end where the field digits end, inside the fields' horizontal padding.
         Txt("lb", Type.caption, Modifier.width(WEIGHT_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
         Txt("Reps", Type.caption, Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
+        Txt("RPE", Type.caption, Modifier.width(RPE_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
     }
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         val plates = LocalPlates.current
@@ -346,7 +348,7 @@ private fun ExerciseBlock(
                 current = next == key,
                 exName = ex.name,
                 plates = plates.takeIf { ex.id in Catalog.barbell },
-                onLog = { w, r -> onLog(ex, i, w, r) },
+                onLog = { w, r, rpe -> onLog(ex, i, w, r, rpe) },
                 onClear = { onClear(ex, i) },
             )
         }
@@ -354,10 +356,15 @@ private fun ExerciseBlock(
 }
 
 private val SET_COL = 32.dp
-private val WEIGHT_COL = 88.dp
-private val REPS_COL = 72.dp
+// Sized so the row fits a 360dp-wide phone with the RPE column.
+private val WEIGHT_COL = 76.dp
+private val REPS_COL = 60.dp
+private val RPE_COL = 56.dp
 
-/** One set: its own weight and reps, prefilled from the prescription, and a check that logs or clears it. */
+/** What the RPE field accepts while typing: empty, 1 to 9 with an optional .5, or 10. */
+private val RPE_INPUT = Regex("(10|[1-9](\\.5?)?)?")
+
+/** One set: its own weight and reps, prefilled from the prescription, an optional RPE, and a check that logs or clears it. */
 @Composable
 fun SetRow(
     index: Int,
@@ -368,7 +375,7 @@ fun SetRow(
     current: Boolean,
     exName: String,
     plates: Plates?,
-    onLog: (weight: Int, reps: Int) -> Unit,
+    onLog: (weight: Int, reps: Int, rpe: Double?) -> Unit,
     onClear: () -> Unit,
 ) {
     val p = LocalPalette.current
@@ -376,8 +383,9 @@ fun SetRow(
     var w by remember(logged?.weight, defaultWeight) { mutableStateOf((logged?.weight ?: defaultWeight).toString()) }
     var r by remember(logged?.actualReps) { mutableStateOf(logged?.actualReps?.toString() ?: if (amrap) "" else targetReps.toString()) }
     fun weight() = w.toIntOrNull() ?: logged?.weight ?: defaultWeight
+    var e by remember(logged?.rpe) { mutableStateOf(logged?.rpe?.let(Fmt::rpe) ?: "") }
     fun reps() = r.toIntOrNull() ?: logged?.actualReps ?: targetReps
-    val commit = { if (logged != null) onLog(weight(), reps()) }
+    val commit = { if (logged != null) onLog(weight(), reps(), e.toDoubleOrNull()) }
     val short = logged != null && logged.actualReps < targetReps
     val name = "$exName set $index"
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
@@ -387,12 +395,16 @@ fun SetRow(
             r, { r = it.filter(Char::isDigit).take(3) }, width = REPS_COL, placeholder = if (amrap) "$targetReps+" else "$targetReps",
             color = if (short) p.red else p.fg, onCommit = commit, label = "$name reps",
         )
+        NumberField(
+            e, { if (RPE_INPUT.matches(it)) e = it }, width = RPE_COL, placeholder = "",
+            onCommit = commit, label = "$name RPE", keyboardType = KeyboardType.Decimal,
+        )
         Spacer(Modifier.weight(1f))
         val hit = logged != null && !short
         Pressable(
             {
                 focus.clearFocus()
-                if (logged != null) onClear() else onLog(weight(), reps())
+                if (logged != null) onClear() else onLog(weight(), reps(), e.toDoubleOrNull())
             },
             Modifier.size(44.dp), CircleShape,
             fill = when {

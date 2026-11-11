@@ -39,6 +39,8 @@ private slots:
     void docExampleResolves() {
         const Log log = parseLog(docExample());
         QCOMPARE(log.sets.size(), 3);
+        QCOMPARE(log.sets[0].rpe, 0.0);  // absent
+        QCOMPARE(log.sets[1].rpe, 8.5);
         QCOMPARE(log.name("squat"), QString("Squat"));
         QCOMPARE(log.name("leg_curl"), QString("Leg curl"));
         QCOMPARE(log.bodyWeight.size(), 1);  // the Nov 20 weigh-in was cleared
