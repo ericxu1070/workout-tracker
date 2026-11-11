@@ -48,6 +48,8 @@ class AppModel private constructor(private val context: Context) {
     private val food = FoodLog(File(context.filesDir, "food"))
     /** Where the camera writes a photo before [addMeal] downscales it into [food]. */
     val capture = File(context.cacheDir, "camera/meal.jpg")
+    /** Where a photo picked from the gallery is copied before the meal sheet saves it into [food]. */
+    val upload = File(context.cacheDir, "upload/meal.jpg")
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
@@ -223,15 +225,27 @@ class AppModel private constructor(private val context: Context) {
         }
     }
 
-    /** Saves the photo the camera just wrote to [capture] as a meal at the current time. */
-    fun addMeal() {
-        val at = now()
+    /** Saves [photo] (by default the one the camera just wrote to [capture]) as a meal at [at]. */
+    fun addMeal(photo: File = capture, at: OffsetDateTime = now()) {
         io.execute {
-            val error = runCatching { food.add(capture, at) }.exceptionOrNull()
+            val error = runCatching { food.add(photo, at) }.exceptionOrNull()
             main.post {
                 meals = food.meals()
                 mealError = error?.let { "Meal not saved: ${it.message ?: it.javaClass.simpleName}" }
             }
+        }
+    }
+
+    /** Copies the picked photo at [uri] into [upload], then hands [done] its capture time (null when it has none). */
+    fun importMeal(uri: Uri, done: (OffsetDateTime?) -> Unit) {
+        io.execute {
+            val taken = runCatching {
+                upload.parentFile?.mkdirs()
+                val input = context.contentResolver.openInputStream(uri) ?: error("Could not open the photo")
+                input.use { i -> upload.outputStream().use { i.copyTo(it) } }
+                FoodLog.takenAt(upload, ZoneId.systemDefault())
+            }
+            main.post { taken.fold(done) { mealError = "Photo not added: ${it.message ?: it.javaClass.simpleName}" } }
         }
     }
 

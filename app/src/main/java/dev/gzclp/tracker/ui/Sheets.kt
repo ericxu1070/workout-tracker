@@ -50,6 +50,8 @@ sealed interface SheetState {
     data class Swap(val ex: Exercise, val name: String, val create: Boolean = false) : SheetState
     /** A logged meal's photo, with Delete as the confirm action once [delete] has asked. */
     data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate, val delete: Boolean = false) : SheetState
+    /** A gallery [photo] about to be saved as a meal at [at]; [note] says why its own time was not usable. */
+    data class AddMeal(val photo: java.io.File, val at: OffsetDateTime, val now: OffsetDateTime, val note: String?) : SheetState
     /** A new weigh-in when [id] is null, else an edit of that one; [delete] marks the Delete button. */
     data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
         val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
@@ -101,7 +103,7 @@ private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit)
 }
 
 @Composable
-fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit) {
+fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit, onPickTime: (SheetState.AddMeal) -> Unit = {}) {
     when (s) {
         is SheetState.Weight -> {
             if (s.starting) SheetTitle("Starting weight for ${s.ex.name.lowercase()}", "${s.ex.detail()}. Pick a weight you can lift for every rep.")
@@ -164,6 +166,10 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
         is SheetState.Meal -> if (!s.delete) MealSheet(s.meal, s.today, { update(s.copy(delete = true)) }, onDismiss) else {
             SheetTitle("Delete this meal?", "Its photo is deleted from this phone and can't be recovered.")
             CancelOr("Delete", { update(s.copy(delete = false)) }) { onConfirm(s) }
+        }
+        is SheetState.AddMeal -> {
+            SheetTitle("Add meal", s.note ?: "At the time the photo was taken. Change it if you ate at another time.")
+            AddMealSheet(s, { onPickTime(s) }, update) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)

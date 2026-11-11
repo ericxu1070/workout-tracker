@@ -1,17 +1,20 @@
 package dev.gzclp.tracker
 
 import android.Manifest
+import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +60,7 @@ import dev.gzclp.tracker.ui.Sheet
 import dev.gzclp.tracker.ui.SheetContent
 import dev.gzclp.tracker.ui.SheetState
 import dev.gzclp.tracker.ui.WorkoutScreen
+import dev.gzclp.tracker.ui.photoTimeNote
 import dev.gzclp.tracker.ui.unloggedSets
 import kotlinx.coroutines.delay
 
@@ -148,6 +152,25 @@ private fun App(model: AppModel) {
     }
     fun close() {
         sheet = null
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) model.importMeal(uri) { taken ->
+            val now = model.now()
+            val note = photoTimeNote(taken, now)
+            open(SheetState.AddMeal(model.upload, if (note == null && taken != null) taken else now, now, note))
+        }
+    }
+    fun uploadMeal() {
+        foodDay = null
+        model.mealError = null
+        gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    /** The system time picker for a picked photo's meal time. */
+    fun pickMealTime(s: SheetState.AddMeal) {
+        TimePickerDialog(context, { _, h, m ->
+            val c = sheet as? SheetState.AddMeal ?: return@TimePickerDialog
+            open(c.copy(at = c.at.withHour(h).withMinute(m).withSecond(0)))
+        }, s.at.hour, s.at.minute, DateFormat.is24HourFormat(context)).show()
     }
     fun push(r: Route, a: String = "") {
         arg = a
@@ -264,7 +287,7 @@ private fun App(model: AppModel) {
                             val today = LocalDate.now()
                             FoodScreen(
                                 model.meals, foodDay ?: today, today, model.mealError,
-                                onDay = { foodDay = it.takeIf { d -> d < today } }, onSnap = ::snapMeal,
+                                onDay = { foodDay = it.takeIf { d -> d < today } }, onSnap = ::snapMeal, onUpload = ::uploadMeal,
                                 onOpen = { open(SheetState.Meal(it, today)) },
                             )
                         }
@@ -274,7 +297,7 @@ private fun App(model: AppModel) {
         Sheet(sheet != null, ::close) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
-                s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close,
+                s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime,
                 onConfirm = { c ->
                     when (c) {
                         is SheetState.Weight -> {
@@ -298,6 +321,11 @@ private fun App(model: AppModel) {
                         }
                         is SheetState.Meal -> {
                             model.deleteMeal(c.meal)
+                            close()
+                        }
+                        is SheetState.AddMeal -> {
+                            model.addMeal(c.photo, c.at)
+                            foodDay = c.at.toLocalDate().takeIf { it < LocalDate.now() }
                             close()
                         }
                         is SheetState.AddExercise -> {
