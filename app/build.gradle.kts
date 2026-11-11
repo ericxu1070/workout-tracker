@@ -14,8 +14,19 @@ android {
         applicationId = "dev.gzclp.tracker"
         minSdk = 31
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+        // The release workflow sets these from the tag and the commit count; local builds keep the defaults.
+        versionCode = System.getenv("VERSION_CODE")?.toInt() ?: 2
+        versionName = System.getenv("VERSION_NAME") ?: "2.0"
+    }
+    // Only when RELEASE_KEYSTORE is set (CI, or a local signed build); otherwise release builds stay unsigned.
+    System.getenv("RELEASE_KEYSTORE")?.let { store ->
+        signingConfigs.create("release") {
+            storeFile = file(store)
+            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        }
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
     buildFeatures { compose = true }
     compileOptions {
