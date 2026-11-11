@@ -115,8 +115,8 @@ class ScreenShots {
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
         }
@@ -176,14 +176,14 @@ class ScreenShots {
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "12-settings-full", tall = true) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60,
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {},
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }

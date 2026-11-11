@@ -32,6 +32,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.documentfile:documentfile:1.1.0")
+    // shortcut: last release that builds with compileSdk 35; move to 1.1.0 stable once android-36 is installed and compileSdk is 36.
+    implementation("androidx.health.connect:connect-client:1.1.0-beta01")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     testImplementation("junit:junit:4.13.2")

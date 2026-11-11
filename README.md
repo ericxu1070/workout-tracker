@@ -2,7 +2,7 @@
 
 An Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
 
-The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. All data stays on the phone. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
+The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
 ## Screenshots
 
@@ -52,6 +52,8 @@ adb shell am start -n dev.gzclp.tracker/.MainActivity
 
 After a reinstall, tap Restore log on the first screen and pick the same folder.
 
+To send workouts and weigh-ins to Health Connect, turn on Health Connect in Settings and allow access. From then on, each finished workout becomes a strength-training session (one segment per set with its reps, every set's weight in the notes) and each weigh-in becomes a weight record; editing or deleting a weigh-in updates Health Connect too. The app only writes and never reads. Workouts and weigh-ins from before you turned it on are not sent. Without Health Connect, or with access denied, everything else works the same.
+
 In Settings you can switch programs (history and each exercise's progress carry over), add or remove exercises per workout, and change the cycle steps (5 lb upper body, 10 lb lower body, 5 lb per new cycle by default).
 
 Version 2 reads only version 2 logs. On first launch it sets an older local log aside as `gzclp-log.jsonl.old`; uninstall first for a clean start.
@@ -63,4 +65,5 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 - `sync/` mirrors the log into the shared folder.
 - `rest/` holds the rest alarm and its notifications.
 - `remind/` holds the daily weigh-in reminder.
+- `health/` turns finished workouts and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
 - `ui/` holds the Compose screens and the four color themes.
