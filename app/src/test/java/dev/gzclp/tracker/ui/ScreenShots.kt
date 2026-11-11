@@ -172,7 +172,7 @@ class ScreenShots {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "04-gzclp-next") { TabFrame(Tab.Workout, {}) { HomeScreen(gz, {}, {}, {}) } }
-            shot(p, "04-gzclp-warmups", tall = true) {
+            for (tall in listOf(false, true)) shot(p, if (tall) "04-gzclp-warmups-full" else "04-gzclp-warmups", tall) {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
             shot(p, "05-starting-weight-sheet") {
