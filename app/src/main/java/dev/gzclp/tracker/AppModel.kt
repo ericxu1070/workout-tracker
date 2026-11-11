@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.WeightRecord
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
@@ -104,6 +105,7 @@ class AppModel private constructor(private val context: Context) {
                 val client = HealthConnectClient.getOrCreate(context)
                 if (w.upserts.isNotEmpty()) client.insertRecords(w.upserts)
                 if (w.deletedWeights.isNotEmpty()) client.deleteRecords(WeightRecord::class, emptyList(), w.deletedWeights)
+                if (w.deletedSessions.isNotEmpty()) client.deleteRecords(ExerciseSessionRecord::class, emptyList(), w.deletedSessions)
             }
         }.exceptionOrNull()
         main.post { if (health.on) health = health.copy(message = error?.let { "Last write failed: ${it.message ?: it.javaClass.simpleName}" }) }
