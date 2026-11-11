@@ -16,9 +16,12 @@ enum class Lift(val id: String, val label: String, val upper: Boolean) {
     }
 }
 
-/** GZCLP tiers, plus [CYCLE] for exercises in the 3-week cycle programs. */
+/** GZCLP tiers, [CYCLE] for exercises in the 3-week cycle programs, and [CUSTOM] for custom splits, which run the cycle per [Wave]. */
 enum class Tier(val id: String, val defaultRestSec: Int, val label: String) {
-    T1("t1", 180, "T1"), T2("t2", 120, "T2"), T3("t3", 60, "T3"), CYCLE("cycle", 90, "Cycle");
+    T1("t1", 180, "T1"), T2("t2", 120, "T2"), T3("t3", 60, "T3"), CYCLE("cycle", 90, "Cycle"), CUSTOM("custom", 120, "Custom");
+
+    /** Runs the 3-week cycle rule rather than the GZCLP engine. */
+    val cyclic: Boolean get() = this == CYCLE || this == CUSTOM
 
     companion object {
         fun of(id: String): Tier? = entries.firstOrNull { it.id == id }
@@ -42,7 +45,8 @@ object Schemes {
         Tier.T1 -> t1
         Tier.T2 -> t2
         Tier.T3 -> t3
-        Tier.CYCLE -> Cycle.weeks
+        // A custom slot carries its own weeks (Slot.wave); these are its default.
+        Tier.CYCLE, Tier.CUSTOM -> Cycle.weeks
     }
 
     fun stageIndex(tier: Tier, label: String): Int =

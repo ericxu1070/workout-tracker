@@ -46,13 +46,24 @@ class CycleTest {
         assertEquals(CycleState(0, 2), Cycle.manualEdit(CycleState(100, 2), 5, 10))
     }
 
-    @Test fun everyPresetDayHasThreeToFiveKnownExercises() {
+    @Test fun everyPresetDayHasThreeToSixKnownExercises() {
         val known = Catalog.all.map { it.id }.toSet()
-        assertEquals(listOf(4, 5, 6, 4, 3, 3), Programs.all.map { it.days.size })
+        assertEquals(listOf(4, 5, 6, 4, 3, 3, 3), Programs.all.map { it.days.size })
         for (p in Programs.all) for (d in p.days) {
-            assert(d.slots.size in 3..5) { "${p.id}/${d.id} has ${d.slots.size}" }
+            assert(d.slots.size in 3..6) { "${p.id}/${d.id} has ${d.slots.size}" }
             assert(d.slots.all { it.ex in known }) { "${p.id}/${d.id} names an unknown exercise" }
             assert(d.slots.all { (it.tier == Tier.CYCLE) != p.gzclp }) { "${p.id} mixes engines" }
         }
+    }
+
+    @Test fun aCustomWaveUsesItsOwnHeavyWeekReps() {
+        val weeks = Wave(5, listOf(8, 6, 5)).weeks
+        assertEquals(listOf("5x8", "5x6", "5x5"), weeks.map { it.label })
+        assertEquals("5x8,6,5", Wave(5, listOf(8, 6, 5)).key)
+        assertEquals(ChangeKind.WEEK_ADVANCE to CycleState(100, 1), Cycle.advance(CycleState(100, 0), listOf(3, null, null, null, null), 5, weeks))
+        assertEquals(ChangeKind.CYCLE_UP to CycleState(105), Cycle.advance(CycleState(100, 2), List(5) { 5 }, 5, weeks))
+        assertEquals(ChangeKind.CYCLE_REPEAT to CycleState(100), Cycle.advance(CycleState(100, 2), listOf(5, 5, 5, 5, 4), 5, weeks))
+        assertEquals("a set not logged misses", ChangeKind.CYCLE_REPEAT to CycleState(100), Cycle.advance(CycleState(100, 2), listOf(5, 5, 5, 5), 5, weeks))
+        assertEquals(Wave.DEFAULT.weeks, Cycle.weeks)
     }
 }

@@ -13,6 +13,8 @@ The optional `rpe` field on `set` was added within version 2. A reader that pred
 
 The `cardio_start`, `cardio`, and `cardio_clear` types were added within version 2. A reader that predates them skips them as unknown types and sees only lifting.
 
+Custom splits were added within version 2: the `program_define` and `program_remove` types, the `custom` tier, and the optional `scheme` field on `progression`. A reader that predates them skips the new types, and still reads `custom` sets and sessions as sets and sessions of an unknown tier and program.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -44,10 +46,10 @@ Every line has these fields.
 Names used in several types:
 
 - `exercise`: a stable id. The app's built-in ids are `squat`, `bench`, `deadlift`, `ohp`, `barbell_row`, `lat_pulldown`, `dumbbell_row`, `seated_cable_row`, `incline_db_press`, `chest_fly`, `lateral_raise`, `rear_delt_fly`, `face_pull`, `barbell_curl`, `hammer_curl`, `tricep_pushdown`, `overhead_tricep_extension`, `romanian_deadlift`, `leg_press`, `leg_curl`, `leg_extension`, `calf_raise`. Exercises the user adds get an id made from their name, such as `cable_crunch`. Every id is named by an `exercise_define` line.
-- `program`: `gzclp`, `bro`, `ppl`, `upper_lower`, `full_body`, or `chest_back_legs`. Only `gzclp` uses the GZCLP tiers. The others use the 3-week cycle.
-- `tier`: `t1`, `t2`, or `t3` for GZCLP; `cycle` for an exercise in a cycle program. The same exercise can have GZCLP state and cycle state at once; they are separate.
-- `stage`: the scheme, `<sets>x<reps>`, with `+` when the last set is AMRAP. T1 is `5x3+`, `6x2+`, or `10x1+`. T2 is `3x10`, `3x8`, or `3x6`. T3 is `3x15+`. Cycle stages map one to one to cycle weeks: `3x12` is week 1, `3x10` week 2, `3x8` week 3.
-- `day`: a day id within its program. GZCLP: `A1`, `B1`, `A2`, `B2`. Bro split: `chest`, `back`, `shoulders`, `legs`, `arms`. Push, pull, legs: `push_a`, `pull_a`, `legs_a`, `push_b`, `pull_b`, `legs_b`. Upper, lower: `upper_a`, `lower_a`, `upper_b`, `lower_b`. Full body: `a`, `b`, `c`. Chest, back, legs: `chest`, `back`, `legs`. Each program rotates through its days in that order.
+- `program`: a built-in program, `gzclp`, `bro`, `ppl`, `upper_lower`, `full_body`, `chest_back_legs`, or `chest_back_arms_legs`, or a custom split named by a `program_define` line. Only `gzclp` uses the GZCLP tiers. The other built-ins use the 3-week cycle, and custom splits use it per exercise (see "Custom splits").
+- `tier`: `t1`, `t2`, or `t3` for GZCLP; `cycle` for an exercise in a built-in cycle program; `custom` for an exercise in a custom split. The same exercise can have GZCLP state, cycle state, and custom state at once; they are separate.
+- `stage`: the scheme, `<sets>x<reps>`, with `+` when the last set is AMRAP. T1 is `5x3+`, `6x2+`, or `10x1+`. T2 is `3x10`, `3x8`, or `3x6`. T3 is `3x15+`. Cycle stages map one to one to cycle weeks: `3x12` is week 1, `3x10` week 2, `3x8` week 3. A `custom` stage is that week's sets and reps, such as `5x6`.
+- `day`: a day id within its program. GZCLP: `A1`, `B1`, `A2`, `B2`. Bro split: `chest`, `back`, `shoulders`, `legs`, `arms`. Push, pull, legs: `push_a`, `pull_a`, `legs_a`, `push_b`, `pull_b`, `legs_b`. Upper, lower: `upper_a`, `lower_a`, `upper_b`, `lower_b`. Full body: `a`, `b`, `c`. Chest, back, legs: `chest`, `back`, `legs`. Chest and back, arms, legs: `chest_back`, `arms`, `legs`. A custom split's days are in its newest `program_define` line. Each program rotates through its days in that order.
 - `activity`: a cardio activity id. The built-in ids are `running`, `treadmill`, `walking`, `hiking`, `cycling`, `stationary_bike`, `swimming`, `open_water_swim`, `rowing_machine`, `rowing`, `paddling`, `elliptical`, `inline_skating`, `cross_country_skiing`, `snowshoeing`, `wheelchair`, `stair_climber`, `stairs`, `jump_rope`, `hiit`, `boot_camp`, `fitness_class`, `calisthenics`, `yoga`, `pilates`, `stretching`, `dancing`, `boxing`, `kickboxing`, `martial_arts`, `climbing`, `gymnastics`, `basketball`, `soccer`, `american_football`, `volleyball`, `baseball`, `softball`, `ice_hockey`, `roller_hockey`, `rugby`, `lacrosse`, `ultimate`, `cricket`, `handball`, `water_polo`, `tennis`, `pickleball`, `badminton`, `squash`, `racquetball`, `table_tennis`, `golf`, `fencing`, `skiing`, `snowboarding`, `ice_skating`, `surfing`, `other`. An activity the user types gets an id made from its name, such as `spikeball`. Every cardio line also carries `name`, the display name (at most 40 characters), so readers never need this list.
 - Weights are integers in pounds (lb), except body weight, which can have one decimal. Prescribed weights are multiples of 5. A logged set weight is what the user entered and can be any integer. For dumbbell lifts it is usually per dumbbell.
 - Durations are integer seconds.
@@ -64,6 +66,14 @@ Each exercise in a cycle program has a base weight and a week (1 to 3).
 | 3 | `3x8` | base + 2 × step |
 
 The step is `upper_step` for most exercises and `lower_step` for lower-body compounds (`lower: true` in `exercise_define`). The week advances each time the exercise is done in a session, so an exercise that appears twice in a rotation advances twice. After week 3: if every week-3 set reached 8 reps, week 1 starts again at base + `cycle_bump`. Otherwise week 1 starts again at the same base. The current increments are the latest `increments` line.
+
+## Custom splits
+
+A custom split is a copy of a built-in cycle program that the user edits: its days, their exercises, and each exercise's sets and reps per week. Each exercise in it runs the 3-week cycle above with its own scheme, written `<sets>x<week 1 reps>,<week 2 reps>,<week 3 reps>`, such as `5x8,6,5`: five sets of 8 at base, 6 at base + step, and 5 at base + 2 × step. After week 3, every week-3 set at its target reps (5 here) earns base + `cycle_bump`.
+
+Custom state is per (exercise, scheme). Bench press at `5x8,6,5` and bench press at `3x12,10,8` run separate cycles, and neither shares state with bench press in a built-in cycle program. An exercise appears at most once per day.
+
+An edit applies from the next workout. A workout in progress keeps the days and schemes it started with, and its progression lines use its own scheme.
 
 ## Types
 
@@ -96,6 +106,29 @@ The cycle increments, in lb. The newest line wins.
 | `lower_step` | int | Weekly step for lower-body compounds. Default 10. |
 | `cycle_bump` | int | Added to the base when a cycle earns it. Default 5. |
 
+### `program_define`
+
+Creates a custom split, or redefines one after an edit. The newest line per `program` wins. One line holds the whole split.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `program` | string | The split's id, made from its first name, such as `my_ppl`. Never a built-in id, another split's id, or the id of a deleted split that has sessions. |
+| `name` | string | Display name, at most 40 characters. |
+| `from` | string | The built-in program it was copied from. When the split in use is deleted, this program takes over. |
+| `days` | array | The days in rotation order. Each is `{"day": id, "title": name, "exercises": [...]}`. A day can be empty while the user edits it; the rotation skips empty days. |
+
+Each exercise is `{"exercise": id, "sets": 1 to 10, "reps": [week 1, week 2, week 3]}`, each 1 to 50 reps.
+
+The rotation is kept by day id. Renaming or moving a day keeps its place; when the day due next is deleted, the day after it is due.
+
+### `program_remove`
+
+Deletes a custom split. Its past sessions keep their program id, and their lines are unchanged. If it was the program in use, its `from` program is in use from here, as if a `program` line named it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `program` | string | The split. |
+
 ### `exercise_define`
 
 Names an exercise. Written for every built-in exercise at program start and whenever the user adds a new one.
@@ -123,7 +156,7 @@ Every change to an exercise's prescription. Apply them in order to get each exer
 | Field | Type | Meaning |
 |---|---|---|
 | `exercise` | string | Exercise id. |
-| `tier` | string | `t1`, `t2`, `t3`, or `cycle`. |
+| `tier` | string | `t1`, `t2`, `t3`, `cycle`, or `custom`. |
 | `kind` | string | See the table below. |
 | `from_weight` | int, optional | Prescribed weight before. Absent for `initial`. |
 | `to_weight` | int | Prescribed weight after. For `cycle`, the weight of the new week. |
@@ -131,8 +164,9 @@ Every change to an exercise's prescription. Apply them in order to get each exer
 | `to_stage` | string | Stage after. |
 | `session_id` | string, optional | The session that caused it. Absent for `initial` and `manual_edit`. |
 | `five_rm` | int, optional | The 5RM used. Present on a T1 `initial` and a T1 `reset`. |
-| `cycle_week` | int, optional | `cycle` only: the week after this change, 1 to 3. |
-| `cycle_base` | int, optional | `cycle` only: the base after this change. |
+| `cycle_week` | int, optional | `cycle` and `custom` only: the week after this change, 1 to 3. |
+| `cycle_base` | int, optional | `cycle` and `custom` only: the base after this change. |
+| `scheme` | string, optional | `custom` only: the exercise's scheme, such as `5x8,6,5`. The state belongs to this (exercise, scheme). |
 
 | `kind` | Tier | When |
 |---|---|---|
@@ -140,10 +174,10 @@ Every change to an exercise's prescription. Apply them in order to get each exer
 | `weight_increase` | GZCLP | Success: T1 and T2 add 5 lb (bench, ohp) or 10 lb (squat, deadlift) at the same stage. T3 adds 5 lb when the last set reaches 25 reps. |
 | `stage_change` | GZCLP | Failure before the last stage: the next stage, same weight. A stall. |
 | `reset` | GZCLP | Failure at the last stage. T1: a new 5RM was entered (in `five_rm`) and `to_weight` is 85% of it at `5x3+`. T2: back to `3x10` at the weight the last `3x10` run started at, plus 15 lb (upper) or 20 lb (lower). |
-| `week_advance` | cycle | Week 1 or 2 was done: the next week. |
-| `cycle_up` | cycle | Week 3 was done with every set at 8 or more: week 1 at base + `cycle_bump`. |
-| `cycle_repeat` | cycle | Week 3 was done with a set short of 8 or not logged: week 1 again at the same base. |
-| `manual_edit` | all | The user changed the prescribed weight by hand. The stage does not change. For `cycle`, the base moves so this week's weight is `to_weight`. |
+| `week_advance` | cycle, custom | Week 1 or 2 was done: the next week. |
+| `cycle_up` | cycle, custom | Week 3 was done with every set at its target reps (8 for `cycle`) or more: week 1 at base + `cycle_bump`. |
+| `cycle_repeat` | cycle, custom | Week 3 was done with a set short of its target or not logged: week 1 again at the same base. |
+| `manual_edit` | all | The user changed the prescribed weight by hand. The stage does not change. For `cycle` and `custom`, the base moves so this week's weight is `to_weight`. |
 
 Progression lines for a session are written right before its `session_end`, with the same `ts`.
 An exercise whose sets were all left unlogged in a session gets no progression line.
@@ -175,7 +209,7 @@ One logged set. Written when the user taps the set done, and again when they cor
 | `weight` | int | The weight used for this set, lb. Each set has its own. |
 | `amrap` | bool | True on the last set of a `+` stage. |
 | `rest_sec` | int, optional | Seconds since the previous set logged in this session. Absent on the first set. |
-| `rest_target_sec` | int, optional | The rest the timer gave after the previous set (by that set's tier; defaults 180 T1, 120 T2, 60 T3, 90 cycle, user-editable). Absent on the first set. |
+| `rest_target_sec` | int, optional | The rest the timer gave after the previous set (by that set's tier; defaults 180 T1, 120 T2, 60 T3, 90 cycle, user-editable, and 120 custom). Absent on the first set. |
 | `rpe` | number, optional | Rate of perceived exertion the user gave the set, 1 to 10 in half steps, always written with one decimal: `8.0`, `8.5`. Absent when not given. It never affects progression. |
 
 The line's `ts` is when the set was logged.
@@ -332,4 +366,9 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":99,"ts":"2026-11-22T20:16:00-08:00","type":"cardio","entry_id":"c1795312800","activity":"basketball","name":"Basketball","started_at":"2026-11-21T18:00:00-08:00","duration_sec":3900,"notes":"Pickup at the Y"}
 {"v":2,"seq":100,"ts":"2026-11-23T07:00:00-08:00","type":"cardio_start","entry_id":"c1795446000","activity":"cycling","name":"Cycling"}
 {"v":2,"seq":101,"ts":"2026-11-23T07:00:20-08:00","type":"cardio_clear","entry_id":"c1795446000"}
+{"v":2,"seq":102,"ts":"2026-11-24T08:00:00-08:00","type":"program_define","program":"my_ppl","name":"My PPL","from":"ppl","days":[{"day":"push_a","title":"Push A","exercises":[{"exercise":"bench","sets":5,"reps":[8,6,5]},{"exercise":"lateral_raise","sets":3,"reps":[12,10,8]}]},{"day":"pull_a","title":"Pull A","exercises":[{"exercise":"deadlift","sets":3,"reps":[5,5,3]}]}]}
+{"v":2,"seq":103,"ts":"2026-11-24T08:00:30-08:00","type":"program","program":"my_ppl"}
+{"v":2,"seq":104,"ts":"2026-11-24T18:00:00-08:00","type":"progression","exercise":"bench","tier":"custom","kind":"initial","to_weight":155,"to_stage":"5x8","cycle_week":1,"cycle_base":155,"scheme":"5x8,6,5"}
+{"v":2,"seq":105,"ts":"2026-11-24T19:10:00-08:00","type":"progression","exercise":"bench","tier":"custom","kind":"week_advance","from_weight":155,"to_weight":160,"from_stage":"5x8","to_stage":"5x6","session_id":"s1795831200","cycle_week":2,"cycle_base":155,"scheme":"5x8,6,5"}
+{"v":2,"seq":106,"ts":"2026-12-01T07:00:00-08:00","type":"program_remove","program":"my_ppl"}
 ```

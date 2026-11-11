@@ -33,15 +33,21 @@ object Catalog {
     val barbell = setOf("squat", "bench", "deadlift", "ohp", "barbell_row", "barbell_curl", "romanian_deadlift")
 }
 
-/** One exercise slot in a program day. Cycle programs use [Tier.CYCLE] for every slot. */
-data class Slot(val ex: String, val tier: Tier)
+/** One exercise slot in a program day. Cycle programs use [Tier.CYCLE] for every slot; custom splits use [Tier.CUSTOM] with a [wave]. */
+data class Slot(val ex: String, val tier: Tier, val wave: Wave? = null)
 
 data class ProgramDay(val id: String, val title: String, val slots: List<Slot>)
 
-data class Program(val id: String, val name: String, val days: List<ProgramDay>) {
+/** [from] is set only on a custom split: the built-in preset it was copied from, which takes over if the split is deleted in use. */
+data class Program(val id: String, val name: String, val days: List<ProgramDay>, val from: String? = null) {
     /** GZCLP runs the T1/T2/T3 engine; every other program runs the 3-week cycle. */
     val gzclp: Boolean get() = id == Programs.GZCLP
+    val custom: Boolean get() = from != null
     fun day(id: String): ProgramDay? = days.firstOrNull { it.id == id }
+
+    /** What a custom split must hold: a name, at least one day, unique day ids, and per day distinct exercises with valid waves. Days may be empty. */
+    val validSplit: Boolean get() = custom && name.isNotBlank() && days.isNotEmpty() && days.distinctBy { it.id }.size == days.size &&
+        days.all { d -> d.id.isNotBlank() && d.title.isNotBlank() && d.slots.distinctBy { it.ex }.size == d.slots.size && d.slots.all { it.tier == Tier.CUSTOM && it.wave?.valid == true } }
 }
 
 object Programs {
@@ -108,7 +114,16 @@ object Programs {
                 day("legs", "Legs", "squat", "romanian_deadlift", "leg_press", "calf_raise"),
             ),
         ),
+        Program(
+            "chest_back_arms_legs", "Chest and back, arms, legs",
+            listOf(
+                day("chest_back", "Chest and back", "bench", "lat_pulldown", "chest_fly", "barbell_row"),
+                day("arms", "Arms", "ohp", "lateral_raise", "barbell_curl", "tricep_pushdown", "hammer_curl", "overhead_tricep_extension"),
+                day("legs", "Legs", "squat", "romanian_deadlift", "leg_press", "leg_curl", "calf_raise"),
+            ),
+        ),
     )
 
+    /** The built-in program [id], or GZCLP for an id it does not know. Custom splits live in the log: see AppState.programOf. */
     fun of(id: String): Program = all.firstOrNull { it.id == id } ?: all.first()
 }

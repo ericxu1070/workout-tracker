@@ -33,6 +33,21 @@ data class ExerciseDefine(val exercise: String, val name: String, val lower: Boo
 @Serializable @SerialName("day_exercises")
 data class DayExercises(val program: String, val day: String, val exercises: List<String>) : Event
 
+/** Creates or redefines a custom split; the newest line per [program] wins. [days] in rotation order. [from] is the preset it was copied from. */
+@Serializable @SerialName("program_define")
+data class ProgramDefine(val program: String, val name: String, val from: String, val days: List<SplitDay>) : Event
+
+@Serializable
+data class SplitDay(val day: String, val title: String, val exercises: List<SplitSlot>)
+
+/** [reps] is the target for each cycle week, light to heavy. */
+@Serializable
+data class SplitSlot(val exercise: String, val sets: Int, val reps: List<Int>)
+
+/** Deletes a custom split. Its past sessions keep their names. */
+@Serializable @SerialName("program_remove")
+data class ProgramRemove(val program: String) : Event
+
 @Serializable @SerialName("progression")
 data class ProgressionEvent(
     val exercise: String,
@@ -46,6 +61,8 @@ data class ProgressionEvent(
     val fiveRm: Int? = null,
     val cycleWeek: Int? = null,
     val cycleBase: Int? = null,
+    /** `custom` only: the slot's [dev.gzclp.tracker.engine.Wave.key], which keys its cycle state. */
+    val scheme: String? = null,
 ) : Event
 
 @Serializable @SerialName("session_start")
