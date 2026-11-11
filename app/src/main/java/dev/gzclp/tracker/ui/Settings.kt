@@ -2,7 +2,6 @@ package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -10,11 +9,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Increments
 import dev.gzclp.tracker.engine.Plates
+import dev.gzclp.tracker.engine.Program
 import dev.gzclp.tracker.engine.ProgramDay
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.log.Commands
@@ -59,6 +58,9 @@ fun SettingsScreen(
     onWarmups: (Boolean) -> Unit = {},
     cardioGoalMin: Int = 150,
     onCardioGoal: (Int) -> Unit = {},
+    splits: List<Program> = emptyList(),
+    onOpenSplit: (String) -> Unit = {},
+    onNewSplit: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -66,7 +68,23 @@ fun SettingsScreen(
         Txt("Settings", Type.largeTitle)
 
         if (started) {
-            GroupHeader("Program")
+            GroupHeader("Your splits")
+            Group {
+                // Tapping a split chooses it, like a preset; its chevron opens the editor.
+                splits.forEachIndexed { i, s ->
+                    GroupRow(first = i == 0, onClick = { onProgram(s.id) }) {
+                        Column(Modifier.weight(1f)) {
+                            Txt(s.name, Type.body, maxLines = 1)
+                            Txt("${s.days.size} ${if (s.days.size == 1) "day" else "days"} · 3-week cycle", Type.footnote, color = p.fg2)
+                        }
+                        if (s.id == programId) Icon(Icons.check, p.accent, 20.dp)
+                        Spacer(Modifier.width(Space.x3 - 20.dp))
+                        Snug(20.dp) { m -> IconButton(Icons.chevronRight, "Edit ${s.name}", { onOpenSplit(s.id) }, m, tint = p.fg3) }
+                    }
+                }
+                AddRow("New split", first = splits.isEmpty(), onClick = onNewSplit)
+            }
+            GroupHeader("Presets")
             ProgramPicker(programId, onProgram)
             Spacer(Modifier.height(Space.lg))
             Group {
@@ -93,7 +111,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            GroupFooter("Lower body is squat, deadlift, Romanian deadlift, and leg press. Next cycle applies after a heavy week with every set at 8 or more.")
+            GroupFooter("Lower body is squat, deadlift, Romanian deadlift, and leg press. Next cycle applies after a heavy week with every set at its target reps.")
         }
 
         GroupHeader("Bar and plates")
@@ -151,11 +169,11 @@ fun SettingsScreen(
         GroupHeader("Warm-ups")
         Group {
             GroupRow(first = true) {
-                Txt("T1 warm-up sets", Type.body, Modifier.weight(1f))
-                Toggle(warmups, "T1 warm-up sets", onWarmups)
+                Txt("Warm-up sets", Type.body, Modifier.weight(1f))
+                Toggle(warmups, "Warm-up sets", onWarmups)
             }
         }
-        GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift. Not logged.")
+        GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift, and before each split barbell lift at 6 reps or fewer. Not logged.")
 
         GroupHeader("Cardio")
         Group {
@@ -252,13 +270,7 @@ fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit,
                         IconButton(Icons.x, "Remove ${ex.name}", { onRemove(day, id) }, tint = p.fg2)
                     }
                 }
-                GroupRow(first = ids.isEmpty(), onClick = { onAdd(day) }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.plus, p.accent, 20.dp)
-                        Spacer(Modifier.width(Space.sm))
-                        Txt("Add exercise", Type.body, color = p.accent)
-                    }
-                }
+                AddRow("Add exercise", first = ids.isEmpty()) { onAdd(day) }
             }
         }
     }

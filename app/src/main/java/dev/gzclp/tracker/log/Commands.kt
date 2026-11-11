@@ -80,11 +80,14 @@ object Commands {
             targetReps = scheme.reps, actualReps = reps.coerceAtLeast(0), targetWeight = target, weight = weight.coerceAtLeast(0),
             amrap = scheme.amrap && setIndex == scheme.sets,
             restSec = if (existing != null) existing.restSec else prev?.let { Duration.between(it.ts, now).seconds.toInt() },
-            restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { restTargets[Tier.of(it.event.tier)] },
+            restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { p -> Tier.of(p.event.tier)?.let { restSec(it, p.event.targetReps, restTargets) } },
             rpe = rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
         )
         return if (event == existing) emptyList() else listOf(event)
     }
+
+    /** The rest after a set at [tier] with [reps] target reps: a split sets it by reps, every other tier by its Settings row. */
+    fun restSec(tier: Tier, reps: Int, restTargets: Map<Tier, Int>): Int? = if (tier == Tier.CUSTOM) Wave.restSec(reps) else restTargets[tier]
 
     fun clearSet(state: AppState, ex: Exercise, setIndex: Int): List<Event> {
         val a = state.active ?: return emptyList()

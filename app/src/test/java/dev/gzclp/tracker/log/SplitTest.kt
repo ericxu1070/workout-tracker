@@ -318,4 +318,26 @@ class SplitTest {
         )
         assertTrue(p.days.all { d -> d.slots.all { it.tier == Tier.CYCLE } })
     }
+
+    @Test fun aSplitRestsByTheWeeksRepsAndEveryOtherTierBySettings() {
+        assertEquals(listOf(180, 180, 120, 120, 90, 90), listOf(1, 5, 6, 10, 11, 50).map { Commands.restSec(Tier.CUSTOM, it, rest) })
+        assertEquals(rest[Tier.CYCLE], Commands.restSec(Tier.CYCLE, 3, rest))
+        val restAfter = listOf(Wave.DEFAULT, Wave(3, listOf(5, 5, 5))).map { wave ->
+            val s = Store(File(tmp.newFolder(), "log.jsonl")).apply { dispatch(t0) { Commands.setup(fiveRm, "ppl") } }
+            val id = s.split("ppl")
+            s.dispatch(t0) { Commands.setAll(it, id, wave) }
+            s.begin(t0)
+            val ex = s.st.sessionExercises().first()
+            s.dispatch(t0) { Commands.logSet(it, ex, 1, ex.scheme.reps, ex.weight!!, t0, rest) }
+            s.dispatch(t0.plusMinutes(2)) { Commands.logSet(it, ex, 2, ex.scheme.reps, ex.weight!!, t0.plusMinutes(2), rest) }
+            s.st.active!!.sets.getValue(SetKey(ex.id, Tier.CUSTOM, 2)).event.restTargetSec
+        }
+        assertEquals(listOf(90, 180), restAfter)
+    }
+
+    @Test fun aWaveReadsBackFromItsLogKey() {
+        assertEquals(five, Wave.of(five.key))
+        assertEquals("5 × 8·6·5", five.display)
+        listOf("", "5", "5x", "x8,6,5", "5x8,6", "0x8,6,5", "5x8,6,a").forEach { assertNull(it, Wave.of(it)) }
+    }
 }

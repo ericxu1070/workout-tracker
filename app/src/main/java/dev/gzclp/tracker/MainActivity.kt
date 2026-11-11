@@ -44,7 +44,12 @@ import dev.gzclp.tracker.ui.durationEndingAt
 import dev.gzclp.tracker.ui.withActivity
 import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
+import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Exercise
+import dev.gzclp.tracker.log.ProgramDefine
+import dev.gzclp.tracker.ui.SplitDayScreen
+import dev.gzclp.tracker.ui.SplitScreen
 import dev.gzclp.tracker.log.weighIns
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.ui.BodyWeightScreen
@@ -104,8 +109,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** A screen pushed over the tabs; [arg] is a session or exercise id, or for [Activities] "log" or "change" (blank starts a session). */
-private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities }
+/**
+ * A screen pushed over the tabs; [arg] is a session or exercise id, for [Activities] "log" or "change" (blank starts a session),
+ * a split id for [Split], and "split/day" for [SplitDay].
+ */
+private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay }
 
 @Composable
 private fun App(model: AppModel) {
@@ -251,10 +259,13 @@ private fun App(model: AppModel) {
         stopCardio()
     }
 
+    /** The weight sheet for [ex]; a missing starting weight is prefilled with an estimate from its recent sets. */
+    fun weightSheet(ex: Exercise) = SheetState.Weight(ex, ex.weight ?: Commands.estimate(model.store.state.value, ex, model.plates) ?: 45)
+
     /** Asks for each missing starting weight in turn, then starts the workout. */
     fun startFlow() {
         val missing = Commands.missingWeight(model.store.state.value)
-        if (missing != null) return open(SheetState.Weight(missing, 45))
+        if (missing != null) return open(weightSheet(missing))
         close()
         requestNotifications()
         model.dispatch { Commands.start(it, model.now()) }
@@ -272,7 +283,8 @@ private fun App(model: AppModel) {
     BackHandler(sheet != null || route != null || tab != Tab.Workout) {
         when {
             sheet != null -> close()
-            route == Route.Days -> route = Route.Settings
+            route == Route.Days || route == Route.Split -> route = Route.Settings
+            route == Route.SplitDay -> push(Route.Split, arg.substringBefore('/'))
             route == Route.Activities -> closeActivities()
             route != null -> route = null
             else -> tab = Tab.Workout
@@ -283,6 +295,8 @@ private fun App(model: AppModel) {
         val session = state.sessions.firstOrNull { it.id == arg }
         val log = state.exerciseLogs().firstOrNull { it.id == arg }
         val run = state.cardioActive
+        val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { route == Route.Split || route == Route.SplitDay }
+        val splitDay = split?.day(arg.substringAfter('/', ""))
         when {
             !state.started && route != Route.Settings -> SetupScreen(
                 onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
@@ -296,7 +310,7 @@ private fun App(model: AppModel) {
                 onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
                 onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                 onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
-                onDays = { push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
+                onDays = { if (state.program.custom) push(Route.Split, state.programId) else push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
                 onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
                 onWeighInReminder = {
                     model.chooseWeighInReminder(it)
@@ -305,6 +319,7 @@ private fun App(model: AppModel) {
                 onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
                 warmups = model.warmups, onWarmups = model::chooseWarmups,
                 cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
+                splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },
                 onHealthConnect = { on ->
                     val unavailable = if (on) model.healthUnavailable() else null
                     if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
@@ -314,6 +329,12 @@ private fun App(model: AppModel) {
                 state, { route = Route.Settings },
                 onAdd = { open(SheetState.AddExercise(it, "")) },
                 onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
+            )
+            route == Route.Split && split != null -> SplitScreen(
+                state, split, { route = Route.Settings }, { push(Route.SplitDay, "${split.id}/$it") }, ::open, model::dispatch,
+            )
+            route == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
+                state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
             )
             route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
             route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
@@ -333,7 +354,7 @@ private fun App(model: AppModel) {
                             onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
                         ) else if (state.active == null) HomeScreen(
                             state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
-                            onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                            onEditWeight = { open(weightSheet(it)) },
                             onCardio = { model.chooseCardioMode(true) },
                         ) else WorkoutScreen(
                             state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
@@ -343,7 +364,7 @@ private fun App(model: AppModel) {
                                 if (!wasLogged) model.startRest(ex, i)
                             },
                             onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
-                            onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                            onEditWeight = { open(weightSheet(it)) },
                             onSwap = { open(SheetState.Swap(it, "")) },
                             onSkipRest = model::cancelRest,
                             onSettings = { push(Route.Settings) },
@@ -412,7 +433,40 @@ private fun App(model: AppModel) {
                             close()
                         }
                         is SheetState.AddExercise -> {
-                            model.dispatch { Commands.addExercise(it, it.program, c.day, c.name) }
+                            model.dispatch { if (c.split != null) Commands.addSplitExercise(it, c.split, c.day.id, c.name) else Commands.addExercise(it, it.program, c.day, c.name) }
+                            close()
+                        }
+                        is SheetState.NewSplit -> {
+                            val name = "My " + Programs.of(c.from).name.replaceFirstChar(Char::lowercase)
+                            var id: String? = null
+                            model.dispatch { s -> Commands.copySplit(s, c.from, name).also { e -> id = e.filterIsInstance<ProgramDefine>().firstOrNull()?.program } }
+                            close()
+                            id?.let { push(Route.Split, it) }
+                        }
+                        is SheetState.SplitName -> {
+                            model.dispatch {
+                                when {
+                                    c.add -> Commands.addDay(it, c.split, c.name)
+                                    c.day != null -> Commands.renameDay(it, c.split, c.day, c.name)
+                                    else -> Commands.renameSplit(it, c.split, c.name)
+                                }
+                            }
+                            close()
+                        }
+                        is SheetState.SplitWave -> {
+                            model.dispatch {
+                                if (c.ex == null || c.day == null) Commands.setAll(it, c.split, c.wave) else Commands.setWave(it, c.split, c.day, c.ex, c.wave)
+                            }
+                            close()
+                        }
+                        is SheetState.DeleteSplit -> {
+                            if (c.day == null) {
+                                model.dispatch { Commands.deleteSplit(it, c.split) }
+                                route = Route.Settings
+                            } else {
+                                model.dispatch { Commands.removeDay(it, c.split, c.day) }
+                                push(Route.Split, c.split)
+                            }
                             close()
                         }
                         is SheetState.CardioStop -> {

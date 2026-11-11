@@ -18,6 +18,7 @@ import dev.gzclp.tracker.food.FoodLog
 import dev.gzclp.tracker.food.Meal
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.Exercise
@@ -276,7 +277,8 @@ class AppModel private constructor(private val context: Context) {
         meals = food.meals()
     }
 
-    fun startRest(ex: Exercise, setIndex: Int) = RestAlarm.start(context, restTargets.getValue(ex.tier), restLabel(ex, setIndex))
+    fun startRest(ex: Exercise, setIndex: Int) =
+        RestAlarm.start(context, Commands.restSec(ex.tier, ex.scheme.reps, restTargets) ?: ex.tier.defaultRestSec, restLabel(ex, setIndex))
     fun cancelRest() = RestAlarm.cancel(context)
 
     fun rest(nowMillis: Long): RestUi? {
