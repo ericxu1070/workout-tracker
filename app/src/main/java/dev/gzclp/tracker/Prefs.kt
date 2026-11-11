@@ -69,6 +69,15 @@ class Prefs(context: Context) {
         get() = p.getInt("weigh_in_minutes", 7 * 60)
         set(v) = p.edit().putInt("weigh_in_minutes", v).apply()
 
+    /** The Workout tab shows Cardio instead of Lifting while idle. */
+    var cardioMode: Boolean
+        get() = p.getBoolean("cardio_mode", false)
+        set(v) = p.edit().putBoolean("cardio_mode", v).apply()
+
+    var cardioGoalMin: Int
+        get() = p.getInt("cardio_goal_min", 150)
+        set(v) = p.edit().putInt("cardio_goal_min", v).apply()
+
     /** Opted in to writing workouts and weigh-ins to Health Connect. */
     var healthConnect: Boolean
         get() = p.getBoolean("health_connect", false)

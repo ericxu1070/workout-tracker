@@ -32,6 +32,7 @@ object Icons {
     val minus = lucide("minus", "M5 12h14")
     val x = lucide("x", "M18 6 6 18", "m6 6 12 12")
     val check = lucide("check", "M20 6 9 17l-5-5")
+    val play = lucide("play", "M6 3 20 12 6 21z")
     val dumbbell = lucide(
         "dumbbell",
         "M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z",

@@ -46,8 +46,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.horizontalDrag
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -100,12 +114,23 @@ fun Pressable(
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     label: String? = null,
+    repeat: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = LocalPalette.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val focused by source.collectIsFocusedAsState()
+    val click by rememberUpdatedState(onClick)
+    // [repeat]: holding past the long-press timeout clicks again every 70 ms; the long press itself swallows the release click.
+    if (repeat) LaunchedEffect(pressed) {
+        if (!pressed) return@LaunchedEffect
+        delay(400)
+        while (true) {
+            click()
+            delay(70)
+        }
+    }
     val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(if (pressed) 80 else 200), label = "press")
     val ring = when {
         focused -> p.accent
@@ -120,7 +145,7 @@ fun Pressable(
             .alpha(if (enabled) 1f else 0.4f)
             .combinedClickable(
                 interactionSource = source, indication = null, enabled = enabled,
-                role = Role.Button, onClickLabel = label, onLongClick = onLongClick, onClick = onClick,
+                role = Role.Button, onClickLabel = label, onLongClick = if (repeat) ({}) else onLongClick, onClick = onClick,
             )
             .focusable(enabled, source),
         contentAlignment = Alignment.Center,
@@ -216,15 +241,15 @@ fun GroupRow(
 }
 
 @Composable
-fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier, unit: String? = null) {
+fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier, unit: String? = null, repeat: Boolean = false) {
     val p = LocalPalette.current
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Pressable(onMinus, Modifier.size(64.dp), CircleShape, p.fill, label = "Decrease") { Icon(Icons.minus, p.fg, 24.dp) }
+        Pressable(onMinus, Modifier.size(64.dp), CircleShape, p.fill, label = "Decrease", repeat = repeat) { Icon(Icons.minus, p.fg, 24.dp) }
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(value, Type.display)
             if (unit != null) Txt(" $unit", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
         }
-        Pressable(onPlus, Modifier.size(64.dp), CircleShape, p.fill, label = "Increase") { Icon(Icons.plus, p.fg, 24.dp) }
+        Pressable(onPlus, Modifier.size(64.dp), CircleShape, p.fill, label = "Increase", repeat = repeat) { Icon(Icons.plus, p.fg, 24.dp) }
     }
 }
 
@@ -240,6 +265,40 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                 Txt(o, Type.subhead.copy(fontWeight = if (i == selected) Type.headline.fontWeight else Type.subhead.fontWeight), maxLines = 1)
             }
         }
+    }
+}
+
+/**
+ * A slider from 0 to [max] that snaps to multiples of [step]: thin track, accent fill up to a white thumb.
+ * Touching the track jumps the thumb there, then it follows the finger.
+ */
+@Composable
+fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, label: String, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    val change by rememberUpdatedState(onChange)
+    fun snap(v: Float) = (Math.round(v.coerceIn(0f, max) / step) * step).coerceAtMost(max)
+    val frac = if (max > 0f) (value / max).coerceIn(0f, 1f) else 0f
+    BoxWithConstraints(
+        modifier.fillMaxWidth().height(44.dp)
+            .semantics {
+                contentDescription = label
+                progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..max)
+                setProgress { change(snap(it)); true }
+            }
+            .pointerInput(max, step) {
+                val thumb = 28.dp.toPx()
+                fun at(x: Float) = change(snap((x - thumb / 2) / (size.width - thumb) * max))
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    at(down.position.x)
+                    horizontalDrag(down.id) { at(it.position.x); it.consume() }
+                }
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
+        Box(Modifier.width(14.dp + (maxWidth - 28.dp) * frac).height(4.dp).clip(CircleShape).background(p.accent))
+        Box(Modifier.padding(start = (maxWidth - 28.dp) * frac).size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
     }
 }
 

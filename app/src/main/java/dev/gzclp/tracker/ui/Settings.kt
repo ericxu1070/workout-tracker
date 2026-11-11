@@ -56,6 +56,8 @@ fun SettingsScreen(
     onPlates: (Plates) -> Unit,
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
+    cardioGoalMin: Int = 150,
+    onCardioGoal: (Int) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -152,6 +154,16 @@ fun SettingsScreen(
             }
         }
         GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift. Not logged.")
+
+        GroupHeader("Cardio")
+        Group {
+            GroupRow(first = true) {
+                Txt("Weekly goal", Type.body, Modifier.weight(1f), maxLines = 1)
+                MiniStep(Icons.minus, "Smaller weekly cardio goal") { onCardioGoal((cardioGoalMin - 15).coerceAtLeast(15)) }
+                Txt(Fmt.minutes(cardioGoalMin * 60L), Type.body.tabular(), Modifier.widthIn(min = 120.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "Larger weekly cardio goal") { onCardioGoal((cardioGoalMin + 15).coerceAtMost(20 * 60)) }
+            }
+        }
 
         GroupHeader("Weigh-in")
         Group {

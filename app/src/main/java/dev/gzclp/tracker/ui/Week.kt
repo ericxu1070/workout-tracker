@@ -26,6 +26,7 @@ import dev.gzclp.tracker.engine.Activities
 import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.food.Meal
+import dev.gzclp.tracker.log.ActivityTotal
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.SessionBest
 import dev.gzclp.tracker.log.firstDay
@@ -88,17 +89,7 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
     }
     if (w.byActivity.isNotEmpty()) {
         GroupHeader("Cardio")
-        Group {
-            w.byActivity.forEachIndexed { i, a ->
-                GroupRow(first = i == 0) {
-                    Column(Modifier.weight(1f)) {
-                        Txt(a.name, Type.body, maxLines = 1)
-                        Txt(listOfNotNull(count(a.sessions, "session"), distance(a.activity, a.distanceM)).joinToString(" · "), Type.footnote, color = p.fg2, maxLines = 1)
-                    }
-                    Txt(Fmt.minutes(a.sec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
-                }
-            }
-        }
+        ActivityTotals(w.byActivity)
     }
     if (w.lifts.isNotEmpty()) {
         GroupHeader("Lifts")
@@ -194,6 +185,23 @@ private fun signed(lb: Double): String {
 private fun signedMinutes(sec: Long): String {
     val m = (sec / 60.0).roundToLong()
     return if (m == 0L) "±0 min" else (if (m > 0) "+" else "−") + Fmt.minutes(abs(m) * 60)
+}
+
+/** A week's cardio per activity: sessions, distance, and time. Shared with the Cardio page. */
+@Composable
+fun ActivityTotals(totals: List<ActivityTotal>) {
+    val p = LocalPalette.current
+    Group {
+        totals.forEachIndexed { i, a ->
+            GroupRow(first = i == 0) {
+                Column(Modifier.weight(1f)) {
+                    Txt(a.name, Type.body, maxLines = 1)
+                    Txt(listOfNotNull(count(a.sessions, "session"), distance(a.activity, a.distanceM)).joinToString(" · "), Type.footnote, color = p.fg2, maxLines = 1)
+                }
+                Txt(Fmt.minutes(a.sec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+            }
+        }
+    }
 }
 
 /** 6.2 mi, 1,500 yd, 5,000 m in the activity's own unit; null when it has none or no distance was given. */

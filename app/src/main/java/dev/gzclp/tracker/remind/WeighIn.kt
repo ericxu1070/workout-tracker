@@ -12,6 +12,7 @@ import dev.gzclp.tracker.AppModel
 import dev.gzclp.tracker.MainActivity
 import dev.gzclp.tracker.Prefs
 import dev.gzclp.tracker.R
+import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.log.hasWeighIn
 import java.time.LocalDate
 import java.time.LocalTime
@@ -78,6 +79,9 @@ object WeighIn {
 
 class WeighInReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == null) WeighIn.fire(context) else WeighIn.schedule(context)
+        if (intent.action == null) return WeighIn.fire(context)
+        WeighIn.schedule(context)
+        // Boot clears notifications; a cardio session still running in the log gets its notification back.
+        CardioNotice.sync(context, AppModel.get(context).store.state.value.cardioActive)
     }
 }

@@ -4,6 +4,8 @@ Plateline is an Android workout tracker with six programs: GZCLP (4 days, A1, B1
 
 The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. A Food tab keeps a photo food log: take a photo of each meal, or upload one from the gallery, and it is saved at the time the photo was taken (you confirm or set the time when an uploaded photo has none or it is in the future or over a week old), with no macros or calories, and you can page back through past days. Meal photos never leave the phone and are never written to the synced folder. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
+The Workout tab switches between Lifting and Cardio. Start one of 59 cardio activities, or one you type in, from a searchable list, or tap one of your last three to start it at once. A big clock counts up while you go, and an ongoing notification shows the time on the lock screen; the clock runs from the start time in the log, so locking the phone, closing the app, or rebooting keeps the session. Stop opens a sheet to fix the duration (hold − or +, or tap the end time to pick it), and to add an optional distance, RPE, and notes. Lifting and cardio run one at a time. The Cardio page shows this week's total against a weekly goal (2 hr 30 min unless you change it in Settings), the last four weeks as bars, quick-start rows, time per activity, and each session with its pace or speed.
+
 History opens on a Monday to Sunday week you can page back through: gym and cardio time, the days you trained, cardio by activity, each lift against the same slot last cycle (the last time at that tier for GZCLP, the same week of the last cycle otherwise), the body-weight average, and the meal count, each against the week before. Its All tab is the full workout list.
 
 ## Screenshots
@@ -15,8 +17,8 @@ Rendered by the Roborazzi screenshot test (`ScreenShots.kt`) from its demo data.
 | <img src="docs/images/workout.png" width="250" alt="Next workout screen"> | <img src="docs/images/warmups.png" width="250" alt="GZCLP T1 warm-up sets with plates per side"> | <img src="docs/images/swap.png" width="250" alt="Sheet to swap an exercise for one workout"> |
 | **Exercise (Tokyo Night)** | **History (Light)** | **Body weight (Dark)** |
 | <img src="docs/images/exercise.png" width="250" alt="Exercise detail with estimated 1RM chart"> | <img src="docs/images/history.png" width="250" alt="Workout history"> | <img src="docs/images/body-weight.png" width="250" alt="Body weight with 7-day average"> |
-| **Food (Jade)** | **Settings (Tokyo Night)** |  |
-| <img src="docs/images/food.png" width="250" alt="Food log: today's meal photos with their times"> | <img src="docs/images/settings.png" width="250" alt="Settings: warm-ups, weigh-in reminder, Health Connect, sync folder"> |  |
+| **Food (Jade)** | **Settings (Tokyo Night)** | **Cardio (Dark)** |
+| <img src="docs/images/food.png" width="250" alt="Food log: today's meal photos with their times"> | <img src="docs/images/settings.png" width="250" alt="Settings: warm-ups, weigh-in reminder, Health Connect, sync folder"> | <img src="docs/images/cardio.png" width="250" alt="Cardio page: this week against the goal, four weeks of bars, quick start, and sessions"> |
 
 The workout in progress, with the rest timer, plates per side, and RPE, in each app theme and in the Laptop theme following eight Omarchy themes:
 
@@ -104,6 +106,7 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 - `log/` holds the event log, its JSON codec, the state fold, the commands that turn taps into events, the per-exercise stats, and the weekly summary.
 - `sync/` mirrors the log into the shared folder.
 - `rest/` holds the rest alarm and its notifications.
+- `cardio/` holds the notification for the cardio session in progress.
 - `remind/` holds the daily weigh-in reminder.
 - `food/` keeps the meal photos in app-private storage, one JPEG per meal named for its time.
 - `health/` turns finished workouts, cardio sessions, and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.

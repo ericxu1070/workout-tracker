@@ -32,7 +32,14 @@ import androidx.compose.ui.text.TextRange
 import androidx.core.content.FileProvider
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.health.connect.client.PermissionController
+import dev.gzclp.tracker.cardio.CardioNotice
+import dev.gzclp.tracker.engine.Activity
 import dev.gzclp.tracker.health.HealthRecords
+import dev.gzclp.tracker.ui.ActivitiesScreen
+import dev.gzclp.tracker.ui.CardioRunScreen
+import dev.gzclp.tracker.ui.CardioScreen
+import dev.gzclp.tracker.ui.durationEndingAt
+import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.weighIns
@@ -85,6 +92,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == WeighIn.ACTION_LOG) model.logWeightRequested = true
+        if (intent.action == CardioNotice.ACTION_STOP) model.stopCardioRequested = true
     }
 
     override fun onResume() {
@@ -94,7 +102,7 @@ class MainActivity : ComponentActivity() {
 }
 
 /** A screen pushed over the tabs; [arg] is a session or exercise id. */
-private enum class Route { Settings, Days, Session, Exercise, BodyWeight }
+private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities }
 
 @Composable
 private fun App(model: AppModel) {
@@ -111,8 +119,8 @@ private fun App(model: AppModel) {
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(state.active != null) {
-        while (state.active != null) {
+    LaunchedEffect(state.active != null || state.cardioActive != null) {
+        while (state.active != null || state.cardioActive != null) {
             nowMillis = System.currentTimeMillis()
             delay(250)
         }
@@ -197,6 +205,33 @@ private fun App(model: AppModel) {
         }
     }
 
+    fun startCardio(a: Activity) {
+        requestNotifications()
+        model.dispatch { Commands.startCardio(it, a, model.now()) }
+        route = null
+        tab = Tab.Workout
+    }
+    /** Opens the stop sheet with the running session's time frozen at this tap. */
+    fun stopCardio() {
+        val run = model.store.state.value.cardioActive ?: return
+        open(SheetState.CardioStop(run, Duration.between(run.startedAt, model.now()).seconds.coerceAtMost(Commands.CARDIO_DURATION_SEC.last)))
+    }
+    fun pickCardioEnd(s: SheetState.CardioStop) {
+        val end = s.run.startedAt.plusSeconds(s.durationSec)
+        TimePickerDialog(context, { _, h, m ->
+            val c = sheet as? SheetState.CardioStop ?: return@TimePickerDialog
+            open(c.copy(durationSec = durationEndingAt(c.run.startedAt, h, m, c.maxSec)))
+        }, end.hour, end.minute, DateFormat.is24HourFormat(context)).show()
+    }
+    LaunchedEffect(model.stopCardioRequested, state.cardioActive) {
+        if (!model.stopCardioRequested) return@LaunchedEffect
+        model.stopCardioRequested = false
+        if (state.cardioActive == null) return@LaunchedEffect
+        route = null
+        tab = Tab.Workout
+        stopCardio()
+    }
+
     /** Asks for each missing starting weight in turn, then starts the workout. */
     fun startFlow() {
         val missing = Commands.missingWeight(model.store.state.value)
@@ -227,6 +262,7 @@ private fun App(model: AppModel) {
     Box(Modifier.fillMaxSize()) {
         val session = state.sessions.firstOrNull { it.id == arg }
         val log = state.exerciseLogs().firstOrNull { it.id == arg }
+        val run = state.cardioActive
         when {
             !state.started && route != Route.Settings -> SetupScreen(
                 onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
@@ -248,6 +284,7 @@ private fun App(model: AppModel) {
                 },
                 onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
                 warmups = model.warmups, onWarmups = model::chooseWarmups,
+                cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
                 onHealthConnect = { on ->
                     val unavailable = if (on) model.healthUnavailable() else null
                     if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
@@ -261,11 +298,19 @@ private fun App(model: AppModel) {
             route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
             route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
             route == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
+            route == Route.Activities -> ActivitiesScreen(state, { route = null }, ::startCardio)
             else -> TabFrame(tab, { tab = it }) {
                     when (tab) {
-                        Tab.Workout -> if (state.active == null) HomeScreen(
+                        Tab.Workout -> if (run != null) CardioRunScreen(
+                            run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+                            onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
+                        ) else if (state.active == null && model.cardioMode) CardioScreen(
+                            state, LocalDate.now(), model.cardioGoalMin, onLifting = { model.chooseCardioMode(false) },
+                            onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
+                        ) else if (state.active == null) HomeScreen(
                             state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
                             onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                            onCardio = { model.chooseCardioMode(true) },
                         ) else WorkoutScreen(
                             state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
                             onLog = { ex, i, w, r, rpe ->
@@ -308,7 +353,7 @@ private fun App(model: AppModel) {
         Sheet(sheet != null, ::close) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
-                s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime,
+                s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime, onPickEnd = ::pickCardioEnd,
                 onConfirm = { c ->
                     when (c) {
                         is SheetState.Weight -> {
@@ -341,6 +386,14 @@ private fun App(model: AppModel) {
                         }
                         is SheetState.AddExercise -> {
                             model.dispatch { Commands.addExercise(it, it.program, c.day, c.name) }
+                            close()
+                        }
+                        is SheetState.CardioStop -> {
+                            model.dispatch { Commands.stopCardio(it, model.now(), c.durationSec, c.distanceM, c.rpeValue, c.notes) }
+                            close()
+                        }
+                        is SheetState.CardioDiscard -> {
+                            model.dispatch { Commands.clearCardio(it, c.run.id) }
                             close()
                         }
                     }

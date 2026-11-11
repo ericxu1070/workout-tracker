@@ -156,6 +156,54 @@ class ScreenShots {
         }
     }
 
+    /** [base] plus four weeks of cardio ending on Thursday [now], the week's last session at 6:42 AM. */
+    private fun cardio(base: AppState, now: OffsetDateTime): AppState {
+        val monday = now.toLocalDate().with(java.time.DayOfWeek.MONDAY)
+        // (days after this Monday, hour, minute, activity, minutes, meters)
+        val sessions = listOf(
+            Triple(-21, "running", 50) to (7 to 8851), Triple(-19, "stationary_bike", 30) to (18 to null), Triple(-16, "running", 40) to (7 to 7081),
+            Triple(-14, "running", 40) to (7 to 7242), Triple(-12, "basketball", 70) to (18 to null), Triple(-10, "running", 25) to (7 to 4506),
+            Triple(-7, "running", 45) to (7 to 8368), Triple(-6, "basketball", 60) to (18 to null), Triple(-4, "stationary_bike", 40) to (17 to null),
+            Triple(0, "running", 42) to (7 to 8047), Triple(1, "basketball", 65) to (18 to null), Triple(2, "stationary_bike", 20) to (17 to null),
+            Triple(3, "running", 28) to (6 to 4989),
+        )
+        return sessions.fold(base) { s, (what, at) ->
+            val (day, id, min) = what
+            val start = monday.plusDays(day.toLong()).atTime(at.first, if (day == 3) 42 else 5).atOffset(now.offset)
+            val events = Commands.logCardio(s, null, Activities.of(id)!!, start, min * 60L, at.second, if (id == "running") 7.0 else null, null, now)
+            events.fold(s) { st, e -> st.apply(Entry(st.lastSeq + 1, start.plusMinutes(min.toLong()), e)) }
+        }
+    }
+
+    @Test fun cardioScreens() {
+        val (live, now) = history()
+        val week = cardio(live.copy(active = null), now)
+        val start = now.minusSeconds(41 * 60 + 30)
+        val running = Commands.startCardio(week, Activities.of("running")!!, start).fold(week) { s, e -> s.apply(Entry(s.lastSeq + 1, start, e)) }
+        val run = running.cardioActive!!
+        val today = now.toLocalDate()
+        for (p in Palettes.all) {
+            shot(p, "19-cardio") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-full", tall = true) { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-empty") { TabFrame(Tab.Workout, {}) { CardioScreen(live.copy(active = null), today, 150, {}, {}, {}, {}) } }
+            shot(p, "20-cardio-running") { TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) } }
+            shot(p, "20-cardio-stop-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.CardioStop(run, 41 * 60 + 30, distance = 5.0, rpe = 13), running, {}, {}, {}) }
+                }
+            }
+            shot(p, "20-cardio-discard-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.CardioDiscard(run), running, {}, {}, {}) }
+                }
+            }
+            shot(p, "21-activities") { ActivitiesScreen(week, {}, {}) }
+            shot(p, "21-activities-search") { ActivitiesScreen(week, {}, {}, initial = "Spike") }
+        }
+    }
+
     @Test fun allScreensAllThemes() {
         val (live, now) = history()
         val idle = live.copy(active = null)

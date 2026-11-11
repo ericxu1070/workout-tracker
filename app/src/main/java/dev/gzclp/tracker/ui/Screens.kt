@@ -207,7 +207,7 @@ fun Exercise.detail(): String =
     if (tier == Tier.CYCLE) "Week ${(week ?: 0) + 1} of ${Cycle.weeks.size} · ${scheme.display}" else "${tier.label} · ${scheme.display}"
 
 @Composable
-fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onEditWeight: (Exercise) -> Unit) {
+fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onEditWeight: (Exercise) -> Unit, onCardio: () -> Unit = {}) {
     val p = LocalPalette.current
     val day = state.nextDay
     val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
@@ -216,6 +216,8 @@ fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onE
         BottomBar { PillButton("Start workout", onStart, Modifier.weight(1f), primary = true) }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
+        WorkoutSwitch(false) { if (it) onCardio() }
+        Spacer(Modifier.height(Space.xxl))
         Txt(day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
         val last = state.sessions.lastOrNull { it.sets.isNotEmpty() }

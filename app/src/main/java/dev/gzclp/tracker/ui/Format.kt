@@ -41,9 +41,19 @@ object Fmt {
         return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
     }
 
-    /** 52 min, 1 hr 20 min. */
+    /** 52 min, 1 hr 20 min, 3 hr. */
     fun minutes(totalSec: Long): String {
         val m = (totalSec + 30) / 60
-        return if (m >= 60) "${m / 60} hr ${m % 60} min" else "$m min"
+        return when {
+            m < 60 -> "$m min"
+            m % 60 == 0L -> "${m / 60} hr"
+            else -> "${m / 60} hr ${m % 60} min"
+        }
+    }
+
+    /** 7:05 – 7:46 AM, or 11:40 AM – 12:20 PM when the halves of the day differ. */
+    fun timeRange(a: OffsetDateTime, b: OffsetDateTime): String {
+        val (x, y) = time(a) to time(b)
+        return (if (x.takeLast(2) == y.takeLast(2)) x.dropLast(3) else x) + " – " + y
     }
 }
