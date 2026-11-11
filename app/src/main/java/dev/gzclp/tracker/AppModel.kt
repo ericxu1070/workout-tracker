@@ -12,6 +12,8 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.WeightRecord
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.food.FoodLog
+import dev.gzclp.tracker.food.Meal
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Entry
@@ -42,6 +44,10 @@ class AppModel private constructor(private val context: Context) {
     val prefs = Prefs(context)
     val store = Store(File(context.filesDir, Mirror.NAME))
     private val mirror = Mirror(context, prefs)
+    /** Meal photos stay in app-private files; [mirror] never sees them. */
+    private val food = FoodLog(File(context.filesDir, "food"))
+    /** Where the camera writes a photo before [addMeal] downscales it into [food]. */
+    val capture = File(context.cacheDir, "camera/meal.jpg")
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
@@ -68,6 +74,10 @@ class AppModel private constructor(private val context: Context) {
         private set
     var health by mutableStateOf(HealthUi(prefs.healthConnect, null))
         private set
+    var meals by mutableStateOf(food.meals())
+        private set
+    /** Why the last photo was not saved, shown on the Food tab until the next one. */
+    var mealError by mutableStateOf<String?>(null)
     /** Set when the weigh-in notification is tapped; the UI opens the log sheet and clears it. */
     var logWeightRequested by mutableStateOf(false)
 
@@ -211,6 +221,23 @@ class AppModel private constructor(private val context: Context) {
                 sync = syncUi()
             }
         }
+    }
+
+    /** Saves the photo the camera just wrote to [capture] as a meal at the current time. */
+    fun addMeal() {
+        val at = now()
+        io.execute {
+            val error = runCatching { food.add(capture, at) }.exceptionOrNull()
+            main.post {
+                meals = food.meals()
+                mealError = error?.let { "Meal not saved: ${it.message ?: it.javaClass.simpleName}" }
+            }
+        }
+    }
+
+    fun deleteMeal(meal: Meal) {
+        food.delete(meal)
+        meals = food.meals()
     }
 
     fun startRest(ex: Exercise, setIndex: Int) = RestAlarm.start(context, restTargets.getValue(ex.tier), restLabel(ex, setIndex))

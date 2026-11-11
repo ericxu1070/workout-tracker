@@ -2,7 +2,7 @@
 
 An Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
 
-The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
+The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. A Food tab keeps a photo food log: take a photo of each meal and it is saved at that time, with no macros or calories, and you can page back through past days. Meal photos never leave the phone and are never written to the synced folder. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
 ## Screenshots
 
@@ -13,6 +13,8 @@ Rendered by the Roborazzi screenshot test (`ScreenShots.kt`) from its demo data.
 | <img src="docs/images/workout.png" width="250" alt="Next workout screen"> | <img src="docs/images/rest-timer.png" width="250" alt="Workout in progress with the rest timer"> | <img src="docs/images/exercise.png" width="250" alt="Exercise detail with estimated 1RM chart"> |
 | **History** | **Body weight** | **Laptop theme (Everforest)** |
 | <img src="docs/images/history.png" width="250" alt="Workout history"> | <img src="docs/images/body-weight.png" width="250" alt="Body weight with 7-day average"> | <img src="docs/images/laptop-theme.png" width="250" alt="Workout screen in the synced Omarchy Everforest theme"> |
+| **Food** | | |
+| <img src="docs/images/food.png" width="250" alt="Food log: today's meal photos with their times"> | | |
 
 The desktop analysis app (`desktop/`) reads the synced log:
 
@@ -65,5 +67,6 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 - `sync/` mirrors the log into the shared folder.
 - `rest/` holds the rest alarm and its notifications.
 - `remind/` holds the daily weigh-in reminder.
+- `food/` keeps the meal photos in app-private storage, one JPEG per meal named for its time.
 - `health/` turns finished workouts and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
 - `ui/` holds the Compose screens and the four color themes.

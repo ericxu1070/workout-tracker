@@ -1,6 +1,7 @@
 package dev.gzclp.tracker
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -25,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
+import androidx.core.content.FileProvider
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.health.connect.client.PermissionController
 import dev.gzclp.tracker.health.HealthRecords
@@ -40,6 +42,7 @@ import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.ui.DaysScreen
 import dev.gzclp.tracker.ui.ExerciseScreen
 import dev.gzclp.tracker.ui.ExercisesScreen
+import dev.gzclp.tracker.ui.FoodScreen
 import dev.gzclp.tracker.ui.SessionScreen
 import dev.gzclp.tracker.ui.Tab
 import dev.gzclp.tracker.ui.TabFrame
@@ -96,6 +99,7 @@ private fun App(model: AppModel) {
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
+    var foodDay by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows today across midnight
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -117,6 +121,18 @@ private fun App(model: AppModel) {
             if (restoreAfterPick) model.restore() else model.syncLater()
         }
         restoreAfterPick = false
+    }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) model.addMeal() }
+    fun snapMeal() {
+        foodDay = null
+        model.mealError = null
+        model.capture.parentFile?.mkdirs()
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", model.capture)
+        try {
+            camera.launch(uri)
+        } catch (e: ActivityNotFoundException) {
+            model.mealError = "No camera app found."
+        }
     }
     fun restore() {
         model.notice = null
@@ -244,6 +260,14 @@ private fun App(model: AppModel) {
                         Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
                         Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
                         Tab.History -> HistoryScreen(state, onOpen = { push(Route.Session, it) })
+                        Tab.Food -> {
+                            val today = LocalDate.now()
+                            FoodScreen(
+                                model.meals, foodDay ?: today, today, model.mealError,
+                                onDay = { foodDay = it.takeIf { d -> d < today } }, onSnap = ::snapMeal,
+                                onOpen = { open(SheetState.Meal(it, today)) },
+                            )
+                        }
                     }
             }
         }
@@ -270,6 +294,10 @@ private fun App(model: AppModel) {
                         }
                         is SheetState.Swap -> {
                             model.dispatch { Commands.swap(it, c.ex, c.name) }
+                            close()
+                        }
+                        is SheetState.Meal -> {
+                            model.deleteMeal(c.meal)
                             close()
                         }
                         is SheetState.AddExercise -> {

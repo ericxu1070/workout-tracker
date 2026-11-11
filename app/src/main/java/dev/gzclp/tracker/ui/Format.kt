@@ -22,12 +22,15 @@ object Fmt {
     fun date(t: OffsetDateTime): String = date.format(t)
     fun shortDate(t: java.time.temporal.TemporalAccessor): String = short.format(t)
 
-    /** Today, 7:02 AM; Yesterday, 7:02 AM; Sun, Nov 8, 7:02 AM. */
-    fun weighInTime(t: OffsetDateTime, today: java.time.LocalDate): String = when (t.toLocalDate()) {
+    /** Today, Yesterday, or Sun, Nov 8. */
+    fun day(d: java.time.LocalDate, today: java.time.LocalDate): String = when (d) {
         today -> "Today"
         today.minusDays(1) -> "Yesterday"
-        else -> date(t)
-    } + ", " + time(t)
+        else -> date.format(d)
+    }
+
+    /** Today, 7:02 AM; Yesterday, 7:02 AM; Sun, Nov 8, 7:02 AM. */
+    fun weighInTime(t: OffsetDateTime, today: java.time.LocalDate): String = day(t.toLocalDate(), today) + ", " + time(t)
 
     /** 1:47, or 1:04:18 past an hour. */
     fun clock(totalSec: Long): String {

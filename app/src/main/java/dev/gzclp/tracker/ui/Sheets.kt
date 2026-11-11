@@ -47,6 +47,8 @@ sealed interface SheetState {
     data class AddExercise(val day: ProgramDay, val name: String) : SheetState
     /** Swaps [ex] for the exercise named [name], for the active workout only. */
     data class Swap(val ex: Exercise, val name: String) : SheetState
+    /** A logged meal's photo, with Delete as the confirm action. */
+    data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate) : SheetState
     /** A new weigh-in when [id] is null, else an edit of that one; [delete] marks the Delete button. */
     data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
         val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
@@ -149,6 +151,7 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
                 PillButton(save, { onConfirm(s) }, Modifier.weight(1f), primary = true, enabled = lb != null)
             }
         }
+        is SheetState.Meal -> MealSheet(s.meal, s.today, { onConfirm(s) }, onDismiss)
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)
             NameField(s.name) { update(s.copy(name = it)) }
