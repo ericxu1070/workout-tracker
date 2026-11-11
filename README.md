@@ -49,7 +49,31 @@ Screenshots of every screen in every theme:
 ./gradlew recordRoborazziDebug -PgzclpShots=/path/to/shots
 ```
 
-## Install
+## Install for friends
+
+No cable or computer needed. The app needs Android 12 or later.
+
+1. Install [Obtainium](https://github.com/ImranR98/Obtainium/releases) (download the APK from its releases page and open it; allow installs from your browser when asked).
+2. In Obtainium, tap Add App, paste `https://github.com/ericxu1070/workout-tracker`, and tap Add. Then tap Install.
+3. Obtainium checks for new versions and offers each update; tap Update to install it.
+
+Without Obtainium, download the APK from [Releases](https://github.com/ericxu1070/workout-tracker/releases) and open it; you then install updates by hand the same way.
+
+On first launch, enter your 5-rep maxes and pick a program (see First run below). The sync folder and Health Connect are optional: without them everything stays on your phone and works the same. A sync folder only matters if you want a copy of your log on a computer through Syncthing.
+
+## Release
+
+Pushing a tag like `v2.1` runs `.github/workflows/release.yml`: it builds the release APK signed with the release key, sets `versionName` from the tag and `versionCode` from the commit count (so every later tag on `main` is a higher version), and publishes a GitHub Release with the APK attached. Merging to `main` publishes nothing.
+
+```bash
+git tag v2.1 origin/main && git push origin v2.1
+```
+
+The key lives in `~/.local/share/workout-tracker-release/` (keystore, password, notes) and in the repository's Actions secrets `RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD`. Back that folder up: Android installs an update only when it is signed with the same key, so a lost key means everyone uninstalls and starts over. To publish into another repo, set the repository variable `RELEASE_REPO` to `owner/name` and the secret `RELEASE_TOKEN` to a token that can write that repo's contents.
+
+To build a signed APK locally, set `RELEASE_KEYSTORE` to the keystore path and the three other variables to the same values, then run `./gradlew assembleRelease`. Without `RELEASE_KEYSTORE`, release builds are unsigned and debug builds are unchanged.
+
+## Install from a computer
 
 Enable USB debugging on the phone, connect it, then:
 

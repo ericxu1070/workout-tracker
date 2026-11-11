@@ -4,3 +4,9 @@ local.properties
 .kotlin/
 *.iml
 .idea/
+
+# Release signing key: kept in ~/.local/share/workout-tracker-release, never here.
+*.jks
+*.keystore
+*.p12
+store-password
