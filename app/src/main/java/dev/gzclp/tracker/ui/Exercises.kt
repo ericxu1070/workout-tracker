@@ -61,7 +61,6 @@ fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () 
         if (logs.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt("No exercises yet", Type.headline)
-            Txt("Every exercise you log shows up here with its weight over time.", Type.subhead, Modifier.padding(vertical = Space.xs), p.fg2)
             return@ScreenFrame
         }
         GroupHeader("Lifts")
@@ -123,7 +122,6 @@ fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogW
                 listOf(bests.map { Pt(it.at, it.e1rm.toFloat()) } to p.fg2, bests.map { Pt(it.at, it.topWeight.toFloat()) } to p.accent),
                 listOf("1RM", "Top"),
             )
-            GroupFooter("Top: heaviest set each workout. 1RM: best Epley estimate, weight × (1 + reps / 30).")
         }
 
         val now = buildList {
@@ -162,11 +160,8 @@ private fun RelativeStrength(state: AppState, bests: List<SessionBest>, onLogWei
     Spacer(Modifier.height(Space.lg))
     if (rs.isEmpty()) {
         Txt("No body weight yet", Type.headline)
-        Txt(
-            if (daily.isEmpty()) "Log a weigh-in to see this lift as a multiple of your body weight."
-            else "Every workout of this lift came before your first weigh-in on ${Fmt.shortDate(state.weighIns().first().at)}.",
-            Type.subhead, Modifier.padding(top = Space.xs, bottom = Space.lg), p.fg2,
-        )
+        if (daily.isNotEmpty()) Txt("All before your first weigh-in on ${Fmt.shortDate(state.weighIns().first().at)}", Type.subhead, Modifier.padding(top = Space.xs), p.fg2)
+        Spacer(Modifier.height(Space.lg))
         PillButton("Log weight", onLogWeight, Modifier.fillMaxWidth(), primary = true, icon = Icons.plus)
         return
     }
@@ -188,9 +183,9 @@ private fun RelativeStrength(state: AppState, bests: List<SessionBest>, onLogWei
     }
     Spacer(Modifier.height(Space.md))
     LineChart(listOf(rs.map { Pt(it.at, it.ratio.toFloat()) } to p.accent), listOf(""), unit = "×", minSpan = 0.3f, value = { Fmt.ratio(it.toDouble()) })
-    GroupFooter("Estimated 1RM ${Fmt.lb(last.e1rm)} at ${Fmt.lb(last.bodyWeight)} body weight. Each workout uses the latest weigh-in on or before its day.")
+    GroupFooter("Estimated 1RM ${Fmt.lb(last.e1rm)} at ${Fmt.lb(last.bodyWeight)} body weight")
     val left = bests.size - rs.size
-    if (left > 0) GroupFooter("$left earlier ${if (left == 1) "workout is" else "workouts are"} left out: before your first weigh-in.")
+    if (left > 0) GroupFooter("$left earlier ${if (left == 1) "workout" else "workouts"} before your first weigh-in")
 }
 
 /** An accent "+ label" row at the end of a group. */
@@ -215,10 +210,7 @@ fun BodyWeightScreen(state: AppState, today: LocalDate, onBack: () -> Unit, onLo
         if (entries.isEmpty()) {
             Spacer(Modifier.height(Space.lg))
             Txt("No weigh-ins yet", Type.headline)
-            Txt(
-                "Weigh in each morning before breakfast. Each lift can then show its estimated 1RM as a multiple of your body weight.",
-                Type.subhead, Modifier.padding(top = Space.xs, bottom = Space.lg), p.fg2,
-            )
+            Spacer(Modifier.height(Space.lg))
             PillButton("Log weight", onLog, Modifier.fillMaxWidth(), primary = true, icon = Icons.plus)
             return@ScreenFrame
         }
@@ -250,7 +242,6 @@ fun BodyWeightScreen(state: AppState, today: LocalDate, onBack: () -> Unit, onLo
             ),
             listOf("Day", "Avg"), minSpan = 6f, value = { Fmt.tenths(it.toDouble()) },
         )
-        GroupFooter("Day: the first weigh-in of each day. Avg: mean of the days logged in the last 7.")
         Spacer(Modifier.height(Space.xxl))
         PillButton("Log weight", onLog, Modifier.fillMaxWidth(), primary = true, icon = Icons.plus)
 

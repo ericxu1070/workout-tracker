@@ -72,7 +72,7 @@ fun SettingsScreen(
                     Icon(Icons.chevronRight, p.fg3, 20.dp)
                 }
             }
-            GroupFooter("Switching keeps your history. Each exercise keeps its own progress.")
+            GroupFooter("Switching keeps your history.")
 
             GroupHeader("Cycle steps")
             Group {
@@ -90,7 +90,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            GroupFooter("Cycle programs add a step each week: 3×12, then 3×10, then 3×8. Lower body covers squat, deadlift, Romanian deadlift, and leg press; everything else uses the upper body step. After a heavy week with every set at 8 or more, the next cycle starts higher by the next-cycle amount.")
+            GroupFooter("Lower body is squat, deadlift, Romanian deadlift, and leg press. Next cycle applies after a heavy week with every set at 8 or more.")
         }
 
         GroupHeader("Bar and plates")
@@ -112,7 +112,6 @@ fun SettingsScreen(
                 }
             }
         }
-        GroupFooter("Barbell lifts round each target to the nearest weight this bar and these plates make, and every set shows the plates for one side.")
 
         GroupHeader("Theme")
         Group {
@@ -130,7 +129,7 @@ fun SettingsScreen(
                 if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
             }
         }
-        GroupFooter("Laptop follows the Omarchy theme your laptop syncs to this folder, updated each time you open the app.")
+        GroupFooter("Laptop uses the Omarchy theme your laptop syncs to the sync folder.")
 
         GroupHeader("Rest timer")
         Group {
@@ -152,7 +151,7 @@ fun SettingsScreen(
                 Toggle(warmups, "T1 warm-up sets", onWarmups)
             }
         }
-        GroupFooter("Before each GZCLP T1 lift: 40%×5, 60%×5, and 80%×3 of the first working set, rounded to 5 lb. They are not logged and never count toward progression.")
+        GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift. Not logged.")
 
         GroupHeader("Weigh-in")
         Group {
@@ -167,13 +166,7 @@ fun SettingsScreen(
                 MiniStep(Icons.plus, "Later reminder") { onWeighInTime((weighInMinutes + 15) % (24 * 60)) }
             }
         }
-        GroupFooter(
-            when {
-                !weighInReminder -> "Turn on for a daily nudge to log your weight."
-                !notificationsAllowed -> "Allow notifications below to get the reminder."
-                else -> "Skipped on days you have already weighed in."
-            },
-        )
+        if (weighInReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
 
         GroupHeader("Health Connect")
         Group {
@@ -182,10 +175,7 @@ fun SettingsScreen(
                 Toggle(health.on, "Write workouts and weight to Health Connect", onHealthConnect)
             }
         }
-        GroupFooter(
-            health.message ?: if (health.on) "Each finished workout and weigh-in goes to Health Connect from now on. Nothing is read back."
-            else "Off. Turn on to send finished workouts and weigh-ins to Health Connect.",
-        )
+        health.message?.let { GroupFooter(it) }
 
         GroupHeader("Sync folder")
         Group {
@@ -201,7 +191,7 @@ fun SettingsScreen(
         }
         GroupFooter(
             when {
-                sync.folder == null -> "The log stays on this phone until you choose a folder for Syncthing."
+                sync.folder == null -> "Not syncing. The log stays on this phone."
                 sync.error != null -> "Last sync failed: ${sync.error}. Logging continues on this phone."
                 sync.lastSync != null -> "Last synced ${sync.lastSync}"
                 else -> "Not synced yet"
@@ -215,7 +205,7 @@ fun SettingsScreen(
                     Txt("Allow notifications", Type.body, color = p.accent)
                 }
             }
-            GroupFooter("Rest-over alerts and the weigh-in reminder need notifications to reach you with the screen off.")
+            GroupFooter("Needed for rest alerts and the weigh-in reminder.")
         }
     }
 }
@@ -229,8 +219,7 @@ fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit,
         Txt(program.name, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
         Txt(
-            if (program.gzclp) "T3 lifts per workout, 3×15+. Weight goes up 5 lb when the last set reaches 25."
-            else "Exercises per workout. Each one runs the 3-week cycle.",
+            if (program.gzclp) "T3 lifts per workout" else "Exercises per workout",
             Type.subhead, color = p.fg2,
         )
         program.days.forEach { day ->
@@ -243,7 +232,7 @@ fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit,
                     GroupRow(first = i == 0) {
                         Column(Modifier.weight(1f)) {
                             Txt(ex.name, Type.body, maxLines = 1)
-                            Txt(ex.weight?.let(Fmt::lb) ?: "Starting weight asked at the workout", Type.footnote.tabular(), color = p.fg2)
+                            Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.footnote.tabular(), color = p.fg2)
                         }
                         IconButton(Icons.x, "Remove ${ex.name}", { onRemove(day, id) }, tint = p.fg2)
                     }

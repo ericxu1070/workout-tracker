@@ -120,7 +120,7 @@ fun SetupScreen(onStart: (Map<Lift, Int>, String) -> Unit, onRestore: () -> Unit
         Txt("Starting weights", Type.largeTitle)
         Spacer(Modifier.height(Space.sm))
         Txt(
-            "Enter a recent 5-rep max for each lift. GZCLP starts T1 at 85% of it and T2 at 65%. The cycle programs start week 1 at 65%. All rounded to 5 lb.",
+            "Enter a recent 5-rep max for each lift.",
             Type.body, color = p.fg2,
         )
         Spacer(Modifier.height(Space.xxl))
@@ -147,7 +147,7 @@ fun SetupScreen(onStart: (Map<Lift, Int>, String) -> Unit, onRestore: () -> Unit
         if (message != null) GroupFooter(message, color = p.red)
         GroupHeader("Program")
         ProgramPicker(program) { program = it }
-        GroupFooter("You can switch programs any time in Settings. History and each exercise's progress carry over.")
+        GroupFooter("Switch any time in Settings.")
     }
 }
 

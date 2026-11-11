@@ -106,8 +106,8 @@ private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit)
 fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit, onPickTime: (SheetState.AddMeal) -> Unit = {}) {
     when (s) {
         is SheetState.Weight -> {
-            if (s.starting) SheetTitle("Starting weight for ${s.ex.name.lowercase()}", "${s.ex.detail()}. Pick a weight you can lift for every rep.")
-            else SheetTitle("${s.ex.name} weight", "${s.ex.detail()} · saved as a manual edit")
+            if (s.starting) SheetTitle("Starting weight for ${s.ex.name.lowercase()}", s.ex.detail())
+            else SheetTitle("${s.ex.name} weight", s.ex.detail())
             Stepper(s.weight.toString(), { update(s.copy(weight = (s.weight - 5).coerceAtLeast(0))) }, { update(s.copy(weight = s.weight + 5)) }, unit = "lb")
             PillButton(
                 if (s.starting) "Save and continue" else "Save ${Fmt.lb(s.weight)}", { onConfirm(s) }, Modifier.fillMaxWidth(),
@@ -168,7 +168,7 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
             CancelOr("Delete", { update(s.copy(delete = false)) }) { onConfirm(s) }
         }
         is SheetState.AddMeal -> {
-            SheetTitle("Add meal", s.note ?: "At the time the photo was taken. Change it if you ate at another time.")
+            SheetTitle("Add meal", s.note)
             AddMealSheet(s, { onPickTime(s) }, update) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
@@ -181,11 +181,11 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
         }
         is SheetState.Swap -> if (s.create) {
             val q = s.name.trim()
-            SheetTitle("Create \"$q\"?", "No exercise is named $q yet. This adds it as a new exercise and swaps it in for this workout.")
+            SheetTitle("Create \"$q\"?", "Adds it as a new exercise and swaps it in for this workout.")
             CancelOr("Create", { update(s.copy(create = false)) }) { onConfirm(s) }
         } else {
             val original = state.name(s.ex.swappedFrom ?: s.ex.id)
-            SheetTitle("Swap ${s.ex.name.lowercase()}", "For this workout only. $original keeps its weight and stage, and comes back next time.")
+            SheetTitle("Swap ${s.ex.name.lowercase()}", "For this workout only")
             NameField(s.name) { update(s.copy(name = it)) }
             val q = s.name.trim()
             val back = if (s.ex.swappedFrom != null && q.isEmpty()) listOf("Back to $original" to original) else emptyList()
