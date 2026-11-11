@@ -4,6 +4,8 @@ An Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Br
 
 The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. A Food tab keeps a photo food log: take a photo of each meal, or upload one from the gallery, and it is saved at the time the photo was taken (you confirm or set the time when an uploaded photo has none or it is in the future or over a week old), with no macros or calories, and you can page back through past days. Meal photos never leave the phone and are never written to the synced folder. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
+History opens on a Monday to Sunday week you can page back through: gym and cardio time, the days you trained, cardio by activity, each lift against the same slot last cycle (the last time at that tier for GZCLP, the same week of the last cycle otherwise), the body-weight average, and the meal count, each against the week before. Its All tab is the full workout list.
+
 ## Screenshots
 
 Rendered by the Roborazzi screenshot test (`ScreenShots.kt`) from its demo data.
@@ -73,7 +75,7 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 ## Layout
 
 - `engine/` holds the program table, the GZCLP progression, and the 3-week cycle, as pure Kotlin.
-- `log/` holds the event log, its JSON codec, the state fold, the commands that turn taps into events, and the per-exercise stats.
+- `log/` holds the event log, its JSON codec, the state fold, the commands that turn taps into events, the per-exercise stats, and the weekly summary.
 - `sync/` mirrors the log into the shared folder.
 - `rest/` holds the rest alarm and its notifications.
 - `remind/` holds the daily weigh-in reminder.

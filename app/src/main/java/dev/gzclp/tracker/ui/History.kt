@@ -3,6 +3,7 @@ package dev.gzclp.tracker.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,12 +44,18 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @Composable
-fun HistoryScreen(state: AppState, onOpen: (String) -> Unit) {
+fun HistoryScreen(state: AppState, all: Boolean, onAll: (Boolean) -> Unit, onOpen: (String) -> Unit, week: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
     val done = state.sessions.filter { it.sets.isNotEmpty() }
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("History", Type.largeTitle)
+        Spacer(Modifier.height(Space.lg))
+        Segmented(listOf("Week", "All"), if (all) 1 else 0, { onAll(it == 1) })
+        if (!all) {
+            week()
+            return@ScreenFrame
+        }
         if (done.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt("No workouts yet", Type.headline)
