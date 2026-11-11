@@ -232,6 +232,7 @@ private fun App(model: AppModel) {
                             },
                             onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
                             onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
+                            onSwap = { open(SheetState.Swap(it, "")) },
                             onSkipRest = model::cancelRest,
                             onSettings = { push(Route.Settings) },
                             onEnd = {
@@ -266,6 +267,10 @@ private fun App(model: AppModel) {
                             }
                             close()
                             if (model.weighInReminder) requestNotifications()
+                        }
+                        is SheetState.Swap -> {
+                            model.dispatch { Commands.swap(it, c.ex, c.name) }
+                            close()
                         }
                         is SheetState.AddExercise -> {
                             model.dispatch { Commands.addExercise(it, it.program, c.day, c.name) }

@@ -7,6 +7,8 @@ Version 2 adds programs (GZCLP and the 3-week cycle splits), a weight per set, c
 
 The `body_weight` and `body_weight_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
+The `exercise_swap` type was added within version 2 the same way. A reader that skips it still attributes every set to the exercise actually done, because `set` lines always name that exercise.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -157,13 +159,13 @@ One logged set. Written when the user taps the set done, and again when they cor
 | Field | Type | Meaning |
 |---|---|---|
 | `session_id` | string | The session. |
-| `exercise` | string | Exercise id. |
-| `tier` | string | Tier. |
+| `exercise` | string | Exercise id: the exercise actually done. In a swapped slot (see `exercise_swap`) this is the substitute. |
+| `tier` | string | Tier. In a swapped slot, the slot's tier. |
 | `stage` | string | The stage in effect for this set. |
 | `set_index` | int | 1-based position in the stage (1 to 10). |
 | `target_reps` | int | Reps the stage asks for. On an AMRAP set this is the minimum. |
 | `actual_reps` | int | Reps done. |
-| `target_weight` | int | The prescribed weight for this exercise in this session. |
+| `target_weight` | int | The prescribed weight for this exercise in this session. In a swapped slot, the substitute's last logged weight, or `0` if it was never logged. |
 | `weight` | int | The weight used for this set, lb. Each set has its own. |
 | `amrap` | bool | True on the last set of a `+` stage. |
 | `rest_sec` | int, optional | Seconds since the previous set logged in this session. Absent on the first set. |
@@ -174,6 +176,24 @@ The line's `ts` is when the set was logged.
 Only working sets are logged. The warm-up sets the app shows before GZCLP T1 lifts are never written to the log, so every `set` line counts toward progression and the metrics below.
 
 **Set identity.** A set is identified by (`session_id`, `exercise`, `tier`, `set_index`). If the user corrects a set, a new `set` line with the same identity is written. The newest one wins. A correction keeps the original `rest_sec` and `rest_target_sec`.
+
+### `exercise_swap`
+
+The user swapped an exercise for another one, for this session only. Written before any set of the slot is logged.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `session_id` | string | The session. |
+| `exercise` | string | The slot's own exercise, as the day lists it. |
+| `tier` | string | The slot's tier. |
+| `substitute` | string, optional | The exercise done in its place. Absent when the user swapped back to the slot's own exercise. |
+
+The newest line for a (`session_id`, `exercise`, `tier`) wins, and it lasts until that session's `session_end`. The next session goes back to the day's own exercise.
+
+- Sets in the slot are logged with `exercise` set to the substitute, at the slot's tier and stage.
+- The slot's own exercise gets no `set` and no `progression` line for the session, so its weight, stage and failures stay as they were.
+- The substitute gets no `progression` line either: a swap never changes any prescription.
+- The substitute is never an exercise the session already has at that tier, so a set's identity stays unique.
 
 ### `set_clear`
 
@@ -250,6 +270,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":38,"ts":"2026-11-02T18:42:05-08:00","type":"session_start","session_id":"s1794191725","program":"gzclp","day":"A1"}
 {"v":2,"seq":39,"ts":"2026-11-02T18:45:10-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":210,"amrap":false}
 {"v":2,"seq":40,"ts":"2026-11-02T18:48:20-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":2,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":215,"amrap":false,"rest_sec":190,"rest_target_sec":180}
+{"v":2,"seq":41,"ts":"2026-11-02T19:00:00-08:00","type":"exercise_swap","session_id":"s1794191725","exercise":"lat_pulldown","tier":"t3","substitute":"seated_cable_row"}
+{"v":2,"seq":42,"ts":"2026-11-02T19:03:10-08:00","type":"set","session_id":"s1794191725","exercise":"seated_cable_row","tier":"t3","stage":"3x15+","set_index":1,"target_reps":15,"actual_reps":15,"target_weight":0,"weight":100,"amrap":false,"rest_sec":190,"rest_target_sec":180}
 {"v":2,"seq":57,"ts":"2026-11-02T19:31:40-08:00","type":"progression","exercise":"squat","tier":"t1","kind":"weight_increase","from_weight":210,"to_weight":220,"from_stage":"5x3+","to_stage":"5x3+","session_id":"s1794191725"}
 {"v":2,"seq":60,"ts":"2026-11-02T19:31:40-08:00","type":"session_end","session_id":"s1794191725","program":"gzclp","day":"A1","started_at":"2026-11-02T18:42:05-08:00","duration_sec":2975}
 {"v":2,"seq":61,"ts":"2026-11-03T07:00:00-08:00","type":"program","program":"ppl"}

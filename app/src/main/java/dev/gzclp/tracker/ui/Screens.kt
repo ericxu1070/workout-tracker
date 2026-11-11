@@ -237,6 +237,7 @@ fun WorkoutScreen(
     onLog: (Exercise, Int, Int, Int) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onEditWeight: (Exercise) -> Unit,
+    onSwap: (Exercise) -> Unit,
     onSkipRest: () -> Unit,
     onSettings: () -> Unit,
     onEnd: () -> Unit,
@@ -261,11 +262,11 @@ fun WorkoutScreen(
         ) {
             if (rest != null) RestCard(rest, onSkipRest, Modifier.padding(top = Space.xl))
         }
-        val exercises = state.exercises(a.program, a.day).map(LocalPlates.current::prescribe)
+        val exercises = state.sessionExercises().map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
             Spacer(Modifier.height(Space.x3))
-            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, warmups)
+            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups)
         }
     }
 }
@@ -303,6 +304,7 @@ private fun ExerciseBlock(
     onLog: (Exercise, Int, Int, Int) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onEditWeight: (Exercise) -> Unit,
+    onSwap: (Exercise) -> Unit,
     warmups: Boolean,
 ) {
     val p = LocalPalette.current
@@ -311,8 +313,12 @@ private fun ExerciseBlock(
         Column(Modifier.weight(1f)) {
             Txt(ex.name, Type.title3, maxLines = 1)
             Txt(ex.detail(), Type.footnote, color = p.fg2)
+            ex.swappedFrom?.let { Txt("In place of ${state.name(it)}", Type.footnote, color = p.fg2, maxLines = 1) }
         }
-        Pressable({ onEditWeight(ex) }, Modifier.height(44.dp), label = "Change ${ex.name} weight") {
+        if ((1..ex.scheme.sets).none { SetKey(ex.id, ex.tier, it) in sets }) SmallPill("Swap", { onSwap(ex) }, Modifier.padding(start = Space.sm))
+        // A substitute has no prescription to edit: its weight is only a suggestion from last time.
+        if (ex.swappedFrom != null) ex.weight?.let { Txt(Fmt.lb(it), Type.title3.tabular(), Modifier.padding(start = Space.lg), p.fg2) }
+        else Pressable({ onEditWeight(ex) }, Modifier.height(44.dp), label = "Change ${ex.name} weight") {
             Txt(Fmt.lb(ex.weight ?: 0), Type.title3.tabular(), Modifier.padding(start = Space.lg), p.accent)
         }
     }
@@ -325,7 +331,8 @@ private fun ExerciseBlock(
     }
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         val plates = LocalPlates.current
-        if (warmups && ex.tier == Tier.T1) Warmup.sets(ex.weight ?: 0).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
+        // A substitute never logged before has no weight to warm up to.
+        if (warmups && ex.tier == Tier.T1 && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
             WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, plates)
         }
         for (i in 1..ex.scheme.sets) {
@@ -428,6 +435,6 @@ fun restLabel(ex: Exercise, setIndex: Int): String =
     "Rest after ${ex.name.lowercase()} " + if (setIndex == ex.scheme.sets) "last set" else "set $setIndex"
 
 fun unloggedSets(state: AppState): Int {
-    val a = state.active ?: return 0
-    return state.exercises(a.program, a.day).sumOf { ex -> Commands.reps(state, ex).count { it == null } }
+    if (state.active == null) return 0
+    return state.sessionExercises().sumOf { ex -> Commands.reps(state, ex).count { it == null } }
 }

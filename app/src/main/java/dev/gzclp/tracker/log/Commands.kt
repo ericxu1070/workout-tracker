@@ -90,6 +90,7 @@ object Commands {
     }
 
     fun editWeight(state: AppState, ex: Exercise, weight: Int): List<Event> {
+        if (ex.swappedFrom != null) return emptyList()
         val from = ex.weight ?: return startingWeight(state, ex, weight)
         if (ex.tier == Tier.CYCLE) {
             val c = state.cycle[ex.id] ?: return emptyList()
@@ -162,21 +163,37 @@ object Commands {
         }
     }
 
+    /** The id of the exercise named [name] and, for a name not seen before, the line that defines it. Null for a blank name. */
+    private fun findOrDefine(state: AppState, name: String): Pair<String, List<Event>>? {
+        val clean = name.trim().replace(Regex("\\s+"), " ")
+        if (clean.isEmpty()) return null
+        state.moves.values.firstOrNull { it.name.equals(clean, ignoreCase = true) }?.let { return it.id to emptyList() }
+        val base = clean.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "exercise" }
+        val id = generateSequence(1) { it + 1 }.map { if (it == 1) base else "${base}_$it" }.first { it !in state.moves }
+        return id to listOf(ExerciseDefine(id, clean, false))
+    }
+
     /** Adds [name] to a day: an existing exercise with that name, or a new one. */
     fun addExercise(state: AppState, program: Program, day: ProgramDay, name: String): List<Event> {
-        val clean = name.trim().replace(Regex("\\s+"), " ")
-        if (clean.isEmpty()) return emptyList()
-        val existing = state.moves.values.firstOrNull { it.name.equals(clean, ignoreCase = true) }
+        val (id, define) = findOrDefine(state, name) ?: return emptyList()
         val list = dayList(state, program, day)
-        return buildList {
-            val id = existing?.id ?: run {
-                val base = clean.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "exercise" }
-                val id = generateSequence(1) { it + 1 }.map { if (it == 1) base else "${base}_$it" }.first { it !in state.moves }
-                add(ExerciseDefine(id, clean, false))
-                id
-            }
-            if (id !in list) add(DayExercises(program.id, day.id, list + id))
-        }
+        return if (id in list) emptyList() else define + DayExercises(program.id, day.id, list + id)
+    }
+
+    /**
+     * Does [ex] (as performed in the active session) as the exercise named [name], for this session only;
+     * the slot's own name puts it back. Only before any set of it is logged. The substitute may not be an exercise
+     * this session already has at that tier, so the slot's own lift never sees a set and keeps its progression.
+     */
+    fun swap(state: AppState, ex: Exercise, name: String): List<Event> {
+        val a = state.active ?: return emptyList()
+        if ((1..ex.scheme.sets).any { SetKey(ex.id, ex.tier, it) in a.sets }) return emptyList()
+        val original = ex.swappedFrom ?: ex.id
+        val (id, define) = findOrDefine(state, name) ?: return emptyList()
+        if (id == ex.id) return emptyList()
+        if (id == original) return listOf(ExerciseSwap(a.id, original, ex.tier.id, null))
+        val taken = (state.exercises(a.program, a.day) + state.sessionExercises()).any { it.id == id && it.tier == ex.tier }
+        return if (taken) emptyList() else define + ExerciseSwap(a.id, original, ex.tier.id, id)
     }
 
     fun removeExercise(state: AppState, program: Program, day: ProgramDay, id: String): List<Event> {
