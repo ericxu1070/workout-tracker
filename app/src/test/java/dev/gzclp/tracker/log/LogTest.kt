@@ -61,6 +61,7 @@ class LogTest {
             ProgressionEvent("squat", "cycle", "cycle_up", 180, 165, "3x8", "3x12", "s1", cycleWeek = 1, cycleBase = 165),
             SessionStart("s1", "gzclp", "A1"),
             SetLogged("s1", "squat", "t1", "5x3+", 5, 3, 7, 225, 230, true, 182, 180),
+            SetLogged("s1", "squat", "t1", "5x3+", 4, 3, 3, 225, 225, false, 150, 180, 8.5),
             SetCleared("s1", "squat", "t1", 5),
             ExerciseSwap("s1", "squat", "t1", "leg_press"),
             ExerciseSwap("s1", "squat", "t1"),
@@ -82,6 +83,8 @@ class LogTest {
         )
         val first = LogCodec.encode(Entry(1, t0, SetLogged("s1", "squat", "t1", "5x3+", 1, 3, 3, 225, 225, false)))
         assertTrue("first set omits rest fields", "rest_sec" !in first)
+        assertTrue("a set without RPE omits it", "rpe" !in first)
+        assertTrue(LogCodec.encode(Entry(2, t0, SetLogged("s1", "squat", "t1", "5x3+", 2, 3, 3, 225, 225, false, rpe = 9.0))).endsWith(",\"rpe\":9.0}"))
     }
 
     @Test fun unknownTypesAndOtherVersionsAreSkipped() {
@@ -175,6 +178,28 @@ class LogTest {
         val logged = s.state.value.active!!.sets.getValue(SetKey("bench", Tier.CYCLE, 1)).event
         assertEquals(listOf(105, 115), listOf(logged.targetWeight, logged.weight))
         assertTrue("re-logging the same values writes nothing", Commands.logSet(s.state.value, bench, 1, 12, 115, t0.plusSeconds(9), rest).isEmpty())
+    }
+
+    @Test fun rpeIsOptionalRoundedToAHalfAndLeavesProgressionAlone() {
+        val plain = store(File(tmp.root, "a.jsonl"))
+        val rated = store(File(tmp.root, "b.jsonl"))
+        for (s in listOf(plain, rated)) {
+            s.fillWeights()
+            s.dispatch(t0) { Commands.start(it, t0) }
+        }
+        val ex = rated.state.value.exercises(gzclp.days[0])[0]
+        val rpes = listOf(7.0, 8.4, 0.0, 11.0, null)
+        for (i in 1..5) {
+            plain.dispatch(t0) { Commands.logSet(it, ex, i, 3, 190, t0, rest) }
+            rated.dispatch(t0) { Commands.logSet(it, ex, i, 3, 190, t0, rest, rpes[i - 1]) }
+        }
+        val sets = rated.state.value.active!!.sets
+        assertEquals(listOf(7.0, 8.5, null, null, null), (1..5).map { sets.getValue(SetKey("squat", Tier.T1, it)).event.rpe })
+        rated.dispatch(t0) { Commands.logSet(it, ex, 1, 3, 190, t0, rest, 9.5) }
+        assertEquals("a correction can add or change RPE", 9.5, rated.state.value.active!!.sets.getValue(SetKey("squat", Tier.T1, 1)).event.rpe)
+        for (s in listOf(plain, rated)) s.dispatch(t0) { Commands.end(it, t0.plusMinutes(30), null) }
+        assertEquals(plain.state.value.gz, rated.state.value.gz)
+        assertEquals(plain.state.value.cycle, rated.state.value.cycle)
     }
 
     @Test fun upcomingProjectsTheRotationAssumingEveryTargetIsHit() {

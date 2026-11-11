@@ -65,6 +65,8 @@ data class SetLogged(
     val amrap: Boolean,
     val restSec: Int? = null,
     val restTargetSec: Int? = null,
+    /** Rate of perceived exertion, 1 to 10 in half steps; null when not given. Never affects progression. */
+    val rpe: Double? = null,
 ) : Event
 
 /** In [sessionId], the slot ([exercise], [tier]) is done as [substitute]; a null [substitute] puts the original back. */

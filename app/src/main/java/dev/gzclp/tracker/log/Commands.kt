@@ -59,8 +59,8 @@ object Commands {
         if (state.active != null || !state.started || missingWeight(state) != null) emptyList()
         else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, state.nextDay.id))
 
-    /** Logs a set, or corrects one already logged (keeping its rest fields). */
-    fun logSet(state: AppState, ex: Exercise, setIndex: Int, reps: Int, weight: Int, now: OffsetDateTime, restTargets: Map<Tier, Int>): List<Event> {
+    /** Logs a set, or corrects one already logged (keeping its rest fields). [rpe] outside 1 to 10 is dropped, others round to a half. */
+    fun logSet(state: AppState, ex: Exercise, setIndex: Int, reps: Int, weight: Int, now: OffsetDateTime, restTargets: Map<Tier, Int>, rpe: Double? = null): List<Event> {
         val a = state.active ?: return emptyList()
         val key = SetKey(ex.id, ex.tier, setIndex)
         val existing = a.sets[key]?.event
@@ -73,6 +73,7 @@ object Commands {
             amrap = scheme.amrap && setIndex == scheme.sets,
             restSec = if (existing != null) existing.restSec else prev?.let { Duration.between(it.ts, now).seconds.toInt() },
             restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { restTargets[Tier.of(it.event.tier)] },
+            rpe = rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
         )
         return if (event == existing) emptyList() else listOf(event)
     }

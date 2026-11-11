@@ -9,6 +9,8 @@ The `body_weight` and `body_weight_clear` types were added within version 2. A r
 
 The `exercise_swap` type was added within version 2 the same way. A reader that skips it still attributes every set to the exercise actually done, because `set` lines always name that exercise.
 
+The optional `rpe` field on `set` was added within version 2. A reader that predates it ignores it as an unknown field.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -170,12 +172,13 @@ One logged set. Written when the user taps the set done, and again when they cor
 | `amrap` | bool | True on the last set of a `+` stage. |
 | `rest_sec` | int, optional | Seconds since the previous set logged in this session. Absent on the first set. |
 | `rest_target_sec` | int, optional | The rest the timer gave after the previous set (by that set's tier; defaults 180 T1, 120 T2, 60 T3, 90 cycle, user-editable). Absent on the first set. |
+| `rpe` | number, optional | Rate of perceived exertion the user gave the set, 1 to 10 in half steps, always written with one decimal: `8.0`, `8.5`. Absent when not given. It never affects progression. |
 
 The line's `ts` is when the set was logged.
 
 Only working sets are logged. The warm-up sets the app shows before GZCLP T1 lifts are never written to the log, so every `set` line counts toward progression and the metrics below.
 
-**Set identity.** A set is identified by (`session_id`, `exercise`, `tier`, `set_index`). If the user corrects a set, a new `set` line with the same identity is written. The newest one wins. A correction keeps the original `rest_sec` and `rest_target_sec`.
+**Set identity.** A set is identified by (`session_id`, `exercise`, `tier`, `set_index`). If the user corrects a set, a new `set` line with the same identity is written. The newest one wins. A correction keeps the original `rest_sec` and `rest_target_sec`. A correction can add, change, or remove `rpe`; the newest line's value (or its absence) is the set's RPE.
 
 ### `exercise_swap`
 
@@ -269,7 +272,7 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":37,"ts":"2026-11-02T18:40:00-08:00","type":"progression","exercise":"lat_pulldown","tier":"t3","kind":"initial","to_weight":100,"to_stage":"3x15+"}
 {"v":2,"seq":38,"ts":"2026-11-02T18:42:05-08:00","type":"session_start","session_id":"s1794191725","program":"gzclp","day":"A1"}
 {"v":2,"seq":39,"ts":"2026-11-02T18:45:10-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":210,"amrap":false}
-{"v":2,"seq":40,"ts":"2026-11-02T18:48:20-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":2,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":215,"amrap":false,"rest_sec":190,"rest_target_sec":180}
+{"v":2,"seq":40,"ts":"2026-11-02T18:48:20-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":2,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":215,"amrap":false,"rest_sec":190,"rest_target_sec":180,"rpe":8.5}
 {"v":2,"seq":41,"ts":"2026-11-02T19:00:00-08:00","type":"exercise_swap","session_id":"s1794191725","exercise":"lat_pulldown","tier":"t3","substitute":"seated_cable_row"}
 {"v":2,"seq":42,"ts":"2026-11-02T19:03:10-08:00","type":"set","session_id":"s1794191725","exercise":"seated_cable_row","tier":"t3","stage":"3x15+","set_index":1,"target_reps":15,"actual_reps":15,"target_weight":0,"weight":100,"amrap":false,"rest_sec":190,"rest_target_sec":180}
 {"v":2,"seq":57,"ts":"2026-11-02T19:31:40-08:00","type":"progression","exercise":"squat","tier":"t1","kind":"weight_increase","from_weight":210,"to_weight":220,"from_stage":"5x3+","to_stage":"5x3+","session_id":"s1794191725"}

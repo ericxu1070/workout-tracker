@@ -108,6 +108,7 @@ fun SetList(sets: List<SetLogged>) {
                 Txt("Set ${set.setIndex}" + if (set.amrap) " (AMRAP)" else "", Type.body, Modifier.weight(1f), maxLines = 1)
                 Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), color = p.fg2)
                 Txt("${set.actualReps}", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
+                set.rpe?.let { Txt(" @ ${Fmt.rpe(it)}", Type.body.tabular(), color = p.fg2) }
             }
         }
     }

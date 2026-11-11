@@ -225,9 +225,9 @@ private fun App(model: AppModel) {
                             onEditWeight = { open(SheetState.Weight(it, it.weight ?: 45)) },
                         ) else WorkoutScreen(
                             state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
-                            onLog = { ex, i, w, r ->
+                            onLog = { ex, i, w, r, rpe ->
                                 val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
-                                model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets) }
+                                model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
                                 if (!wasLogged) model.startRest(ex, i)
                             },
                             onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },

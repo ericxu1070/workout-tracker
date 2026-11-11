@@ -15,6 +15,7 @@ struct LoggedSet {
     int index = 0, reps = 0, weight = 0;
     bool amrap = false;
     int rest = -1, restTarget = -1;  // -1 when absent (first set of a session)
+    double rpe = 0;                  // 0 when absent
     QDateTime ts;                    // when the set was first logged
     qint64 order = 0;                // seq of its first line, for the previous-set lookup
 };

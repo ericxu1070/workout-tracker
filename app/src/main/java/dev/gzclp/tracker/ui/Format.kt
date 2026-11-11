@@ -13,6 +13,8 @@ object Fmt {
     /** Body weight, always one decimal: 182.4 lb, 181.0 lb. */
     fun lb(w: Double) = "${tenths(w)} lb"
     fun tenths(w: Double) = "%.1f".format(Locale.US, w)
+    /** RPE without a trailing .0: 8, 8.5. */
+    fun rpe(r: Double) = if (r % 1 == 0.0) "${r.toInt()}" else "$r"
     fun ratio(r: Double) = "%.2f×".format(Locale.US, r)
     /** 7:00 AM from minutes after midnight. */
     fun clockTime(minutes: Int): String = time.format(java.time.LocalTime.of(minutes / 60, minutes % 60))
