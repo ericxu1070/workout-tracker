@@ -1,6 +1,6 @@
-# GZCLP tracker
+# Plateline
 
-An Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
+Plateline is an Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
 
 The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. A Food tab keeps a photo food log: take a photo of each meal, or upload one from the gallery, and it is saved at the time the photo was taken (you confirm or set the time when an uploaded photo has none or it is in the future or over a week old), with no macros or calories, and you can page back through past days. Meal photos never leave the phone and are never written to the synced folder. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
@@ -56,6 +56,8 @@ No cable or computer needed. The app needs Android 12 or later.
 1. Install [Obtainium](https://github.com/ImranR98/Obtainium/releases) (download the APK from its releases page and open it; allow installs from your browser when asked).
 2. In Obtainium, tap Add App, paste `https://github.com/ericxu1070/workout-tracker`, and tap Add. Then tap Install.
 3. Obtainium checks for new versions and offers each update; tap Update to install it.
+
+The app was called GZCLP before v2.2. If you installed it then, keep your setup: the next update installs over it under the new name, Plateline, with your log intact.
 
 Without Obtainium, download the APK from [Releases](https://github.com/ericxu1070/workout-tracker/releases) and open it; you then install updates by hand the same way.
 

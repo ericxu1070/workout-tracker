@@ -1,7 +1,7 @@
 pkgname=gzclp-desk
 pkgver=0.1.0
 pkgrel=1
-pkgdesc='Training dashboard for the GZCLP phone log synced by Syncthing'
+pkgdesc='Training dashboard for the Plateline phone log synced by Syncthing'
 arch=('x86_64' 'aarch64')
 license=('MIT')
 depends=('qt6-base' 'qt6-declarative' 'qt6-wayland')

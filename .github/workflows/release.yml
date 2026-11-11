@@ -39,10 +39,10 @@ jobs:
           export VERSION_CODE="$(git rev-list --count HEAD)"
           ./gradlew --no-daemon test assembleRelease
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
-          mv app/build/outputs/apk/release/app-release.apk "gzclp-tracker-$GITHUB_REF_NAME.apk"
+          mv app/build/outputs/apk/release/app-release.apk "plateline-$GITHUB_REF_NAME.apk"
           rm "$RELEASE_KEYSTORE"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
           REPO: ${{ vars.RELEASE_REPO || github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" "gzclp-tracker-$GITHUB_REF_NAME.apk" --repo "$REPO" --title "$GITHUB_REF_NAME" --notes "GZCLP tracker $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" "plateline-$GITHUB_REF_NAME.apk" --repo "$REPO" --title "$GITHUB_REF_NAME" --notes "Plateline $GITHUB_REF_NAME"
