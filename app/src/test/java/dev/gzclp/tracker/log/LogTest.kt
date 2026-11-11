@@ -284,6 +284,17 @@ class LogTest {
         assertEquals("rebuild from the log equals live state", s.state.value, Store(f).state.value)
     }
 
+    @Test fun aFirstTimeSubstitutePrefillsNoWeightUntilASetIsLogged() {
+        val s = store()
+        s.fillWeights()
+        s.dispatch(t0) { Commands.start(it, t0) }
+        s.dispatch(t0) { Commands.swap(it, s.state.value.sessionExercises().first(), "Hack squat") }
+        val hack = s.state.value.sessionExercises().first()
+        assertEquals("never logged: no weight to prefill, not 0", listOf<Int?>(null, null), (1..2).map { Commands.setWeight(s.state.value, hack, it) })
+        s.dispatch(t0) { Commands.logSet(it, hack, 1, 3, 135, t0, rest) }
+        assertEquals("later sets take the weight just logged", 135, Commands.setWeight(s.state.value, hack, 2))
+    }
+
     @Test fun aSwapCanBeUndoneAndSuggestsTheLastWeight() {
         val s = store()
         s.doWorkout(t0.plusDays(1)) // logs lat_pulldown at 50

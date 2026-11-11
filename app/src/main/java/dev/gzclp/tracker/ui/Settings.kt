@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -97,7 +98,7 @@ fun SettingsScreen(
             GroupRow(first = true) {
                 Txt("Bar", Type.body, Modifier.weight(1f))
                 MiniStep(Icons.minus, "Lighter bar") { onPlates(plates.copy(bar = (plates.bar - 5).coerceAtLeast(5))) }
-                Txt(Fmt.lb(plates.bar), Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                Txt(Fmt.lb(plates.bar), Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
                 MiniStep(Icons.plus, "Heavier bar") { onPlates(plates.copy(bar = (plates.bar + 5).coerceAtMost(100))) }
             }
             Plates.SIZES.forEach { size ->
@@ -106,7 +107,7 @@ fun SettingsScreen(
                 GroupRow(first = false) {
                     Txt("$name plates", Type.body, Modifier.weight(1f), maxLines = 1)
                     MiniStep(Icons.minus, "One less pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n - 1).coerceAtLeast(0)))) }
-                    Txt(if (n == 1) "1 pair" else "$n pairs", Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                    Txt(if (n == 1) "1 pair" else "$n pairs", Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
                     MiniStep(Icons.plus, "One more pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n + 1).coerceAtMost(20)))) }
                 }
             }
