@@ -93,6 +93,29 @@ class ScreenShots {
         return store.state.value to t0.plusMinutes(11)
     }
 
+    /** Four meals on [day], drawn as plates on a table, saved the way the camera flow saves them. */
+    private fun meals(day: java.time.LocalDate): List<dev.gzclp.tracker.food.Meal> {
+        val log = dev.gzclp.tracker.food.FoodLog(java.nio.file.Files.createTempDirectory("food").toFile().apply { deleteOnExit() })
+        val foods = listOf(
+            listOf(0xFFF2C14E, 0xFFE07A5F, 0xFF8D6E63), listOf(0xFF81B29A, 0xFFF4A261, 0xFFE9C46A),
+            listOf(0xFFD4A373, 0xFF6A994E, 0xFFBC4749), listOf(0xFFE76F51, 0xFF2A9D8F, 0xFFF4F1DE),
+        )
+        return listOf(7 to 48, 12 to 31, 15 to 52, 19 to 14).mapIndexed { i, (h, m) ->
+            val bmp = android.graphics.Bitmap.createBitmap(1280, 960, android.graphics.Bitmap.Config.ARGB_8888)
+            val c = android.graphics.Canvas(bmp)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            c.drawColor(0xFF6D4C41.toInt() + i * 0x060302)
+            paint.color = 0xFFF5F5F0.toInt(); c.drawCircle(640f, 480f, 400f, paint)
+            paint.color = 0xFFE0E0D8.toInt(); c.drawCircle(640f, 480f, 330f, paint)
+            foods[i].forEachIndexed { k, col ->
+                paint.color = col.toInt()
+                c.drawCircle(520f + k * 120f, 420f + (k % 2) * 140f, 150f - k * 20f, paint)
+            }
+            val cam = File.createTempFile("cam", ".jpg").apply { outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) } }
+            log.add(cam, day.atTime(h, m).atOffset(t0.offset))
+        }
+    }
+
     /** [tall] renders the whole scrolling page on a very tall screen, to review everything below the fold. */
     private fun shot(p: Palette, name: String, tall: Boolean = false, content: @Composable () -> Unit) {
         out.mkdirs()
@@ -108,6 +131,7 @@ class ScreenShots {
         val (live, now) = history()
         val idle = live.copy(active = null)
         val ex = live.exercises(live.active!!.program, live.active!!.day)
+        val food = meals(now.toLocalDate())
         val themes = File(javaClass.getResource("/themes")!!.toURI()).list()!!.filter { it.endsWith(".raw.toml") }.map { it.removeSuffix(".raw.toml") }
         for (name in themes.sorted()) {
             val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
@@ -115,6 +139,7 @@ class ScreenShots {
             shot(file, "03-workout-rest") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
+            shot(file, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, now.toLocalDate(), now.toLocalDate(), null, {}, {}, {}) } }
             shot(file, "14-workout-full", tall = true) {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }
@@ -137,6 +162,7 @@ class ScreenShots {
         val bench = live.exerciseLogs().first { it.id == "bench" }
         val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "overhead_tricep_extension")))
         val (gzLive, gzNow) = gzclpLive()
+        val food = meals(today)
         for (p in Palettes.all) {
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
@@ -203,6 +229,14 @@ class ScreenShots {
                 Box(Modifier.fillMaxSize()) {
                     TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "fly"), swapped, {}, {}, {}) }
+                }
+            }
+            shot(p, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) } }
+            shot(p, "18-food-empty") { TabFrame(Tab.Food, {}) { FoodScreen(food, today.minusDays(1), today, null, {}, {}, {}) } }
+            shot(p, "18-meal-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.Meal(food[1], today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "17-swap-back-sheet") {

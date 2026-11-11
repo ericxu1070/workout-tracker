@@ -46,6 +46,14 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+        <!-- Lets the camera app write a meal photo into this app's cache; nothing else is shared. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
         <receiver android:name=".rest.RestAlarmReceiver" android:exported="false" />
         <receiver android:name=".remind.WeighInReceiver" android:exported="false">
             <intent-filter>

@@ -302,16 +302,17 @@ fun BottomBar(content: @Composable RowScope.() -> Unit) {
     }
 }
 
-enum class Tab(val label: String) { Workout("Workout"), Upcoming("Upcoming"), Exercises("Exercises"), History("History") }
+enum class Tab(val label: String) { Workout("Workout"), Upcoming("Upcoming"), Exercises("Exercises"), History("History"), Food("Food") }
 
 private fun Tab.icon(): ImageVector = when (this) {
     Tab.Workout -> Icons.dumbbell
     Tab.Upcoming -> Icons.calendar
     Tab.Exercises -> Icons.chartLine
     Tab.History -> Icons.history
+    Tab.Food -> Icons.utensils
 }
 
-/** The app's bottom tab bar: four destinations, the current one in the accent. */
+/** The app's bottom tab bar: five destinations, the current one in the accent. */
 @Composable
 fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
