@@ -32,7 +32,11 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.engine.Activities
+import dev.gzclp.tracker.engine.DistanceUnit
+import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.Cardio
 import dev.gzclp.tracker.log.SessionRecord
 import dev.gzclp.tracker.log.SetLogged
 import dev.gzclp.tracker.ui.Type.tabular
@@ -44,7 +48,10 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @Composable
-fun HistoryScreen(state: AppState, all: Boolean, onAll: (Boolean) -> Unit, onOpen: (String) -> Unit, week: @Composable ColumnScope.() -> Unit) {
+fun HistoryScreen(
+    state: AppState, all: Boolean, onAll: (Boolean) -> Unit, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit,
+    week: @Composable ColumnScope.() -> Unit,
+) {
     val p = LocalPalette.current
     val done = state.sessions.filter { it.sets.isNotEmpty() }
     ScreenFrame {
@@ -56,25 +63,40 @@ fun HistoryScreen(state: AppState, all: Boolean, onAll: (Boolean) -> Unit, onOpe
             week()
             return@ScreenFrame
         }
-        if (done.isEmpty()) {
+        val cardio = state.cardio.values
+        if (done.isEmpty() && cardio.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt("No workouts yet", Type.headline)
             return@ScreenFrame
         }
-        val recent = done.takeLast(16)
-        val avg = recent.sumOf { it.durationSec } / recent.size
-        Spacer(Modifier.height(Space.xxl))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Txt(Fmt.minutes(avg), Type.title1)
-            Spacer(Modifier.width(Space.sm))
-            Txt("average workout, last ${recent.size}", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
+        if (done.isNotEmpty()) {
+            val recent = done.takeLast(16)
+            val avg = recent.sumOf { it.durationSec } / recent.size
+            Spacer(Modifier.height(Space.xxl))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Txt(Fmt.minutes(avg), Type.title1)
+                Spacer(Modifier.width(Space.sm))
+                Txt("average workout, last ${recent.size}", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
+            }
+            Spacer(Modifier.height(Space.md))
+            BarChart(recent)
         }
-        Spacer(Modifier.height(Space.md))
-        BarChart(recent)
-        GroupHeader("${done.size} ${if (done.size == 1) "workout" else "workouts"}")
+        GroupHeader(if (cardio.isEmpty()) "${done.size} ${if (done.size == 1) "workout" else "workouts"}" else "${done.size} lifting · ${cardio.size} cardio")
         Group {
-            done.asReversed().forEachIndexed { i, s ->
-                GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
+            (done.map { it.startedAt to it } + cardio.map { it.startedAt to it }).sortedByDescending { it.first }.forEachIndexed { i, (_, s) ->
+                if (s is Cardio) GroupRow(first = i == 0, onClick = { onCardio(s) }) {
+                    val unit = Activities.of(s.activity)?.unit ?: DistanceUnit.MI
+                    Column(Modifier.weight(1f)) {
+                        Txt("${s.name} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
+                        Txt(
+                            listOfNotNull(Fmt.time(s.startedAt), s.distanceM?.let { distanceText(it, unit) }, s.distanceM?.let { HealthRecords.pace(s.activity, unit, it, s.durationSec) })
+                                .joinToString(" · "),
+                            Type.footnote, color = p.fg2, maxLines = 1,
+                        )
+                    }
+                    Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                    Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                } else if (s is SessionRecord) GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
                     Column(Modifier.weight(1f)) {
                         Txt("${s.day.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
                         Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) }, Type.footnote, color = p.fg2, maxLines = 1)

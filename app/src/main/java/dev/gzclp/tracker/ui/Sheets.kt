@@ -62,11 +62,13 @@ sealed interface SheetState {
     /**
      * Stopping [run]; [maxSec] is its elapsed time when Stop was tapped. [distance] is in the activity's unit and [rpe] is a
      * slider stop (1 is RPE 1, 19 is RPE 10), both 0 for none. [distanceText] holds the distance while it is being typed;
-     * [reach] is the longest distance typed, which keeps the slider stretched to it.
+     * [reach] is the longest distance typed, which keeps the slider stretched to it. [now] is set when the sheet logs a past
+     * session instead (a blank [CardioRun.id]) or edits the finished one with [run]'s id, and then the activity and start change too.
      */
     data class CardioStop(
         val run: CardioRun, val maxSec: Long, val durationSec: Long = maxSec, val distance: Double = 0.0,
         val distanceText: String? = null, val rpe: Int = 0, val notes: String = "", val reach: Double = 0.0,
+        val now: OffsetDateTime? = null,
     ) : SheetState {
         val unit: DistanceUnit? get() = Activities.of(run.activity)?.unit
         val distanceM: Int? get() = unit?.let { Math.round(distance * it.meters).toInt() }?.takeIf { it > 0 }
@@ -123,6 +125,7 @@ private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit)
 fun ColumnScope.SheetContent(
     s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit,
     onPickTime: (SheetState.AddMeal) -> Unit = {}, onPickEnd: (SheetState.CardioStop) -> Unit = {},
+    onPickStart: (SheetState.CardioStop) -> Unit = {}, onActivity: (SheetState.CardioStop) -> Unit = {},
 ) {
     when (s) {
         is SheetState.Weight -> {
@@ -194,12 +197,20 @@ fun ColumnScope.SheetContent(
         is SheetState.CardioStop -> {
             val n = s.run.name
             // Lowercase reads naturally ("Save running") but would mangle an acronym like HIIT.
-            SheetTitle("Save " + if (n.drop(1).any(Char::isUpperCase)) n else n.lowercase(), null)
-            CardioStopSheet(s, state, update, { onPickEnd(s) }) { onConfirm(s) }
+            SheetTitle(
+                when {
+                    s.now == null -> "Save " + if (n.drop(1).any(Char::isUpperCase)) n else n.lowercase()
+                    s.run.id.isEmpty() -> "Log past session"
+                    else -> "Edit session"
+                },
+                null,
+            )
+            CardioStopSheet(s, state, update, { onPickEnd(s) }, { onPickStart(s) }, { onActivity(s) }) { onConfirm(s) }
         }
         is SheetState.CardioDiscard -> {
-            SheetTitle("Discard this session?", null)
-            CancelOr("Discard", onDismiss) { onConfirm(s) }
+            val finished = s.run.id in state.cardio
+            SheetTitle(if (finished) "Delete this session?" else "Discard this session?", null)
+            CancelOr(if (finished) "Delete" else "Discard", onDismiss) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)

@@ -91,6 +91,24 @@ fun distanceValue(v: Double, unit: DistanceUnit): String = when {
 fun distanceText(meters: Int, unit: DistanceUnit): String =
     if (unit == DistanceUnit.MI) "%.2f mi".format(Locale.US, meters / unit.meters) else "%,d ${unit.label}".format(Locale.US, Math.round(meters / unit.meters))
 
+/** The sheet for logging a past [a] session: 30 minutes that ended [now]. */
+fun cardioPast(a: Activity, now: OffsetDateTime) =
+    SheetState.CardioStop(CardioRun("", a.id, a.name, now.minusMinutes(30).withSecond(0).withNano(0)), Commands.CARDIO_DURATION_SEC.last, 30 * 60L, now = now)
+
+/** The sheet for editing the finished session [c], prefilled. */
+fun cardioEdit(c: Cardio, now: OffsetDateTime): SheetState.CardioStop {
+    val d = Activities.of(c.activity)?.unit?.let { u -> c.distanceM?.let { it / u.meters } } ?: 0.0
+    return SheetState.CardioStop(
+        CardioRun(c.id, c.activity, c.name, c.startedAt), Commands.CARDIO_DURATION_SEC.last, c.durationSec, d,
+        rpe = c.rpe?.let { (it * 2 - 1).roundToInt() } ?: 0, notes = c.notes ?: "", reach = d, now = now,
+    )
+}
+
+/** [s] switched to activity [a]; a distance in another unit no longer means anything, so it is dropped. */
+fun SheetState.CardioStop.withActivity(a: Activity): SheetState.CardioStop =
+    if (Activities.of(a.id)?.unit == unit) copy(run = run.copy(activity = a.id, name = a.name))
+    else copy(run = run.copy(activity = a.id, name = a.name), distance = 0.0, distanceText = null, reach = 0.0)
+
 /** The duration that ends at the first [hour]:[minute] after [start], kept within a minute and [maxSec]. */
 fun durationEndingAt(start: OffsetDateTime, hour: Int, minute: Int, maxSec: Long): Long {
     val end = start.withHour(hour).withMinute(minute).withSecond(0).let { if (it.isAfter(start)) it else it.plusDays(1) }
@@ -106,6 +124,8 @@ fun CardioScreen(
     onSettings: () -> Unit,
     onStart: () -> Unit,
     onQuick: (Activity) -> Unit,
+    onLogPast: () -> Unit,
+    onEdit: (Cardio) -> Unit,
 ) {
     val p = LocalPalette.current
     val week = mondayOf(today)
@@ -142,14 +162,18 @@ fun CardioScreen(
                 }
             }
         }
-        if (summary.byActivity.isEmpty()) return@ScreenFrame
+        if (summary.byActivity.isEmpty()) {
+            Spacer(Modifier.height(Space.xl))
+            Group { AddRow("Log past session", first = true, onClick = onLogPast) }
+            return@ScreenFrame
+        }
         GroupHeader("This week")
         ActivityTotals(summary.byActivity)
         GroupHeader("Sessions")
         Group {
             state.cardioWeek(week).forEachIndexed { i, c ->
                 val unit = Activities.of(c.activity)?.unit ?: DistanceUnit.MI
-                GroupRow(first = i == 0) {
+                GroupRow(first = i == 0, onClick = { onEdit(c) }) {
                     Column(Modifier.weight(1f)) {
                         Txt(c.name, Type.body, maxLines = 1)
                         Txt(
@@ -164,6 +188,7 @@ fun CardioScreen(
                     Txt(Fmt.minutes(c.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 }
             }
+            AddRow("Log past session", first = false, onClick = onLogPast)
         }
     }
 }
@@ -221,11 +246,11 @@ fun CardioRunScreen(run: CardioRun, now: OffsetDateTime, onSettings: () -> Unit,
 
 /** Picks the activity to start: recents, then all, or search results with a row to add what was typed. */
 @Composable
-fun ActivitiesScreen(state: AppState, onBack: () -> Unit, onPick: (Activity) -> Unit, initial: String = "") {
+fun ActivitiesScreen(state: AppState, onBack: () -> Unit, onPick: (Activity) -> Unit, initial: String = "", title: String = "Start cardio") {
     var q by rememberSaveable { mutableStateOf(initial) }
     ScreenFrame {
         NavRow(onBack)
-        Txt("Start cardio", Type.largeTitle)
+        Txt(title, Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
         NameField(q, "Search", Activities.NAME_MAX) { q = it }
         val t = q.trim()
@@ -258,11 +283,30 @@ private fun ActivityList(items: List<Activity>, onPick: (Activity) -> Unit, add:
 /** What the distance field accepts while typing: whole yards or meters, miles with up to 2 decimals. */
 private fun distanceInput(unit: DistanceUnit) = if (unit == DistanceUnit.MI) Regex("\\d{0,3}(\\.\\d{0,2})?") else Regex("\\d{0,6}")
 
-/** The stop sheet below its title: duration, start – end, distance, RPE, notes, Save. Scrolls when the keyboard leaves too little room. */
+/**
+ * The stop sheet below its title: duration, start – end, distance, RPE, notes, Save. Logging or editing a finished session adds
+ * the activity and day above, makes the start time tappable, and puts Delete beside Save for an edit. Scrolls when the keyboard leaves too little room.
+ */
 @Composable
-fun CardioStopSheet(s: SheetState.CardioStop, state: AppState, update: (SheetState) -> Unit, onPickEnd: () -> Unit, onSave: () -> Unit) {
+fun CardioStopSheet(
+    s: SheetState.CardioStop, state: AppState, update: (SheetState) -> Unit,
+    onPickEnd: () -> Unit, onPickStart: () -> Unit, onActivity: () -> Unit, onSave: () -> Unit,
+) {
     val p = LocalPalette.current
+    val now = s.now
     Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
+        if (now != null) Column {
+            Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                Txt("Activity", Type.body, Modifier.weight(1f))
+                Pressable(onActivity, Modifier.heightIn(min = 44.dp), label = "Change activity") { Txt(s.run.name, Type.headline, color = p.accent, maxLines = 1) }
+            }
+            val start = s.run.startedAt
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MiniStep(Icons.chevronLeft, "Day before") { update(s.copy(run = s.run.copy(startedAt = start.minusDays(1)))) }
+                Txt(Fmt.day(start.toLocalDate(), now.toLocalDate()), Type.body.tabular(), Modifier.weight(1f), align = TextAlign.Center)
+                MiniStep(Icons.chevronRight, "Day after", enabled = !start.plusDays(1).isAfter(now)) { update(s.copy(run = s.run.copy(startedAt = start.plusDays(1)))) }
+            }
+        }
         Column {
             Stepper(
                 Fmt.clock(s.durationSec),
@@ -272,7 +316,10 @@ fun CardioStopSheet(s: SheetState.CardioStop, state: AppState, update: (SheetSta
             )
             val end = s.run.startedAt.plusSeconds(s.durationSec)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Txt(Fmt.timeRange(s.run.startedAt, end).removeSuffix(Fmt.time(end)), Type.subhead.tabular(), color = p.fg2)
+                val startText = Fmt.timeRange(s.run.startedAt, end).substringBefore(" – ")
+                if (now == null) Txt(startText, Type.subhead.tabular(), color = p.fg2)
+                else Pressable(onPickStart, Modifier.heightIn(min = 44.dp), label = "Change start time") { Txt(startText, Type.subhead.tabular(), color = p.accent) }
+                Txt(" – ", Type.subhead.tabular(), color = p.fg2)
                 Pressable(onPickEnd, Modifier.heightIn(min = 44.dp), label = "Change end time") { Txt(Fmt.time(end), Type.subhead.tabular(), color = p.accent) }
             }
         }
@@ -313,6 +360,11 @@ fun CardioStopSheet(s: SheetState.CardioStop, state: AppState, update: (SheetSta
             }
         }
         NameField(s.notes, "Notes (optional)", Commands.CARDIO_NOTES_MAX) { update(s.copy(notes = it)) }
-        PillButton("Save", onSave, Modifier.fillMaxWidth(), primary = true, enabled = s.durationSec in Commands.CARDIO_DURATION_SEC)
+        val ok = s.durationSec in Commands.CARDIO_DURATION_SEC && (now == null || !s.run.startedAt.isAfter(now))
+        if (now == null || s.run.id.isEmpty()) PillButton("Save", onSave, Modifier.fillMaxWidth(), primary = true, enabled = ok)
+        else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+            PillButton("Delete", { update(SheetState.CardioDiscard(s.run)) }, Modifier.weight(1f), onSurface = true)
+            PillButton("Save", onSave, Modifier.weight(1f), primary = true, enabled = ok)
+        }
     }
 }
