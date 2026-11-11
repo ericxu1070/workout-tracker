@@ -1,7 +1,7 @@
 """Writes a deterministic log with six weeks of GZCLP, two weeks of push/pull/legs,
-weigh-ins, and the edge cases the reader must handle (a corrected set, a cleared
-set, a cleared and an edited weigh-in, an accidental session, an open session,
-and a partial last line).
+weigh-ins, cardio, and the edge cases the reader must handle (a corrected set, a
+cleared set, a cleared and an edited weigh-in, an edited and a discarded cardio
+session, an accidental session, an open session, and a partial last line).
 
 Usage: python3 make_fixture.py OUT.jsonl
 """
@@ -176,6 +176,25 @@ emit(edited + timedelta(days=1), "body_weight", entry_id=epoch_id("w", edited), 
      weight=185.0)
 cleared = datetime(2026, 9, 28, 7, 1, tzinfo=TZ) + timedelta(days=1)
 emit(cleared + timedelta(hours=1), "body_weight_clear", entry_id=epoch_id("w", cleared))
+
+# Cardio: a timed 3-mile run every Tuesday, basketball entered by hand on the last three Saturdays
+# (the last one edited from 60 to 75 minutes), and a bike ride started and then discarded.
+for k in range(8):
+    at = datetime(2026, 9, 29, 7, 0, tzinfo=TZ) + timedelta(days=7 * k)
+    cid, sec = epoch_id("c", at), (30 + k) * 60
+    emit(at, "cardio_start", entry_id=cid, activity="running", name="Running")
+    emit(at + timedelta(seconds=sec), "cardio", entry_id=cid, activity="running", name="Running",
+         started_at=at.isoformat(timespec="seconds"), duration_sec=sec, distance_m=4828, rpe=6.5)
+for k in (5, 6, 7):
+    at = datetime(2026, 10, 3, 10, 0, tzinfo=TZ) + timedelta(days=7 * k)
+    game = dict(entry_id=epoch_id("c", at), activity="basketball", name="Basketball",
+                started_at=at.isoformat(timespec="seconds"))
+    emit(at + timedelta(hours=3), "cardio", duration_sec=3600, **game)
+    if k == 7:
+        emit(at + timedelta(hours=4), "cardio", duration_sec=4500, notes="Ran long", **game)
+ride = datetime(2026, 10, 4, 9, 0, tzinfo=TZ)
+emit(ride, "cardio_start", entry_id=epoch_id("c", ride), activity="cycling", name="Cycling")
+emit(ride + timedelta(minutes=1), "cardio_clear", entry_id=epoch_id("c", ride))
 
 # The workout in progress: its sets must not count yet.
 live = datetime(2026, 11, 21, 18, 0, tzinfo=TZ)

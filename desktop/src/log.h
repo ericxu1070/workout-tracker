@@ -38,12 +38,19 @@ struct DayWeight {
     double weight = 0;
 };
 
+struct Cardio {
+    QString id, activity, name;
+    QDateTime start;
+    int durationSec = 0, distanceM = 0;  // distance 0 when absent
+};
+
 struct Log {
     QHash<QString, QString> names;  // exercise id -> display name
     QVector<LoggedSet> sets;        // ordered by first log time
     QVector<Session> sessions;      // ended sessions, by start
     QVector<ProgressionEvent> events;
     QVector<DayWeight> bodyWeight;  // one per day, by day
+    QVector<Cardio> cardio;         // finished cardio sessions, by start
 
     QString name(const QString &exercise) const;
 };

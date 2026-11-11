@@ -30,7 +30,8 @@ QString Log::name(const QString &exercise) const {
 
 Log parseLog(const QByteArray &bytes) {
     static const QSet<QString> known{"exercise_define", "session_start", "session_end", "set", "set_clear",
-                                     "progression", "body_weight", "body_weight_clear"};
+                                     "progression", "body_weight", "body_weight_clear", "cardio",
+                                     "cardio_clear"};
 
     QList<QByteArray> lines = bytes.split('\n');
     // The last piece is either empty (the file ends with \n) or an append in progress.
@@ -52,6 +53,7 @@ Log parseLog(const QByteArray &bytes) {
     QHash<QString, LoggedSet> sets;
     QHash<QString, QJsonObject> weighIns;
     QHash<QString, Session> ended;
+    QHash<QString, Cardio> cardio;
 
     for (const QJsonObject &o : objects) {
         const QString type = o["type"].toString();
@@ -99,6 +101,12 @@ Log parseLog(const QByteArray &bytes) {
             weighIns.insert(o["entry_id"].toString(), o);
         } else if (type == "body_weight_clear") {
             weighIns.remove(o["entry_id"].toString());
+        } else if (type == "cardio") {
+            const QString id = o["entry_id"].toString();
+            cardio.insert(id, {id, o["activity"].toString(), o["name"].toString(), parseTime(o["started_at"]),
+                               o["duration_sec"].toInt(), o["distance_m"].toInt()});
+        } else if (type == "cardio_clear") {
+            cardio.remove(o["entry_id"].toString());
         }
     }
 
@@ -113,6 +121,9 @@ Log parseLog(const QByteArray &bytes) {
     log.sessions = ended.values().toVector();
     std::sort(log.sessions.begin(), log.sessions.end(),
               [](const Session &a, const Session &b) { return a.start < b.start; });
+
+    log.cardio = cardio.values().toVector();
+    std::sort(log.cardio.begin(), log.cardio.end(), [](const Cardio &a, const Cardio &b) { return a.start < b.start; });
 
     // A day's body weight is its earliest weigh-in, on the clock it was written with.
     QHash<QDate, QDateTime> earliest;

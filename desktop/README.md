@@ -8,8 +8,9 @@ One scrolling page, top to bottom:
 2. Weekly volume. Tonnage or reps per ISO week, filtered by tier and lift.
 3. Stalls and resets. GZCLP stage changes and resets, and repeated cycles, per lift on one timeline.
 4. Sessions. Duration per workout and workouts per week.
-5. Rest. Median rest taken against the timer's target, by the tier of the set before.
-6. Body weight. The day's morning weigh-in and the 7-day average.
+5. Cardio. Cardio minutes per week, and sessions, time, and distance per activity over the last 8 weeks.
+6. Rest. Median rest taken against the timer's target, by the tier of the set before.
+7. Body weight. The day's morning weigh-in and the 7-day average.
 
 The log format is the contract in [`../docs/log-format.md`](../docs/log-format.md). The colors follow the live Omarchy theme.
 
@@ -25,7 +26,7 @@ bin/test                           # parser and metrics tests, on the doc exampl
 cd pkgbuild && makepkg -f          # builds the package; install it with pacman -U
 ```
 
-`tests/make_fixture.py OUT.jsonl` writes a deterministic log with eight weeks of training and the reader's edge cases.
+`tests/make_fixture.py OUT.jsonl` writes a deterministic log with eight weeks of lifting and cardio and the reader's edge cases.
 
 ## Shortcuts
 

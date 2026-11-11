@@ -29,6 +29,7 @@ ApplicationWindow {
     property string volumeLift: "all"
 
     function plural(n, one, many) { return (n === 1 ? one : many).arg(n) }
+    function hm(min) { const m = Math.round(min), h = Math.floor(m / 60); return h ? (m % 60 ? qsTr("%1 hr %2 min").arg(h).arg(m % 60) : qsTr("%1 hr").arg(h)) : qsTr("%1 min").arg(m) }
     function median(xs) { const s = xs.slice().sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : 0 }
 
     Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
@@ -242,6 +243,64 @@ ApplicationWindow {
                             labels: weeks.map(w => w.label)
                             fmt: v => String(Math.round(v))
                             unit: ""
+                        }
+                    }
+                }
+            }
+
+            Rectangle { width: parent.width; height: 1; color: pal.separator }
+
+            Module {
+                id: cardio
+                width: parent.width
+                readonly property var c: d.cardio || ({ minutes: [], activities: [] })
+                readonly property real recent: c.activities.reduce((sum, a) => sum + a.minutes, 0)
+                // Distance in the unit the phone shows for the activity.
+                function distance(a) {
+                    if (!a.distanceM) return ""
+                    if (a.id === "swimming" || a.id === "open_water_swim") return C.grouped(Math.round(a.distanceM / 0.9144)) + qsTr(" yd")
+                    if (a.id === "rowing_machine" || a.id === "rowing") return C.grouped(a.distanceM) + qsTr(" m")
+                    return (a.distanceM / 1609.344).toFixed(1) + qsTr(" mi")
+                }
+                title: qsTr("Cardio")
+                fact: recent > 0 ? qsTr("%1 in the last 8 weeks").arg(win.hm(recent)) : ""
+                empty: c.minutes.some(m => m > 0) ? "" : qsTr("No cardio yet.")
+                Row {
+                    spacing: pal.space.xxl
+                    Column {
+                        width: content.half
+                        spacing: pal.space.sm
+                        Txt { role: "footnote"; color: pal.labelSecondary; text: qsTr("Minutes per week") }
+                        BarChart {
+                            width: parent.width; height: 180
+                            values: cardio.c.minutes
+                            labels: weeks.map(w => w.label)
+                            fmt: v => String(Math.round(v))
+                            unit: qsTr(" min")
+                        }
+                    }
+                    Column {
+                        width: content.half
+                        spacing: pal.space.sm
+                        Txt { role: "footnote"; color: pal.labelSecondary; text: qsTr("Last 8 weeks") }
+                        Repeater {
+                            model: cardio.c.activities
+                            Item {
+                                required property var modelData
+                                width: parent.width; height: 32
+                                Rectangle { width: parent.width; height: 1; color: pal.separator; anchors.bottom: parent.bottom }
+                                Txt { role: "body"; text: modelData.name; width: parent.width - 320; anchors.verticalCenter: parent.verticalCenter }
+                                Row {
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    Repeater {
+                                        model: [win.plural(modelData.sessions, qsTr("%1 session"), qsTr("%1 sessions")),
+                                                win.hm(modelData.minutes), cardio.distance(modelData)]
+                                        Txt { required property string modelData
+                                              role: "body"; tabular: true; color: pal.labelSecondary; text: modelData
+                                              width: 100; horizontalAlignment: Text.AlignRight }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
