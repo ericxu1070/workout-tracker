@@ -57,6 +57,8 @@ No cable or computer needed. The app needs Android 12 or later.
 2. In Obtainium, tap Add App, paste `https://github.com/ericxu1070/workout-tracker`, and tap Add. Then tap Install.
 3. Obtainium checks for new versions and offers each update; tap Update to install it.
 
+Without Obtainium, download the APK from [Releases](https://github.com/ericxu1070/workout-tracker/releases) and open it; you then install updates by hand the same way.
+
 On first launch, enter your 5-rep maxes and pick a program (see First run below). The sync folder and Health Connect are optional: without them everything stays on your phone and works the same. A sync folder only matters if you want a copy of your log on a computer through Syncthing.
 
 ## Release
