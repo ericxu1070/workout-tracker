@@ -9,14 +9,19 @@ import dev.gzclp.tracker.engine.CycleState
 import dev.gzclp.tracker.engine.Increments
 import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Outcome
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Program
 import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Progression
 import dev.gzclp.tracker.engine.Schemes
+import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.engine.Wave
 import dev.gzclp.tracker.engine.round5
 import java.time.Duration
 import java.time.OffsetDateTime
+import kotlin.math.roundToInt
 
 /** Turns user intent plus current state into the events to append. Pure. */
 object Commands {
@@ -27,18 +32,19 @@ object Commands {
         for ((lift, rm) in fiveRm) {
             add(ProgressionEvent(lift.id, Tier.T1.id, ChangeKind.INITIAL.id, toWeight = Progression.t1FromFiveRm(rm), toStage = Schemes.t1[0].label, fiveRm = rm))
             add(ProgressionEvent(lift.id, Tier.T2.id, ChangeKind.INITIAL.id, toWeight = Progression.t2FromFiveRm(rm), toStage = Schemes.t2[0].label))
-            add(cycleEvent(lift.id, ChangeKind.INITIAL, null, CycleState(Cycle.baseFromFiveRm(rm)), Increments().step(!lift.upper), null))
+            add(cycleEvent(lift.id, ChangeKind.INITIAL, null, CycleState(Cycle.baseFromFiveRm(rm)), Increments().step(!lift.upper), null, null))
         }
     }
 
-    private fun cycleEvent(id: String, kind: ChangeKind, from: Exercise?, to: CycleState, step: Int, sessionId: String?) =
+    /** A cycle tier line: [Tier.CUSTOM] keyed by [wave] when it is set, [Tier.CYCLE] otherwise. */
+    private fun cycleEvent(id: String, kind: ChangeKind, from: Exercise?, to: CycleState, step: Int, sessionId: String?, wave: Wave?) =
         ProgressionEvent(
-            id, Tier.CYCLE.id, kind.id, from?.weight, Cycle.weight(to, step), from?.scheme?.label, Cycle.weeks[to.week].label,
-            sessionId, cycleWeek = to.week + 1, cycleBase = to.base,
+            id, (if (wave == null) Tier.CYCLE else Tier.CUSTOM).id, kind.id, from?.weight, Cycle.weight(to, step), from?.scheme?.label,
+            (wave?.weeks ?: Cycle.weeks)[to.week].label, sessionId, cycleWeek = to.week + 1, cycleBase = to.base, scheme = wave?.key,
         )
 
     private fun cycleEvent(state: AppState, ex: Exercise, kind: ChangeKind, to: CycleState, sessionId: String?) =
-        cycleEvent(ex.id, kind, ex, to, state.step(ex.id), sessionId)
+        cycleEvent(ex.id, kind, ex, to, state.step(ex.id), sessionId, ex.wave)
 
     fun chooseProgram(state: AppState, id: String): List<Event> = if (id == state.programId) emptyList() else listOf(ProgramChosen(id))
 
@@ -52,13 +58,13 @@ object Commands {
         if (ex.weight != null) return emptyList()
         val w = round5(weight.toDouble()).coerceAtLeast(0)
         return listOf(
-            if (ex.tier == Tier.CYCLE) cycleEvent(ex.id, ChangeKind.INITIAL, null, CycleState(w), state.step(ex.id), null)
+            if (ex.tier.cyclic) cycleEvent(ex.id, ChangeKind.INITIAL, null, CycleState(w), state.step(ex.id), null, ex.wave)
             else ProgressionEvent(ex.id, ex.tier.id, ChangeKind.INITIAL.id, toWeight = w, toStage = Schemes.of(ex.tier)[0].label),
         )
     }
 
     fun start(state: AppState, now: OffsetDateTime): List<Event> =
-        if (state.active != null || state.cardioActive != null || !state.started || missingWeight(state) != null) emptyList()
+        if (state.active != null || state.cardioActive != null || !state.started || missingWeight(state) != null || state.exercises(state.nextDay).isEmpty()) emptyList()
         else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, state.nextDay.id))
 
     /** Logs a set, or corrects one already logged (keeping its rest fields). [rpe] outside 1 to 10 is dropped, others round to a half. */
@@ -95,8 +101,8 @@ object Commands {
     fun editWeight(state: AppState, ex: Exercise, weight: Int): List<Event> {
         if (ex.swappedFrom != null) return emptyList()
         val from = ex.weight ?: return startingWeight(state, ex, weight)
-        if (ex.tier == Tier.CYCLE) {
-            val c = state.cycle[ex.id] ?: return emptyList()
+        if (ex.tier.cyclic) {
+            val c = state.cycleState(ex.id, ex.wave) ?: return emptyList()
             val to = Cycle.manualEdit(c, weight, state.step(ex.id))
             return if (to == c) emptyList() else listOf(cycleEvent(state, ex, ChangeKind.MANUAL_EDIT, to, null))
         }
@@ -120,7 +126,7 @@ object Commands {
     /** The T1 lift that failed 10x1+ this session and needs a new 5RM before the session can end. */
     fun pendingFiveRm(state: AppState): Exercise? {
         val a = state.active ?: return null
-        return state.exercises(a.program, a.day).firstOrNull { it.tier != Tier.CYCLE && outcome(state, it, reps(state, it)) == Outcome.NeedsFiveRm }
+        return state.exercises(a.program, a.day).firstOrNull { !it.tier.cyclic && outcome(state, it, reps(state, it)) == Outcome.NeedsFiveRm }
     }
 
     /** Progression lines for finishing [day] with [repsOf] per exercise. */
@@ -128,9 +134,9 @@ object Commands {
         state.exercises(program, day).distinctBy { it.key }.mapNotNull { ex ->
             val from = ex.weight ?: return@mapNotNull null
             val reps = repsOf(ex)
-            if (ex.tier == Tier.CYCLE) {
-                val c = state.cycle[ex.id] ?: return@mapNotNull null
-                val (kind, to) = Cycle.advance(c, reps, state.increments.cycleBump) ?: return@mapNotNull null
+            if (ex.tier.cyclic) {
+                val c = state.cycleState(ex.id, ex.wave) ?: return@mapNotNull null
+                val (kind, to) = Cycle.advance(c, reps, state.increments.cycleBump, ex.weeks) ?: return@mapNotNull null
                 return@mapNotNull cycleEvent(state, ex, kind, to, sessionId)
             }
             when (val o = outcome(state, ex, reps)) {
@@ -155,24 +161,31 @@ object Commands {
     fun upcoming(state: AppState, n: Int): List<Pair<ProgramDay, List<Exercise>>> {
         var s = state
         val program = state.active?.program ?: state.program
-        var ix = state.active?.let { program.days.indexOf(it.day) } ?: (state.next[program.id] ?: 0)
+        val days = state.rotation(program, state.active?.day?.id ?: state.next[program.id])
         return List(n) {
-            val day = program.days[ix % program.days.size]
+            val day = days[it % days.size]
             val list = s.exercises(program, day)
             val events = progressions(s, program, day, null, null) { ex -> List(ex.scheme.sets) { ex.scheme.reps } }
             s = events.fold(s) { acc, e -> acc.apply(Entry(0, OffsetDateTime.MIN, e)) }
-            ix++
             day to list
         }
     }
 
+    private fun clean(name: String) = name.trim().replace(Regex("\\s+"), " ")
+    private fun label(name: String) = clean(name).take(SPLIT_NAME_MAX).trim()
+
+    /** An id made from [name], such as `cable_crunch`, with `_2`, `_3` added when [taken]. */
+    private fun newId(name: String, fallback: String, taken: (String) -> Boolean): String {
+        val base = name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { fallback }
+        return generateSequence(1) { it + 1 }.map { if (it == 1) base else "${base}_$it" }.first { !taken(it) }
+    }
+
     /** The id of the exercise named [name] and, for a name not seen before, the line that defines it. Null for a blank name. */
     private fun findOrDefine(state: AppState, name: String): Pair<String, List<Event>>? {
-        val clean = name.trim().replace(Regex("\\s+"), " ")
+        val clean = clean(name)
         if (clean.isEmpty()) return null
         state.moves.values.firstOrNull { it.name.equals(clean, ignoreCase = true) }?.let { return it.id to emptyList() }
-        val base = clean.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "exercise" }
-        val id = generateSequence(1) { it + 1 }.map { if (it == 1) base else "${base}_$it" }.first { it !in state.moves }
+        val id = newId(clean, "exercise") { it in state.moves }
         return id to listOf(ExerciseDefine(id, clean, false))
     }
 
@@ -207,6 +220,81 @@ object Commands {
     /** The editable list for a day: the T3s in GZCLP, every exercise otherwise. */
     fun dayList(state: AppState, program: Program, day: ProgramDay): List<String> =
         state.slots(program, day).filter { !program.gzclp || it.tier == Tier.T3 }.map { it.ex }
+
+    /**
+     * A new custom split named [name], copied from the program [from] as the user has it (any program but GZCLP).
+     * Each exercise starts at the source's sets × reps, 3 × 12·10·8 for a preset. Its id never reuses a built-in, split or done program id.
+     */
+    fun copySplit(state: AppState, from: String, name: String): List<Event> {
+        val src = state.programOf(from).takeIf { it.id == from && !it.gzclp } ?: return emptyList()
+        val taken = Programs.all.map { it.id } + state.customPrograms.keys + state.sessions.map { it.program.id }
+        val days = src.days.map { d -> d.copy(slots = state.slots(src, d).map { it.copy(tier = Tier.CUSTOM, wave = it.wave ?: Wave.DEFAULT) }) }
+        val p = Program(newId(clean(name), "split") { it in taken }, label(name), days, src.from ?: src.id)
+        return if (p.validSplit) listOf(p.toDefine()) else emptyList()
+    }
+
+    /** One `program_define` line for split [id] after [edit]; nothing when the split is unknown, or the edit changes nothing or leaves it invalid. */
+    private fun editSplit(state: AppState, id: String, edit: (Program) -> Program): List<Event> {
+        val p = state.customPrograms[id] ?: return emptyList()
+        val to = edit(p)
+        return if (to == p || !to.validSplit) emptyList() else listOf(to.toDefine())
+    }
+
+    private fun editDay(state: AppState, id: String, day: String, edit: (ProgramDay) -> ProgramDay) =
+        editSplit(state, id) { p -> p.copy(days = p.days.map { if (it.id == day) edit(it) else it }) }
+
+    private fun <T> List<T>.moved(from: Int, to: Int): List<T> =
+        if (from !in indices || to !in indices) this else toMutableList().apply { add(to, removeAt(from)) }
+
+    /** Deletes split [id]. When it is the one in use, the preset it came from takes over. */
+    fun deleteSplit(state: AppState, id: String): List<Event> = if (id in state.customPrograms) listOf(ProgramRemove(id)) else emptyList()
+
+    fun renameSplit(state: AppState, id: String, name: String) = editSplit(state, id) { it.copy(name = label(name)) }
+
+    /** Adds an empty day titled [title] at the end; the rotation skips it until it has exercises. */
+    fun addDay(state: AppState, id: String, title: String) = editSplit(state, id) { p ->
+        val t = label(title)
+        p.copy(days = p.days + ProgramDay(newId(t, "day") { d -> p.day(d) != null }, t, emptyList()))
+    }
+
+    /** Renames a day; its id, and so its place in the rotation and history, stays. */
+    fun renameDay(state: AppState, id: String, day: String, title: String) = editDay(state, id, day) { it.copy(title = label(title)) }
+
+    /** Deletes a day, never the last one. */
+    fun removeDay(state: AppState, id: String, day: String) = editSplit(state, id) { p -> p.copy(days = p.days.filter { it.id != day }) }
+
+    fun moveDay(state: AppState, id: String, from: Int, to: Int) = editSplit(state, id) { it.copy(days = it.days.moved(from, to)) }
+
+    /** Adds the exercise named [name] (an existing one, or a new one) to a day at 3 × 12·10·8. */
+    fun addSplitExercise(state: AppState, id: String, day: String, name: String): List<Event> {
+        val (ex, define) = findOrDefine(state, name) ?: return emptyList()
+        val edit = editDay(state, id, day) { it.copy(slots = it.slots + Slot(ex, Tier.CUSTOM, Wave.DEFAULT)) }
+        return if (edit.isEmpty()) emptyList() else define + edit
+    }
+
+    fun removeSplitExercise(state: AppState, id: String, day: String, ex: String) = editDay(state, id, day) { d -> d.copy(slots = d.slots.filter { it.ex != ex }) }
+
+    fun moveSplitExercise(state: AppState, id: String, day: String, from: Int, to: Int) = editDay(state, id, day) { it.copy(slots = it.slots.moved(from, to)) }
+
+    /** Sets one exercise's sets and week reps. Its cycle state is per wave, so a new wave starts fresh and asks for a starting weight. */
+    fun setWave(state: AppState, id: String, day: String, ex: String, wave: Wave) =
+        editDay(state, id, day) { d -> d.copy(slots = d.slots.map { if (it.ex == ex) it.copy(wave = wave) else it }) }
+
+    /** "Set all": every exercise in split [id] gets [wave]. */
+    fun setAll(state: AppState, id: String, wave: Wave) =
+        editSplit(state, id) { p -> p.copy(days = p.days.map { d -> d.copy(slots = d.slots.map { it.copy(wave = wave) }) }) }
+
+    /**
+     * A starting weight to prefill for [ex]: the best Epley 1RM among its sets in the last session that has any,
+     * taken back to [ex]'s reps and rounded to [plates] for a barbell lift, to 5 lb otherwise. Null when it was never done.
+     */
+    fun estimate(state: AppState, ex: Exercise, plates: Plates): Int? {
+        val sets = state.sessions.asReversed().firstNotNullOfOrNull { s -> s.sets.filter { it.exercise == ex.id && it.actualReps > 0 }.ifEmpty { null } } ?: return null
+        val w = sets.maxOf { epley(it.weight, it.actualReps) } / (1 + ex.scheme.reps / 30.0)
+        return if (ex.id in Catalog.barbell) plates.round(w.roundToInt()) else round5(w)
+    }
+
+    const val SPLIT_NAME_MAX = 40
 
     /** Logs a weigh-in, or edits the one with [id]. [lb] is kept to one decimal; nonsense weights write nothing. */
     fun logBodyWeight(state: AppState, id: String?, at: OffsetDateTime, lb: Double): List<Event> {

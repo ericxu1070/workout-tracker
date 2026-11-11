@@ -136,7 +136,8 @@ fun SettingsScreen(
 
         GroupHeader("Rest timer")
         Group {
-            Tier.entries.forEachIndexed { i, tier ->
+            // Custom splits rest by each week's reps, so they get no row.
+            Tier.entries.filter { it != Tier.CUSTOM }.forEachIndexed { i, tier ->
                 GroupRow(first = i == 0) {
                     Txt(tier.label, Type.body, Modifier.weight(1f))
                     val v = restTargets.getValue(tier)

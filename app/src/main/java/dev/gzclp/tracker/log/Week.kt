@@ -31,8 +31,8 @@ fun AppState.firstDay(): LocalDate? =
 
 /**
  * The Monday to Sunday week from [monday]. Each record counts on its own local date. A lift's slot is
- * (exercise, tier) for GZCLP and (exercise, stage) for the cycle, so GZCLP compares with the last time at
- * that tier and a cycle stage with the same week of the last cycle.
+ * (exercise, tier) for GZCLP and (exercise, tier, stage) for the cycle and custom splits, so GZCLP compares with
+ * the last time at that tier and a cycle stage with the same week of the last cycle.
  */
 fun AppState.week(monday: LocalDate): WeekSummary {
     fun LocalDate.inWeek(m: LocalDate) = this >= m && this < m.plusDays(7)
@@ -45,7 +45,7 @@ fun AppState.week(monday: LocalDate): WeekSummary {
     val daily = dailyBodyWeight()
     fun mean(m: LocalDate) = daily.subMap(m, true, m.plusDays(6), true).values.takeIf { it.isNotEmpty() }?.average()
 
-    fun slot(s: SetLogged) = Triple(s.exercise, s.tier, if (s.tier == Tier.CYCLE.id) s.stage else "")
+    fun slot(s: SetLogged) = Triple(s.exercise, s.tier, if (Tier.of(s.tier)?.cyclic == true) s.stage else "")
     val lifts = gym.flatMap { s -> s.sets.map(::slot) }.distinct().mapNotNull { key ->
         val history = lifted.mapNotNull { s -> best(s.startedAt, s.sets.filter { slot(it) == key })?.let { s to it } }
         val i = history.indexOfLast { it.first.startedAt.toLocalDate().inWeek(monday) }.takeIf { it >= 0 } ?: return@mapNotNull null

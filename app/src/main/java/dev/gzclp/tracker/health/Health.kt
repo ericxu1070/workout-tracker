@@ -81,7 +81,7 @@ object HealthRecords {
         }
         val notes = sets.groupBy { it.event.exercise to it.event.tier }.entries.joinToString("\n") { (key, logged) ->
             val (id, tier) = key
-            val label = Tier.of(tier)?.takeIf { it != Tier.CYCLE }?.let { " ${it.label}" } ?: ""
+            val label = Tier.of(tier)?.takeIf { !it.cyclic }?.let { " ${it.label}" } ?: ""
             "${state.name(id)}$label: " + logged.joinToString(", ") { "${it.event.weight}×${it.event.actualReps}" } + " lb"
         }
         return ExerciseSessionRecord(
