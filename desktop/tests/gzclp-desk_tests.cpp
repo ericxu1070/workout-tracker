@@ -63,6 +63,16 @@ private slots:
         QCOMPARE(rest["target"].toDouble(), 180.0);
         QCOMPARE(d["sessions"].toList().value(0).toMap()["v"].toDouble(), 2975 / 60.0);
 
+        // Cardio: the run, the basketball edit (4500 -> 3900 s), and no discarded ride.
+        QCOMPARE(log.cardio.size(), 2);
+        QCOMPARE(log.cardio[0].activity, QString("basketball"));
+        QCOMPARE(log.cardio[0].durationSec, 3900);
+        QCOMPARE(log.cardio[1].distanceM, 8047);
+        const QVariantMap cardio = d["cardio"].toMap();
+        QCOMPARE(d["weeks"].toList().size(), 3);  // the run extends to the cardio week of Nov 16
+        QCOMPARE(cardio["minutes"].toList(), (QVariantList{0.0, 0.0, (2490 + 3900) / 60.0}));
+        QCOMPARE(cardio["activities"].toList().value(0).toMap()["name"].toString(), QString("Basketball"));
+
         const QVariantList rows = d["timeline"].toMap()["rows"].toList();
         QCOMPARE(find(rows, "id", "squat")["events"].toList().size(), 0);  // cycle_up is not a stall
         QCOMPARE(find(rows, "id", "leg_curl")["events"].toList().value(0).toMap()["kind"].toString(),
@@ -75,6 +85,12 @@ private slots:
         QCOMPARE(parseLog(line).bodyWeight.size(), 0);
         QCOMPARE(parseLog(line + "\n").bodyWeight.size(), 1);
         QCOMPARE(parseLog(QByteArray(line).replace("\"v\":2", "\"v\":1") + "\n").bodyWeight.size(), 0);
+    }
+
+    void openCardioIsNotCounted() {
+        const QByteArray start =
+            R"({"v":2,"seq":1,"ts":"2026-11-21T07:00:00-08:00","type":"cardio_start","entry_id":"c1","activity":"running","name":"Running"})";
+        QVERIFY(parseLog(start + "\n").cardio.isEmpty());
     }
 
     void fixtureMetrics() {
@@ -121,6 +137,18 @@ private slots:
         QCOMPARE(reps, raw);
         QVERIFY(std::none_of(log.sets.cbegin(), log.sets.cend(),
                              [](const LoggedSet &s) { return s.ts.date() == QDate(2026, 11, 21); }));
+
+        // Weekly cardio: the Tuesday run (30 + k min) plus basketball, the last game edited to 75 min.
+        const QVariantMap cardio = d["cardio"].toMap();
+        QCOMPARE(cardio["minutes"].toList(), (QVariantList{30.0, 31.0, 32.0, 33.0, 34.0, 95.0, 96.0, 112.0}));
+        const QVariantList activities = cardio["activities"].toList();
+        QCOMPARE(activities.size(), 2);  // the discarded ride is dropped
+        const QVariantMap running = activities.value(0).toMap();
+        QCOMPARE(running["name"].toString(), QString("Running"));
+        QCOMPARE(running["sessions"].toInt(), 8);
+        QCOMPARE(running["minutes"].toDouble(), 268.0);
+        QCOMPARE(running["distanceM"].toInt(), 8 * 4828);
+        QCOMPARE(activities.value(1).toMap()["minutes"].toDouble(), 195.0);
 
         const QVariantList rest = d["rest"].toList();
         QCOMPARE(rest.size(), 4);

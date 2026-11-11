@@ -76,7 +76,7 @@ QVariantMap dashboard(const Log &log) {
         if (s.sets > 0)
             workouts.append(s);
 
-    // One run of ISO weeks, Monday first, from the first workout to the last, shared by every weekly chart.
+    // One run of ISO weeks, Monday first, from the first workout or cardio session to the last, shared by every weekly chart.
     QDate first, last;
     auto extend = [&](const QDate &d) {
         if (!first.isValid() || d < first) first = d;
@@ -84,6 +84,7 @@ QVariantMap dashboard(const Log &log) {
     };
     for (const Session &s : workouts) extend(s.start.date());
     for (const LoggedSet &s : log.sets) extend(s.ts.date());
+    for (const Cardio &c : log.cardio) extend(c.start.date());
     QVariantList weeks;
     QHash<QDate, int> weekIndex;
     if (first.isValid())
@@ -167,6 +168,35 @@ QVariantMap dashboard(const Log &log) {
                                         {"actual", median(rest[tier].first)},
                                         {"target", median(rest[tier].second)}});
 
+    // Cardio minutes per week, and per-activity totals over the last 8 weeks.
+    QVariantList cardioMinutes;
+    QVector<double> minutes(weeks.size(), 0);
+    struct Totals { QString name; int sessions = 0; double minutes = 0; int distanceM = 0; };
+    QMap<QString, Totals> totals;
+    for (const Cardio &c : log.cardio) {
+        const int week = weekIndex.value(monday(c.start.date()));
+        minutes[week] += c.durationSec / 60.0;
+        if (week < weeks.size() - 8)
+            continue;
+        Totals &t = totals[c.activity];
+        t.name = c.name;  // the newest name, as cardio is by start
+        t.sessions++;
+        t.minutes += c.durationSec / 60.0;
+        t.distanceM += c.distanceM;
+    }
+    for (double m : minutes)
+        cardioMinutes.append(m);
+    QVariantList activities;
+    for (auto it = totals.cbegin(); it != totals.cend(); ++it)
+        activities.append(QVariantMap{{"id", it.key()},
+                                      {"name", it->name},
+                                      {"sessions", it->sessions},
+                                      {"minutes", it->minutes},
+                                      {"distanceM", it->distanceM}});
+    std::stable_sort(activities.begin(), activities.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap()["minutes"].toDouble() > b.toMap()["minutes"].toDouble();
+    });
+
     QVariantList body;
     for (const DayWeight &w : log.bodyWeight) {
         double sum = 0;
@@ -187,5 +217,6 @@ QVariantMap dashboard(const Log &log) {
             {"perWeek", perWeek},
             {"timeline", QVariantMap{{"rows", rows}, {"start", start}, {"end", end}}},
             {"rest", restRows},
-            {"bodyWeight", body}};
+            {"bodyWeight", body},
+            {"cardio", QVariantMap{{"minutes", cardioMinutes}, {"activities", activities}}}};
 }
