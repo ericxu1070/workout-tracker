@@ -51,6 +51,8 @@ class AppModel private constructor(private val context: Context) {
     var notice by mutableStateOf<String?>(null)
     var notificationsAllowed by mutableStateOf(true)
         private set
+    var warmups by mutableStateOf(prefs.warmups)
+        private set
     var weighInReminder by mutableStateOf(prefs.weighInReminder)
         private set
     var weighInMinutes by mutableStateOf(prefs.weighInMinutes)
@@ -104,6 +106,11 @@ class AppModel private constructor(private val context: Context) {
     fun setRest(tier: Tier, sec: Int) {
         prefs.setRest(tier, sec)
         restTargets = prefs.restTargets()
+    }
+
+    fun chooseWarmups(on: Boolean) {
+        prefs.warmups = on
+        warmups = on
     }
 
     fun chooseWeighInReminder(on: Boolean) {

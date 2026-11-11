@@ -45,6 +45,8 @@ fun SettingsScreen(
     onAllowNotifications: () -> Unit,
     onWeighInReminder: (Boolean) -> Unit,
     onWeighInTime: (Int) -> Unit,
+    warmups: Boolean = true,
+    onWarmups: (Boolean) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -112,6 +114,15 @@ fun SettingsScreen(
                 }
             }
         }
+
+        GroupHeader("Warm-ups")
+        Group {
+            GroupRow(first = true) {
+                Txt("T1 warm-up sets", Type.body, Modifier.weight(1f))
+                Toggle(warmups, "T1 warm-up sets", onWarmups)
+            }
+        }
+        GroupFooter("Before each GZCLP T1 lift: 40%×5, 60%×5, and 80%×3 of the first working set, rounded to 5 lb. They are not logged and never count toward progression.")
 
         GroupHeader("Weigh-in")
         Group {

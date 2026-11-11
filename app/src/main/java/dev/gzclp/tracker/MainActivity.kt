@@ -197,6 +197,7 @@ private fun App(model: AppModel) {
                     if (it) requestNotifications()
                 },
                 onWeighInTime = model::chooseWeighInTime,
+                warmups = model.warmups, onWarmups = model::chooseWarmups,
             )
             route == Route.Days -> DaysScreen(
                 state, { route = Route.Settings },
@@ -226,6 +227,7 @@ private fun App(model: AppModel) {
                                 val n = unloggedSets(state)
                                 if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
                             },
+                            warmups = model.warmups,
                         )
                         Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
                         Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
