@@ -34,7 +34,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.engine.Activities
+import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.log.CardioRun
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.ExerciseDefine
@@ -56,6 +59,19 @@ sealed interface SheetState {
     data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
         val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
     }
+    /**
+     * Stopping [run]; [maxSec] is its elapsed time when Stop was tapped. [distance] is in the activity's unit and [rpe] is a
+     * slider stop (1 is RPE 1, 19 is RPE 10), both 0 for none. [distanceText] holds the distance while it is being typed.
+     */
+    data class CardioStop(
+        val run: CardioRun, val maxSec: Long, val durationSec: Long = maxSec, val distance: Double = 0.0,
+        val distanceText: String? = null, val rpe: Int = 0, val notes: String = "",
+    ) : SheetState {
+        val unit: DistanceUnit? get() = Activities.of(run.activity)?.unit
+        val distanceM: Int? get() = unit?.let { Math.round(distance * it.meters).toInt() }?.takeIf { it > 0 }
+        val rpeValue: Double? get() = if (rpe == 0) null else 0.5 + rpe * 0.5
+    }
+    data class CardioDiscard(val run: CardioRun) : SheetState
 }
 
 @Composable
@@ -66,17 +82,17 @@ private fun SheetTitle(title: String, body: String?) {
     }
 }
 
-/** A one-line exercise name field. */
+/** A one-line text field, an exercise name by default. */
 @Composable
-private fun NameField(name: String, onChange: (String) -> Unit) {
+fun NameField(name: String, placeholder: String = "Name, e.g. Face pull", max: Int = 40, onChange: (String) -> Unit) {
     val p = LocalPalette.current
     Box(
         Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.lg),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (name.isEmpty()) Txt("Name, e.g. Face pull", Type.body, color = p.fg3)
+        if (name.isEmpty()) Txt(placeholder, Type.body, color = p.fg3)
         BasicTextField(
-            name, { onChange(it.take(40)) }, Modifier.fillMaxWidth(),
+            name, { onChange(it.take(max)) }, Modifier.fillMaxWidth(),
             textStyle = Type.body.copy(color = p.fg), singleLine = true, cursorBrush = SolidColor(p.accent),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         )
@@ -103,7 +119,10 @@ private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit)
 }
 
 @Composable
-fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit, onPickTime: (SheetState.AddMeal) -> Unit = {}) {
+fun ColumnScope.SheetContent(
+    s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit,
+    onPickTime: (SheetState.AddMeal) -> Unit = {}, onPickEnd: (SheetState.CardioStop) -> Unit = {},
+) {
     when (s) {
         is SheetState.Weight -> {
             if (s.starting) SheetTitle("Starting weight for ${s.ex.name.lowercase()}", s.ex.detail())
@@ -170,6 +189,16 @@ fun ColumnScope.SheetContent(s: SheetState, state: AppState, update: (SheetState
         is SheetState.AddMeal -> {
             SheetTitle("Add meal", s.note)
             AddMealSheet(s, { onPickTime(s) }, update) { onConfirm(s) }
+        }
+        is SheetState.CardioStop -> {
+            val n = s.run.name
+            // Lowercase reads naturally ("Save running") but would mangle an acronym like HIIT.
+            SheetTitle("Save " + if (n.drop(1).any(Char::isUpperCase)) n else n.lowercase(), null)
+            CardioStopSheet(s, state, update, { onPickEnd(s) }) { onConfirm(s) }
+        }
+        is SheetState.CardioDiscard -> {
+            SheetTitle("Discard this session?", null)
+            CancelOr("Discard", onDismiss) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)

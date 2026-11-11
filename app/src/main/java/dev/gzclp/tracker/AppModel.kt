@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.WeightRecord
+import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.food.FoodLog
@@ -83,6 +84,12 @@ class AppModel private constructor(private val context: Context) {
     var mealError by mutableStateOf<String?>(null)
     /** Set when the weigh-in notification is tapped; the UI opens the log sheet and clears it. */
     var logWeightRequested by mutableStateOf(false)
+    /** Set when the cardio notification's Stop is tapped; the UI opens the stop sheet and clears it. */
+    var stopCardioRequested by mutableStateOf(false)
+    var cardioMode by mutableStateOf(prefs.cardioMode)
+        private set
+    var cardioGoalMin by mutableStateOf(prefs.cardioGoalMin)
+        private set
 
     init {
         WeighIn.schedule(context)
@@ -93,6 +100,7 @@ class AppModel private constructor(private val context: Context) {
     fun dispatch(build: (AppState) -> List<Event>) {
         val before = store.state.value
         val entries = store.dispatch(now(), build)
+        if (store.state.value.cardioActive != before.cardioActive) CardioNotice.sync(context, store.state.value.cardioActive)
         syncLater()
         if (prefs.healthConnect && entries.isNotEmpty()) writeHealth(before, entries)
     }
@@ -147,6 +155,8 @@ class AppModel private constructor(private val context: Context) {
         syncLater()
         readLaptopTheme()
         checkHealth()
+        // Re-posts a cardio notification the user swiped away; Android 14+ allows that for non-service notifications.
+        CardioNotice.sync(context, store.state.value.cardioActive)
     }
 
     /** Never writes the file; a missing or unreadable one keeps the whole cached palette. */
@@ -170,6 +180,16 @@ class AppModel private constructor(private val context: Context) {
     fun setRest(tier: Tier, sec: Int) {
         prefs.setRest(tier, sec)
         restTargets = prefs.restTargets()
+    }
+
+    fun chooseCardioMode(on: Boolean) {
+        prefs.cardioMode = on
+        cardioMode = on
+    }
+
+    fun chooseCardioGoal(minutes: Int) {
+        prefs.cardioGoalMin = minutes
+        cardioGoalMin = minutes
     }
 
     fun chooseWarmups(on: Boolean) {
