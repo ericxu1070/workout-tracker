@@ -46,7 +46,7 @@ fun UpcomingScreen(state: AppState, today: LocalDate, onOpenSession: (String) ->
             }
             GroupHeader(day.title + tag)
             Group {
-                exercises.forEachIndexed { i, ex ->
+                exercises.map(LocalPlates.current::prescribe).forEachIndexed { i, ex ->
                     GroupRow(first = i == 0) {
                         Txt(ex.name, Type.body, Modifier.weight(1f), maxLines = 1)
                         Txt(ex.scheme.display, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)

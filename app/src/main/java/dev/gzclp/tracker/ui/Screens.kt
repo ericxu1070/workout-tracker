@@ -54,7 +54,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.engine.Lift
+import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Progression
 import dev.gzclp.tracker.engine.Cycle
 import dev.gzclp.tracker.engine.Programs
@@ -196,7 +198,7 @@ fun Exercise.detail(): String =
 fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onEditWeight: (Exercise) -> Unit) {
     val p = LocalPalette.current
     val day = state.nextDay
-    val exercises = state.exercises(day)
+    val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
     val missing = exercises.count { it.weight == null }
     ScreenFrame(bottom = {
         BottomBar { PillButton("Start workout", onStart, Modifier.weight(1f), primary = true) }
@@ -259,7 +261,7 @@ fun WorkoutScreen(
         ) {
             if (rest != null) RestCard(rest, onSkipRest, Modifier.padding(top = Space.xl))
         }
-        val exercises = state.exercises(a.program, a.day)
+        val exercises = state.exercises(a.program, a.day).map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
             Spacer(Modifier.height(Space.x3))
@@ -322,8 +324,9 @@ private fun ExerciseBlock(
         Txt("Reps", Type.caption, Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
     }
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-        if (warmups && ex.tier == Tier.T1) Warmup.sets(ex.weight ?: 0).forEachIndexed { i, (w, r) ->
-            WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r)
+        val plates = LocalPlates.current
+        if (warmups && ex.tier == Tier.T1) Warmup.sets(ex.weight ?: 0).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
+            WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, plates)
         }
         for (i in 1..ex.scheme.sets) {
             val key = SetKey(ex.id, ex.tier, i)
@@ -335,6 +338,7 @@ private fun ExerciseBlock(
                 logged = sets[key]?.event,
                 current = next == key,
                 exName = ex.name,
+                plates = plates.takeIf { ex.id in Catalog.barbell },
                 onLog = { w, r -> onLog(ex, i, w, r) },
                 onClear = { onClear(ex, i) },
             )
@@ -356,6 +360,7 @@ fun SetRow(
     logged: SetLogged?,
     current: Boolean,
     exName: String,
+    plates: Plates?,
     onLog: (weight: Int, reps: Int) -> Unit,
     onClear: () -> Unit,
 ) {
@@ -395,11 +400,12 @@ fun SetRow(
             Icon(Icons.check, if (hit) p.onAccent else if (short) p.red else p.fg3, 20.dp)
         }
     }
+    if (plates != null) Txt(plates.perSideLabel(weight()) ?: "Not loadable with your plates", Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1)
 }
 
 /** A warm-up: fixed weight and reps, and a check that only lives on screen (never logged). */
 @Composable
-private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int) {
+private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, plates: Plates) {
     val p = LocalPalette.current
     var done by rememberSaveable(sessionId) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
@@ -415,6 +421,7 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int) {
             Icon(Icons.check, if (done) p.accent else p.fg3, 20.dp)
         }
     }
+    plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg3, maxLines = 1) }
 }
 
 fun restLabel(ex: Exercise, setIndex: Int): String =
