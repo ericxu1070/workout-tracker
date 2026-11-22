@@ -372,6 +372,7 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.SessionTime(s.id, s.startedAt, 22 * 3600L), idle, {}, {}, {}) }
                 }
             }
+            shot(p, "11-session-left-running") { SessionScreen(idle, idle.sessions.last().let { it.copy(durationSec = 22 * 3600L) }, {}, {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
                     true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),

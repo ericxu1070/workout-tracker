@@ -245,7 +245,7 @@ private fun App(model: AppModel) {
         val end = s.startedAt.plusSeconds(s.durationSec)
         TimePickerDialog(context, { _, h, m ->
             val c = sheet as? SheetState.SessionTime ?: return@TimePickerDialog
-            open(c.copy(durationSec = durationEndingAt(c.startedAt, h, m, Commands.SESSION_DURATION_SEC.last)))
+            open(c.withDuration(durationEndingAt(c.startedAt, h, m, Commands.SESSION_DURATION_SEC.last)))
         }, end.hour, end.minute, DateFormat.is24HourFormat(context)).show()
     }
     /** Leaves the activity picker; changing a sheet's activity goes back to that sheet, with [a] when one was picked. */

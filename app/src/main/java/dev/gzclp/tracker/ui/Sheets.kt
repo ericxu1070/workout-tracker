@@ -87,9 +87,22 @@ sealed interface SheetState {
         val rpeValue: Double? get() = if (rpe == 0) null else 0.5 + rpe * 0.5
     }
     data class CardioDiscard(val run: CardioRun) : SheetState
-    /** Correcting finished lifting session [id]'s duration, from its fixed start [startedAt]. */
-    data class SessionTime(val id: String, val startedAt: OffsetDateTime, val durationSec: Long) : SheetState {
+    /**
+     * Correcting finished lifting session [id]'s duration, from its fixed start [startedAt]. [hours] and [minutes] hold the
+     * typed fields; [durationSec] keeps its seconds until one is typed, so opening and saving changes nothing.
+     */
+    data class SessionTime(
+        val id: String, val startedAt: OffsetDateTime, val durationSec: Long,
+        val hours: String = (durationSec / 3600).toString(), val minutes: String = (durationSec % 3600 / 60).toString(),
+    ) : SheetState {
         val ok: Boolean get() = durationSec in Commands.SESSION_DURATION_SEC
+
+        fun typed(h: String, m: String): SessionTime? {
+            if (h.length > 2 || m.length > 2 || !h.all(Char::isDigit) || !m.all(Char::isDigit) || (m.toIntOrNull() ?: 0) > 59) return null
+            return copy(hours = h, minutes = m, durationSec = (h.toLongOrNull() ?: 0) * 3600 + (m.toLongOrNull() ?: 0) * 60)
+        }
+
+        fun withDuration(sec: Long) = SessionTime(id, startedAt, sec)
     }
 }
 
@@ -225,23 +238,27 @@ fun ColumnScope.SheetContent(
             CardioStopSheet(s, state, update, { onPickEnd(s) }, { onPickStart(s) }, { onActivity(s) }) { onConfirm(s) }
         }
         is SheetState.SessionTime -> {
-            SheetTitle("Edit duration", "Hold − or +, or tap the end time.")
-            val max = Commands.SESSION_DURATION_SEC.last
-            Stepper(
-                Fmt.hm(s.durationSec),
-                { update(s.copy(durationSec = (s.durationSec - 60).coerceIn(60, max))) },
-                { update(s.copy(durationSec = (s.durationSec + 60).coerceIn(60, max))) },
-                unit = "hr",
-                repeat = true,
-            )
+            SheetTitle("Edit duration", "Type how long it ran, or tap the end time.")
+            val p = LocalPalette.current
             val end = s.startedAt.plusSeconds(s.durationSec)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Txt(Fmt.time(s.startedAt) + " – ", Type.subhead.tabular(), color = LocalPalette.current.fg2)
-                Pressable({ onPickSessionEnd(s) }, Modifier.heightIn(min = 44.dp), label = "Change end time") {
-                    Txt(Fmt.time(end), Type.subhead.tabular(), color = LocalPalette.current.accent)
+            Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Hours", Type.body, Modifier.weight(1f))
+                    NumberField(s.hours, { h -> s.typed(h, s.minutes)?.let(update) }, last = false, label = "Hours")
                 }
-                Txt(Fmt.dayAfter(s.startedAt, end), Type.subhead, color = LocalPalette.current.fg2)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Minutes", Type.body, Modifier.weight(1f))
+                    NumberField(s.minutes, { m -> s.typed(s.hours, m)?.let(update) }, label = "Minutes")
+                }
+                Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Ends", Type.body, Modifier.weight(1f))
+                    Pressable({ onPickSessionEnd(s) }, Modifier.heightIn(min = 44.dp), label = "Change end time") {
+                        Txt(Fmt.time(end), Type.headline.tabular(), color = p.accent)
+                    }
+                    Txt(Fmt.dayAfter(s.startedAt, end), Type.body, color = p.fg2)
+                }
             }
+            Txt("Started ${Fmt.time(s.startedAt)}. ${if (s.ok) "" else "Between 1 minute and 24 hours."}".trim(), Type.footnote, color = if (s.ok) p.fg2 else p.red)
             PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
         }
         is SheetState.CardioDiscard -> {

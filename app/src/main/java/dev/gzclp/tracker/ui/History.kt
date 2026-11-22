@@ -128,23 +128,40 @@ fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditT
                 Txt(Fmt.minutes(s.durationSec), Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
+            s.afterLastSet?.let { after ->
+                GroupRow(first = false) {
+                    Txt("After last set", Type.body, Modifier.weight(1f))
+                    Txt(Fmt.minutes(after), Type.body.tabular(), color = if (after >= LONG_AFTER_LAST_SEC) p.red else p.fg2)
+                }
+            }
         }
+        val gaps = s.setGaps
+        if (gaps.isNotEmpty()) Txt(
+            "The time beside each set runs from the set before it, or from the start for the first.",
+            Type.footnote, Modifier.padding(horizontal = Space.lg, vertical = Space.sm), p.fg2,
+        )
         s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
             val first = sets.first()
             GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
-            SetList(sets.sortedBy { it.setIndex })
+            SetList(sets.sortedBy { it.setIndex }) { gaps[Triple(it.exercise, it.tier, it.setIndex)] }
         }
     }
 }
 
-/** Logged sets as rows: "Set 1", then weight × reps right-aligned, short sets in red. */
+/** A workout that ran on this long after its last set was probably left running. */
+private const val LONG_AFTER_LAST_SEC = 15 * 60L
+
+/** Logged sets as rows: "Set 1" and its [gap] when given, then weight × reps right-aligned, short sets in red. */
 @Composable
-fun SetList(sets: List<SetLogged>) {
+fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }) {
     val p = LocalPalette.current
     Group {
         sets.forEachIndexed { i, set ->
             GroupRow(first = i == 0) {
-                Txt("Set ${set.setIndex}" + if (set.amrap) " (AMRAP)" else "", Type.body, Modifier.weight(1f), maxLines = 1)
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Set ${set.setIndex}" + if (set.amrap) " (AMRAP)" else "", Type.body, maxLines = 1)
+                    gap(set)?.let { Txt("  " + Fmt.clock(it), Type.subhead.tabular(), color = p.fg2, maxLines = 1) }
+                }
                 Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), color = p.fg2)
                 Txt("${set.actualReps}", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
                 set.rpe?.let { Txt(" @ ${Fmt.rpe(it)}", Type.body.tabular(), color = p.fg2) }
