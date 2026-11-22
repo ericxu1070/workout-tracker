@@ -240,6 +240,14 @@ private fun App(model: AppModel) {
             open(c.copy(run = c.run.copy(startedAt = c.run.startedAt.withHour(h).withMinute(m).withSecond(0).withNano(0))))
         }, s.run.startedAt.hour, s.run.startedAt.minute, DateFormat.is24HourFormat(context)).show()
     }
+    /** The system time picker for a finished workout's end; an end at or before its start means the next day. */
+    fun pickSessionEnd(s: SheetState.SessionTime) {
+        val end = s.startedAt.plusSeconds(s.durationSec)
+        TimePickerDialog(context, { _, h, m ->
+            val c = sheet as? SheetState.SessionTime ?: return@TimePickerDialog
+            open(c.copy(durationSec = durationEndingAt(c.startedAt, h, m, Commands.SESSION_DURATION_SEC.last)))
+        }, end.hour, end.minute, DateFormat.is24HourFormat(context)).show()
+    }
     /** Leaves the activity picker; changing a sheet's activity goes back to that sheet, with [a] when one was picked. */
     fun closeActivities(a: Activity? = null) {
         val draft = lastSheet as? SheetState.CardioStop
@@ -336,7 +344,9 @@ private fun App(model: AppModel) {
             route == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
                 state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
             )
-            route == Route.Session && session != null -> SessionScreen(state, session) { route = null }
+            route == Route.Session && session != null -> SessionScreen(state, session, { route = null }) {
+                open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec))
+            }
             route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
             route == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
             route == Route.Activities -> ActivitiesScreen(
@@ -401,7 +411,7 @@ private fun App(model: AppModel) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
                 s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime, onPickEnd = ::pickCardioEnd,
-                onPickStart = ::pickCardioStart, onActivity = { close(); push(Route.Activities, "change") },
+                onPickStart = ::pickCardioStart, onPickSessionEnd = ::pickSessionEnd, onActivity = { close(); push(Route.Activities, "change") },
                 onConfirm = { c ->
                     when (c) {
                         is SheetState.Weight -> {
@@ -472,6 +482,10 @@ private fun App(model: AppModel) {
                         is SheetState.CardioStop -> {
                             if (c.now == null) model.dispatch { Commands.stopCardio(it, model.now(), c.durationSec, c.distanceM, c.rpeValue, c.notes) }
                             else model.dispatch { Commands.logCardio(it, c.run.id.ifEmpty { null }, Activity(c.run.activity, c.run.name), c.run.startedAt, c.durationSec, c.distanceM, c.rpeValue, c.notes, model.now()) }
+                            close()
+                        }
+                        is SheetState.SessionTime -> {
+                            model.dispatch { Commands.editSession(it, c.id, c.durationSec) }
                             close()
                         }
                         is SheetState.CardioDiscard -> {

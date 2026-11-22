@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,6 +87,10 @@ sealed interface SheetState {
         val rpeValue: Double? get() = if (rpe == 0) null else 0.5 + rpe * 0.5
     }
     data class CardioDiscard(val run: CardioRun) : SheetState
+    /** Correcting finished lifting session [id]'s duration, from its fixed start [startedAt]. */
+    data class SessionTime(val id: String, val startedAt: OffsetDateTime, val durationSec: Long) : SheetState {
+        val ok: Boolean get() = durationSec in Commands.SESSION_DURATION_SEC
+    }
 }
 
 @Composable
@@ -137,6 +142,7 @@ fun ColumnScope.SheetContent(
     s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit,
     onPickTime: (SheetState.AddMeal) -> Unit = {}, onPickEnd: (SheetState.CardioStop) -> Unit = {},
     onPickStart: (SheetState.CardioStop) -> Unit = {}, onActivity: (SheetState.CardioStop) -> Unit = {},
+    onPickSessionEnd: (SheetState.SessionTime) -> Unit = {},
 ) {
     when (s) {
         is SheetState.Weight -> {
@@ -217,6 +223,26 @@ fun ColumnScope.SheetContent(
                 null,
             )
             CardioStopSheet(s, state, update, { onPickEnd(s) }, { onPickStart(s) }, { onActivity(s) }) { onConfirm(s) }
+        }
+        is SheetState.SessionTime -> {
+            SheetTitle("Edit duration", "Hold − or +, or tap the end time.")
+            val max = Commands.SESSION_DURATION_SEC.last
+            Stepper(
+                Fmt.hm(s.durationSec),
+                { update(s.copy(durationSec = (s.durationSec - 60).coerceIn(60, max))) },
+                { update(s.copy(durationSec = (s.durationSec + 60).coerceIn(60, max))) },
+                unit = "hr",
+                repeat = true,
+            )
+            val end = s.startedAt.plusSeconds(s.durationSec)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Txt(Fmt.time(s.startedAt) + " – ", Type.subhead.tabular(), color = LocalPalette.current.fg2)
+                Pressable({ onPickSessionEnd(s) }, Modifier.heightIn(min = 44.dp), label = "Change end time") {
+                    Txt(Fmt.time(end), Type.subhead.tabular(), color = LocalPalette.current.accent)
+                }
+                Txt(Fmt.dayAfter(s.startedAt, end), Type.subhead, color = LocalPalette.current.fg2)
+            }
+            PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
         }
         is SheetState.CardioDiscard -> {
             val finished = s.run.id in state.cardio

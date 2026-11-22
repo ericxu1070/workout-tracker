@@ -10,7 +10,6 @@ import androidx.health.connect.client.units.Mass
 import dev.gzclp.tracker.engine.Activities
 import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.Tier
-import dev.gzclp.tracker.log.ActiveSession
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.BodyWeightCleared
 import dev.gzclp.tracker.log.BodyWeightLogged
@@ -18,7 +17,9 @@ import dev.gzclp.tracker.log.CardioCleared
 import dev.gzclp.tracker.log.CardioLogged
 import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.LogCodec
+import dev.gzclp.tracker.log.SessionEdit
 import dev.gzclp.tracker.log.SessionEnd
+import dev.gzclp.tracker.log.SessionRecord
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.Locale
@@ -47,16 +48,21 @@ object HealthRecords {
         val deletedSessions = mutableListOf<String>()
         var s = before
         for (entry in entries) {
-            when (val e = entry.event) {
+            val e = entry.event
+            // A discarded session in progress was never written.
+            if (e is CardioCleared && e.entryId in s.cardio) deletedSessions += e.entryId
+            s = s.apply(entry)
+            when (e) {
                 is BodyWeightLogged -> upserts += weight(e, entry.seq)
                 is BodyWeightCleared -> deletes += e.entryId
                 is CardioLogged -> upserts += cardio(e, entry.seq)
-                // A discarded session in progress was never written.
-                is CardioCleared -> if (e.entryId in s.cardio) deletedSessions += e.entryId
-                is SessionEnd -> s.active?.takeIf { it.id == e.sessionId && it.sets.isNotEmpty() }?.let { upserts += session(s, it, e, entry.seq) }
+                // Ending or editing a workout writes it whole; an accidental start with no sets is never written.
+                is SessionEnd, is SessionEdit -> {
+                    val id = if (e is SessionEnd) e.sessionId else (e as SessionEdit).sessionId
+                    s.sessions.lastOrNull { it.id == id }?.takeIf { it.sets.isNotEmpty() }?.let { upserts += session(s, it, entry.seq) }
+                }
                 else -> {}
             }
-            s = s.apply(entry)
         }
         return HealthWrites(upserts, deletes, deletedSessions)
     }
@@ -67,22 +73,21 @@ object HealthRecords {
     }
 
     /** One strength session; each logged set becomes a segment with its reps, and the notes list every set's weight. */
-    fun session(state: AppState, a: ActiveSession, end: SessionEnd, seq: Long): ExerciseSessionRecord {
+    fun session(state: AppState, a: SessionRecord, seq: Long): ExerciseSessionRecord {
         val start = a.startedAt.toInstant()
-        val stop = maxOf(start.plusSeconds(end.durationSec), start.plusSeconds(1))
-        val sets = a.sets.values.sortedBy { it.ts }
+        val stop = maxOf(start.plusSeconds(a.durationSec), start.plusSeconds(1))
         var prev = start
-        val segments = sets.mapNotNull { set ->
-            val to = minOf(set.ts.toInstant(), stop)
+        val segments = a.sets.zip(a.setTimes).mapNotNull { (set, ts) ->
+            val to = minOf(ts.toInstant(), stop)
             val from = maxOf(prev, to - SET_TIME)
             if (!from.isBefore(to)) return@mapNotNull null
             prev = to
-            ExerciseSegment(from, to, segmentType(set.event.exercise), set.event.actualReps)
+            ExerciseSegment(from, to, segmentType(set.exercise), set.actualReps)
         }
-        val notes = sets.groupBy { it.event.exercise to it.event.tier }.entries.joinToString("\n") { (key, logged) ->
+        val notes = a.sets.groupBy { it.exercise to it.tier }.entries.joinToString("\n") { (key, logged) ->
             val (id, tier) = key
             val label = Tier.of(tier)?.takeIf { !it.cyclic }?.let { " ${it.label}" } ?: ""
-            "${state.name(id)}$label: " + logged.joinToString(", ") { "${it.event.weight}×${it.event.actualReps}" } + " lb"
+            "${state.name(id)}$label: " + logged.joinToString(", ") { "${it.weight}×${it.actualReps}" } + " lb"
         }
         return ExerciseSessionRecord(
             startTime = start, startZoneOffset = a.startedAt.offset, endTime = stop, endZoneOffset = a.startedAt.offset,

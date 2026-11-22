@@ -109,15 +109,26 @@ fun HistoryScreen(
     }
 }
 
-/** One finished workout: every logged set with its own weight and reps. */
+/** One finished workout: its time, which [onEditTime] corrects, then every logged set with its own weight and reps. */
 @Composable
-fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit) {
+fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditTime: () -> Unit) {
     val p = LocalPalette.current
     ScreenFrame {
         NavRow(onBack)
         Txt(s.day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
-        Txt("${Fmt.date(s.startedAt)}, ${Fmt.time(s.startedAt)} · ${Fmt.minutes(s.durationSec)} · ${s.program.name}", Type.subhead, color = p.fg2)
+        Txt("${Fmt.date(s.startedAt)} · ${s.program.name}", Type.subhead, color = p.fg2)
+        Spacer(Modifier.height(Space.lg))
+        Group {
+            GroupRow(first = true, onClick = onEditTime) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Duration", Type.body)
+                    Txt(Fmt.span(s.startedAt, s.startedAt.plusSeconds(s.durationSec)), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
+                }
+                Txt(Fmt.minutes(s.durationSec), Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+            }
+        }
         s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
             val first = sets.first()
             GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")

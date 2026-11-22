@@ -161,6 +161,13 @@ object Commands {
     }
 
     /** The next [n] workouts in rotation order, each prescribed as if every earlier one hit every target. */
+    /** Sets finished session [id]'s duration; nothing for an unknown session, an unchanged duration, or one out of range. */
+    fun editSession(state: AppState, id: String, durationSec: Long): List<Event> {
+        val s = state.sessions.firstOrNull { it.id == id } ?: return emptyList()
+        if (durationSec !in SESSION_DURATION_SEC || durationSec == s.durationSec) return emptyList()
+        return listOf(SessionEdit(id, durationSec))
+    }
+
     fun upcoming(state: AppState, n: Int): List<Pair<ProgramDay, List<Exercise>>> {
         var s = state
         val program = state.active?.program ?: state.program
@@ -366,6 +373,7 @@ object Commands {
     }
 
     val CARDIO_DURATION_SEC = 60L..86_400L
+    val SESSION_DURATION_SEC = 60L..86_400L
     val CARDIO_DISTANCE_M = 1..1_000_000
     const val CARDIO_NOTES_MAX = 200
 }

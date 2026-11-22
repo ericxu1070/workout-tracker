@@ -77,6 +77,26 @@ class HealthRecordsTest {
         assertEquals(0, rec.segments.size)
     }
 
+    @Test fun editingAWorkoutsDurationRewritesItsSession() {
+        val s = store()
+        s.dispatch(t0) { Commands.start(it, t0) }
+        val ex = s.state.value.exercises(s.state.value.active!!.day).first()
+        for (i in 1..3) {
+            val at = t0.plusMinutes(3L * i)
+            s.dispatch(at) { Commands.logSet(it, ex, i, 3, ex.weight!!, at, rest) }
+        }
+        val forgot = t0.plusHours(22)
+        val first = s.write(forgot) { Commands.end(it, forgot, null) }.upserts.single() as ExerciseSessionRecord
+        val id = s.state.value.sessions.single().id
+
+        val fixed = s.write(forgot) { Commands.editSession(it, id, 3600) }.upserts.single() as ExerciseSessionRecord
+        assertEquals(id, fixed.metadata.clientRecordId)
+        assertTrue(fixed.metadata.clientRecordVersion > first.metadata.clientRecordVersion)
+        assertEquals(t0.plusHours(1).toInstant(), fixed.endTime)
+        assertEquals(first.segments, fixed.segments)
+        assertEquals(first.notes, fixed.notes)
+    }
+
     @Test fun emptyWorkoutWritesNothing() {
         val s = store()
         s.dispatch(t0) { Commands.start(it, t0) }

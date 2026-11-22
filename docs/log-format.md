@@ -257,6 +257,17 @@ The user removed a logged set. It no longer counts.
 A session with no sets still gets a `session_end` (an accidental start). It does not advance the rotation and should not count as a workout.
 At most one session is open at a time. A `session_start` without a `session_end` is the workout in progress.
 
+### `session_edit`
+
+The user corrected a finished workout's duration, such as one left running after the last set.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `session_id` | string | A session that has a `session_end`. |
+| `duration_sec` | int | The corrected duration, 60 to 86400. It replaces `session_end.duration_sec`; the newest `session_edit` per `session_id` wins. |
+
+The start time, sets, and progression do not change.
+
 ### `body_weight`
 
 A weigh-in, or an edit of one. Written when the user logs or corrects their body weight.
@@ -327,7 +338,7 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 | Weekly volume and tonnage per exercise | Volume = sum of `actual_reps`. Tonnage = sum of `weight * actual_reps`, using each set's own `weight`. Group by `exercise`, `tier`, and the ISO week of `ts`. |
 | GZCLP stalls and resets | `progression` lines with `kind` `stage_change` (stall) and `reset`, by `ts`, with `from_stage`, `to_stage`, and weights. |
 | Cycle timeline | `progression` lines with `tier` `cycle` or `custom`: `cycle_up` and `cycle_repeat` mark the end of each cycle (repeats are the cycle's stalls); `cycle_week` and `cycle_base` give the position after each, and `scheme` tells a `custom` exercise's cycles apart. |
-| Session duration | `session_end.duration_sec`, by `started_at`. |
+| Session duration | The newest `session_edit.duration_sec` for the session, else `session_end.duration_sec`, by `started_at`. |
 | Workouts per week | Count of `session_end` lines whose session has at least one set, by ISO week of `started_at`. Group by `program` to compare programs. |
 | Actual rest vs target | `rest_sec` against `rest_target_sec` on each `set`. Group by the previous set's tier, which is the tier the target came from. |
 | Prescribed vs used weight | `weight` against `target_weight` on each `set`. |
@@ -353,7 +364,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":42,"ts":"2026-11-02T19:03:10-08:00","type":"set","session_id":"s1794191725","exercise":"seated_cable_row","tier":"t3","stage":"3x15+","set_index":1,"target_reps":15,"actual_reps":15,"target_weight":0,"weight":100,"amrap":false,"rest_sec":190,"rest_target_sec":180}
 {"v":2,"seq":57,"ts":"2026-11-02T19:31:40-08:00","type":"progression","exercise":"squat","tier":"t1","kind":"weight_increase","from_weight":210,"to_weight":220,"from_stage":"5x3+","to_stage":"5x3+","session_id":"s1794191725"}
 {"v":2,"seq":60,"ts":"2026-11-02T19:31:40-08:00","type":"session_end","session_id":"s1794191725","program":"gzclp","day":"A1","started_at":"2026-11-02T18:42:05-08:00","duration_sec":2975}
-{"v":2,"seq":61,"ts":"2026-11-03T07:00:00-08:00","type":"program","program":"ppl"}
+{"v":2,"seq":61,"ts":"2026-11-02T21:05:00-08:00","type":"session_edit","session_id":"s1794191725","duration_sec":3120}
+{"v":2,"seq":62,"ts":"2026-11-03T07:00:00-08:00","type":"program","program":"ppl"}
 {"v":2,"seq":90,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"squat","tier":"cycle","kind":"cycle_up","from_weight":180,"to_weight":165,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":165}
 {"v":2,"seq":91,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"leg_curl","tier":"cycle","kind":"cycle_repeat","from_weight":80,"to_weight":70,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":70}
 {"v":2,"seq":92,"ts":"2026-11-21T07:02:00-08:00","type":"body_weight","entry_id":"w1795791720","at":"2026-11-21T07:02:00-08:00","weight":182.4}
