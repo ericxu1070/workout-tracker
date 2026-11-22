@@ -16,6 +16,7 @@ import dev.gzclp.tracker.engine.Schemes
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Wave
+import java.time.Duration
 import java.time.OffsetDateTime
 
 data class SetKey(val exercise: String, val tier: Tier, val setIndex: Int)
@@ -32,7 +33,17 @@ data class ActiveSession(
 data class SessionRecord(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>,
     val setTimes: List<OffsetDateTime> = emptyList(),
-)
+) {
+    /** Seconds from the set before each set (the start, for the first) to that set, by (exercise, tier, set index). */
+    val setGaps: Map<Triple<String, String, Int>, Long>
+        get() = sets.zip(setTimes).withIndex().associate { (i, p) ->
+            Triple(p.first.exercise, p.first.tier, p.first.setIndex) to Duration.between(if (i == 0) startedAt else setTimes[i - 1], p.second).seconds
+        }
+
+    /** Seconds the workout ran after its last set was logged; null with no sets. */
+    val afterLastSet: Long?
+        get() = setTimes.maxOrNull()?.let { Duration.between(it, startedAt.plusSeconds(durationSec)).seconds.coerceAtLeast(0) }
+}
 
 /** The cardio session in progress, started at [startedAt]. */
 data class CardioRun(val id: String, val activity: String, val name: String, val startedAt: OffsetDateTime)
@@ -173,7 +184,9 @@ data class AppState(
             is SetLogged -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val tier = Tier.of(e.tier) ?: return s
-                s.copy(active = a.copy(sets = a.sets + (SetKey(e.exercise, tier, e.setIndex) to LoggedSet(e, entry.ts))))
+                val key = SetKey(e.exercise, tier, e.setIndex)
+                // A correction keeps the set's place in time: when it was first logged.
+                s.copy(active = a.copy(sets = a.sets + (key to LoggedSet(e, a.sets[key]?.ts ?: entry.ts))))
             }
             is ExerciseSwap -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s

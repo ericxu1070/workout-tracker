@@ -58,6 +58,33 @@ class SessionEditTest {
         assertEquals(3000L, s.state.value.sessions.single().durationSec)
     }
 
+    @Test fun setGapsRunFromTheSetBeforeAndTheRunOnFollowsTheEdit() {
+        val s = Store(file).apply {
+            dispatch(t0) { Commands.setup(mapOf(Lift.SQUAT to 225, Lift.BENCH to 165, Lift.DEADLIFT to 275, Lift.OHP to 105), Programs.GZCLP) }
+            while (true) {
+                val ex = Commands.missingWeight(state.value) ?: break
+                dispatch(t0) { Commands.startingWeight(it, ex, 50) }
+            }
+            dispatch(t0) { Commands.start(it, t0) }
+        }
+        val ex = s.state.value.exercises(s.state.value.active!!.day).first()
+        for ((i, min) in listOf(4L, 7L, 11L).withIndex()) {
+            val at = t0.plusMinutes(min)
+            s.dispatch(at) { Commands.logSet(it, ex, i + 1, 3, ex.weight!!, at, rest) }
+        }
+        // Correcting set 1 at minute 12 keeps its place at minute 4.
+        s.dispatch(t0.plusMinutes(12)) { Commands.logSet(it, ex, 1, 2, ex.weight!!, t0.plusMinutes(12), rest) }
+        val end = t0.plusHours(22)
+        s.dispatch(end) { Commands.end(it, end, null) }
+        val r = s.state.value.sessions.single()
+        val key = { i: Int -> Triple(ex.id, ex.tier.id, i) }
+        assertEquals(mapOf(key(1) to 240L, key(2) to 180L, key(3) to 240L), r.setGaps)
+        assertEquals(22 * 3600L - 11 * 60, r.afterLastSet)
+
+        s.dispatch(end) { Commands.editSession(it, r.id, 10 * 60) }
+        assertEquals("an end before the last set has no run-on", 0L, s.state.value.sessions.single().afterLastSet)
+    }
+
     @Test fun lineRoundTripsInTheDocumentedShape() {
         val e = Entry(120, t0, SessionEdit("s1795312800", 3900))
         val line = LogCodec.encode(e)
