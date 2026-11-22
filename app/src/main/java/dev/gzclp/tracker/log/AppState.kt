@@ -28,7 +28,11 @@ data class ActiveSession(
     val swaps: Map<Pair<String, Tier>, String> = emptyMap(),
 )
 
-data class SessionRecord(val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>)
+/** [setTimes] holds when each of [sets] was logged, in the same order. */
+data class SessionRecord(
+    val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>,
+    val setTimes: List<OffsetDateTime> = emptyList(),
+)
 
 /** The cardio session in progress, started at [startedAt]. */
 data class CardioRun(val id: String, val activity: String, val name: String, val startedAt: OffsetDateTime)
@@ -189,9 +193,11 @@ data class AppState(
                 cardioActive = cardioActive?.takeIf { it.id != e.entryId },
             )
             is CardioCleared -> s.copy(cardio = cardio - e.entryId, cardioActive = cardioActive?.takeIf { it.id != e.entryId })
+            is SessionEdit -> s.copy(sessions = sessions.map { if (it.id == e.sessionId) it.copy(durationSec = e.durationSec) else it })
             is SessionEnd -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
-                val record = SessionRecord(a.id, a.program, a.day, a.startedAt, e.durationSec, a.sets.values.sortedBy { it.ts }.map { it.event })
+                val logged = a.sets.values.sortedBy { it.ts }
+                val record = SessionRecord(a.id, a.program, a.day, a.startedAt, e.durationSec, logged.map { it.event }, logged.map { it.ts })
                 s.copy(
                     active = null,
                     sessions = sessions + record,

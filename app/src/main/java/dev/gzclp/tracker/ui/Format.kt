@@ -41,6 +41,16 @@ object Fmt {
         return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
     }
 
+    /** 22:00 or 1:05: hours and minutes, for a stepper that moves by the minute. */
+    fun hm(totalSec: Long): String = (totalSec.coerceAtLeast(0) / 60).let { "%d:%02d".format(it / 60, it % 60) }
+
+    /** "", " next day", or " +2 days": how many days after [a] the time [b] falls. */
+    fun dayAfter(a: OffsetDateTime, b: OffsetDateTime): String =
+        when (val d = java.time.temporal.ChronoUnit.DAYS.between(a.toLocalDate(), b.toLocalDate())) { 0L -> ""; 1L -> " next day"; else -> " +$d days" }
+
+    /** [timeRange], with the day it ends on when that is a later day: 6:26 PM – 4:26 PM next day. */
+    fun span(a: OffsetDateTime, b: OffsetDateTime): String = dayAfter(a, b).let { if (it.isEmpty()) timeRange(a, b) else "${time(a)} – ${time(b)}$it" }
+
     /** 52 min, 1 hr 20 min, 3 hr. */
     fun minutes(totalSec: Long): String {
         val m = (totalSec + 30) / 60

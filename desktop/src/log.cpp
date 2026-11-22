@@ -29,7 +29,7 @@ QString Log::name(const QString &exercise) const {
 }
 
 Log parseLog(const QByteArray &bytes) {
-    static const QSet<QString> known{"exercise_define", "session_start", "session_end", "set", "set_clear",
+    static const QSet<QString> known{"exercise_define", "session_start", "session_end", "session_edit", "set", "set_clear",
                                      "progression", "body_weight", "body_weight_clear", "cardio",
                                      "cardio_clear"};
 
@@ -86,6 +86,10 @@ Log parseLog(const QByteArray &bytes) {
             s.start = parseTime(o["started_at"]);
             s.durationSec = o["duration_sec"].toInt();
             ended.insert(s.id, s);
+        } else if (type == "session_edit") {
+            const auto it = ended.find(o["session_id"].toString());
+            if (it != ended.end())
+                it->durationSec = o["duration_sec"].toInt();
         } else if (type == "progression") {
             ProgressionEvent e;
             e.exercise = o["exercise"].toString();

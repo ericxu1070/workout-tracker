@@ -364,7 +364,14 @@ class ScreenShots {
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-cardio-full" else "10-history-cardio", tall) {
                 TabFrame(Tab.History, {}) { HistoryScreen(withCardio, true, {}, {}, {}) {} }
             }
-            shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}) }
+            shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}, {}) }
+            shot(p, "11-session-time-sheet") {
+                val s = idle.sessions.last()
+                Box(Modifier.fillMaxSize()) {
+                    SessionScreen(idle, s, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.SessionTime(s.id, s.startedAt, 22 * 3600L), idle, {}, {}, {}) }
+                }
+            }
             shot(p, "12-settings") {
                 SettingsScreen(
                     true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),

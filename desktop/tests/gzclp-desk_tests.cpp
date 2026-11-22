@@ -61,7 +61,7 @@ private slots:
         QCOMPARE(rest["tier"].toString(), QString("t1"));
         QCOMPARE(rest["actual"].toDouble(), 190.0);
         QCOMPARE(rest["target"].toDouble(), 180.0);
-        QCOMPARE(d["sessions"].toList().value(0).toMap()["v"].toDouble(), 2975 / 60.0);
+        QCOMPARE(d["sessions"].toList().value(0).toMap()["v"].toDouble(), 3120 / 60.0);  // the session_edit wins
 
         // Cardio: the run, the basketball edit (4500 -> 3900 s), and no discarded ride.
         QCOMPARE(log.cardio.size(), 2);
