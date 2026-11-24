@@ -46,7 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import dev.gzclp.tracker.AppModel
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -225,8 +227,13 @@ fun HomeScreen(
     val day = state.nextDay
     val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
     val missing = exercises.count { it.weight == null }
+    var showOpenSessionSheet by remember { mutableStateOf(false) }
     ScreenFrame(bottom = {
-        BottomBar { PillButton("Start workout", onStart, Modifier.weight(1f), primary = true) }
+        BottomBar {
+            PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
+            Spacer(Modifier.width(Space.md))
+            PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
+        }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
         WorkoutSwitch(false) { if (it) onCardio() }
@@ -238,6 +245,8 @@ fun HomeScreen(
             state.program.name + " · " + if (last == null) "your first workout" else "last: ${last.day.title} on ${Fmt.date(last.startedAt)}",
             Type.subhead, color = p.fg2,
         )
+        Spacer(Modifier.height(Space.xxl))
+        WeeklyVolumeSection(state)
         Spacer(Modifier.height(Space.xxl))
         Group {
             exercises.forEachIndexed { i, ex ->
@@ -257,6 +266,25 @@ fun HomeScreen(
             }
         }
         if (missing > 0) GroupFooter(if (missing == 1) "One exercise needs a starting weight." else "$missing exercises need a starting weight.")
+    }
+    if (showOpenSessionSheet) {
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            OpenSessionStartSheet(
+                state = state,
+                onStartFromToday = {
+                    showOpenSessionSheet = false
+                    OpenSessionManager.start(fromToday = true, state, onStart)
+                },
+                onStartBlank = {
+                    showOpenSessionSheet = false
+                    OpenSessionManager.start(fromToday = false, state, onStart)
+                },
+                onDismiss = { showOpenSessionSheet = false },
+            )
+        }
     }
 }
 /** What the rest card needs; null when not resting. */
@@ -279,6 +307,25 @@ fun WorkoutScreen(
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
+    if (OpenSessionManager.isActive) {
+        val context = LocalContext.current
+        OpenSessionScreen(
+            state = state,
+            now = now,
+            onLog = onLog,
+            onClear = onClear,
+            onFinish = { counts ->
+                runCatching {
+                    val model = AppModel.get(context)
+                    model.dispatch { s -> Commands.endOpen(s, model.now(), counts = counts) }
+                    model.cancelRest()
+                }
+                OpenSessionManager.reset()
+            },
+            onCancel = onEnd,
+        )
+        return
+    }
     ScreenFrame(bottom = {
         BottomBar { PillButton("End workout", onEnd, Modifier.weight(1f), primary = true) }
     }) {
