@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QHash>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 #include <QVector>
 
@@ -16,6 +17,10 @@ struct LoggedSet {
     bool amrap = false;
     int rest = -1, restTarget = -1;  // -1 when absent (first set of a session)
     double rpe = 0;                  // 0 when absent
+    double addedLb = 0;              // 0 when absent
+    bool hasAddedLb = false;
+    double bodyweightLb = 0;         // 0 when absent
+    bool hasBodyweightLb = false;
     QDateTime ts;                    // when the set was first logged
     qint64 order = 0;                // seq of its first line, for the previous-set lookup
 };
@@ -44,13 +49,36 @@ struct Cardio {
     int durationSec = 0, distanceM = 0;  // distance 0 when absent
 };
 
+struct ExerciseMeta {
+    QString exercise;
+    double bodyweightFactor = -1.0;  // -1 when absent
+    QString parent;
+    double parentRatio = 0.0;
+};
+
+struct WaterEntry {
+    QString id;
+    QDateTime at;
+    int ml = 0;
+};
+
+struct StretchEntry {
+    QString id, routine;
+    QDateTime at;
+    int durationSec = 0;
+    QStringList moves;
+};
+
 struct Log {
-    QHash<QString, QString> names;  // exercise id -> display name
-    QVector<LoggedSet> sets;        // ordered by first log time
-    QVector<Session> sessions;      // ended sessions, by start
+    QHash<QString, QString> names;      // exercise id -> display name
+    QHash<QString, ExerciseMeta> meta;  // exercise id -> metadata
+    QVector<LoggedSet> sets;            // ordered by first log time
+    QVector<Session> sessions;          // ended sessions, by start
     QVector<ProgressionEvent> events;
-    QVector<DayWeight> bodyWeight;  // one per day, by day
-    QVector<Cardio> cardio;         // finished cardio sessions, by start
+    QVector<DayWeight> bodyWeight;      // one per day, by day
+    QVector<Cardio> cardio;             // finished cardio sessions, by start
+    QVector<WaterEntry> water;          // resolved water entries, by at
+    QVector<StretchEntry> stretches;    // resolved stretch sessions, by at
 
     QString name(const QString &exercise) const;
 };

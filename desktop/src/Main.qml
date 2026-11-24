@@ -22,7 +22,12 @@ ApplicationWindow {
 
     readonly property var d: backend.data
     readonly property var weeks: d.weeks || []
-    readonly property var shortName: ({ squat: qsTr("Squat"), bench: qsTr("Bench"), deadlift: qsTr("Deadlift"), ohp: qsTr("OHP"), other: qsTr("Other") })
+    readonly property var shortName: ({
+        squat: qsTr("Squat"), bench: qsTr("Bench"), deadlift: qsTr("Deadlift"), ohp: qsTr("OHP"),
+        pull_up: qsTr("Pull-up"), chin_up: qsTr("Chin-up"), dip: qsTr("Dip"), push_up: qsTr("Push-up"),
+        inverted_row: qsTr("Row"), pistol_squat: qsTr("Pistol"), muscle_up: qsTr("Muscle-up"),
+        other: qsTr("Other")
+    })
     property bool helpVisible: false
     property string volumeMetric: "tonnage"
     property string volumeTier: "all"
@@ -111,8 +116,8 @@ ApplicationWindow {
                             unit: qsTr(" lb")
                             rightMargin: 136
                             series: strength.s.lifts.map(l => ({
-                                name: win.shortName[l.id], color: pal.lift[l.id], points: l.points,
-                                end: win.shortName[l.id] + " " + Math.round(l.latest) + (l.ratio > 0 ? " · " + l.ratio.toFixed(2) + "×" : "")
+                                name: win.shortName[l.id] || l.name, color: pal.lift[l.id] || pal.lift.other, points: l.points,
+                                end: (win.shortName[l.id] || l.name) + " " + Math.round(l.latest) + (l.ratio > 0 ? " · " + l.ratio.toFixed(2) + "×" : "")
                             }))
                         }
                         Txt {
@@ -336,6 +341,50 @@ ApplicationWindow {
                                  { name: qsTr("7-day average"), color: pal.tint, dots: false, width: 2.5,
                                    points: body.pts.map(p => ({ t: p.t, v: p.avg })),
                                    end: body.last ? qsTr("Avg %1").arg(body.last.avg.toFixed(1)) : "" }]
+                    }
+                }
+            }
+
+            Rectangle { width: parent.width; height: 1; color: pal.separator }
+
+            Row {
+                spacing: pal.space.xxl
+                Module {
+                    id: water
+                    width: content.half
+                    readonly property var pts: d.water || []
+                    readonly property var last: pts.length ? pts[pts.length - 1] : null
+                    title: qsTr("Water")
+                    fact: last ? qsTr("%1 ml on %2, 7-day average %3 ml").arg(Math.round(last.v)).arg(C.day(last.t)).arg(Math.round(last.avg)) : ""
+                    empty: pts.length ? "" : qsTr("No water logged yet.")
+                    LineChart {
+                        width: water.width; height: 200; rightMargin: 88; unit: qsTr(" ml")
+                        fmt: v => String(Math.round(v))
+                        series: [{ name: qsTr("Water"), color: pal.lift.squat, points: water.pts, line: false },
+                                 { name: qsTr("7-day average"), color: pal.tint, dots: false, width: 2.5,
+                                   points: water.pts.map(p => ({ t: p.t, v: p.avg })),
+                                   end: water.last ? qsTr("Avg %1 ml").arg(Math.round(water.last.avg)) : "" }]
+                    }
+                }
+                Module {
+                    id: stretching
+                    width: content.half
+                    readonly property var st: d.stretches || ({ perWeek: [], total: 0 })
+                    readonly property var perWeek: st.perWeek || []
+                    readonly property int total: st.total || 0
+                    title: qsTr("Stretching")
+                    fact: total > 0
+                          ? qsTr("%1, %2 a week on average")
+                                .arg(win.plural(total, qsTr("%1 session"), qsTr("%1 sessions")))
+                                .arg((total / Math.max(1, weeks.length)).toLocaleString(Qt.locale(), 'f', 1))
+                          : ""
+                    empty: total > 0 ? "" : qsTr("No stretching sessions logged yet.")
+                    BarChart {
+                        width: stretching.width; height: 200
+                        values: stretching.perWeek
+                        labels: weeks.map(w => w.label)
+                        fmt: v => String(Math.round(v))
+                        unit: ""
                     }
                 }
             }

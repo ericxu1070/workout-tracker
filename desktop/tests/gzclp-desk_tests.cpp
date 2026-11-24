@@ -77,6 +77,12 @@ private slots:
         QCOMPARE(find(rows, "id", "squat")["events"].toList().size(), 0);  // cycle_up is not a stall
         QCOMPARE(find(rows, "id", "leg_curl")["events"].toList().value(0).toMap()["kind"].toString(),
                  QString("cycle_repeat"));
+
+        // Cleared water and cleared stretch in doc example
+        QCOMPARE(log.water.size(), 0);
+        QCOMPARE(log.stretches.size(), 0);
+        QVERIFY(d["water"].toList().isEmpty());
+        QCOMPARE(d["stretches"].toMap()["total"].toInt(), 0);
     }
 
     void partialLastLineIsSkipped() {
@@ -213,6 +219,78 @@ private slots:
         QCOMPARE(theme.accent(), QString("#FFD60A"));
         QVERIFY(theme.colors().isEmpty());
         QVERIFY(!theme.light());
+    }
+
+    void calisthenicsEffectiveLoadInStrengthChart() {
+        const QByteArray lines =
+            "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-20T07:00:00-08:00\",\"type\":\"body_weight\",\"entry_id\":\"w1\",\"at\":\"2026-11-20T07:00:00-08:00\",\"weight\":180.0}\n"
+            "{\"v\":2,\"seq\":2,\"ts\":\"2026-11-20T17:00:00-08:00\",\"type\":\"exercise_meta\",\"exercise\":\"pull_up\",\"bodyweight_factor\":1.0}\n"
+            "{\"v\":2,\"seq\":3,\"ts\":\"2026-11-20T17:01:00-08:00\",\"type\":\"session_start\",\"session_id\":\"s1\",\"program\":\"gzclp\",\"day\":\"A1\"}\n"
+            "{\"v\":2,\"seq\":4,\"ts\":\"2026-11-20T17:10:00-08:00\",\"type\":\"set\",\"session_id\":\"s1\",\"exercise\":\"pull_up\",\"tier\":\"t3\",\"stage\":\"3x12\",\"set_index\":1,\"target_reps\":12,\"actual_reps\":10,\"weight\":0,\"added_lb\":20.0,\"bodyweight_lb\":180.0}\n"
+            "{\"v\":2,\"seq\":5,\"ts\":\"2026-11-20T17:20:00-08:00\",\"type\":\"set\",\"session_id\":\"s1\",\"exercise\":\"dip\",\"tier\":\"t3\",\"stage\":\"3x12\",\"set_index\":1,\"target_reps\":12,\"actual_reps\":10,\"weight\":0,\"added_lb\":0.0}\n"
+            "{\"v\":2,\"seq\":6,\"ts\":\"2026-11-20T17:30:00-08:00\",\"type\":\"session_end\",\"session_id\":\"s1\",\"program\":\"gzclp\",\"day\":\"A1\",\"started_at\":\"2026-11-20T17:01:00-08:00\",\"duration_sec\":1800}\n";
+
+        const Log log = parseLog(lines);
+        QCOMPARE(log.sets.size(), 2);
+        QVERIFY(log.meta.contains("pull_up"));
+        QCOMPARE(log.meta["pull_up"].bodyweightFactor, 1.0);
+
+        const QVariantMap d = dashboard(log);
+        const QVariantList lifts = d["strength"].toMap()["lifts"].toList();
+        const QVariantMap pullUp = find(lifts, "id", "pull_up");
+        QVERIFY(!pullUp.isEmpty());
+        // Load = 1.0 * 180 + 20 = 200. Epley: 200 * (1 + 10 / 30.0) = 266.666...
+        const double expectedPullUp = 200.0 * (1.0 + 10.0 / 30.0);
+        QCOMPARE(pullUp["latest"].toDouble(), expectedPullUp);
+        QCOMPARE(pullUp["ratio"].toDouble(), expectedPullUp / 180.0);
+
+        const QVariantMap dip = find(lifts, "id", "dip");
+        QVERIFY(!dip.isEmpty());
+        // Default factor for dip: 0.95. BW from bodyWeightOn = 180.0. Added = 0. Load = 0.95 * 180 = 171.0.
+        // Epley: 171.0 * (1 + 10 / 30.0) = 228.0
+        const double expectedDip = 171.0 * (1.0 + 10.0 / 30.0);
+        QCOMPARE(dip["latest"].toDouble(), expectedDip);
+        QCOMPARE(dip["ratio"].toDouble(), expectedDip / 180.0);
+    }
+
+    void waterPerDayAndCleared() {
+        const QByteArray lines =
+            "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-20T08:00:00-08:00\",\"type\":\"water\",\"id\":\"wt1\",\"at\":\"2026-11-20T08:00:00-08:00\",\"ml\":500}\n"
+            "{\"v\":2,\"seq\":2,\"ts\":\"2026-11-20T12:00:00-08:00\",\"type\":\"water\",\"id\":\"wt2\",\"at\":\"2026-11-20T12:00:00-08:00\",\"ml\":750}\n"
+            "{\"v\":2,\"seq\":3,\"ts\":\"2026-11-20T14:00:00-08:00\",\"type\":\"water\",\"id\":\"wt3\",\"at\":\"2026-11-20T14:00:00-08:00\",\"ml\":250}\n"
+            "{\"v\":2,\"seq\":4,\"ts\":\"2026-11-20T14:05:00-08:00\",\"type\":\"water_clear\",\"id\":\"wt3\"}\n"
+            "{\"v\":2,\"seq\":5,\"ts\":\"2026-11-21T09:00:00-08:00\",\"type\":\"water\",\"id\":\"wt4\",\"at\":\"2026-11-21T09:00:00-08:00\",\"ml\":1000}\n";
+
+        const Log log = parseLog(lines);
+        QCOMPARE(log.water.size(), 3);  // wt3 was cleared
+
+        const QVariantMap d = dashboard(log);
+        const QVariantList water = d["water"].toList();
+        QCOMPARE(water.size(), 2);
+        // Day 1: 500 + 750 = 1250 ml
+        QCOMPARE(water[0].toMap()["v"].toDouble(), 1250.0);
+        // Day 2: 1000 ml
+        QCOMPARE(water[1].toMap()["v"].toDouble(), 1000.0);
+    }
+
+    void stretchingSessionsPerWeekAndCleared() {
+        const QByteArray lines =
+            "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-16T08:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st1\",\"at\":\"2026-11-16T08:00:00-08:00\",\"routine\":\"morning\",\"duration_sec\":300,\"moves\":[\"neck\",\"chest\"]}\n"
+            "{\"v\":2,\"seq\":2,\"ts\":\"2026-11-18T20:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st2\",\"at\":\"2026-11-18T20:00:00-08:00\",\"routine\":\"evening\",\"duration_sec\":600,\"moves\":[\"hamstring\",\"quad\"]}\n"
+            "{\"v\":2,\"seq\":3,\"ts\":\"2026-11-19T20:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st3\",\"at\":\"2026-11-19T20:00:00-08:00\",\"routine\":\"discarded\",\"duration_sec\":600,\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":4,\"ts\":\"2026-11-19T20:05:00-08:00\",\"type\":\"stretch_clear\",\"id\":\"st3\"}\n";
+
+        const Log log = parseLog(lines);
+        QCOMPARE(log.stretches.size(), 2);  // st3 was cleared
+        QCOMPARE(log.stretches[0].routine, QString("morning"));
+
+        const QVariantMap d = dashboard(log);
+        const QVariantMap stretches = d["stretches"].toMap();
+        QCOMPARE(stretches["total"].toInt(), 2);
+        const QVariantList perWeek = stretches["perWeek"].toList();
+        QVERIFY(!perWeek.isEmpty());
+        // Week of Nov 16 has 2 stretching sessions
+        QCOMPARE(perWeek.last().toInt(), 2);
     }
 };
 
