@@ -61,6 +61,8 @@ fun SettingsScreen(
     splits: List<Program> = emptyList(),
     onOpenSplit: (String) -> Unit = {},
     onNewSplit: () -> Unit = {},
+    autoAdaptWeights: Boolean = false,
+    onAutoAdaptWeights: (Boolean) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -176,7 +178,13 @@ fun SettingsScreen(
         GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift, and before each split barbell lift at 6 reps or fewer. Not logged.")
 
         GroupHeader("Strength")
-        // Stub for Strength workstream
+        Group {
+            GroupRow(first = true) {
+                Txt("Auto-adapt weights", Type.body, Modifier.weight(1f))
+                Toggle(autoAdaptWeights, "Auto-adapt weights", onAutoAdaptWeights)
+            }
+        }
+        GroupFooter("When recent sets show you are stronger, automatically adopt the suggested weight at session start.")
 
         GroupHeader("Cardio")
         Group {
