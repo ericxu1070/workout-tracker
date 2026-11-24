@@ -175,6 +175,9 @@ fun SettingsScreen(
         }
         GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift, and before each split barbell lift at 6 reps or fewer. Not logged.")
 
+        GroupHeader("Strength")
+        // Stub for Strength workstream
+
         GroupHeader("Cardio")
         Group {
             GroupRow(first = true) {
@@ -184,6 +187,9 @@ fun SettingsScreen(
                 MiniStep(Icons.plus, "Larger weekly cardio goal") { onCardioGoal((cardioGoalMin + 15).coerceAtMost(20 * 60)) }
             }
         }
+
+        GroupHeader("Reminders")
+        // Stub for Reminders workstream
 
         GroupHeader("Weigh-in")
         Group {
@@ -199,6 +205,15 @@ fun SettingsScreen(
             }
         }
         if (weighInReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
+
+        GroupHeader("Food")
+        // Stub for Food workstream
+
+        GroupHeader("Water")
+        // Stub for Water workstream
+
+        GroupHeader("Stretching")
+        // Stub for Stretching workstream
 
         GroupHeader("Health Connect")
         Group {

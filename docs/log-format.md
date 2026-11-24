@@ -15,6 +15,18 @@ The `cardio_start`, `cardio`, and `cardio_clear` types were added within version
 
 Custom splits were added within version 2: the `program_define` and `program_remove` types, the `custom` tier, and the optional `scheme` field on `progression`. A reader that predates them skips the new types, and still reads `custom` sets and sessions as sets and sessions of an unknown tier and program.
 
+Open sessions and session counting were added within version 2: the optional `mode` and `counts` fields on `session_start`, and the optional `counts` field on `session_end`. A reader that predates them ignores them as unknown fields.
+
+Exercise metadata was added within version 2: the `exercise_meta` type. A reader that predates it skips it as an unknown type.
+
+Calisthenics fields on `set` were added within version 2: the optional `added_lb` and `bodyweight_lb` fields. A reader that predates them ignores them as unknown fields.
+
+The `stretch` and `stretch_clear` types were added within version 2. A reader that predates them skips them as unknown types.
+
+The `water` and `water_clear` types were added within version 2. A reader that predates them skips them as unknown types.
+
+The `food_estimate` type was added within version 2. Meal photos never enter the log; only this text does. A reader that predates it skips it as an unknown type.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -189,6 +201,8 @@ An exercise whose sets were all left unlogged in a session gets no progression l
 | `session_id` | string | Unique id, such as `s1794306085`. |
 | `program` | string | The program. |
 | `day` | string | The day being done. |
+| `mode` | string, optional | `"program"` (default) or `"open"`. |
+| `counts` | bool, optional | True (default) if the session counts toward program progress. |
 
 The line's `ts` is the start time.
 
@@ -211,6 +225,8 @@ One logged set. Written when the user taps the set done, and again when they cor
 | `rest_sec` | int, optional | Seconds since the previous set logged in this session. Absent on the first set. |
 | `rest_target_sec` | int, optional | The rest the timer gave after the previous set (by that set's tier; defaults 180 T1, 120 T2, 60 T3, 90 cycle, user-editable, and 120 custom). Absent on the first set. |
 | `rpe` | number, optional | Rate of perceived exertion the user gave the set, 1 to 10 in half steps, always written with one decimal: `8.0`, `8.5`. Absent when not given. It never affects progression. |
+| `added_lb` | number, optional | Weight added (or negative for assistance), lb. |
+| `bodyweight_lb` | number, optional | Body weight snapshot at logging time, lb. |
 
 The line's `ts` is when the set was logged.
 
@@ -253,9 +269,71 @@ The user removed a logged set. It no longer counts.
 | `day` | string | The day. |
 | `started_at` | string | Copy of the `session_start` time. |
 | `duration_sec` | int | Seconds from start to end. |
+| `counts` | bool, optional | The end-of-session answer for whether an open session counts toward program progress. |
 
 A session with no sets still gets a `session_end` (an accidental start). It does not advance the rotation and should not count as a workout.
 At most one session is open at a time. A `session_start` without a `session_end` is the workout in progress.
+
+### `exercise_meta`
+
+Metadata for an exercise, such as calisthenics factor or progression parent.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `exercise` | string | Exercise id. |
+| `bodyweight_factor` | number, optional | Bodyweight multiplier for effective load (e.g. 1.0 for pull-ups, 0.65 for push-ups). |
+| `parent` | string, optional | Exercise id of the parent exercise for weight prefill. |
+| `parent_ratio` | number, optional | Ratio applied to parent's weight for prefill. |
+
+### `stretch`
+
+A finished stretching session.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | Unique stretch session id, such as `st1795834800`. |
+| `at` | string | When completed, ISO-8601 string. |
+| `routine` | string | Routine id (e.g. `after_workout`, `flexibility`). |
+| `duration_sec` | int | Duration in seconds. |
+| `moves` | array of string | List of move ids performed. |
+
+### `stretch_clear`
+
+Deletes a stretching session.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | Stretch session id. |
+
+### `water`
+
+Logs water intake.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | Unique water entry id, such as `wt1795836600`. |
+| `at` | string | When consumed, ISO-8601 string. |
+| `ml` | int | Volume in milliliters. |
+
+### `water_clear`
+
+Deletes a water intake entry.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | Water entry id. |
+
+### `food_estimate`
+
+On-device food classifier estimate for a saved meal photo.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `meal` | string | Photo file name (e.g. `20261201T123000-0800.jpg`). |
+| `label` | string | Food label. |
+| `kcal_low` | int | Lower bound of estimated kcal. |
+| `kcal_high` | int | Upper bound of estimated kcal. |
+| `confirmed` | bool | Whether confirmed by user. |
 
 ### `session_edit`
 
@@ -357,7 +435,7 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":26,"ts":"2026-11-01T09:00:00-08:00","type":"progression","exercise":"squat","tier":"t2","kind":"initial","to_weight":160,"to_stage":"3x10"}
 {"v":2,"seq":27,"ts":"2026-11-01T09:00:00-08:00","type":"progression","exercise":"squat","tier":"cycle","kind":"initial","to_weight":160,"to_stage":"3x12","cycle_week":1,"cycle_base":160}
 {"v":2,"seq":37,"ts":"2026-11-02T18:40:00-08:00","type":"progression","exercise":"lat_pulldown","tier":"t3","kind":"initial","to_weight":100,"to_stage":"3x15+"}
-{"v":2,"seq":38,"ts":"2026-11-02T18:42:05-08:00","type":"session_start","session_id":"s1794191725","program":"gzclp","day":"A1"}
+{"v":2,"seq":38,"ts":"2026-11-02T18:42:05-08:00","type":"session_start","session_id":"s1794191725","program":"gzclp","day":"A1","mode":"program","counts":true}
 {"v":2,"seq":39,"ts":"2026-11-02T18:45:10-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":210,"amrap":false}
 {"v":2,"seq":40,"ts":"2026-11-02T18:48:20-08:00","type":"set","session_id":"s1794191725","exercise":"squat","tier":"t1","stage":"5x3+","set_index":2,"target_reps":3,"actual_reps":3,"target_weight":210,"weight":215,"amrap":false,"rest_sec":190,"rest_target_sec":180,"rpe":8.5}
 {"v":2,"seq":41,"ts":"2026-11-02T19:00:00-08:00","type":"exercise_swap","session_id":"s1794191725","exercise":"lat_pulldown","tier":"t3","substitute":"seated_cable_row"}
@@ -383,4 +461,11 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":104,"ts":"2026-11-24T18:00:00-08:00","type":"progression","exercise":"bench","tier":"custom","kind":"initial","to_weight":155,"to_stage":"5x8","cycle_week":1,"cycle_base":155,"scheme":"5x8,6,5"}
 {"v":2,"seq":105,"ts":"2026-11-24T19:10:00-08:00","type":"progression","exercise":"bench","tier":"custom","kind":"week_advance","from_weight":155,"to_weight":160,"from_stage":"5x8","to_stage":"5x6","session_id":"s1795831200","cycle_week":2,"cycle_base":155,"scheme":"5x8,6,5"}
 {"v":2,"seq":106,"ts":"2026-12-01T07:00:00-08:00","type":"program_remove","program":"my_ppl"}
+{"v":2,"seq":107,"ts":"2026-12-01T08:00:00-08:00","type":"exercise_meta","exercise":"pull_up","bodyweight_factor":1.0}
+{"v":2,"seq":108,"ts":"2026-12-01T08:05:00-08:00","type":"set","session_id":"s1795831200","exercise":"pull_up","tier":"t3","stage":"3x15+","set_index":1,"target_reps":15,"actual_reps":12,"target_weight":0,"weight":0,"amrap":false,"added_lb":10.0,"bodyweight_lb":180.0}
+{"v":2,"seq":109,"ts":"2026-12-01T09:00:00-08:00","type":"stretch","id":"st1795834800","at":"2026-12-01T09:00:00-08:00","routine":"flexibility","duration_sec":600,"moves":["hip_flexor","hamstring"]}
+{"v":2,"seq":110,"ts":"2026-12-01T09:15:00-08:00","type":"stretch_clear","id":"st1795834800"}
+{"v":2,"seq":111,"ts":"2026-12-01T09:30:00-08:00","type":"water","id":"wt1795836600","at":"2026-12-01T09:30:00-08:00","ml":350}
+{"v":2,"seq":112,"ts":"2026-12-01T09:35:00-08:00","type":"water_clear","id":"wt1795836600"}
+{"v":2,"seq":113,"ts":"2026-12-01T12:30:00-08:00","type":"food_estimate","meal":"20261201T123000-0800.jpg","label":"Chicken rice bowl","kcal_low":600,"kcal_high":800,"confirmed":true}
 ```

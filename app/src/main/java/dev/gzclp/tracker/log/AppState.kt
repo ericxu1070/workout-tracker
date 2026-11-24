@@ -103,6 +103,10 @@ data class AppState(
     val cardio: Map<String, Cardio> = emptyMap(),
     /** At most one cardio session runs, independent of [active]; commands keep the two from overlapping. */
     val cardioActive: CardioRun? = null,
+    val exerciseMeta: Map<String, ExerciseMeta> = emptyMap(),
+    val stretches: Map<String, StretchLogged> = emptyMap(),
+    val water: Map<String, WaterLogged> = emptyMap(),
+    val foodEstimates: Map<String, FoodEstimate> = emptyMap(),
     val lastSeq: Long = 0,
 ) {
     val started: Boolean get() = fiveRm.isNotEmpty()
@@ -217,6 +221,12 @@ data class AppState(
                     next = if (a.sets.isEmpty()) next else advanced(a),
                 )
             }
+            is ExerciseMeta -> s.copy(exerciseMeta = exerciseMeta + (e.exercise to e))
+            is StretchLogged -> s.copy(stretches = stretches + (e.id to e))
+            is StretchCleared -> s.copy(stretches = stretches - e.id)
+            is WaterLogged -> s.copy(water = water + (e.id to e))
+            is WaterCleared -> s.copy(water = water - e.id)
+            is FoodEstimate -> s.copy(foodEstimates = foodEstimates + (e.meal to e))
         }
     }
 
