@@ -61,6 +61,10 @@ fun SettingsScreen(
     splits: List<Program> = emptyList(),
     onOpenSplit: (String) -> Unit = {},
     onNewSplit: () -> Unit = {},
+    waterGoalMl: Int = 2500,
+    onWaterGoal: (Int) -> Unit = {},
+    waterReminder: Boolean = false,
+    onWaterReminder: (Boolean) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -210,7 +214,20 @@ fun SettingsScreen(
         // Stub for Food workstream
 
         GroupHeader("Water")
-        // Stub for Water workstream
+        Group {
+            GroupRow(first = true) {
+                Txt("Daily goal", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Less water") { onWaterGoal((waterGoalMl - 100).coerceAtLeast(500)) }
+                Txt("$waterGoalMl ml", Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "More water") { onWaterGoal((waterGoalMl + 100).coerceAtMost(8000)) }
+            }
+            GroupRow(first = false) {
+                Txt("Pace reminder", Type.body, Modifier.weight(1f))
+                Toggle(waterReminder, "Pace reminder", onWaterReminder)
+            }
+        }
+        GroupFooter("Reminds you if water intake falls 500 ml behind pace from wake time to 14 hours later (every 90 min max).")
+        if (waterReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
 
         GroupHeader("Stretching")
         // Stub for Stretching workstream

@@ -1,0 +1,150 @@
+package dev.gzclp.tracker.log
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.OffsetDateTime
+
+class WaterTest {
+    private val t0 = OffsetDateTime.parse("2026-12-01T09:30:00-08:00")
+    private val day = LocalDate.parse("2026-12-01")
+
+    @Test
+    fun logAndClearWater() {
+        val state = AppState()
+        val events = WaterLog.logWater(state, 350, t0, "wt1795836600")
+        assertEquals(1, events.size)
+        val event = events.first() as WaterLogged
+        assertEquals("wt1795836600", event.id)
+        assertEquals(350, event.ml)
+
+        val applied = state.apply(Entry(1, t0, event))
+        assertEquals(1, applied.water.size)
+        assertEquals(350, WaterLog.totalMlForDay(applied, day))
+        assertEquals("wt1795836600", WaterLog.lastEntry(applied, day)?.id)
+
+        val clearEvents = WaterLog.clearWater("wt1795836600")
+        assertEquals(1, clearEvents.size)
+        val cleared = applied.apply(Entry(2, t0.plusMinutes(5), clearEvents.first()))
+        assertEquals(0, cleared.water.size)
+        assertEquals(0, WaterLog.totalMlForDay(cleared, day))
+        assertNull(WaterLog.lastEntry(cleared, day))
+    }
+
+    @Test
+    fun undoLastWater() {
+        var s = AppState()
+        val e1 = WaterLog.logWater(s, 200, t0, "wt1").first()
+        s = s.apply(Entry(1, t0, e1))
+        val e2 = WaterLog.logWater(s, 300, t0.plusHours(1), "wt2").first()
+        s = s.apply(Entry(2, t0.plusHours(1), e2))
+
+        assertEquals(500, WaterLog.totalMlForDay(s, day))
+        assertEquals("wt2", WaterLog.lastEntry(s, day)?.id)
+
+        val undo = WaterLog.undoLast(s, day)
+        assertEquals(1, undo.size)
+        s = s.apply(Entry(3, t0.plusHours(1).plusMinutes(1), undo.first()))
+        assertEquals(200, WaterLog.totalMlForDay(s, day))
+        assertEquals("wt1", WaterLog.lastEntry(s, day)?.id)
+    }
+
+    @Test
+    fun expectedIntakeLinearPace() {
+        val wake = LocalTime.of(7, 0)
+        val goal = 2800
+
+        // Before wake: 0 expected
+        assertEquals(0, WaterLog.expectedIntakeMl(LocalTime.of(6, 30), goal, wake, activeHours = 14))
+
+        // At wake: 0 expected
+        assertEquals(0, WaterLog.expectedIntakeMl(LocalTime.of(7, 0), goal, wake, activeHours = 14))
+
+        // 7 hours after wake (halfway, 14:00): half goal = 1400 ml
+        assertEquals(1400, WaterLog.expectedIntakeMl(LocalTime.of(14, 0), goal, wake, activeHours = 14))
+
+        // 10.5 hours after wake (3/4 of 14h, 17:30): 2100 ml
+        assertEquals(2100, WaterLog.expectedIntakeMl(LocalTime.of(17, 30), goal, wake, activeHours = 14))
+
+        // At wake + 14h (21:00): full goal = 2800 ml
+        assertEquals(2800, WaterLog.expectedIntakeMl(LocalTime.of(21, 0), goal, wake, activeHours = 14))
+
+        // After wake + 14h (22:00): full goal
+        assertEquals(2800, WaterLog.expectedIntakeMl(LocalTime.of(22, 0), goal, wake, activeHours = 14))
+    }
+
+    @Test
+    fun deficitCalculation() {
+        val wake = LocalTime.of(7, 0)
+        val goal = 2800 // 200 ml per hour over 14h
+
+        // At 12:00 (5 hours in): expected = 1000 ml
+        // If intake is 400 ml: deficit = 600 ml
+        assertEquals(600, WaterLog.intakeDeficitMl(400, LocalTime.of(12, 0), goal, wake, activeHours = 14))
+
+        // If intake is 1200 ml: deficit = -200 ml (ahead of pace)
+        assertEquals(-200, WaterLog.intakeDeficitMl(1200, LocalTime.of(12, 0), goal, wake, activeHours = 14))
+    }
+
+    @Test
+    fun reminderLogic() {
+        val wake = LocalTime.of(7, 0)
+        val goal = 2800 // 200 ml/hr
+
+        // Outside active window: before wake
+        assertFalse(WaterLog.shouldRemind(0, LocalTime.of(6, 0), goal, wake))
+
+        // Outside active window: after wake + 14h (21:00)
+        assertFalse(WaterLog.shouldRemind(1000, LocalTime.of(21, 30), goal, wake))
+
+        // Inside window at 12:00 (expected 1000 ml)
+        // Intake 400 ml -> deficit 600 ml > 500 ml -> should remind
+        assertTrue(WaterLog.shouldRemind(400, LocalTime.of(12, 0), goal, wake))
+
+        // Intake 600 ml -> deficit 400 ml <= 500 ml -> do not remind
+        assertFalse(WaterLog.shouldRemind(600, LocalTime.of(12, 0), goal, wake))
+
+        // Cooldown test: notified at 11:00, now 12:00 (only 60 min elapsed < 90 min) -> false
+        assertFalse(
+            WaterLog.shouldRemind(
+                currentIntakeMl = 400,
+                now = LocalTime.of(12, 0),
+                goalMl = goal,
+                wakeTime = wake,
+                lastReminderTime = LocalTime.of(11, 0),
+            )
+        )
+
+        // Cooldown test: notified at 10:15, now 12:00 (105 min elapsed >= 90 min) -> true
+        assertTrue(
+            WaterLog.shouldRemind(
+                currentIntakeMl = 400,
+                now = LocalTime.of(12, 0),
+                goalMl = goal,
+                wakeTime = wake,
+                lastReminderTime = LocalTime.of(10, 15),
+            )
+        )
+    }
+
+    @Test
+    fun unitConversions() {
+        // 1 oz = 29.5735 ml
+        assertEquals(30, WaterLog.ozToMl(1.0))
+        assertEquals(296, WaterLog.ozToMl(10.0))
+        val oz = WaterLog.mlToOz(300)
+        assertTrue(oz > 10.1 && oz < 10.2)
+
+        val formattedLb = WaterLog.formatVolume(300, isLb = true)
+        assertTrue(formattedLb.contains("oz"))
+        assertTrue(formattedLb.contains("300 ml"))
+
+        val formattedNonLb = WaterLog.formatVolume(300, isLb = false)
+        assertEquals("300 ml", formattedNonLb)
+    }
+}
