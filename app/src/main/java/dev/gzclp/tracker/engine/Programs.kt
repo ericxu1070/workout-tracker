@@ -27,10 +27,42 @@ object Catalog {
         Move("leg_curl", "Leg curl"),
         Move("leg_extension", "Leg extension"),
         Move("calf_raise", "Calf raise"),
+        Move("push_up", "Push-up"),
+        Move("weighted_push_up", "Weighted push-up"),
+        Move("assisted_push_up", "Assisted push-up"),
+        Move("pull_up", "Pull-up"),
+        Move("weighted_pull_up", "Weighted pull-up"),
+        Move("assisted_pull_up", "Assisted pull-up"),
+        Move("chin_up", "Chin-up"),
+        Move("weighted_chin_up", "Weighted chin-up"),
+        Move("assisted_chin_up", "Assisted chin-up"),
+        Move("dip", "Dip"),
+        Move("weighted_dip", "Weighted dip"),
+        Move("assisted_dip", "Assisted dip"),
+        Move("muscle_up", "Muscle-up"),
+        Move("weighted_muscle_up", "Weighted muscle-up"),
+        Move("assisted_muscle_up", "Assisted muscle-up"),
+        Move("inverted_row", "Inverted row"),
+        Move("weighted_inverted_row", "Weighted inverted row"),
+        Move("assisted_inverted_row", "Assisted inverted row"),
+        Move("pistol_squat", "Pistol squat", true),
+        Move("weighted_pistol_squat", "Weighted pistol squat", true),
+        Move("assisted_pistol_squat", "Assisted pistol squat", true),
     )
 
     /** Exercises loaded on a barbell: their targets round to what the plates make, and each set shows its plates. */
     val barbell = setOf("squat", "bench", "deadlift", "ohp", "barbell_row", "barbell_curl", "romanian_deadlift")
+
+    /** Calisthenics exercises and their variants. */
+    val calisthenics = setOf(
+        "push_up", "weighted_push_up", "assisted_push_up",
+        "pull_up", "weighted_pull_up", "assisted_pull_up",
+        "chin_up", "weighted_chin_up", "assisted_chin_up",
+        "dip", "weighted_dip", "assisted_dip",
+        "muscle_up", "weighted_muscle_up", "assisted_muscle_up",
+        "inverted_row", "weighted_inverted_row", "assisted_inverted_row",
+        "pistol_squat", "weighted_pistol_squat", "assisted_pistol_squat",
+    )
 }
 
 /** One exercise slot in a program day. Cycle programs use [Tier.CYCLE] for every slot; custom splits use [Tier.CUSTOM] with a [wave]. */
