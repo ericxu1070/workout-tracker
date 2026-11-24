@@ -10,16 +10,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import dev.gzclp.tracker.engine.Cycle
 import dev.gzclp.tracker.engine.Schemes
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Wave
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.ExerciseLog
+import dev.gzclp.tracker.log.ExerciseMeta
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.SessionBest
+import dev.gzclp.tracker.log.bodyweightFactor
+import dev.gzclp.tracker.log.calisthenicsBests
+import dev.gzclp.tracker.log.calisthenicsProgression
 import dev.gzclp.tracker.log.dailyBodyWeight
+import dev.gzclp.tracker.log.defaultBodyweightFactor
+import dev.gzclp.tracker.log.isCalisthenics
 import dev.gzclp.tracker.log.ratios
 import dev.gzclp.tracker.log.sevenDayAverage
 import dev.gzclp.tracker.log.weighIns
@@ -30,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import java.time.LocalDate
 import dev.gzclp.tracker.ui.Type.tabular
+import kotlin.math.roundToInt
 
 @Composable
 fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () -> Unit, onLogWeight: () -> Unit) {
@@ -67,7 +80,7 @@ fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () 
         GroupHeader("Lifts")
         Group {
             logs.forEachIndexed { i, log ->
-                val best = log.bests.lastOrNull()
+                val best = (if (isCalisthenics(log.id)) calisthenicsBests(state, log) else log.bests).lastOrNull()
                 GroupRow(first = i == 0, onClick = { onOpen(log.id) }) {
                     Column(Modifier.weight(1f)) {
                         Txt(state.name(log.id), Type.headline, maxLines = 1)
@@ -88,10 +101,23 @@ fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () 
 }
 
 @Composable
-fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogWeight: () -> Unit, initialRelative: Boolean = false) {
+fun ExerciseScreen(
+    state: AppState,
+    log: ExerciseLog,
+    onBack: () -> Unit,
+    onLogWeight: () -> Unit,
+    initialRelative: Boolean = false,
+    onSaveMeta: ((ExerciseMeta) -> Unit)? = null,
+) {
     val p = LocalPalette.current
-    val bests = log.bests
+    val isBodyweight = isCalisthenics(log.id)
+    val bests = if (isBodyweight) calisthenicsBests(state, log) else log.bests
     var relative by rememberSaveable { mutableStateOf(initialRelative) }
+    val factor = bodyweightFactor(log.id, state.exerciseMeta[log.id]) ?: 1.0
+    val defaultFactor = defaultBodyweightFactor(log.id) ?: 1.0
+    var editingFactor by rememberSaveable { mutableStateOf(false) }
+    var factorInput by rememberSaveable { mutableStateOf((factor * 100).roundToInt().toString()) }
+
     ScreenFrame {
         NavRow(onBack)
         Txt(state.name(log.id), Type.largeTitle)
@@ -125,6 +151,56 @@ fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogW
             )
         }
 
+        if (isBodyweight) {
+            GroupHeader("Bodyweight factor")
+            Group {
+                if (editingFactor) {
+                    GroupRow(first = true) {
+                        Column(Modifier.weight(1f)) {
+                            Txt("Factor (%)", Type.headline)
+                            Txt("Default ${(defaultFactor * 100).roundToInt()}% · Approximations are editable per exercise", Type.footnote, color = p.fg2)
+                        }
+                        BasicTextField(
+                            value = factorInput,
+                            onValueChange = { factorInput = it.filter { ch -> ch.isDigit() } },
+                            textStyle = Type.subhead.tabular().copy(color = p.fg, textAlign = TextAlign.End),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                val pct = factorInput.toIntOrNull()
+                                if (pct != null && pct > 0) {
+                                    val newFactor = pct / 100.0
+                                    onSaveMeta?.invoke(ExerciseMeta(exercise = log.id, bodyweightFactor = newFactor))
+                                }
+                                editingFactor = false
+                            }),
+                            modifier = Modifier.width(60.dp),
+                        )
+                    }
+                    GroupRow(first = false, onClick = {
+                        val pct = factorInput.toIntOrNull()
+                        if (pct != null && pct > 0) {
+                            val newFactor = pct / 100.0
+                            onSaveMeta?.invoke(ExerciseMeta(exercise = log.id, bodyweightFactor = newFactor))
+                        }
+                        editingFactor = false
+                    }) {
+                        Txt("Save factor", Type.body, color = p.accent)
+                    }
+                } else {
+                    GroupRow(first = true, onClick = { editingFactor = true }) {
+                        Column(Modifier.weight(1f)) {
+                            Txt("Bodyweight factor", Type.headline)
+                            Txt("Approximations are editable per exercise", Type.footnote, color = p.fg2)
+                        }
+                        Txt("${(factor * 100).roundToInt()}%", Type.subhead.tabular(), color = p.fg2)
+                        Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                    }
+                }
+            }
+            GroupFooter("Approximations are editable per exercise (exercise_meta event).")
+        }
+
         val now = buildList {
             state.cycle[log.id]?.let { c ->
                 val w = Cycle.weight(c, state.step(log.id))
@@ -137,6 +213,10 @@ fun ExerciseScreen(state: AppState, log: ExerciseLog, onBack: () -> Unit, onLogW
             }
             listOf(Tier.T1, Tier.T2, Tier.T3).forEach { t ->
                 state.gz[log.id to t]?.let { add("GZCLP ${t.label}" to "${Schemes.of(t)[it.stage].display} at ${Fmt.lb(it.weight)}") }
+            }
+            if (isBodyweight) {
+                val prog = calisthenicsProgression(log.id, log.last.second)
+                add("Progression" to prog.suggestion)
             }
         }
         if (now.isNotEmpty()) {
@@ -225,20 +305,22 @@ fun BodyWeightScreen(state: AppState, today: LocalDate, onBack: () -> Unit, onLo
         val dayAt = entries.groupBy { it.at.toLocalDate() }.mapValues { it.value.first().at }
         val firstAvg = avg.firstEntry()
         val lastAvg = avg.lastEntry()
-        val delta = lastAvg.value - firstAvg.value
-        Spacer(Modifier.height(Space.lg))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Txt(Fmt.lb(lastAvg.value), Type.title1)
-            Spacer(Modifier.width(Space.sm))
-            Txt(
-                "7-day average" + when {
-                    avg.size == 1 -> ""
-                    delta >= 0.05 -> ", up ${Fmt.tenths(delta)} lb since ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
-                    delta <= -0.05 -> ", down ${Fmt.tenths(-delta)} lb since ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
-                    else -> ", same as ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
-                },
-                Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2,
-            )
+        if (firstAvg != null && lastAvg != null) {
+            val delta = lastAvg.value - firstAvg.value
+            Spacer(Modifier.height(Space.lg))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Txt(Fmt.lb(lastAvg.value), Type.title1)
+                Spacer(Modifier.width(Space.sm))
+                Txt(
+                    "7-day average" + when {
+                        avg.size == 1 -> ""
+                        delta >= 0.05 -> ", up ${Fmt.tenths(delta)} lb since ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
+                        delta <= -0.05 -> ", down ${Fmt.tenths(-delta)} lb since ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
+                        else -> ", same as ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
+                    },
+                    Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2,
+                )
+            }
         }
         Spacer(Modifier.height(Space.md))
         LineChart(
