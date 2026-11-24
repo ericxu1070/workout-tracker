@@ -63,6 +63,14 @@ fun SettingsScreen(
     onNewSplit: () -> Unit = {},
     autoAdaptWeights: Boolean = false,
     onAutoAdaptWeights: (Boolean) -> Unit = {},
+    mealReminder: Boolean = true,
+    onMealReminder: (Boolean) -> Unit = {},
+    stretchReminder: Boolean = false,
+    stretchReminderMinutes: Int = 20 * 60,
+    onStretchReminder: (Boolean) -> Unit = {},
+    onStretchReminderTime: (Int) -> Unit = {},
+    waterReminder: Boolean = false,
+    onWaterReminder: (Boolean) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -197,9 +205,6 @@ fun SettingsScreen(
         }
 
         GroupHeader("Reminders")
-        // Stub for Reminders workstream
-
-        GroupHeader("Weigh-in")
         Group {
             GroupRow(first = true) {
                 Txt("Morning reminder", Type.body, Modifier.weight(1f))
@@ -211,8 +216,28 @@ fun SettingsScreen(
                 Txt(Fmt.clockTime(weighInMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
                 MiniStep(Icons.plus, "Later reminder") { onWeighInTime((weighInMinutes + 15) % (24 * 60)) }
             }
+            GroupRow(first = false) {
+                Txt("Meals", Type.body, Modifier.weight(1f))
+                Toggle(mealReminder, "Meal reminder", onMealReminder)
+            }
+            GroupRow(first = false) {
+                Txt("Stretching", Type.body, Modifier.weight(1f))
+                Toggle(stretchReminder, "Stretch reminder", onStretchReminder)
+            }
+            if (stretchReminder) GroupRow(first = false) {
+                Txt("Stretch time", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Earlier stretch reminder") { onStretchReminderTime((stretchReminderMinutes - 15).mod(24 * 60)) }
+                Txt(Fmt.clockTime(stretchReminderMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "Later stretch reminder") { onStretchReminderTime((stretchReminderMinutes + 15) % (24 * 60)) }
+            }
+            GroupRow(first = false) {
+                Txt("Water", Type.body, Modifier.weight(1f))
+                Toggle(waterReminder, "Water reminder", onWaterReminder)
+            }
         }
-        if (weighInReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
+        if ((weighInReminder || mealReminder || stretchReminder || waterReminder) && !notificationsAllowed) {
+            GroupFooter("Allow notifications below to get the reminder.")
+        }
 
         GroupHeader("Food")
         // Stub for Food workstream
