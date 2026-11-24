@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Increments
@@ -75,6 +77,10 @@ fun SettingsScreen(
     onSaveToGallery: ((Boolean) -> Unit)? = null,
     waterGoalMl: Int = 2500,
     onWaterGoal: (Int) -> Unit = {},
+    defaultStretchRoutine: String? = null,
+    onStretchRoutine: ((String) -> Unit)? = null,
+    onOpenStretchPlayer: ((String) -> Unit)? = null,
+    onOpenStretchLibrary: (() -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -87,6 +93,42 @@ fun SettingsScreen(
         if (dev.gzclp.tracker.food.FoodLog.defaultExport == null) {
             dev.gzclp.tracker.food.FoodLog.defaultExport = dev.gzclp.tracker.food.GalleryExport(context, prefs)
         }
+    }
+    val stretchSp = androidx.compose.runtime.remember(context) {
+        context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE)
+    }
+    var currentStretchRoutineId by androidx.compose.runtime.remember(defaultStretchRoutine) {
+        androidx.compose.runtime.mutableStateOf(
+            defaultStretchRoutine ?: stretchSp.getString("stretch_default_routine", dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT) ?: dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT
+        )
+    }
+    var activeStretchRoutine by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf<dev.gzclp.tracker.stretch.StretchRoutine?>(null)
+    }
+    var showStretchLibrary by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+
+    if (activeStretchRoutine != null) {
+        GuidedStretchPlayerScreen(
+            routine = activeStretchRoutine!!,
+            onBack = { activeStretchRoutine = null },
+            onFinish = { logged ->
+                activeStretchRoutine = null
+                runCatching { dev.gzclp.tracker.AppModel.get(context).dispatch { listOf(logged) } }
+            },
+        )
+        return
+    }
+    if (showStretchLibrary) {
+        StretchScreen(
+            onBack = { showStretchLibrary = false },
+            onStartRoutine = { routine ->
+                showStretchLibrary = false
+                activeStretchRoutine = routine
+            },
+        )
+        return
     }
     ScreenFrame {
         NavRow(onBack)
@@ -284,7 +326,47 @@ fun SettingsScreen(
         if (waterReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
 
         GroupHeader("Stretching")
-        // Stub for Stretching workstream
+        val routineOptions = listOf(
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT to "After workout",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_FLEXIBILITY to "Flexibility",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_DANCE to "Dance",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS to "Athletics",
+        )
+        val selectedRoutineName = routineOptions.firstOrNull { it.first == currentStretchRoutineId }?.second ?: "After workout"
+        Group {
+            GroupRow(first = true, onClick = {
+                val currentIndex = routineOptions.indexOfFirst { it.first == currentStretchRoutineId }
+                val nextIndex = (currentIndex + 1) % routineOptions.size
+                val nextId = routineOptions[nextIndex].first
+                currentStretchRoutineId = nextId
+                stretchSp.edit().putString("stretch_default_routine", nextId).apply()
+                onStretchRoutine?.invoke(nextId)
+            }) {
+                Txt("Default routine", Type.body, Modifier.weight(1f))
+                Txt(selectedRoutineName, Type.body, color = p.accent)
+            }
+            GroupRow(first = false, onClick = {
+                if (onOpenStretchPlayer != null) {
+                    onOpenStretchPlayer(currentStretchRoutineId)
+                } else {
+                    activeStretchRoutine = dev.gzclp.tracker.stretch.StretchRoutines.of(currentStretchRoutineId)
+                }
+            }) {
+                Txt("Start routine", Type.body, Modifier.weight(1f), color = p.accent)
+                Icon(Icons.play, p.accent, size = 18.dp)
+            }
+            GroupRow(first = false, onClick = {
+                if (onOpenStretchLibrary != null) {
+                    onOpenStretchLibrary()
+                } else {
+                    showStretchLibrary = true
+                }
+            }) {
+                Txt("Move library & routines", Type.body, Modifier.weight(1f))
+                Icon(Icons.chevronRight, p.fg2, size = 18.dp)
+            }
+        }
+        GroupFooter(dev.gzclp.tracker.stretch.StretchRoutines.COACHING_DISCLAIMER)
 
         GroupHeader("Health Connect")
         Group {
