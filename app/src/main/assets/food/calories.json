@@ -1,0 +1,7958 @@
+{
+  "Chicken rice bowl": [
+    600,
+    800
+  ],
+  "Pizza": [
+    500,
+    800
+  ],
+  "Burger": [
+    450,
+    750
+  ],
+  "Cheeseburger": [
+    450,
+    750
+  ],
+  "French fries": [
+    300,
+    500
+  ],
+  "Salad": [
+    200,
+    450
+  ],
+  "Sandwich": [
+    350,
+    650
+  ],
+  "Spaghetti": [
+    450,
+    750
+  ],
+  "Pasta": [
+    450,
+    750
+  ],
+  "Steak": [
+    500,
+    800
+  ],
+  "Sushi": [
+    250,
+    500
+  ],
+  "Ramen": [
+    450,
+    750
+  ],
+  "Burrito": [
+    550,
+    850
+  ],
+  "Taco": [
+    400,
+    650
+  ],
+  "Fried chicken": [
+    350,
+    650
+  ],
+  "Fried rice": [
+    400,
+    650
+  ],
+  "Pancakes": [
+    350,
+    600
+  ],
+  "Omelette": [
+    200,
+    400
+  ],
+  "Salmon": [
+    300,
+    550
+  ],
+  "Curry": [
+    500,
+    800
+  ],
+  "Apple pie": [
+    250,
+    500
+  ],
+  "Ice cream": [
+    200,
+    400
+  ],
+  "Bagel": [
+    250,
+    400
+  ],
+  "Chaudin": [
+    400,
+    650
+  ],
+  "Bambalouni": [
+    400,
+    650
+  ],
+  "Ghoriba": [
+    400,
+    650
+  ],
+  "Mango sticky rice": [
+    400,
+    650
+  ],
+  "Jianbing": [
+    400,
+    650
+  ],
+  "Aguachile": [
+    400,
+    650
+  ],
+  "Carrozza": [
+    400,
+    650
+  ],
+  "Miyan kuka": [
+    400,
+    650
+  ],
+  "Efo riro": [
+    400,
+    650
+  ],
+  "Ayam masak merah": [
+    180,
+    350
+  ],
+  "Chiffon pie": [
+    250,
+    500
+  ],
+  "Riso patate e cozze": [
+    400,
+    650
+  ],
+  "Bazin": [
+    400,
+    650
+  ],
+  "Black bottom pie": [
+    250,
+    500
+  ],
+  "Pal\u00f3c soup": [
+    200,
+    400
+  ],
+  "Sailor sandwich": [
+    350,
+    650
+  ],
+  "Tuwo shinkafa": [
+    400,
+    650
+  ],
+  "Carne a la tampique\u00f1a": [
+    400,
+    650
+  ],
+  "Pastel azteca": [
+    400,
+    650
+  ],
+  "Fujian red wine chicken": [
+    350,
+    650
+  ],
+  "Boeber": [
+    400,
+    650
+  ],
+  "Lady Baltimore cake": [
+    250,
+    500
+  ],
+  "Yam khai dao": [
+    180,
+    350
+  ],
+  "Texas Tommy": [
+    400,
+    650
+  ],
+  "Har cheong gai": [
+    400,
+    650
+  ],
+  "Kolokythopita": [
+    150,
+    300
+  ],
+  "Karydopita": [
+    150,
+    300
+  ],
+  "Rinflaj\u0161": [
+    400,
+    650
+  ],
+  "Hainanese curry rice": [
+    400,
+    650
+  ],
+  "Sonoran hot dog": [
+    300,
+    450
+  ],
+  "Afghani burger": [
+    450,
+    750
+  ],
+  "Teochew porridge": [
+    200,
+    380
+  ],
+  "Minestra di ceci": [
+    400,
+    650
+  ],
+  "Pastrami on rye": [
+    450,
+    750
+  ],
+  "Roast beef sandwich": [
+    350,
+    650
+  ],
+  "Chahan": [
+    400,
+    650
+  ],
+  "Ekuru": [
+    400,
+    650
+  ],
+  "Sciusceddu": [
+    400,
+    650
+  ],
+  "Breakfast burrito": [
+    550,
+    850
+  ],
+  "Sausage Stroganoff": [
+    300,
+    450
+  ],
+  "Roti jala": [
+    400,
+    650
+  ],
+  "Pirao": [
+    400,
+    650
+  ],
+  "Casatiello": [
+    400,
+    650
+  ],
+  "Khanom tan": [
+    400,
+    650
+  ],
+  "Muamba chicken": [
+    350,
+    650
+  ],
+  "Dobradinha": [
+    400,
+    650
+  ],
+  "Bruckfleisch": [
+    400,
+    650
+  ],
+  "Molote": [
+    400,
+    650
+  ],
+  "Spongata": [
+    400,
+    650
+  ],
+  "Funge": [
+    400,
+    650
+  ],
+  "K\u00f6ttbullar": [
+    400,
+    650
+  ],
+  "Ka'ak": [
+    400,
+    650
+  ],
+  "Papet vaudois": [
+    400,
+    650
+  ],
+  "Prosciutto di Norcia": [
+    400,
+    650
+  ],
+  "Malloreddus": [
+    400,
+    650
+  ],
+  "Pannenkoek": [
+    400,
+    650
+  ],
+  "Dirty macaroni": [
+    450,
+    750
+  ],
+  "Garlic butter shrimp": [
+    250,
+    500
+  ],
+  "Fricasse": [
+    400,
+    650
+  ],
+  "Stracciatella": [
+    400,
+    650
+  ],
+  "Sart\u00f9": [
+    400,
+    650
+  ],
+  "Matelote": [
+    400,
+    650
+  ],
+  "Baodu": [
+    300,
+    550
+  ],
+  "Mattentaart": [
+    400,
+    650
+  ],
+  "Cartellate": [
+    400,
+    650
+  ],
+  "Gyeran-ppang": [
+    400,
+    650
+  ],
+  "Torta Pasqualina": [
+    400,
+    650
+  ],
+  "Caltabo\u0219": [
+    400,
+    650
+  ],
+  "Khanom mo kaeng": [
+    400,
+    650
+  ],
+  "Suimono": [
+    400,
+    650
+  ],
+  "Dimlama": [
+    400,
+    650
+  ],
+  "Tav\u00eb Kosi": [
+    400,
+    650
+  ],
+  "Kalach": [
+    400,
+    650
+  ],
+  "Jambon persill\u00e9": [
+    400,
+    650
+  ],
+  "Pork Bones": [
+    400,
+    650
+  ],
+  "Pozharsky cutlet": [
+    400,
+    650
+  ],
+  "Roccoc\u00f2": [
+    400,
+    650
+  ],
+  "Feij\u00e3o de \u00f3leo de palma": [
+    400,
+    650
+  ],
+  "Calulu": [
+    400,
+    650
+  ],
+  "Bey's Soup": [
+    200,
+    400
+  ],
+  "Th\u1ecbt kho t\u00e0u": [
+    400,
+    650
+  ],
+  "Bon bon chicken": [
+    350,
+    650
+  ],
+  "Zoque": [
+    400,
+    650
+  ],
+  "Bint al-sahn": [
+    400,
+    650
+  ],
+  "Tempoyak": [
+    400,
+    650
+  ],
+  "Puran poli": [
+    400,
+    650
+  ],
+  "Chueo-tang": [
+    400,
+    650
+  ],
+  "Naem": [
+    400,
+    650
+  ],
+  "Pizokel": [
+    400,
+    650
+  ],
+  "Schiacciata": [
+    400,
+    650
+  ],
+  "Daheen": [
+    400,
+    650
+  ],
+  "Chapssal-tteok": [
+    400,
+    650
+  ],
+  "Crescentina modenese": [
+    400,
+    650
+  ],
+  "Pansotti": [
+    400,
+    650
+  ],
+  "Fried eggplant": [
+    200,
+    400
+  ],
+  "Portuguese seafood rice": [
+    400,
+    650
+  ],
+  "Tripes \u00e0 la mode de Caen": [
+    400,
+    650
+  ],
+  "Brenebon": [
+    400,
+    650
+  ],
+  "Gnocco fritto": [
+    400,
+    650
+  ],
+  "Tahu tek-tek": [
+    400,
+    650
+  ],
+  "Bibikkan": [
+    400,
+    650
+  ],
+  "Squid tongseng": [
+    400,
+    650
+  ],
+  "Bundevara": [
+    150,
+    300
+  ],
+  "Sop saudara": [
+    400,
+    650
+  ],
+  "Erbazzone": [
+    400,
+    650
+  ],
+  "Kisra": [
+    400,
+    650
+  ],
+  "Meat from tiblica": [
+    400,
+    650
+  ],
+  "Yufka": [
+    400,
+    650
+  ],
+  "Pisarei e fa\u015b\u00f6": [
+    400,
+    650
+  ],
+  "Pampushka": [
+    400,
+    650
+  ],
+  "Makowiec": [
+    400,
+    650
+  ],
+  "Saleeg": [
+    400,
+    650
+  ],
+  "J\u00f3kai bean soup": [
+    200,
+    400
+  ],
+  "Bookbinder soup": [
+    200,
+    400
+  ],
+  "Selat solo": [
+    400,
+    650
+  ],
+  "Kutsinta": [
+    400,
+    650
+  ],
+  "Sago soup": [
+    200,
+    400
+  ],
+  "Vinegret": [
+    400,
+    650
+  ],
+  "Shrimp and grits": [
+    250,
+    500
+  ],
+  "Sirop de Li\u00e8ge": [
+    400,
+    650
+  ],
+  "Woku": [
+    400,
+    650
+  ],
+  "Muhallebi": [
+    400,
+    650
+  ],
+  "Gepuk": [
+    400,
+    650
+  ],
+  "Fou\u00e9e": [
+    400,
+    650
+  ],
+  "Octopus": [
+    400,
+    650
+  ],
+  "Koba": [
+    400,
+    650
+  ],
+  "B\u00f2 l\u00fac l\u1eafc": [
+    400,
+    650
+  ],
+  "Squid l\u016b'au": [
+    400,
+    650
+  ],
+  "Shrimp Louie": [
+    250,
+    500
+  ],
+  "Black pudding": [
+    200,
+    400
+  ],
+  "Cherry kebab": [
+    350,
+    650
+  ],
+  "Pitsi-pits\u00ee": [
+    400,
+    650
+  ],
+  "Sabich salad": [
+    200,
+    450
+  ],
+  "Mie kocok": [
+    400,
+    650
+  ],
+  "Maraca pie": [
+    250,
+    500
+  ],
+  "Banga": [
+    400,
+    650
+  ],
+  "Baccal\u00e0 alla lucana": [
+    400,
+    650
+  ],
+  "Nasi tumpang": [
+    400,
+    650
+  ],
+  "Gratin dauphinois": [
+    400,
+    650
+  ],
+  "Arroz chaufa": [
+    400,
+    650
+  ],
+  "Kuih": [
+    400,
+    650
+  ],
+  "Ayam goreng": [
+    180,
+    350
+  ],
+  "Chongos zamoranos": [
+    400,
+    650
+  ],
+  "M\u0103m\u0103lig\u0103": [
+    400,
+    650
+  ],
+  "Candied almonds": [
+    400,
+    650
+  ],
+  "Lasagne": [
+    400,
+    650
+  ],
+  "Pecel Lele": [
+    400,
+    650
+  ],
+  "Lettuce soup": [
+    200,
+    400
+  ],
+  "Acquacotta": [
+    400,
+    650
+  ],
+  "Pork blood soup": [
+    200,
+    400
+  ],
+  "Buridda": [
+    400,
+    650
+  ],
+  "Maccu": [
+    400,
+    650
+  ],
+  "Turkey Devonshire": [
+    350,
+    650
+  ],
+  "Ginestrata": [
+    400,
+    650
+  ],
+  "Garmugia": [
+    400,
+    650
+  ],
+  "Meringue": [
+    400,
+    650
+  ],
+  "Peanut butter and jelly sandwich": [
+    350,
+    650
+  ],
+  "Couque de Dinant": [
+    400,
+    650
+  ],
+  "Omo tuo": [
+    400,
+    650
+  ],
+  "Thapthim krop": [
+    400,
+    650
+  ],
+  "Pie tee": [
+    250,
+    500
+  ],
+  "Sutarfeni": [
+    400,
+    650
+  ],
+  "Raclette": [
+    400,
+    650
+  ],
+  "Wotou": [
+    400,
+    650
+  ],
+  "Punugulu": [
+    400,
+    650
+  ],
+  "Succotash": [
+    400,
+    650
+  ],
+  "Chim chum": [
+    400,
+    650
+  ],
+  "Wachipa": [
+    400,
+    650
+  ],
+  "Boat noodles": [
+    450,
+    750
+  ],
+  "Tantuni": [
+    400,
+    650
+  ],
+  "Shab Deg": [
+    400,
+    650
+  ],
+  "Ch\u1ea3 gi\u00f2": [
+    400,
+    650
+  ],
+  "Ciabatta Bacon Cheeseburger": [
+    450,
+    750
+  ],
+  "Mie kangkung": [
+    400,
+    650
+  ],
+  "Tuwo masara": [
+    400,
+    650
+  ],
+  "Kokonte": [
+    400,
+    650
+  ],
+  "Akple": [
+    400,
+    650
+  ],
+  "Kware\u017cimal": [
+    400,
+    650
+  ],
+  "Bento": [
+    400,
+    650
+  ],
+  "Osechi": [
+    400,
+    650
+  ],
+  "Okonomiyaki": [
+    400,
+    650
+  ],
+  "Miso soup": [
+    200,
+    400
+  ],
+  "Dango": [
+    400,
+    650
+  ],
+  "Onigiri": [
+    400,
+    650
+  ],
+  "Hiyayakko": [
+    400,
+    650
+  ],
+  "Tempura": [
+    400,
+    650
+  ],
+  "Mochi": [
+    400,
+    650
+  ],
+  "Peppersoup": [
+    200,
+    400
+  ],
+  "Caldo de queso": [
+    400,
+    650
+  ],
+  "Dodo ikire": [
+    400,
+    650
+  ],
+  "Uir\u014d": [
+    400,
+    650
+  ],
+  "Hong dou tang": [
+    400,
+    650
+  ],
+  "Kakig\u014dri": [
+    400,
+    650
+  ],
+  "Khichu": [
+    400,
+    650
+  ],
+  "Bolo de arroz": [
+    400,
+    650
+  ],
+  "Chips and dip": [
+    150,
+    350
+  ],
+  "Murgh musallam": [
+    400,
+    650
+  ],
+  "Utica greens": [
+    400,
+    650
+  ],
+  "Zaalouk": [
+    400,
+    650
+  ],
+  "Mutton curry": [
+    450,
+    750
+  ],
+  "Mughlai paratha": [
+    400,
+    650
+  ],
+  "Tuo Zaafi": [
+    400,
+    650
+  ],
+  "B\u00e1nh b\u1ed9t l\u1ecdc": [
+    400,
+    650
+  ],
+  "Jelly bean": [
+    400,
+    650
+  ],
+  "Udon": [
+    450,
+    750
+  ],
+  "Falafel": [
+    400,
+    650
+  ],
+  "Agedashi d\u014dfu": [
+    400,
+    650
+  ],
+  "Dashi": [
+    400,
+    650
+  ],
+  "Tortell": [
+    400,
+    650
+  ],
+  "Cr\u00e8me br\u00fbl\u00e9e": [
+    400,
+    650
+  ],
+  "Cucumber soup": [
+    200,
+    400
+  ],
+  "French toast": [
+    350,
+    600
+  ],
+  "Tripe": [
+    400,
+    650
+  ],
+  "Pepperoni": [
+    400,
+    650
+  ],
+  "Salami": [
+    400,
+    650
+  ],
+  "Kimchi": [
+    400,
+    650
+  ],
+  "Kn\u00f6del": [
+    400,
+    650
+  ],
+  "Takoyaki": [
+    400,
+    650
+  ],
+  "Halva": [
+    400,
+    650
+  ],
+  "Pigs in a blanket": [
+    400,
+    650
+  ],
+  "Spanakopita": [
+    150,
+    300
+  ],
+  "Pumpkin pie": [
+    250,
+    500
+  ],
+  "Jambalaya": [
+    400,
+    650
+  ],
+  "Club sandwich": [
+    350,
+    650
+  ],
+  "Churro": [
+    250,
+    500
+  ],
+  "Turducken": [
+    350,
+    650
+  ],
+  "Welsh rarebit": [
+    400,
+    650
+  ],
+  "Hot dog": [
+    300,
+    450
+  ],
+  "Oyakodon": [
+    400,
+    650
+  ],
+  "Meatball": [
+    450,
+    750
+  ],
+  "Waldorf salad": [
+    200,
+    450
+  ],
+  "Potato salad": [
+    200,
+    450
+  ],
+  "Satay": [
+    400,
+    650
+  ],
+  "Pemmican": [
+    400,
+    650
+  ],
+  "M\u00e4mmi": [
+    400,
+    650
+  ],
+  "Fideu\u00e0": [
+    400,
+    650
+  ],
+  "Waffle": [
+    350,
+    600
+  ],
+  "Pancake": [
+    350,
+    600
+  ],
+  "Quiche": [
+    200,
+    400
+  ],
+  "Borscht": [
+    400,
+    650
+  ],
+  "Bratwurst": [
+    300,
+    450
+  ],
+  "Foie gras": [
+    400,
+    650
+  ],
+  "Goulash": [
+    450,
+    750
+  ],
+  "Spotted dick": [
+    400,
+    650
+  ],
+  "Coq au vin": [
+    400,
+    650
+  ],
+  "Ratatouille": [
+    400,
+    650
+  ],
+  "Cornbread": [
+    150,
+    300
+  ],
+  "Souvlaki": [
+    400,
+    650
+  ],
+  "Chow mein": [
+    450,
+    750
+  ],
+  "Roast beef": [
+    450,
+    750
+  ],
+  "Peking duck": [
+    350,
+    650
+  ],
+  "Croquembouche": [
+    400,
+    650
+  ],
+  "Tahini": [
+    400,
+    650
+  ],
+  "Gumbo": [
+    200,
+    400
+  ],
+  "Fajita": [
+    550,
+    850
+  ],
+  "Chicken fried steak": [
+    450,
+    750
+  ],
+  "Sukiyaki": [
+    400,
+    650
+  ],
+  "Scrapple": [
+    80,
+    200
+  ],
+  "Chili con carne": [
+    400,
+    650
+  ],
+  "Monte Cristo sandwich": [
+    350,
+    650
+  ],
+  "Kielbasa": [
+    400,
+    650
+  ],
+  "Polenta": [
+    400,
+    650
+  ],
+  "Reuben sandwich": [
+    350,
+    650
+  ],
+  "S'more": [
+    400,
+    650
+  ],
+  "Andouille": [
+    400,
+    650
+  ],
+  "Beignet": [
+    400,
+    650
+  ],
+  "Cr\u00eape": [
+    400,
+    650
+  ],
+  "Gulai": [
+    400,
+    650
+  ],
+  "Breakfast sausage": [
+    300,
+    450
+  ],
+  "Chorizo": [
+    400,
+    650
+  ],
+  "Gyro": [
+    350,
+    650
+  ],
+  "Nachos": [
+    550,
+    850
+  ],
+  "Larb": [
+    400,
+    650
+  ],
+  "Couscous": [
+    400,
+    650
+  ],
+  "Meze": [
+    400,
+    650
+  ],
+  "Cheesesteak": [
+    450,
+    750
+  ],
+  "Frozen yogurt": [
+    200,
+    400
+  ],
+  "Injera": [
+    400,
+    650
+  ],
+  "Muesli": [
+    200,
+    380
+  ],
+  "Meatloaf": [
+    400,
+    650
+  ],
+  "Fuet": [
+    400,
+    650
+  ],
+  "Natt\u014d": [
+    400,
+    650
+  ],
+  "Banana split": [
+    80,
+    200
+  ],
+  "P\u0105czki": [
+    400,
+    650
+  ],
+  "Pound cake": [
+    250,
+    500
+  ],
+  "Fuqi feipian": [
+    400,
+    650
+  ],
+  "Nasi lemak": [
+    400,
+    650
+  ],
+  "Flan": [
+    200,
+    400
+  ],
+  "Pad thai": [
+    450,
+    750
+  ],
+  "Yakitori": [
+    400,
+    650
+  ],
+  "Amanatt\u014d": [
+    400,
+    650
+  ],
+  "Tom kha kai": [
+    400,
+    650
+  ],
+  "Lokma": [
+    400,
+    650
+  ],
+  "Mooncake": [
+    250,
+    500
+  ],
+  "Idli": [
+    400,
+    650
+  ],
+  "Sp\u00e4tzle": [
+    400,
+    650
+  ],
+  "Nopalito": [
+    400,
+    650
+  ],
+  "Sincronizada": [
+    400,
+    650
+  ],
+  "\u017dganci": [
+    400,
+    650
+  ],
+  "Totopo": [
+    400,
+    650
+  ],
+  "Folar": [
+    400,
+    650
+  ],
+  "Cherry pie": [
+    250,
+    500
+  ],
+  "Umeboshi": [
+    400,
+    650
+  ],
+  "Patty": [
+    400,
+    650
+  ],
+  "Saltah": [
+    400,
+    650
+  ],
+  "Khinkali": [
+    400,
+    650
+  ],
+  "Shkedei marak": [
+    400,
+    650
+  ],
+  "Tekkadon": [
+    400,
+    650
+  ],
+  "Chadachadi": [
+    400,
+    650
+  ],
+  "Kaipen": [
+    400,
+    650
+  ],
+  "Draw soup": [
+    200,
+    400
+  ],
+  "Shahan ful": [
+    400,
+    650
+  ],
+  "Shiro": [
+    400,
+    650
+  ],
+  "Ga'at": [
+    400,
+    650
+  ],
+  "Skordalia": [
+    400,
+    650
+  ],
+  "Budae jjigae": [
+    400,
+    650
+  ],
+  "Anju": [
+    400,
+    650
+  ],
+  "Fried Coke": [
+    400,
+    650
+  ],
+  "Lemang": [
+    400,
+    650
+  ],
+  "Basundi": [
+    400,
+    650
+  ],
+  "Brown Betty": [
+    400,
+    650
+  ],
+  "Khabees": [
+    400,
+    650
+  ],
+  "Kottu": [
+    400,
+    650
+  ],
+  "Isterband": [
+    400,
+    650
+  ],
+  "Ciauscolo": [
+    400,
+    650
+  ],
+  "Khatkhate": [
+    400,
+    650
+  ],
+  "Pan de muerto": [
+    400,
+    650
+  ],
+  "Caponata": [
+    400,
+    650
+  ],
+  "Sabaayad": [
+    400,
+    650
+  ],
+  "Miyeok-guk": [
+    400,
+    650
+  ],
+  "Imoni": [
+    400,
+    650
+  ],
+  "Pitha": [
+    400,
+    650
+  ],
+  "Kedgeree": [
+    400,
+    650
+  ],
+  "Bife a cavalo": [
+    400,
+    650
+  ],
+  "Yaki udon": [
+    450,
+    750
+  ],
+  "She-crab soup": [
+    200,
+    400
+  ],
+  "Koozh": [
+    400,
+    650
+  ],
+  "Ke\u015fkek": [
+    400,
+    650
+  ],
+  "Cabidela": [
+    400,
+    650
+  ],
+  "Gerber sandwich": [
+    350,
+    650
+  ],
+  "Zagorski \u0160trukli": [
+    400,
+    650
+  ],
+  "Himbasha": [
+    400,
+    650
+  ],
+  "Satara\u0161": [
+    400,
+    650
+  ],
+  "Kakuni": [
+    400,
+    650
+  ],
+  "Enormous Omelet Sandwich": [
+    350,
+    650
+  ],
+  "Turr\u00f3n": [
+    400,
+    650
+  ],
+  "Tsukudani": [
+    400,
+    650
+  ],
+  "Hawaiian haystack": [
+    400,
+    650
+  ],
+  "Kateh": [
+    400,
+    650
+  ],
+  "Stoemp": [
+    400,
+    650
+  ],
+  "Pajeon": [
+    400,
+    650
+  ],
+  "\u0120bejna": [
+    400,
+    650
+  ],
+  "Kaya toast": [
+    220,
+    420
+  ],
+  "Fit-fit": [
+    400,
+    650
+  ],
+  "Kitcha": [
+    400,
+    650
+  ],
+  "Thalipeeth": [
+    400,
+    650
+  ],
+  "Figgy pudding": [
+    200,
+    400
+  ],
+  "Cachupa": [
+    400,
+    650
+  ],
+  "Cherries jubilee": [
+    400,
+    650
+  ],
+  "Crappit heid": [
+    400,
+    650
+  ],
+  "Mince and tatties": [
+    400,
+    650
+  ],
+  "Anadama bread": [
+    150,
+    300
+  ],
+  "Carbonara": [
+    450,
+    750
+  ],
+  "Kladdkaka": [
+    400,
+    650
+  ],
+  "Shakshouka": [
+    400,
+    650
+  ],
+  "Chicken Vesuvio": [
+    350,
+    650
+  ],
+  "Jibarito": [
+    400,
+    650
+  ],
+  "Chicken Divan": [
+    350,
+    650
+  ],
+  "Motsunabe": [
+    400,
+    650
+  ],
+  "Sonofabitch stew": [
+    200,
+    400
+  ],
+  "Corn pudding": [
+    200,
+    400
+  ],
+  "Johnny Marzetti": [
+    400,
+    650
+  ],
+  "Mostarda": [
+    400,
+    650
+  ],
+  "Maafe": [
+    400,
+    650
+  ],
+  "Churma": [
+    400,
+    650
+  ],
+  "Chole bhature": [
+    400,
+    650
+  ],
+  "Dobos torte": [
+    400,
+    650
+  ],
+  "Carne de porco \u00e0 alentejana": [
+    400,
+    650
+  ],
+  "Khao soi": [
+    400,
+    650
+  ],
+  "Kissel": [
+    400,
+    650
+  ],
+  "Cottage loaf": [
+    400,
+    650
+  ],
+  "Silver needle noodles": [
+    450,
+    750
+  ],
+  "Shrimp DeJonghe": [
+    250,
+    500
+  ],
+  "Kiritanpo": [
+    400,
+    650
+  ],
+  "Bean pie": [
+    250,
+    500
+  ],
+  "Churchkhela": [
+    400,
+    650
+  ],
+  "Yahni": [
+    400,
+    650
+  ],
+  "Gringas": [
+    400,
+    650
+  ],
+  "Annin tofu": [
+    400,
+    650
+  ],
+  "Jiaozi": [
+    400,
+    650
+  ],
+  "Breakfast sandwich": [
+    350,
+    650
+  ],
+  "Tanghulu": [
+    400,
+    650
+  ],
+  "Black sesame soup": [
+    200,
+    400
+  ],
+  "Goug\u00e8re": [
+    400,
+    650
+  ],
+  "Namul": [
+    400,
+    650
+  ],
+  "Kosambari": [
+    400,
+    650
+  ],
+  "Ma'amoul": [
+    400,
+    650
+  ],
+  "Caldo de pollo": [
+    400,
+    650
+  ],
+  "Loukaniko": [
+    400,
+    650
+  ],
+  "Doberge cake": [
+    250,
+    500
+  ],
+  "Nasi campur": [
+    400,
+    650
+  ],
+  "Snack cake": [
+    250,
+    500
+  ],
+  "Taiyaki": [
+    400,
+    650
+  ],
+  "Karn\u0131yar\u0131k": [
+    400,
+    650
+  ],
+  "Pierogi": [
+    300,
+    550
+  ],
+  "Macaroni and cheese": [
+    450,
+    750
+  ],
+  "Huevos motule\u00f1os": [
+    400,
+    650
+  ],
+  "Chislic": [
+    400,
+    650
+  ],
+  "Corn dog": [
+    300,
+    450
+  ],
+  "Shawarma": [
+    350,
+    650
+  ],
+  "Zongzi": [
+    400,
+    650
+  ],
+  "Dumpling": [
+    300,
+    550
+  ],
+  "Syrniki": [
+    400,
+    650
+  ],
+  "King cake": [
+    250,
+    500
+  ],
+  "Souffl\u00e9": [
+    400,
+    650
+  ],
+  "Gy\u016bdon": [
+    400,
+    650
+  ],
+  "Chicken nugget": [
+    350,
+    650
+  ],
+  "Bulgogi": [
+    400,
+    650
+  ],
+  "Eggs Benedict": [
+    200,
+    400
+  ],
+  "Hot dry noodles": [
+    450,
+    750
+  ],
+  "Mashed potato": [
+    180,
+    350
+  ],
+  "Anpan": [
+    400,
+    650
+  ],
+  "Quesadilla": [
+    550,
+    850
+  ],
+  "Youtiao": [
+    400,
+    650
+  ],
+  "Congee": [
+    400,
+    650
+  ],
+  "Sekihan": [
+    400,
+    650
+  ],
+  "Semla": [
+    400,
+    650
+  ],
+  "Arctic roll": [
+    150,
+    300
+  ],
+  "Castella": [
+    400,
+    650
+  ],
+  "Hanabiramochi": [
+    400,
+    650
+  ],
+  "Falukorv": [
+    400,
+    650
+  ],
+  "Ketupat": [
+    400,
+    650
+  ],
+  "Rendang": [
+    450,
+    750
+  ],
+  "Chocolate brownie": [
+    250,
+    500
+  ],
+  "Mapo doufu": [
+    400,
+    650
+  ],
+  "Chinese noodles": [
+    450,
+    750
+  ],
+  "Empanada": [
+    300,
+    550
+  ],
+  "Chicago-style pizza": [
+    500,
+    800
+  ],
+  "Cuban sandwich": [
+    350,
+    650
+  ],
+  "Tarte Tatin": [
+    250,
+    500
+  ],
+  "Yakisoba": [
+    450,
+    750
+  ],
+  "Dagwood sandwich": [
+    350,
+    650
+  ],
+  "Cheesecake": [
+    250,
+    500
+  ],
+  "Samosa": [
+    300,
+    550
+  ],
+  "Devil's food cake": [
+    250,
+    500
+  ],
+  "Shashlik": [
+    400,
+    650
+  ],
+  "Horseshoe sandwich": [
+    350,
+    650
+  ],
+  "City chicken": [
+    350,
+    650
+  ],
+  "Key lime pie": [
+    250,
+    500
+  ],
+  "Potato skins": [
+    180,
+    350
+  ],
+  "Haejang-guk": [
+    400,
+    650
+  ],
+  "Burmese tofu": [
+    400,
+    650
+  ],
+  "Shumai": [
+    400,
+    650
+  ],
+  "Sour cherry soup": [
+    200,
+    400
+  ],
+  "Gigandes plaki": [
+    400,
+    650
+  ],
+  "Majboos": [
+    400,
+    650
+  ],
+  "Chicken curry": [
+    450,
+    750
+  ],
+  "Shrimp Creole": [
+    250,
+    500
+  ],
+  "Pork tenderloin sandwich": [
+    350,
+    650
+  ],
+  "Dampfnudel": [
+    400,
+    650
+  ],
+  "Finnan haddie": [
+    400,
+    650
+  ],
+  "Kenkey": [
+    400,
+    650
+  ],
+  "Pincho": [
+    400,
+    650
+  ],
+  "Gundruk": [
+    400,
+    650
+  ],
+  "Chilorio": [
+    400,
+    650
+  ],
+  "Koulourakia": [
+    400,
+    650
+  ],
+  "Bryndzov\u00e9 halu\u0161ky": [
+    400,
+    650
+  ],
+  "Imagawayaki": [
+    400,
+    650
+  ],
+  "Vasilopita": [
+    150,
+    300
+  ],
+  "Strapa\u010dky": [
+    400,
+    650
+  ],
+  "Po' boy": [
+    400,
+    650
+  ],
+  "Capirotada": [
+    400,
+    650
+  ],
+  "Beef Manhattan": [
+    450,
+    750
+  ],
+  "Sandwich loaf": [
+    350,
+    650
+  ],
+  "Jian dui": [
+    400,
+    650
+  ],
+  "Almond biscuit": [
+    220,
+    420
+  ],
+  "West Slavic fermented cereal soups": [
+    200,
+    400
+  ],
+  "Fried plantain": [
+    400,
+    650
+  ],
+  "Stuffed peppers": [
+    400,
+    650
+  ],
+  "Piperade": [
+    400,
+    650
+  ],
+  "Rogan josh": [
+    400,
+    650
+  ],
+  "Fabada asturiana": [
+    400,
+    650
+  ],
+  "Potato wedges": [
+    300,
+    500
+  ],
+  "Calisson": [
+    400,
+    650
+  ],
+  "Prawn ball": [
+    250,
+    500
+  ],
+  "Kushikatsu": [
+    400,
+    650
+  ],
+  "Lo mai chi": [
+    400,
+    650
+  ],
+  "Manchet": [
+    400,
+    650
+  ],
+  "Leek soup": [
+    200,
+    400
+  ],
+  "Vanillerostbraten": [
+    400,
+    650
+  ],
+  "Hangtown fry": [
+    400,
+    650
+  ],
+  "Cabbie claw": [
+    400,
+    650
+  ],
+  "Chitranna": [
+    400,
+    650
+  ],
+  "Ragi mudde": [
+    400,
+    650
+  ],
+  "Denver sandwich": [
+    350,
+    650
+  ],
+  "Laverbread": [
+    150,
+    300
+  ],
+  "Elote": [
+    400,
+    650
+  ],
+  "Kulolo": [
+    400,
+    650
+  ],
+  "Oxtail soup": [
+    200,
+    400
+  ],
+  "Pantua": [
+    400,
+    650
+  ],
+  "Corn relish": [
+    80,
+    220
+  ],
+  "Poga\u010da": [
+    400,
+    650
+  ],
+  "Qubani-ka-Meetha": [
+    400,
+    650
+  ],
+  "Boondi": [
+    400,
+    650
+  ],
+  "Arrosticini": [
+    400,
+    650
+  ],
+  "Panelle": [
+    400,
+    650
+  ],
+  "Santula": [
+    400,
+    650
+  ],
+  "Tofu skin roll": [
+    150,
+    300
+  ],
+  "Crispy fried chicken": [
+    350,
+    650
+  ],
+  "Steamed meatball": [
+    450,
+    750
+  ],
+  "Lobio": [
+    400,
+    650
+  ],
+  "Suman": [
+    400,
+    650
+  ],
+  "H\u014dt\u014d": [
+    400,
+    650
+  ],
+  "Matbukha": [
+    400,
+    650
+  ],
+  "A\u00e7orda": [
+    400,
+    650
+  ],
+  "Makdous": [
+    400,
+    650
+  ],
+  "Soto": [
+    400,
+    650
+  ],
+  "Frangollo": [
+    400,
+    650
+  ],
+  "Patty melt": [
+    450,
+    750
+  ],
+  "Taro dumpling": [
+    300,
+    550
+  ],
+  "Entomatada": [
+    400,
+    650
+  ],
+  "B\u00e1nh cu\u1ed1n": [
+    400,
+    650
+  ],
+  "Corunda": [
+    400,
+    650
+  ],
+  "Zhaliang": [
+    400,
+    650
+  ],
+  "Cassoulet": [
+    400,
+    650
+  ],
+  "Debrecener": [
+    400,
+    650
+  ],
+  "Scampi": [
+    400,
+    650
+  ],
+  "Pilaf": [
+    400,
+    650
+  ],
+  "Sambar": [
+    400,
+    650
+  ],
+  "Century egg": [
+    200,
+    400
+  ],
+  "Escargot": [
+    400,
+    650
+  ],
+  "Cong you bing": [
+    400,
+    650
+  ],
+  "Beef noodle soup": [
+    200,
+    400
+  ],
+  "Magiritsa": [
+    400,
+    650
+  ],
+  "Gugelhupf": [
+    400,
+    650
+  ],
+  "Sachima": [
+    400,
+    650
+  ],
+  "White rice": [
+    400,
+    650
+  ],
+  "Maultasche": [
+    400,
+    650
+  ],
+  "American chop suey": [
+    400,
+    650
+  ],
+  "Fish slice": [
+    250,
+    500
+  ],
+  "Sea cucumber": [
+    400,
+    650
+  ],
+  "Beef ball": [
+    450,
+    750
+  ],
+  "Siu yuk": [
+    400,
+    650
+  ],
+  "Seafood birdsnest": [
+    250,
+    500
+  ],
+  "White cut chicken": [
+    350,
+    650
+  ],
+  "Satsivi": [
+    400,
+    650
+  ],
+  "Malpua": [
+    400,
+    650
+  ],
+  "Chhena gaja": [
+    400,
+    650
+  ],
+  "Flying Jacob": [
+    400,
+    650
+  ],
+  "Steak de Burgo": [
+    450,
+    750
+  ],
+  "Crab Louie": [
+    250,
+    500
+  ],
+  "Butter chicken": [
+    350,
+    650
+  ],
+  "Amok trey": [
+    400,
+    650
+  ],
+  "Menemen": [
+    400,
+    650
+  ],
+  "Piadina": [
+    400,
+    650
+  ],
+  "Orange cuttlefish": [
+    250,
+    500
+  ],
+  "Fudge": [
+    400,
+    650
+  ],
+  "Cottage Pudding": [
+    200,
+    400
+  ],
+  "Meatcake": [
+    250,
+    500
+  ],
+  "Buttermilk pie": [
+    250,
+    500
+  ],
+  "Kalamay": [
+    400,
+    650
+  ],
+  "Puto": [
+    400,
+    650
+  ],
+  "Dal makhani": [
+    400,
+    650
+  ],
+  "Mixiote": [
+    400,
+    650
+  ],
+  "Bagel dog": [
+    220,
+    420
+  ],
+  "B\u00fan ri\u00eau": [
+    400,
+    650
+  ],
+  "Feijoada": [
+    400,
+    650
+  ],
+  "Pho": [
+    400,
+    650
+  ],
+  "Milk toast": [
+    220,
+    420
+  ],
+  "Liver and onions": [
+    400,
+    650
+  ],
+  "Iced bun": [
+    150,
+    300
+  ],
+  "Sheer khurma": [
+    400,
+    650
+  ],
+  "Yi mein": [
+    400,
+    650
+  ],
+  "Shrimp roe noodles": [
+    450,
+    750
+  ],
+  "Lai fun": [
+    400,
+    650
+  ],
+  "Oil noodles": [
+    450,
+    750
+  ],
+  "Kal-guksu": [
+    400,
+    650
+  ],
+  "Youmian": [
+    400,
+    650
+  ],
+  "Avgolemono": [
+    400,
+    650
+  ],
+  "Pork roll": [
+    150,
+    300
+  ],
+  "Tart": [
+    250,
+    500
+  ],
+  "Leberk\u00e4se": [
+    400,
+    650
+  ],
+  "Kalakukko": [
+    400,
+    650
+  ],
+  "Mustamakkara": [
+    400,
+    650
+  ],
+  "Baba ghanoush": [
+    400,
+    650
+  ],
+  "Karelian pasty": [
+    400,
+    650
+  ],
+  "Shortcake": [
+    250,
+    500
+  ],
+  "Profiterole": [
+    400,
+    650
+  ],
+  "Moussaka": [
+    400,
+    650
+  ],
+  "Dulce de leche": [
+    400,
+    650
+  ],
+  "Blaa": [
+    400,
+    650
+  ],
+  "Risotto": [
+    400,
+    650
+  ],
+  "Funnel cake": [
+    250,
+    500
+  ],
+  "Fried dough": [
+    400,
+    650
+  ],
+  "Consomm\u00e9": [
+    400,
+    650
+  ],
+  "Clam chowder": [
+    200,
+    400
+  ],
+  "Tartiflette": [
+    250,
+    500
+  ],
+  "Red curry": [
+    450,
+    750
+  ],
+  "Tandoori chicken": [
+    350,
+    650
+  ],
+  "Gazpacho": [
+    200,
+    400
+  ],
+  "Prosciutto": [
+    400,
+    650
+  ],
+  "Boerewors": [
+    400,
+    650
+  ],
+  "Baked potato": [
+    180,
+    350
+  ],
+  "Bouillabaisse": [
+    400,
+    650
+  ],
+  "Kralan": [
+    400,
+    650
+  ],
+  "Chireta": [
+    400,
+    650
+  ],
+  "Bakewell tart": [
+    250,
+    500
+  ],
+  "Grits": [
+    400,
+    650
+  ],
+  "Shaved ice": [
+    400,
+    650
+  ],
+  "Choco pie": [
+    250,
+    500
+  ],
+  "Cumian": [
+    400,
+    650
+  ],
+  "Jokbal": [
+    400,
+    650
+  ],
+  "Grillades": [
+    400,
+    650
+  ],
+  "Hotteok": [
+    400,
+    650
+  ],
+  "Ezogelin soup": [
+    200,
+    400
+  ],
+  "Knedle": [
+    400,
+    650
+  ],
+  "Masgouf": [
+    400,
+    650
+  ],
+  "Sope": [
+    400,
+    650
+  ],
+  "Coconut rice": [
+    400,
+    650
+  ],
+  "Bakarkhani": [
+    400,
+    650
+  ],
+  "Asida": [
+    400,
+    650
+  ],
+  "Dirt cake": [
+    250,
+    500
+  ],
+  "Sel roti": [
+    400,
+    650
+  ],
+  "Kalakand": [
+    400,
+    650
+  ],
+  "Ghevar": [
+    400,
+    650
+  ],
+  "Sussex pond pudding": [
+    200,
+    400
+  ],
+  "Lontong": [
+    400,
+    650
+  ],
+  "B\u00e1nh b\u00e8o": [
+    400,
+    650
+  ],
+  "Pring\u00e1": [
+    400,
+    650
+  ],
+  "Bull roast": [
+    400,
+    650
+  ],
+  "Stuffed ham": [
+    450,
+    750
+  ],
+  "Lablabi": [
+    400,
+    650
+  ],
+  "Gooey butter cake": [
+    250,
+    500
+  ],
+  "Carciofi alla giudia": [
+    400,
+    650
+  ],
+  "Yin si juan": [
+    400,
+    650
+  ],
+  "Babi panggang": [
+    400,
+    650
+  ],
+  "Chao hong guo": [
+    400,
+    650
+  ],
+  "Fun guo": [
+    400,
+    650
+  ],
+  "Khira sagara": [
+    400,
+    650
+  ],
+  "Coconut bar": [
+    400,
+    650
+  ],
+  "Sundae": [
+    200,
+    400
+  ],
+  "Tuna fish sandwich": [
+    350,
+    650
+  ],
+  "Zhangcha duck": [
+    350,
+    650
+  ],
+  "Marry girl cake": [
+    250,
+    500
+  ],
+  "Frijoles charros": [
+    400,
+    650
+  ],
+  "Rosca de reyes": [
+    400,
+    650
+  ],
+  "Happy Faces": [
+    400,
+    650
+  ],
+  "Deviled crab": [
+    250,
+    500
+  ],
+  "Sundubu-jjigae": [
+    400,
+    650
+  ],
+  "Sinseollo": [
+    400,
+    650
+  ],
+  "Dongchimi": [
+    400,
+    650
+  ],
+  "Nabak-kimchi": [
+    400,
+    650
+  ],
+  "Dhondas": [
+    400,
+    650
+  ],
+  "Soan papdi": [
+    400,
+    650
+  ],
+  "Baek-kimchi": [
+    400,
+    650
+  ],
+  "Chicken riggies": [
+    350,
+    650
+  ],
+  "Afelia": [
+    400,
+    650
+  ],
+  "Guly\u00e1sleves": [
+    400,
+    650
+  ],
+  "Marie biscuit": [
+    220,
+    420
+  ],
+  "Caf\u00e9 li\u00e9geois": [
+    400,
+    650
+  ],
+  "Ch\u00e8": [
+    400,
+    650
+  ],
+  "Pootharekulu": [
+    400,
+    650
+  ],
+  "Escalope": [
+    400,
+    650
+  ],
+  "Rajma": [
+    400,
+    650
+  ],
+  "Beshbarmak": [
+    400,
+    650
+  ],
+  "Torta Tre Monti": [
+    400,
+    650
+  ],
+  "French dip": [
+    150,
+    350
+  ],
+  "Pumpkin-coconut custard": [
+    200,
+    400
+  ],
+  "Rose hip soup": [
+    200,
+    400
+  ],
+  "Veggie burger": [
+    450,
+    750
+  ],
+  "Steak tartare": [
+    450,
+    750
+  ],
+  "Bologna sausage": [
+    300,
+    450
+  ],
+  "P\u00e2t\u00e9": [
+    400,
+    650
+  ],
+  "Bibimbap": [
+    400,
+    650
+  ],
+  "Shahi paneer": [
+    400,
+    650
+  ],
+  "Fufu": [
+    400,
+    650
+  ],
+  "Pyttipanna": [
+    400,
+    650
+  ],
+  "Chicken sandwich": [
+    350,
+    650
+  ],
+  "Ghari": [
+    400,
+    650
+  ],
+  "Michigan salad": [
+    200,
+    450
+  ],
+  "Cabinet pudding": [
+    200,
+    400
+  ],
+  "American fried rice": [
+    400,
+    650
+  ],
+  "Korovai": [
+    400,
+    650
+  ],
+  "Churrasco": [
+    400,
+    650
+  ],
+  "Pasulj": [
+    400,
+    650
+  ],
+  "Mitraillette": [
+    400,
+    650
+  ],
+  "Salat\u0103 de boeuf": [
+    400,
+    650
+  ],
+  "Rice pudding": [
+    400,
+    650
+  ],
+  "R\u00f6sti": [
+    400,
+    650
+  ],
+  "Naryn": [
+    400,
+    650
+  ],
+  "Kaldereta": [
+    400,
+    650
+  ],
+  "Makroudh": [
+    400,
+    650
+  ],
+  "Kachumbari": [
+    400,
+    650
+  ],
+  "Tsukemono": [
+    400,
+    650
+  ],
+  "Cheese fries": [
+    300,
+    500
+  ],
+  "Slatko": [
+    400,
+    650
+  ],
+  "Qatayef": [
+    400,
+    650
+  ],
+  "Passatelli": [
+    400,
+    650
+  ],
+  "Sweet potato soup": [
+    200,
+    400
+  ],
+  "Shchi": [
+    400,
+    650
+  ],
+  "Kulfi": [
+    400,
+    650
+  ],
+  "Dolma": [
+    400,
+    650
+  ],
+  "Kai yang": [
+    400,
+    650
+  ],
+  "Shark fin soup": [
+    200,
+    400
+  ],
+  "Pozole": [
+    200,
+    400
+  ],
+  "Pakora": [
+    300,
+    550
+  ],
+  "Chantilly cake": [
+    250,
+    500
+  ],
+  "Kr\u00f3wki": [
+    400,
+    650
+  ],
+  "Russian tea cake": [
+    250,
+    500
+  ],
+  "Ox-tongue pastry": [
+    250,
+    500
+  ],
+  "Sachertorte": [
+    400,
+    650
+  ],
+  "Palitaw": [
+    400,
+    650
+  ],
+  "Jolpan": [
+    400,
+    650
+  ],
+  "Mantou": [
+    400,
+    650
+  ],
+  "Finger steaks": [
+    450,
+    750
+  ],
+  "Steak sandwich": [
+    350,
+    650
+  ],
+  "Talo": [
+    400,
+    650
+  ],
+  "Erkuai": [
+    400,
+    650
+  ],
+  "Mixian": [
+    400,
+    650
+  ],
+  "St. Louis-style pizza": [
+    500,
+    800
+  ],
+  "Moambe": [
+    400,
+    650
+  ],
+  "Upma": [
+    400,
+    650
+  ],
+  "Panjiri": [
+    400,
+    650
+  ],
+  "Eggs Sardou": [
+    200,
+    400
+  ],
+  "Shanghai fried noodles": [
+    450,
+    750
+  ],
+  "Quarkk\u00e4ulchen": [
+    400,
+    650
+  ],
+  "Cupcake": [
+    250,
+    500
+  ],
+  "Snickerdoodle": [
+    400,
+    650
+  ],
+  "Farl": [
+    400,
+    650
+  ],
+  "Coleslaw": [
+    200,
+    450
+  ],
+  "Calas": [
+    400,
+    650
+  ],
+  "Beef Stroganoff": [
+    450,
+    750
+  ],
+  "Shimotsukare": [
+    400,
+    650
+  ],
+  "Squab": [
+    400,
+    650
+  ],
+  "Basbousa": [
+    400,
+    650
+  ],
+  "Watalappam": [
+    400,
+    650
+  ],
+  "Tepsi baytinijan": [
+    400,
+    650
+  ],
+  "Kuli-kuli": [
+    400,
+    650
+  ],
+  "Shabu-shabu": [
+    400,
+    650
+  ],
+  "Fried brain sandwich": [
+    350,
+    650
+  ],
+  "Rollmops": [
+    150,
+    300
+  ],
+  "Higashi": [
+    400,
+    650
+  ],
+  "Panna cotta": [
+    400,
+    650
+  ],
+  "Aloo gobi": [
+    400,
+    650
+  ],
+  "Aspic": [
+    400,
+    650
+  ],
+  "Obatzda": [
+    400,
+    650
+  ],
+  "Gulab jamun": [
+    400,
+    650
+  ],
+  "Tuna casserole": [
+    250,
+    500
+  ],
+  "Ribollita": [
+    400,
+    650
+  ],
+  "Chomchom": [
+    400,
+    650
+  ],
+  "Rassolnik": [
+    400,
+    650
+  ],
+  "Jeongol": [
+    400,
+    650
+  ],
+  "Cantonese seafood soup": [
+    200,
+    400
+  ],
+  "Eggplant Salad": [
+    200,
+    450
+  ],
+  "K\u00fcrt\u0151skal\u00e1cs": [
+    400,
+    650
+  ],
+  "P\u00f6lsa": [
+    400,
+    650
+  ],
+  "Lobster roll": [
+    250,
+    500
+  ],
+  "Sloppy joe": [
+    400,
+    650
+  ],
+  "Schnitzel": [
+    400,
+    650
+  ],
+  "Bacalhau": [
+    400,
+    650
+  ],
+  "Sfenj": [
+    400,
+    650
+  ],
+  "Menudo": [
+    400,
+    650
+  ],
+  "Gujia": [
+    400,
+    650
+  ],
+  "Liver soup": [
+    200,
+    400
+  ],
+  "Panocha": [
+    400,
+    650
+  ],
+  "Chakapuli": [
+    400,
+    650
+  ],
+  "Sklandrausis": [
+    400,
+    650
+  ],
+  "Liver p\u00e2t\u00e9": [
+    400,
+    650
+  ],
+  "Rullep\u00f8lse": [
+    400,
+    650
+  ],
+  "Frikadeller": [
+    400,
+    650
+  ],
+  "Frikandel": [
+    400,
+    650
+  ],
+  "Cinnamon roll": [
+    150,
+    300
+  ],
+  "Scotch pie": [
+    250,
+    500
+  ],
+  "Hot wiener": [
+    400,
+    650
+  ],
+  "Wodzionka": [
+    400,
+    650
+  ],
+  "Greek salad": [
+    200,
+    450
+  ],
+  "Raita": [
+    400,
+    650
+  ],
+  "Dong'an chicken": [
+    350,
+    650
+  ],
+  "Boortsog": [
+    400,
+    650
+  ],
+  "Coca": [
+    400,
+    650
+  ],
+  "Champon": [
+    450,
+    750
+  ],
+  "Tabbouleh": [
+    200,
+    450
+  ],
+  "Korokke": [
+    400,
+    650
+  ],
+  "Chile relleno": [
+    400,
+    650
+  ],
+  "Brandade": [
+    400,
+    650
+  ],
+  "Hoppang": [
+    400,
+    650
+  ],
+  "Gozinaki": [
+    400,
+    650
+  ],
+  "Lazarakia": [
+    400,
+    650
+  ],
+  "Puff Puff": [
+    400,
+    650
+  ],
+  "Fatteh": [
+    400,
+    650
+  ],
+  "Speculaas": [
+    400,
+    650
+  ],
+  "Karasumi": [
+    400,
+    650
+  ],
+  "Brandy snaps": [
+    400,
+    650
+  ],
+  "Trdeln\u00edk": [
+    400,
+    650
+  ],
+  "Cocido madrile\u00f1o": [
+    400,
+    650
+  ],
+  "Red velvet cake": [
+    250,
+    500
+  ],
+  "Kringle": [
+    400,
+    650
+  ],
+  "Quenelle": [
+    400,
+    650
+  ],
+  "Toasted ravioli": [
+    450,
+    750
+  ],
+  "Tajine": [
+    450,
+    750
+  ],
+  "Cranachan": [
+    400,
+    650
+  ],
+  "Rusk": [
+    400,
+    650
+  ],
+  "Mille-feuille": [
+    400,
+    650
+  ],
+  "Acorn noodle soup": [
+    200,
+    400
+  ],
+  "Gachas": [
+    400,
+    650
+  ],
+  "Jingisukan": [
+    400,
+    650
+  ],
+  "Thekua": [
+    400,
+    650
+  ],
+  "Ghugni": [
+    400,
+    650
+  ],
+  "Tarama": [
+    400,
+    650
+  ],
+  "Italian beef": [
+    450,
+    750
+  ],
+  "Challah": [
+    400,
+    650
+  ],
+  "Fried ice cream": [
+    200,
+    400
+  ],
+  "Onion ring": [
+    400,
+    650
+  ],
+  "Smoked meat": [
+    400,
+    650
+  ],
+  "Dahi vada": [
+    400,
+    650
+  ],
+  "Mother-in-law": [
+    400,
+    650
+  ],
+  "Blondie": [
+    400,
+    650
+  ],
+  "Guk": [
+    400,
+    650
+  ],
+  "Hiyashi ch\u016bka": [
+    400,
+    650
+  ],
+  "Sweet shells": [
+    400,
+    650
+  ],
+  "Salisbury steak": [
+    450,
+    750
+  ],
+  "Poffertjes": [
+    400,
+    650
+  ],
+  "Eggs Neptune": [
+    200,
+    400
+  ],
+  "Galbi-jjim": [
+    400,
+    650
+  ],
+  "Agwi-jjim": [
+    400,
+    650
+  ],
+  "Ladob": [
+    400,
+    650
+  ],
+  "Instant-boiled mutton": [
+    450,
+    750
+  ],
+  "Cincalok": [
+    400,
+    650
+  ],
+  "Jook-sing noodles": [
+    450,
+    750
+  ],
+  "Potbrood": [
+    400,
+    650
+  ],
+  "Burkinabe cuisine": [
+    400,
+    650
+  ],
+  "Taralli": [
+    400,
+    650
+  ],
+  "Carbonade flamande": [
+    400,
+    650
+  ],
+  "X\u00f4i": [
+    400,
+    650
+  ],
+  "Sauerbraten": [
+    400,
+    650
+  ],
+  "Spiedie": [
+    250,
+    500
+  ],
+  "Gimbap": [
+    400,
+    650
+  ],
+  "Czernina": [
+    400,
+    650
+  ],
+  "Kroppkaka": [
+    400,
+    650
+  ],
+  "Buddha's delight": [
+    400,
+    650
+  ],
+  "Pain au chocolat": [
+    400,
+    650
+  ],
+  "Goetta": [
+    400,
+    650
+  ],
+  "German chocolate cake": [
+    250,
+    500
+  ],
+  "Melt sandwich": [
+    350,
+    650
+  ],
+  "Popiah": [
+    400,
+    650
+  ],
+  "Haleem": [
+    400,
+    650
+  ],
+  "Hornazo": [
+    400,
+    650
+  ],
+  "Janchi-guksu": [
+    400,
+    650
+  ],
+  "Kipper": [
+    400,
+    650
+  ],
+  "Bossam": [
+    400,
+    650
+  ],
+  "Arbroath smokie": [
+    400,
+    650
+  ],
+  "Bologna sandwich": [
+    350,
+    650
+  ],
+  "Cobbler": [
+    250,
+    500
+  ],
+  "Kouign-amann": [
+    400,
+    650
+  ],
+  "Char kway teow": [
+    400,
+    650
+  ],
+  "Rostbr\u00e4tel": [
+    400,
+    650
+  ],
+  "Doenjang-jjigae": [
+    400,
+    650
+  ],
+  "Tharid": [
+    400,
+    650
+  ],
+  "Hainanese chicken rice": [
+    400,
+    650
+  ],
+  "Bak kut teh": [
+    400,
+    650
+  ],
+  "Cabbage roll": [
+    150,
+    300
+  ],
+  "Runza": [
+    400,
+    650
+  ],
+  "Bananas Foster": [
+    80,
+    200
+  ],
+  "Kozhukkatta": [
+    400,
+    650
+  ],
+  "K\u016b\u010diukai": [
+    400,
+    650
+  ],
+  "Sm\u00f8rrebr\u00f8d": [
+    400,
+    650
+  ],
+  "Kutia": [
+    400,
+    650
+  ],
+  "Deviled egg": [
+    200,
+    400
+  ],
+  "Buchteln": [
+    400,
+    650
+  ],
+  "Apple strudel": [
+    80,
+    200
+  ],
+  "Wonton": [
+    300,
+    550
+  ],
+  "Chess pie": [
+    250,
+    500
+  ],
+  "Pirozhki": [
+    400,
+    650
+  ],
+  "Douzhi": [
+    400,
+    650
+  ],
+  "Macaroni soup": [
+    200,
+    400
+  ],
+  "Crossing-the-bridge noodles": [
+    450,
+    750
+  ],
+  "Lechazo": [
+    400,
+    650
+  ],
+  "Rolled oyster": [
+    250,
+    500
+  ],
+  "Asam pedas": [
+    400,
+    650
+  ],
+  "Mi krop": [
+    400,
+    650
+  ],
+  "Patoleo": [
+    400,
+    650
+  ],
+  "Rig\u00f3 Jancsi": [
+    400,
+    650
+  ],
+  "Ollada": [
+    400,
+    650
+  ],
+  "Garbure": [
+    400,
+    650
+  ],
+  "Sabudana Khichadi": [
+    400,
+    650
+  ],
+  "Pot\u00e9e": [
+    400,
+    650
+  ],
+  "Phanaeng curry": [
+    450,
+    750
+  ],
+  "Madeleine": [
+    400,
+    650
+  ],
+  "Mashed pumpkin": [
+    400,
+    650
+  ],
+  "Suet pudding": [
+    200,
+    400
+  ],
+  "Bombay mix": [
+    400,
+    650
+  ],
+  "Namagashi": [
+    400,
+    650
+  ],
+  "Struffoli": [
+    400,
+    650
+  ],
+  "Dak-galbi": [
+    400,
+    650
+  ],
+  "Chuchvara": [
+    400,
+    650
+  ],
+  "Misal": [
+    400,
+    650
+  ],
+  "Patatnik": [
+    400,
+    650
+  ],
+  "Yuxiang": [
+    400,
+    650
+  ],
+  "Frozen banana": [
+    80,
+    200
+  ],
+  "Psarosoupa": [
+    200,
+    400
+  ],
+  "Mekitsa": [
+    400,
+    650
+  ],
+  "Sanna": [
+    400,
+    650
+  ],
+  "Qaz\u0131": [
+    400,
+    650
+  ],
+  "Sorbetes": [
+    200,
+    400
+  ],
+  "Potatoes O'Brien": [
+    180,
+    350
+  ],
+  "Tom yum": [
+    400,
+    650
+  ],
+  "Balushahi": [
+    400,
+    650
+  ],
+  "Arroz a la cubana": [
+    400,
+    650
+  ],
+  "Jalebi": [
+    400,
+    650
+  ],
+  "Sopaipilla": [
+    400,
+    650
+  ],
+  "Ukha": [
+    400,
+    650
+  ],
+  "Sv\u00ed\u010dkov\u00e1": [
+    400,
+    650
+  ],
+  "T\u00far\u00f3s csusza": [
+    400,
+    650
+  ],
+  "Pinnekj\u00f8tt": [
+    400,
+    650
+  ],
+  "Salty liquorice": [
+    400,
+    650
+  ],
+  "Lemon ice box pie": [
+    250,
+    500
+  ],
+  "Knickerbocker glory": [
+    400,
+    650
+  ],
+  "Zhajiangmian": [
+    400,
+    650
+  ],
+  "Cobb salad": [
+    200,
+    450
+  ],
+  "Misua": [
+    400,
+    650
+  ],
+  "Shoofly pie": [
+    250,
+    500
+  ],
+  "Bhakri": [
+    400,
+    650
+  ],
+  "Apple cake": [
+    250,
+    500
+  ],
+  "Orange chicken": [
+    350,
+    650
+  ],
+  "Jam\u00f3n serrano": [
+    400,
+    650
+  ],
+  "Bundt cake": [
+    250,
+    500
+  ],
+  "Bara brith": [
+    400,
+    650
+  ],
+  "Hot pot": [
+    400,
+    650
+  ],
+  "Kung Pao chicken": [
+    350,
+    650
+  ],
+  "Mulukhiyah": [
+    400,
+    650
+  ],
+  "Piti": [
+    400,
+    650
+  ],
+  "Double ka meetha": [
+    400,
+    650
+  ],
+  "Choila": [
+    400,
+    650
+  ],
+  "Moustalevria": [
+    400,
+    650
+  ],
+  "Arizona cheese crisp": [
+    150,
+    350
+  ],
+  "Rice Krispies Treats": [
+    400,
+    650
+  ],
+  "Liangpi": [
+    400,
+    650
+  ],
+  "Prinskorv": [
+    400,
+    650
+  ],
+  "Salmorejo": [
+    400,
+    650
+  ],
+  "Chicken Fran\u00e7aise": [
+    350,
+    650
+  ],
+  "Fl\u00e4skkorv": [
+    400,
+    650
+  ],
+  "Glorified rice": [
+    400,
+    650
+  ],
+  "Stinky tofu": [
+    400,
+    650
+  ],
+  "Muffuletta": [
+    400,
+    650
+  ],
+  "Soy sauce chicken": [
+    350,
+    650
+  ],
+  "Chicken fingers": [
+    350,
+    650
+  ],
+  "Pecan pie": [
+    250,
+    500
+  ],
+  "Eba": [
+    400,
+    650
+  ],
+  "Parfait": [
+    200,
+    400
+  ],
+  "Ndol\u00e9": [
+    400,
+    650
+  ],
+  "Cheese sandwich": [
+    350,
+    650
+  ],
+  "Carne de vinha d'alhos": [
+    400,
+    650
+  ],
+  "Bob Andy pie": [
+    250,
+    500
+  ],
+  "Cincinnati chili": [
+    400,
+    650
+  ],
+  "Frico": [
+    400,
+    650
+  ],
+  "Tapioca pudding": [
+    200,
+    400
+  ],
+  "Minestrone": [
+    200,
+    400
+  ],
+  "Boxty": [
+    400,
+    650
+  ],
+  "Naengmyeon": [
+    400,
+    650
+  ],
+  "Seven-layer salad": [
+    200,
+    450
+  ],
+  "Cawl": [
+    400,
+    650
+  ],
+  "Chocolate pudding": [
+    200,
+    400
+  ],
+  "Hotdish": [
+    400,
+    650
+  ],
+  "Ciccioli": [
+    400,
+    650
+  ],
+  "Douhua": [
+    400,
+    650
+  ],
+  "Berliner": [
+    400,
+    650
+  ],
+  "Fried fish": [
+    250,
+    500
+  ],
+  "Apple crisp": [
+    80,
+    200
+  ],
+  "Boudin": [
+    400,
+    650
+  ],
+  "Yusheng": [
+    400,
+    650
+  ],
+  "Babka": [
+    400,
+    650
+  ],
+  "Pizzoccheri": [
+    400,
+    650
+  ],
+  "Welsh cake": [
+    250,
+    500
+  ],
+  "Parker House roll": [
+    150,
+    300
+  ],
+  "Tripe soup": [
+    200,
+    400
+  ],
+  "Chimichanga": [
+    550,
+    850
+  ],
+  "Jucy Lucy": [
+    400,
+    650
+  ],
+  "Dodger Dog": [
+    400,
+    650
+  ],
+  "Pastiera": [
+    400,
+    650
+  ],
+  "Huarache": [
+    400,
+    650
+  ],
+  "Solkadhi": [
+    400,
+    650
+  ],
+  "Schupfnudel": [
+    400,
+    650
+  ],
+  "Waldorf pudding": [
+    200,
+    400
+  ],
+  "Harees": [
+    400,
+    650
+  ],
+  "Ash reshteh": [
+    400,
+    650
+  ],
+  "Celery Victor": [
+    400,
+    650
+  ],
+  "Diples": [
+    150,
+    350
+  ],
+  "Kompot": [
+    400,
+    650
+  ],
+  "French onion soup": [
+    200,
+    400
+  ],
+  "Tres leches cake": [
+    250,
+    500
+  ],
+  "Torta caprese": [
+    400,
+    650
+  ],
+  "Black Forest gateau": [
+    400,
+    650
+  ],
+  "P\u00e2t\u00e9 aux pommes de terre": [
+    400,
+    650
+  ],
+  "L\u00e2pa": [
+    400,
+    650
+  ],
+  "B\u00fcndner Nusstorte": [
+    400,
+    650
+  ],
+  "Hachee": [
+    400,
+    650
+  ],
+  "Spaghetti aglio e olio": [
+    450,
+    750
+  ],
+  "Whoopie pie": [
+    250,
+    500
+  ],
+  "Ais kacang": [
+    400,
+    650
+  ],
+  "Chermoula": [
+    400,
+    650
+  ],
+  "Gado-gado": [
+    400,
+    650
+  ],
+  "Merguez": [
+    400,
+    650
+  ],
+  "Snickers salad": [
+    200,
+    450
+  ],
+  "Giouvetsi": [
+    400,
+    650
+  ],
+  "Kharcho": [
+    400,
+    650
+  ],
+  "Chicken fried bacon": [
+    450,
+    750
+  ],
+  "Dessert bar": [
+    400,
+    650
+  ],
+  "Coulibiac": [
+    400,
+    650
+  ],
+  "Thieboudienne": [
+    400,
+    650
+  ],
+  "Rabri": [
+    400,
+    650
+  ],
+  "Sapin-sapin": [
+    400,
+    650
+  ],
+  "Sealed crustless sandwich": [
+    350,
+    650
+  ],
+  "Carne asada": [
+    400,
+    650
+  ],
+  "Coyotas": [
+    400,
+    650
+  ],
+  "Chocolate-covered bacon": [
+    450,
+    750
+  ],
+  "Stroopwafel": [
+    400,
+    650
+  ],
+  "Gravlax": [
+    400,
+    650
+  ],
+  "Pot pie": [
+    250,
+    500
+  ],
+  "Ghormeh sabzi": [
+    400,
+    650
+  ],
+  "Surf and turf": [
+    400,
+    650
+  ],
+  "Brunswick stew": [
+    200,
+    400
+  ],
+  "Mititei": [
+    400,
+    650
+  ],
+  "Fluffernutter": [
+    400,
+    650
+  ],
+  "Khaja": [
+    400,
+    650
+  ],
+  "Stottie cake": [
+    250,
+    500
+  ],
+  "London broil": [
+    400,
+    650
+  ],
+  "Fasolada": [
+    400,
+    650
+  ],
+  "Strudel": [
+    400,
+    650
+  ],
+  "\u00d8llebr\u00f8d": [
+    400,
+    650
+  ],
+  "Tamago kake gohan": [
+    400,
+    650
+  ],
+  "Hot water corn bread": [
+    150,
+    300
+  ],
+  "Philippine adobo": [
+    400,
+    650
+  ],
+  "Hulatang": [
+    400,
+    650
+  ],
+  "Dyrl\u00e6gens natmad": [
+    400,
+    650
+  ],
+  "Chistorra": [
+    400,
+    650
+  ],
+  "Polkagris": [
+    400,
+    650
+  ],
+  "Galbi-tang": [
+    400,
+    650
+  ],
+  "Mrouzia": [
+    400,
+    650
+  ],
+  "Gopchang-jeongol": [
+    400,
+    650
+  ],
+  "Miang kham": [
+    450,
+    750
+  ],
+  "Clams casino": [
+    250,
+    500
+  ],
+  "Nanbanzuke": [
+    400,
+    650
+  ],
+  "Dripping cake": [
+    250,
+    500
+  ],
+  "Cookie salad": [
+    200,
+    450
+  ],
+  "Usal": [
+    400,
+    650
+  ],
+  "Mandu-guk": [
+    400,
+    650
+  ],
+  "Smalahove": [
+    400,
+    650
+  ],
+  "Kokis": [
+    400,
+    650
+  ],
+  "Ori-tang": [
+    400,
+    650
+  ],
+  "Pakhala": [
+    400,
+    650
+  ],
+  "Cream pie": [
+    250,
+    500
+  ],
+  "Butajiru": [
+    400,
+    650
+  ],
+  "New England boiled dinner": [
+    400,
+    650
+  ],
+  "Chhena jalebi": [
+    400,
+    650
+  ],
+  "Pastitsio": [
+    400,
+    650
+  ],
+  "Panucho": [
+    400,
+    650
+  ],
+  "Chhena kheeri": [
+    400,
+    650
+  ],
+  "Kifli": [
+    400,
+    650
+  ],
+  "Solyanka": [
+    400,
+    650
+  ],
+  "Sadhya": [
+    400,
+    650
+  ],
+  "Cullen skink": [
+    400,
+    650
+  ],
+  "Havregrynskugle": [
+    400,
+    650
+  ],
+  "Harira": [
+    400,
+    650
+  ],
+  "Cornish game hen": [
+    80,
+    220
+  ],
+  "Beef on weck": [
+    450,
+    750
+  ],
+  "Tompouce": [
+    400,
+    650
+  ],
+  "Caldo de siete mares": [
+    400,
+    650
+  ],
+  "Millionb\u00f8f": [
+    400,
+    650
+  ],
+  "Chicago-style hot dog": [
+    300,
+    450
+  ],
+  "Risalamande": [
+    400,
+    650
+  ],
+  "Alinazik kebab": [
+    350,
+    650
+  ],
+  "Medisterp\u00f8lse": [
+    400,
+    650
+  ],
+  "Sarson da saag": [
+    400,
+    650
+  ],
+  "Liangfen": [
+    400,
+    650
+  ],
+  "Pistolette": [
+    400,
+    650
+  ],
+  "Steamed clams": [
+    250,
+    500
+  ],
+  "Ulam": [
+    400,
+    650
+  ],
+  "Kheer": [
+    400,
+    650
+  ],
+  "Tlacoyo": [
+    400,
+    650
+  ],
+  "Tarator": [
+    400,
+    650
+  ],
+  "Cochinita pibil": [
+    400,
+    650
+  ],
+  "Buddha Jumps Over the Wall": [
+    400,
+    650
+  ],
+  "Sfouf": [
+    400,
+    650
+  ],
+  "Ham and cheese sandwich": [
+    350,
+    650
+  ],
+  "\"Peanut butter": [
+    80,
+    220
+  ],
+  "\"Bacon": [
+    450,
+    750
+  ],
+  "Chicken karahi": [
+    350,
+    650
+  ],
+  "Maple bacon donut": [
+    450,
+    750
+  ],
+  "Litti": [
+    400,
+    650
+  ],
+  "Nam Khao": [
+    400,
+    650
+  ],
+  "Nam tok": [
+    400,
+    650
+  ],
+  "Baozi": [
+    300,
+    550
+  ],
+  "Kibbeh": [
+    400,
+    650
+  ],
+  "Kushari": [
+    400,
+    650
+  ],
+  "Jiuniang": [
+    400,
+    650
+  ],
+  "Machher Jhol": [
+    400,
+    650
+  ],
+  "Fahsa": [
+    400,
+    650
+  ],
+  "Mysore pak": [
+    400,
+    650
+  ],
+  "Chalupa": [
+    400,
+    650
+  ],
+  "Swiss roll": [
+    150,
+    300
+  ],
+  "Balkenbrij": [
+    400,
+    650
+  ],
+  "Tortas de aceite": [
+    400,
+    650
+  ],
+  "Popover": [
+    400,
+    650
+  ],
+  "Falooda": [
+    400,
+    650
+  ],
+  "Macaroni salad": [
+    200,
+    450
+  ],
+  "Barbacoa": [
+    400,
+    650
+  ],
+  "Hushpuppy": [
+    400,
+    650
+  ],
+  "Luther Burger": [
+    450,
+    750
+  ],
+  "Ragout": [
+    400,
+    650
+  ],
+  "B\u00e1nh bao": [
+    300,
+    550
+  ],
+  "Moronga": [
+    400,
+    650
+  ],
+  "Hayashi rice": [
+    400,
+    650
+  ],
+  "Z\u00fcrcher Geschnetzeltes": [
+    400,
+    650
+  ],
+  "\u00c9clair": [
+    400,
+    650
+  ],
+  "Colcannon": [
+    400,
+    650
+  ],
+  "Bear claw": [
+    400,
+    650
+  ],
+  "Francesinha": [
+    400,
+    650
+  ],
+  "Wat": [
+    400,
+    650
+  ],
+  "Loco moco": [
+    400,
+    650
+  ],
+  "Hot milk cake": [
+    250,
+    500
+  ],
+  "Hoe": [
+    400,
+    650
+  ],
+  "Gordita": [
+    400,
+    650
+  ],
+  "Macaron": [
+    400,
+    650
+  ],
+  "Pepperoni roll": [
+    150,
+    300
+  ],
+  "Rasgulla": [
+    400,
+    650
+  ],
+  "Angel wings": [
+    350,
+    650
+  ],
+  "Huevos rancheros": [
+    400,
+    650
+  ],
+  "Caprese salad": [
+    200,
+    450
+  ],
+  "Kombdi vade": [
+    400,
+    650
+  ],
+  "Yong tau foo": [
+    400,
+    650
+  ],
+  "Chai tow kway": [
+    400,
+    650
+  ],
+  "Machaca": [
+    400,
+    650
+  ],
+  "Ugali": [
+    400,
+    650
+  ],
+  "Arr\u00f2s negre": [
+    400,
+    650
+  ],
+  "Kimchi fried rice": [
+    400,
+    650
+  ],
+  "Frybread": [
+    150,
+    300
+  ],
+  "Halo-halo": [
+    400,
+    650
+  ],
+  "Shiokara": [
+    400,
+    650
+  ],
+  "Janssons frestelse": [
+    400,
+    650
+  ],
+  "Hot Brown": [
+    400,
+    650
+  ],
+  "Torta": [
+    400,
+    650
+  ],
+  "\u0106evapi": [
+    400,
+    650
+  ],
+  "Salt water taffy": [
+    400,
+    650
+  ],
+  "\u00c7\u0131lb\u0131r": [
+    400,
+    650
+  ],
+  "Murtabak": [
+    400,
+    650
+  ],
+  "Tahu goreng": [
+    400,
+    650
+  ],
+  "Soto ayam": [
+    180,
+    350
+  ],
+  "Mee siam": [
+    400,
+    650
+  ],
+  "Submarine sandwich": [
+    350,
+    650
+  ],
+  "Halu\u0161ky": [
+    400,
+    650
+  ],
+  "Kimchi-jjigae": [
+    400,
+    650
+  ],
+  "Fish ball": [
+    250,
+    500
+  ],
+  "Blodpalt": [
+    400,
+    650
+  ],
+  "Lebanon bologna": [
+    400,
+    650
+  ],
+  "Okroshka": [
+    400,
+    650
+  ],
+  "Linzer torte": [
+    400,
+    650
+  ],
+  "Shrikhand": [
+    400,
+    650
+  ],
+  "Yakiniku": [
+    400,
+    650
+  ],
+  "Huevos divorciados": [
+    400,
+    650
+  ],
+  "Nihari": [
+    400,
+    650
+  ],
+  "Saut\u00e9ed reindeer": [
+    400,
+    650
+  ],
+  "Hasty pudding": [
+    200,
+    400
+  ],
+  "Mission burrito": [
+    550,
+    850
+  ],
+  "Sweet and sour pork": [
+    400,
+    650
+  ],
+  "R\u00f8dgr\u00f8d": [
+    400,
+    650
+  ],
+  "Booyah": [
+    400,
+    650
+  ],
+  "Bienenstich": [
+    400,
+    650
+  ],
+  "Dressed herring": [
+    400,
+    650
+  ],
+  "New York-style pizza": [
+    500,
+    800
+  ],
+  "Bistek": [
+    400,
+    650
+  ],
+  "Sinigang": [
+    400,
+    650
+  ],
+  "Fios de ovos": [
+    400,
+    650
+  ],
+  "Vitello tonnato": [
+    400,
+    650
+  ],
+  "Bisque": [
+    200,
+    400
+  ],
+  "Modak": [
+    400,
+    650
+  ],
+  "New Haven-style pizza": [
+    500,
+    800
+  ],
+  "California-style pizza": [
+    500,
+    800
+  ],
+  "Wrap": [
+    350,
+    650
+  ],
+  "Puri": [
+    400,
+    650
+  ],
+  "Jam\u00f3n": [
+    400,
+    650
+  ],
+  "Khash": [
+    400,
+    650
+  ],
+  "Beef bourguignon": [
+    450,
+    750
+  ],
+  "Truffade": [
+    400,
+    650
+  ],
+  "B\u00f2 n\u01b0\u1edbng l\u00e1 l\u1ed1t": [
+    400,
+    650
+  ],
+  "Ful medames": [
+    400,
+    650
+  ],
+  "Aligot": [
+    400,
+    650
+  ],
+  "Kolach": [
+    400,
+    650
+  ],
+  "Guaiwei": [
+    400,
+    650
+  ],
+  "Kesme": [
+    400,
+    650
+  ],
+  "Funeral potatoes": [
+    180,
+    350
+  ],
+  "Arancini": [
+    400,
+    650
+  ],
+  "Creamed corn": [
+    80,
+    220
+  ],
+  "Mozzarella sticks": [
+    400,
+    650
+  ],
+  "American goulash": [
+    450,
+    750
+  ],
+  "Gofio": [
+    400,
+    650
+  ],
+  "Soup alla Canavese": [
+    200,
+    400
+  ],
+  "Red beans and rice": [
+    400,
+    650
+  ],
+  "R\u00f6ssypottu": [
+    400,
+    650
+  ],
+  "Fl\u00e4skpannkaka": [
+    400,
+    650
+  ],
+  "Hyderabadi biryani": [
+    400,
+    650
+  ],
+  "Baeckeoffe": [
+    400,
+    650
+  ],
+  "Eton mess": [
+    400,
+    650
+  ],
+  "Khachapuri": [
+    400,
+    650
+  ],
+  "Banoffee pie": [
+    250,
+    500
+  ],
+  "Ants climbing a tree": [
+    400,
+    650
+  ],
+  "Dandan noodles": [
+    450,
+    750
+  ],
+  "Suanla chaoshou": [
+    400,
+    650
+  ],
+  "Samgye-tang": [
+    400,
+    650
+  ],
+  "Spam musubi": [
+    350,
+    650
+  ],
+  "Bridie": [
+    400,
+    650
+  ],
+  "Kaju katli": [
+    400,
+    650
+  ],
+  "Chocolate-covered potato chips": [
+    180,
+    350
+  ],
+  "Enne gai": [
+    400,
+    650
+  ],
+  "Ruske kape": [
+    400,
+    650
+  ],
+  "Grass jelly": [
+    400,
+    650
+  ],
+  "Salt potatoes": [
+    180,
+    350
+  ],
+  "Katsudon": [
+    450,
+    750
+  ],
+  "Pasanda": [
+    400,
+    650
+  ],
+  "Banitsa": [
+    400,
+    650
+  ],
+  "Flammekueche": [
+    400,
+    650
+  ],
+  "Twice-cooked pork": [
+    400,
+    650
+  ],
+  "Kare-kare": [
+    400,
+    650
+  ],
+  "Laobing": [
+    400,
+    650
+  ],
+  "Banmian": [
+    400,
+    650
+  ],
+  "Honey cake": [
+    250,
+    500
+  ],
+  "Swiss wing": [
+    400,
+    650
+  ],
+  "Michigan hot dog": [
+    300,
+    450
+  ],
+  "Tong sui": [
+    400,
+    650
+  ],
+  "Sosatie": [
+    400,
+    650
+  ],
+  "Pap": [
+    400,
+    650
+  ],
+  "Umngqusho": [
+    400,
+    650
+  ],
+  "Malva pudding": [
+    200,
+    400
+  ],
+  "Vichyssoise": [
+    400,
+    650
+  ],
+  "Z\u014dni": [
+    400,
+    650
+  ],
+  "Maxwell Street Polish": [
+    400,
+    650
+  ],
+  "Vetkoek": [
+    400,
+    650
+  ],
+  "Mealie bread": [
+    150,
+    300
+  ],
+  "Chakalaka": [
+    400,
+    650
+  ],
+  "Frikkadel": [
+    400,
+    650
+  ],
+  "Tteokguk": [
+    400,
+    650
+  ],
+  "Coney Island hot dog": [
+    300,
+    450
+  ],
+  "Tirokafteri": [
+    400,
+    650
+  ],
+  "Fesikh": [
+    400,
+    650
+  ],
+  "Boston cream pie": [
+    250,
+    500
+  ],
+  "Buttermilk koldsk\u00e5l": [
+    400,
+    650
+  ],
+  "White boiled shrimp": [
+    250,
+    500
+  ],
+  "Bagnun": [
+    400,
+    650
+  ],
+  "Buntil": [
+    150,
+    300
+  ],
+  "Pisto": [
+    400,
+    650
+  ],
+  "Dhokla": [
+    400,
+    650
+  ],
+  "Al pastor": [
+    400,
+    650
+  ],
+  "St. Paul sandwich": [
+    350,
+    650
+  ],
+  "Melonpan": [
+    80,
+    200
+  ],
+  "Haupia": [
+    400,
+    650
+  ],
+  "L\u00e1ngos": [
+    400,
+    650
+  ],
+  "\u00c9touff\u00e9e": [
+    400,
+    650
+  ],
+  "Galaktoboureko": [
+    400,
+    650
+  ],
+  "B\u00f6rek": [
+    400,
+    650
+  ],
+  "Suya": [
+    400,
+    650
+  ],
+  "Rye bread": [
+    150,
+    300
+  ],
+  "Escudella i carn d'olla": [
+    400,
+    650
+  ],
+  "Gari": [
+    400,
+    650
+  ],
+  "Tilkut": [
+    400,
+    650
+  ],
+  "Botok": [
+    400,
+    650
+  ],
+  "Tatws Pum Munud": [
+    400,
+    650
+  ],
+  "Char siu": [
+    400,
+    650
+  ],
+  "Burgoo": [
+    400,
+    650
+  ],
+  "Cac\u0131k": [
+    400,
+    650
+  ],
+  "Barfi": [
+    400,
+    650
+  ],
+  "Mulligan stew": [
+    200,
+    400
+  ],
+  "Biangbiang noodles": [
+    450,
+    750
+  ],
+  "Banana pudding": [
+    200,
+    400
+  ],
+  "Crab cake": [
+    250,
+    500
+  ],
+  "Chinese sausage": [
+    300,
+    450
+  ],
+  "Veal": [
+    450,
+    750
+  ],
+  "Curry bread": [
+    450,
+    750
+  ],
+  "Pastry heart": [
+    250,
+    500
+  ],
+  "Cr\u00e8me caramel": [
+    400,
+    650
+  ],
+  "Panada": [
+    400,
+    650
+  ],
+  "Pie \u00e0 la Mode": [
+    250,
+    500
+  ],
+  "Bonus Jack": [
+    400,
+    650
+  ],
+  "Princess cake": [
+    250,
+    500
+  ],
+  "Harihari-nabe": [
+    400,
+    650
+  ],
+  "Hot chicken": [
+    350,
+    650
+  ],
+  "Chhena Jhili": [
+    400,
+    650
+  ],
+  "Grape pie": [
+    250,
+    500
+  ],
+  "Chicken bog": [
+    350,
+    650
+  ],
+  "Sausage gravy": [
+    300,
+    450
+  ],
+  "Derby pie": [
+    250,
+    500
+  ],
+  "Ice cream cake": [
+    250,
+    500
+  ],
+  "Swiss steak": [
+    450,
+    750
+  ],
+  "Stack cake": [
+    250,
+    500
+  ],
+  "Lobster Newberg": [
+    250,
+    500
+  ],
+  "Nikujaga": [
+    400,
+    650
+  ],
+  "Manti": [
+    400,
+    650
+  ],
+  "Parmigiana": [
+    350,
+    650
+  ],
+  "Palatschinke": [
+    400,
+    650
+  ],
+  "Gujeolpan": [
+    400,
+    650
+  ],
+  "Rajas con crema": [
+    400,
+    650
+  ],
+  "Mak-guksu": [
+    400,
+    650
+  ],
+  "Tetrazzini": [
+    400,
+    650
+  ],
+  "Squid": [
+    400,
+    650
+  ],
+  "Palak paneer": [
+    400,
+    650
+  ],
+  "Krumkake": [
+    400,
+    650
+  ],
+  "Bolani": [
+    400,
+    650
+  ],
+  "Pork and beans": [
+    400,
+    650
+  ],
+  "Nian gao": [
+    400,
+    650
+  ],
+  "Oysters Rockefeller": [
+    250,
+    500
+  ],
+  "Tav\u010de grav\u010de": [
+    400,
+    650
+  ],
+  "Bakkwa": [
+    400,
+    650
+  ],
+  "Xacuti": [
+    400,
+    650
+  ],
+  "Sarapatel": [
+    400,
+    650
+  ],
+  "Taquito": [
+    400,
+    650
+  ],
+  "Egg drop soup": [
+    200,
+    400
+  ],
+  "Shaobing": [
+    400,
+    650
+  ],
+  "Chawanmushi": [
+    400,
+    650
+  ],
+  "Nshima/Nsima": [
+    400,
+    650
+  ],
+  "Pollock roe": [
+    400,
+    650
+  ],
+  "Slinger": [
+    400,
+    650
+  ],
+  "Japchae": [
+    400,
+    650
+  ],
+  "St. Honor\u00e9 cake": [
+    250,
+    500
+  ],
+  "Barm cake": [
+    250,
+    500
+  ],
+  "Tulumba": [
+    400,
+    650
+  ],
+  "Xiaolongbao": [
+    300,
+    550
+  ],
+  "Delmonico steak": [
+    450,
+    750
+  ],
+  "Stromboli": [
+    500,
+    800
+  ],
+  "Kanafeh": [
+    400,
+    650
+  ],
+  "Hamdog": [
+    450,
+    750
+  ],
+  "Garri": [
+    400,
+    650
+  ],
+  "Kofta": [
+    400,
+    650
+  ],
+  "Chana masala": [
+    450,
+    750
+  ],
+  "Salo": [
+    400,
+    650
+  ],
+  "Lung fung soup": [
+    200,
+    400
+  ],
+  "Dirty rice": [
+    400,
+    650
+  ],
+  "Urnebes": [
+    400,
+    650
+  ],
+  "Andouillette": [
+    400,
+    650
+  ],
+  "Landj\u00e4ger": [
+    400,
+    650
+  ],
+  "Fisherman's soup": [
+    200,
+    400
+  ],
+  "Romeritos": [
+    400,
+    650
+  ],
+  "Lane cake": [
+    250,
+    500
+  ],
+  "Pork jelly": [
+    400,
+    650
+  ],
+  "Idiyappam": [
+    400,
+    650
+  ],
+  "Sm\u00f6rg\u00e5st\u00e5rta": [
+    400,
+    650
+  ],
+  "Sma\u017een\u00fd s\u00fdr": [
+    400,
+    650
+  ],
+  "Arroz con pollo": [
+    400,
+    650
+  ],
+  "Petit g\u00e2teau": [
+    400,
+    650
+  ],
+  "Tea egg": [
+    200,
+    400
+  ],
+  "Cocada amarela": [
+    400,
+    650
+  ],
+  "Japanese curry": [
+    450,
+    750
+  ],
+  "Qeema": [
+    400,
+    650
+  ],
+  "Unagi": [
+    400,
+    650
+  ],
+  "Hoppin' John": [
+    400,
+    650
+  ],
+  "Gy\u016bhi": [
+    400,
+    650
+  ],
+  "Clafoutis": [
+    400,
+    650
+  ],
+  "Green curry": [
+    450,
+    750
+  ],
+  "G\u1ecfi cu\u1ed1n": [
+    400,
+    650
+  ],
+  "Chilli crab": [
+    250,
+    500
+  ],
+  "Lo mai gai": [
+    400,
+    650
+  ],
+  "Lo mein": [
+    450,
+    750
+  ],
+  "Puttu": [
+    400,
+    650
+  ],
+  "Fried pie": [
+    250,
+    500
+  ],
+  "Spanish rice": [
+    400,
+    650
+  ],
+  "Nuea phat phrik": [
+    400,
+    650
+  ],
+  "Jeow bong": [
+    400,
+    650
+  ],
+  "Massaman curry": [
+    450,
+    750
+  ],
+  "Ostkaka": [
+    400,
+    650
+  ],
+  "Guilinggao": [
+    400,
+    650
+  ],
+  "Spettekaka": [
+    400,
+    650
+  ],
+  "Cudighi": [
+    400,
+    650
+  ],
+  "Saltimbocca": [
+    400,
+    650
+  ],
+  "Sfogliatella": [
+    400,
+    650
+  ],
+  "Beef chow fun": [
+    450,
+    750
+  ],
+  "Chow mein sandwich": [
+    350,
+    650
+  ],
+  "Carnitas": [
+    450,
+    750
+  ],
+  "Chinese steamed eggs": [
+    200,
+    400
+  ],
+  "Oyster omelette": [
+    250,
+    500
+  ],
+  "Garden salad": [
+    200,
+    450
+  ],
+  "Salade ni\u00e7oise": [
+    200,
+    450
+  ],
+  "Dal bhat": [
+    400,
+    650
+  ],
+  "Biscuits and gravy": [
+    220,
+    420
+  ],
+  "Omurice": [
+    400,
+    650
+  ],
+  "Pao cai": [
+    400,
+    650
+  ],
+  "Nasi liwet": [
+    400,
+    650
+  ],
+  "Thai suki": [
+    400,
+    650
+  ],
+  "Moo shu pork": [
+    400,
+    650
+  ],
+  "Corn crab soup": [
+    200,
+    400
+  ],
+  "Fabes con almejas": [
+    400,
+    650
+  ],
+  "Golden Opulence Sundae": [
+    200,
+    400
+  ],
+  "Ketoprak": [
+    400,
+    650
+  ],
+  "Mala Mogodu": [
+    400,
+    650
+  ],
+  "Tekwan": [
+    400,
+    650
+  ],
+  "Vatrushka": [
+    400,
+    650
+  ],
+  "Yin Yang fish": [
+    250,
+    500
+  ],
+  "Boston cream doughnut": [
+    250,
+    500
+  ],
+  "Home fries": [
+    300,
+    500
+  ],
+  "Mustacciuoli": [
+    400,
+    650
+  ],
+  "Clam cake": [
+    250,
+    500
+  ],
+  "Sarma": [
+    400,
+    650
+  ],
+  "Shahe fen": [
+    400,
+    650
+  ],
+  "Charleston red rice": [
+    400,
+    650
+  ],
+  "Fish head curry": [
+    450,
+    750
+  ],
+  "Podvarak": [
+    400,
+    650
+  ],
+  "Pihtije": [
+    400,
+    650
+  ],
+  "Popara": [
+    400,
+    650
+  ],
+  "Ka\u010damak": [
+    400,
+    650
+  ],
+  "Seolleongtang": [
+    400,
+    650
+  ],
+  "Go\u0142\u0105bki": [
+    400,
+    650
+  ],
+  "Szaloncukor": [
+    400,
+    650
+  ],
+  "Kalduny": [
+    400,
+    650
+  ],
+  "Zrazy": [
+    400,
+    650
+  ],
+  "Panettone": [
+    400,
+    650
+  ],
+  "Ambelopoulia": [
+    400,
+    650
+  ],
+  "Persimmon pudding": [
+    200,
+    400
+  ],
+  "Floating island": [
+    400,
+    650
+  ],
+  "Zeeuwse bolus": [
+    400,
+    650
+  ],
+  "Ambuyat": [
+    400,
+    650
+  ],
+  "Smulpaj": [
+    400,
+    650
+  ],
+  "Moravian spice cookies": [
+    250,
+    500
+  ],
+  "Mee pok": [
+    400,
+    650
+  ],
+  "Jjigae": [
+    400,
+    650
+  ],
+  "Pizza bagel": [
+    500,
+    800
+  ],
+  "Tteok": [
+    400,
+    650
+  ],
+  "Br\u00e6ndende k\u00e6rlighed": [
+    400,
+    650
+  ],
+  "Beaten biscuit": [
+    220,
+    420
+  ],
+  "\u00c6blefl\u00e6sk": [
+    400,
+    650
+  ],
+  "Chicken paprikash": [
+    350,
+    650
+  ],
+  "Tangyuan": [
+    400,
+    650
+  ],
+  "Tuna pot": [
+    250,
+    500
+  ],
+  "Burnt ends": [
+    400,
+    650
+  ],
+  "Jam\u00f3n ib\u00e9rico": [
+    400,
+    650
+  ],
+  "Rakfisk": [
+    400,
+    650
+  ],
+  "Zarangollo": [
+    400,
+    650
+  ],
+  "T\u00far\u00f3 Rudi": [
+    400,
+    650
+  ],
+  "Flummery": [
+    400,
+    650
+  ],
+  "Cecina": [
+    400,
+    650
+  ],
+  "Galinha \u00e0 portuguesa": [
+    400,
+    650
+  ],
+  "Ankimo": [
+    400,
+    650
+  ],
+  "Galinha \u00e0 africana": [
+    400,
+    650
+  ],
+  "Cha siu bao": [
+    300,
+    550
+  ],
+  "Fugu chiri": [
+    400,
+    650
+  ],
+  "Assidat Zgougou": [
+    400,
+    650
+  ],
+  "Oxtail stew": [
+    200,
+    400
+  ],
+  "Laping": [
+    400,
+    650
+  ],
+  "Chaku": [
+    400,
+    650
+  ],
+  "Caldillo de perro": [
+    400,
+    650
+  ],
+  "Sopa de Gato": [
+    400,
+    650
+  ],
+  "Keledo\u015f": [
+    400,
+    650
+  ],
+  "M\u00fccver": [
+    400,
+    650
+  ],
+  "Brotzeit": [
+    400,
+    650
+  ],
+  "Shekerbura": [
+    400,
+    650
+  ],
+  "Oeufs en meurette": [
+    400,
+    650
+  ],
+  "Pappa al pomodoro": [
+    400,
+    650
+  ],
+  "Teurgoule": [
+    400,
+    650
+  ],
+  "B\u00e1nh x\u00e8o": [
+    400,
+    650
+  ],
+  "Musakhan": [
+    400,
+    650
+  ],
+  "Maqluba": [
+    400,
+    650
+  ],
+  "Bob chorba": [
+    400,
+    650
+  ],
+  "Rum baba": [
+    400,
+    650
+  ],
+  "Veda bread": [
+    150,
+    300
+  ],
+  "Fried shrimp": [
+    250,
+    500
+  ],
+  "Pastilla": [
+    400,
+    650
+  ],
+  "Strawberry delight": [
+    80,
+    200
+  ],
+  "Cheese dream": [
+    150,
+    350
+  ],
+  "Frejon": [
+    400,
+    650
+  ],
+  "Gyeran-jjim": [
+    400,
+    650
+  ],
+  "Revithia": [
+    400,
+    650
+  ],
+  "Nasi bogana": [
+    400,
+    650
+  ],
+  "Torta de gazpacho": [
+    200,
+    400
+  ],
+  "Double Down": [
+    400,
+    650
+  ],
+  "Seri Muka": [
+    400,
+    650
+  ],
+  "Obi non": [
+    400,
+    650
+  ],
+  "Garganelli": [
+    400,
+    650
+  ],
+  "Kig ha farz": [
+    400,
+    650
+  ],
+  "Mississippi mud pie": [
+    250,
+    500
+  ],
+  "Eve's pudding": [
+    200,
+    400
+  ],
+  "Amala": [
+    400,
+    650
+  ],
+  "Okinawa soba": [
+    450,
+    750
+  ],
+  "Lamian": [
+    400,
+    650
+  ],
+  "Soki": [
+    400,
+    650
+  ],
+  "Chicken Maryland": [
+    350,
+    650
+  ],
+  "Chanpur\u016b": [
+    400,
+    650
+  ],
+  "Mlinci": [
+    400,
+    650
+  ],
+  "Smyrna meatballs": [
+    450,
+    750
+  ],
+  "Tavern sandwich": [
+    350,
+    650
+  ],
+  "Yangzhou fried rice": [
+    400,
+    650
+  ],
+  "Qutab": [
+    400,
+    650
+  ],
+  "Dum Aloo": [
+    400,
+    650
+  ],
+  "Queijo do Pico": [
+    400,
+    650
+  ],
+  "Cocada": [
+    400,
+    650
+  ],
+  "Calf's liver and bacon": [
+    450,
+    750
+  ],
+  "Moules-frites": [
+    400,
+    650
+  ],
+  "Anarsa": [
+    400,
+    650
+  ],
+  "Tlayuda": [
+    400,
+    650
+  ],
+  "\u0160akotis": [
+    400,
+    650
+  ],
+  "Jollof rice": [
+    400,
+    650
+  ],
+  "Moin moin": [
+    400,
+    650
+  ],
+  "Jam roly-poly": [
+    400,
+    650
+  ],
+  "Hochzeitssuppe": [
+    400,
+    650
+  ],
+  "Mucenici": [
+    400,
+    650
+  ],
+  "Ema datshi": [
+    400,
+    650
+  ],
+  "Ngo hiang": [
+    400,
+    650
+  ],
+  "Jello salad": [
+    200,
+    450
+  ],
+  "Claypot chicken rice": [
+    400,
+    650
+  ],
+  "Maeun-tang": [
+    400,
+    650
+  ],
+  "Cifantuan": [
+    400,
+    650
+  ],
+  "Rhubarb pie": [
+    250,
+    500
+  ],
+  "Olla podrida": [
+    400,
+    650
+  ],
+  "Har gow": [
+    400,
+    650
+  ],
+  "Sayur lodeh": [
+    400,
+    650
+  ],
+  "Memela": [
+    400,
+    650
+  ],
+  "Wenchang chicken": [
+    350,
+    650
+  ],
+  "Galinhada": [
+    400,
+    650
+  ],
+  "Lecs\u00f3": [
+    400,
+    650
+  ],
+  "Gypsy tart": [
+    250,
+    500
+  ],
+  "Bougatsa": [
+    400,
+    650
+  ],
+  "Germkn\u00f6del": [
+    400,
+    650
+  ],
+  "Haystack": [
+    400,
+    650
+  ],
+  "Yule log": [
+    400,
+    650
+  ],
+  "Butter cookie": [
+    250,
+    500
+  ],
+  "Chicken \u00e0 la King": [
+    350,
+    650
+  ],
+  "M\u00e9choui": [
+    400,
+    650
+  ],
+  "Croquette": [
+    300,
+    550
+  ],
+  "Shami kebab": [
+    350,
+    650
+  ],
+  "Chicken and waffles": [
+    350,
+    650
+  ],
+  "Poke": [
+    400,
+    650
+  ],
+  "Punsch-roll": [
+    150,
+    300
+  ],
+  "Turtle soup": [
+    200,
+    400
+  ],
+  "Kansar": [
+    400,
+    650
+  ],
+  "Glamorgan sausage": [
+    300,
+    450
+  ],
+  "Mango pudding": [
+    200,
+    400
+  ],
+  "B\u00e1nh canh": [
+    400,
+    650
+  ],
+  "Caparrones": [
+    400,
+    650
+  ],
+  "Zopf": [
+    400,
+    650
+  ],
+  "Bath bun": [
+    150,
+    300
+  ],
+  "Chelsea bun": [
+    150,
+    300
+  ],
+  "London bun": [
+    150,
+    300
+  ],
+  "Saffron bun": [
+    150,
+    300
+  ],
+  "Chakhchoukha": [
+    400,
+    650
+  ],
+  "Angel food cake": [
+    250,
+    500
+  ],
+  "Lalab": [
+    400,
+    650
+  ],
+  "Suckling pig": [
+    400,
+    650
+  ],
+  "Barmbrack": [
+    400,
+    650
+  ],
+  "Kotlet schabowy": [
+    400,
+    650
+  ],
+  "Pastel de nata": [
+    400,
+    650
+  ],
+  "Shave ice": [
+    400,
+    650
+  ],
+  "Tipsy cake": [
+    250,
+    500
+  ],
+  "Creamed eggs on toast": [
+    200,
+    400
+  ],
+  "Kerak telor": [
+    400,
+    650
+  ],
+  "Ogok-bap": [
+    400,
+    650
+  ],
+  "Mortadella": [
+    400,
+    650
+  ],
+  "Nut roll": [
+    150,
+    300
+  ],
+  "Fried green tomatoes": [
+    400,
+    650
+  ],
+  "Beondegi": [
+    400,
+    650
+  ],
+  "Tsoureki": [
+    400,
+    650
+  ],
+  "Tiropita": [
+    150,
+    300
+  ],
+  "Pljeskavica": [
+    400,
+    650
+  ],
+  "Kara\u0111or\u0111eva \u0161nicla": [
+    400,
+    650
+  ],
+  "Kokoretsi": [
+    400,
+    650
+  ],
+  "Skilpadjies": [
+    400,
+    650
+  ],
+  "Corn chowder": [
+    200,
+    400
+  ],
+  "Tarhana": [
+    400,
+    650
+  ],
+  "Tufahije": [
+    400,
+    650
+  ],
+  "Birria": [
+    400,
+    650
+  ],
+  "Veal Orloff": [
+    450,
+    750
+  ],
+  "Fattoush": [
+    400,
+    650
+  ],
+  "Pane carasau": [
+    400,
+    650
+  ],
+  "Rab cake": [
+    250,
+    500
+  ],
+  "Buffalo burger": [
+    450,
+    750
+  ],
+  "Treacle tart": [
+    250,
+    500
+  ],
+  "Hamburger": [
+    450,
+    750
+  ],
+  "Stamppot": [
+    400,
+    650
+  ],
+  "Kopytka": [
+    400,
+    650
+  ],
+  "Khai yat sai": [
+    400,
+    650
+  ],
+  "Minchee": [
+    400,
+    650
+  ],
+  "Kinema": [
+    400,
+    650
+  ],
+  "Sgabeo": [
+    400,
+    650
+  ],
+  "Chili dog": [
+    400,
+    650
+  ],
+  "Spaghetti alle vongole": [
+    450,
+    750
+  ],
+  "Bavarian cream": [
+    400,
+    650
+  ],
+  "Bhaji": [
+    400,
+    650
+  ],
+  "Kachori": [
+    400,
+    650
+  ],
+  "Chowder": [
+    200,
+    400
+  ],
+  "Scotch broth": [
+    200,
+    400
+  ],
+  "Pea soup": [
+    200,
+    400
+  ],
+  "Kitfo": [
+    400,
+    650
+  ],
+  "Gored gored": [
+    400,
+    650
+  ],
+  "B\u00e1nh ch\u01b0ng": [
+    400,
+    650
+  ],
+  "B\u00fan b\u00f2 Hu\u1ebf": [
+    400,
+    650
+  ],
+  "B\u00f2 7 m\u00f3n": [
+    400,
+    650
+  ],
+  "C\u01a1m t\u1ea5m": [
+    400,
+    650
+  ],
+  "Ambrosia": [
+    400,
+    650
+  ],
+  "R\u00f6ntt\u00f6nen": [
+    400,
+    650
+  ],
+  "Balch\u00e3o": [
+    400,
+    650
+  ],
+  "Gibassier": [
+    400,
+    650
+  ],
+  "Bacalhau \u00e0 Z\u00e9 do Pipo": [
+    400,
+    650
+  ],
+  "Pane di Altamura": [
+    400,
+    650
+  ],
+  "Mykyrokka": [
+    400,
+    650
+  ],
+  "Paska": [
+    400,
+    650
+  ],
+  "Blackberry pie": [
+    250,
+    500
+  ],
+  "Mince pie": [
+    250,
+    500
+  ],
+  "Corn cookie": [
+    250,
+    500
+  ],
+  "Francesinha poveira": [
+    400,
+    650
+  ],
+  "Picadillo": [
+    400,
+    650
+  ],
+  "Runeberg torte": [
+    400,
+    650
+  ],
+  "Khakhra": [
+    400,
+    650
+  ],
+  "Ohn no khao sw\u00e8": [
+    400,
+    650
+  ],
+  "Sultsina": [
+    400,
+    650
+  ],
+  "Paella": [
+    400,
+    650
+  ],
+  "Espetada": [
+    400,
+    650
+  ],
+  "Pathiri": [
+    400,
+    650
+  ],
+  "Horumonyaki": [
+    400,
+    650
+  ],
+  "Khubz": [
+    400,
+    650
+  ],
+  "Ciorb\u0103": [
+    400,
+    650
+  ],
+  "Kimchi-buchimgae": [
+    400,
+    650
+  ],
+  "Sesame chicken": [
+    350,
+    650
+  ],
+  "Thukpa": [
+    400,
+    650
+  ],
+  "Chwinamul": [
+    400,
+    650
+  ],
+  "Kabuni": [
+    150,
+    300
+  ],
+  "Jhunka": [
+    400,
+    650
+  ],
+  "Jolada rotti": [
+    400,
+    650
+  ],
+  "Spoonbread": [
+    150,
+    300
+  ],
+  "Kulich": [
+    400,
+    650
+  ],
+  "Phat khing": [
+    400,
+    650
+  ],
+  "Namasu": [
+    400,
+    650
+  ],
+  "Wonton noodles": [
+    450,
+    750
+  ],
+  "Johnnycake": [
+    250,
+    500
+  ],
+  "Panellets": [
+    400,
+    650
+  ],
+  "Manj\u016b": [
+    400,
+    650
+  ],
+  "Mandi": [
+    400,
+    650
+  ],
+  "Fortune cookie": [
+    250,
+    500
+  ],
+  "Noppe": [
+    400,
+    650
+  ],
+  "Slavink": [
+    400,
+    650
+  ],
+  "Cockle bread": [
+    150,
+    300
+  ],
+  "Caruru": [
+    400,
+    650
+  ],
+  "Ch\u1ea3 l\u1ee5a": [
+    400,
+    650
+  ],
+  "Pan bagnat": [
+    400,
+    650
+  ],
+  "Sardenara": [
+    400,
+    650
+  ],
+  "Enchilada": [
+    550,
+    850
+  ],
+  "Sausage sandwich": [
+    300,
+    450
+  ],
+  "Pistachio pudding": [
+    200,
+    400
+  ],
+  "Chikki": [
+    400,
+    650
+  ],
+  "Champorado": [
+    450,
+    750
+  ],
+  "Coconut cake": [
+    250,
+    500
+  ],
+  "Kaassouffl\u00e9": [
+    400,
+    650
+  ],
+  "Carne pizzaiola": [
+    500,
+    800
+  ],
+  "Khauk sw\u00e8 thoke": [
+    400,
+    650
+  ],
+  "Gamja-tang": [
+    400,
+    650
+  ],
+  "Kadhi": [
+    400,
+    650
+  ],
+  "Green bean casserole": [
+    80,
+    220
+  ],
+  "Apple dumpling": [
+    300,
+    550
+  ],
+  "Cozonac": [
+    400,
+    650
+  ],
+  "Pissaladi\u00e8re": [
+    200,
+    450
+  ],
+  "Phat si-io": [
+    400,
+    650
+  ],
+  "Drunken noodles": [
+    450,
+    750
+  ],
+  "Jing Jiang Rou Si": [
+    400,
+    650
+  ],
+  "Enduri Pitha": [
+    400,
+    650
+  ],
+  "Kakara pitha": [
+    400,
+    650
+  ],
+  "Tarta de Santiago": [
+    250,
+    500
+  ],
+  "Sheftalia": [
+    400,
+    650
+  ],
+  "Soybean sprout": [
+    400,
+    650
+  ],
+  "Italian hot dog": [
+    300,
+    450
+  ],
+  "Makchang": [
+    400,
+    650
+  ],
+  "Meeshay": [
+    400,
+    650
+  ],
+  "Bacalhau com natas": [
+    400,
+    650
+  ],
+  "Mazurek": [
+    400,
+    650
+  ],
+  "Nan gyi thohk": [
+    400,
+    650
+  ],
+  "Ajapsandali": [
+    400,
+    650
+  ],
+  "Carac": [
+    400,
+    650
+  ],
+  "Mont di": [
+    400,
+    650
+  ],
+  "Geng": [
+    400,
+    650
+  ],
+  "Vispipuuro": [
+    400,
+    650
+  ],
+  "Bakso": [
+    400,
+    650
+  ],
+  "Canjica": [
+    400,
+    650
+  ],
+  "Fougasse": [
+    400,
+    650
+  ],
+  "Fool's Gold Loaf": [
+    400,
+    650
+  ],
+  "Blueberry pie": [
+    250,
+    500
+  ],
+  "Pickled cucumber": [
+    400,
+    650
+  ],
+  "Ogbono soup": [
+    200,
+    400
+  ],
+  "Champ": [
+    450,
+    750
+  ],
+  "Oysters en brochette": [
+    250,
+    500
+  ],
+  "Paskha": [
+    400,
+    650
+  ],
+  "Shish taouk": [
+    400,
+    650
+  ],
+  "Acaraj\u00e9": [
+    400,
+    650
+  ],
+  "Ras malai": [
+    400,
+    650
+  ],
+  "San-nakji": [
+    400,
+    650
+  ],
+  "Bungeo-ppang": [
+    150,
+    300
+  ],
+  "Skilandis": [
+    400,
+    650
+  ],
+  "Gosh-e Fil": [
+    400,
+    650
+  ],
+  "Nasi dagang": [
+    400,
+    650
+  ],
+  "Gheimeh": [
+    400,
+    650
+  ],
+  "Fesenj\u0101n": [
+    400,
+    650
+  ],
+  "Bacalhau \u00e0 Gomes de S\u00e1": [
+    400,
+    650
+  ],
+  "F\u00e5rik\u00e5l": [
+    400,
+    650
+  ],
+  "Bedfordshire clanger": [
+    400,
+    650
+  ],
+  "Tonkatsu": [
+    400,
+    650
+  ],
+  "Thai fried rice": [
+    400,
+    650
+  ],
+  "Manakish": [
+    400,
+    650
+  ],
+  "Schweinshaxe": [
+    400,
+    650
+  ],
+  "Chorba": [
+    400,
+    650
+  ],
+  "Oliebol": [
+    400,
+    650
+  ],
+  "Ropa vieja": [
+    400,
+    650
+  ],
+  "Natchitoches meat pie": [
+    250,
+    500
+  ],
+  "Icebox cake": [
+    250,
+    500
+  ],
+  "Sorrel soup": [
+    200,
+    400
+  ],
+  "Lahoh": [
+    400,
+    650
+  ],
+  "Bolillo": [
+    400,
+    650
+  ],
+  "Mollete": [
+    400,
+    650
+  ],
+  "Caldeirada": [
+    400,
+    650
+  ],
+  "Ogi": [
+    400,
+    650
+  ],
+  "Watergate salad": [
+    200,
+    450
+  ],
+  "Yaksik": [
+    400,
+    650
+  ],
+  "Half-smoke": [
+    400,
+    650
+  ],
+  "Dakos": [
+    400,
+    650
+  ],
+  "Sweet potato pie": [
+    250,
+    500
+  ],
+  "Cappon magro": [
+    400,
+    650
+  ],
+  "Serundeng": [
+    400,
+    650
+  ],
+  "Rijstevlaai": [
+    400,
+    650
+  ],
+  "Ajoblanco": [
+    400,
+    650
+  ],
+  "Yaka mein": [
+    400,
+    650
+  ],
+  "Jujeh kabab": [
+    400,
+    650
+  ],
+  "Soy egg": [
+    200,
+    400
+  ],
+  "Shuizhu": [
+    400,
+    650
+  ],
+  "Puliyogare": [
+    400,
+    650
+  ],
+  "Sago": [
+    400,
+    650
+  ],
+  "Laulau": [
+    400,
+    650
+  ],
+  "Curtido": [
+    400,
+    650
+  ],
+  "Tapai": [
+    400,
+    650
+  ],
+  "Press cake": [
+    250,
+    500
+  ],
+  "Cuchifritos": [
+    400,
+    650
+  ],
+  "Vlaai": [
+    400,
+    650
+  ],
+  "Malvern pudding": [
+    200,
+    400
+  ],
+  "Baklava": [
+    250,
+    500
+  ],
+  "Cheese dog": [
+    150,
+    350
+  ],
+  "Luchi": [
+    400,
+    650
+  ],
+  "Cowboy beans": [
+    400,
+    650
+  ],
+  "Sandesh": [
+    400,
+    650
+  ],
+  "Steak Diane": [
+    450,
+    750
+  ],
+  "Lobster stew": [
+    200,
+    400
+  ],
+  "Finikia": [
+    400,
+    650
+  ],
+  "Bibingka": [
+    400,
+    650
+  ],
+  "Tafelspitz": [
+    400,
+    650
+  ],
+  "Ploye": [
+    400,
+    650
+  ],
+  "Sayur asem": [
+    400,
+    650
+  ],
+  "Trinxat": [
+    400,
+    650
+  ],
+  "Nikuman": [
+    400,
+    650
+  ],
+  "Cozido \u00e0 portuguesa": [
+    400,
+    650
+  ],
+  "Bacalhau \u00e0 Br\u00e1s": [
+    400,
+    650
+  ],
+  "Tomato compote": [
+    400,
+    650
+  ],
+  "Sesame seed candy": [
+    400,
+    650
+  ],
+  "Dhebra": [
+    400,
+    650
+  ],
+  "Kaeng pa": [
+    400,
+    650
+  ],
+  "Mas riha": [
+    400,
+    650
+  ],
+  "Zosui": [
+    400,
+    650
+  ],
+  "Yassa": [
+    400,
+    650
+  ],
+  "Pambazo": [
+    400,
+    650
+  ],
+  "Imarti": [
+    400,
+    650
+  ],
+  "Bacalhau com todos": [
+    400,
+    650
+  ],
+  "Black pepper crab": [
+    250,
+    500
+  ],
+  "Queso flameado": [
+    400,
+    650
+  ],
+  "Black and white cookie": [
+    250,
+    500
+  ],
+  "Red braised pork belly": [
+    450,
+    750
+  ],
+  "Krofne": [
+    400,
+    650
+  ],
+  "U\u0161tipci": [
+    400,
+    650
+  ],
+  "Ro\u017eata": [
+    400,
+    650
+  ],
+  "Punjena paprika": [
+    400,
+    650
+  ],
+  "Fusi": [
+    400,
+    650
+  ],
+  "Mane\u0161tra": [
+    400,
+    650
+  ],
+  "Kro\u0161tule": [
+    400,
+    650
+  ],
+  "Fritule": [
+    400,
+    650
+  ],
+  "Protein bar": [
+    400,
+    650
+  ],
+  "Cordon bleu": [
+    400,
+    650
+  ],
+  "Pirog": [
+    400,
+    650
+  ],
+  "Pachi Pulusu": [
+    400,
+    650
+  ],
+  "Frig\u0103rui": [
+    400,
+    650
+  ],
+  "Chhena poda": [
+    400,
+    650
+  ],
+  "Poornalu": [
+    400,
+    650
+  ],
+  "Ponganalu": [
+    400,
+    650
+  ],
+  "Bing": [
+    400,
+    650
+  ],
+  "Flaouna": [
+    400,
+    650
+  ],
+  "Chakodi": [
+    400,
+    650
+  ],
+  "Aloo paratha": [
+    400,
+    650
+  ],
+  "Konro": [
+    400,
+    650
+  ],
+  "Cemita": [
+    400,
+    650
+  ],
+  "Asinan": [
+    400,
+    650
+  ],
+  "Broa": [
+    400,
+    650
+  ],
+  "Trifle": [
+    400,
+    650
+  ],
+  "Rat na": [
+    400,
+    650
+  ],
+  "Borlengo": [
+    400,
+    650
+  ],
+  "Gazpachuelo": [
+    400,
+    650
+  ],
+  "Esterh\u00e1zy torte": [
+    400,
+    650
+  ],
+  "Magenbrot": [
+    400,
+    650
+  ],
+  "Detroit-style pizza": [
+    500,
+    800
+  ],
+  "Fuling jiabing": [
+    400,
+    650
+  ],
+  "Lakhamari": [
+    450,
+    750
+  ],
+  "Mu\u0107kalica": [
+    400,
+    650
+  ],
+  "Sukhdi": [
+    400,
+    650
+  ],
+  "Kilishi": [
+    400,
+    650
+  ],
+  "Baji": [
+    400,
+    650
+  ],
+  "Peanut butter cookie": [
+    250,
+    500
+  ],
+  "Rabbit pie": [
+    250,
+    500
+  ],
+  "Paling in 't groen": [
+    400,
+    650
+  ],
+  "Chataamari": [
+    400,
+    650
+  ],
+  "Lawar": [
+    400,
+    650
+  ],
+  "Arisa Pitha": [
+    400,
+    650
+  ],
+  "Empal gentong": [
+    400,
+    650
+  ],
+  "Carne asada fries": [
+    300,
+    500
+  ],
+  "Takikomi gohan": [
+    400,
+    650
+  ],
+  "Kamameshi": [
+    400,
+    650
+  ],
+  "Pasta salad": [
+    200,
+    450
+  ],
+  "Fasole cu c\u00e2rna\u021bi": [
+    400,
+    650
+  ],
+  "Zelnik": [
+    400,
+    650
+  ],
+  "Pl\u0103cint\u0103": [
+    400,
+    650
+  ],
+  "Tongseng": [
+    400,
+    650
+  ],
+  "Soto mie": [
+    400,
+    650
+  ],
+  "Sarburma": [
+    400,
+    650
+  ],
+  "Lutefisk": [
+    400,
+    650
+  ],
+  "Khichdi": [
+    400,
+    650
+  ],
+  "Briouat": [
+    400,
+    650
+  ],
+  "Chili burger": [
+    450,
+    750
+  ],
+  "Bolo de mel": [
+    400,
+    650
+  ],
+  "Clootie": [
+    400,
+    650
+  ],
+  "Seswaa": [
+    400,
+    650
+  ],
+  "Tahu sumedang": [
+    400,
+    650
+  ],
+  "Pichelsteiner": [
+    400,
+    650
+  ],
+  "Bread soup": [
+    200,
+    400
+  ],
+  "Scotcheroos": [
+    400,
+    650
+  ],
+  "Kartoffelk\u00e4se": [
+    400,
+    650
+  ],
+  "Schuxen": [
+    400,
+    650
+  ],
+  "Caramel": [
+    400,
+    650
+  ],
+  "Zwetschgenkuchen": [
+    400,
+    650
+  ],
+  "Alloco": [
+    400,
+    650
+  ],
+  "Vangibath": [
+    400,
+    650
+  ],
+  "Torricado": [
+    400,
+    650
+  ],
+  "Phat phrik khing": [
+    400,
+    650
+  ],
+  "Tomato and egg soup": [
+    200,
+    400
+  ],
+  "Spanakorizo": [
+    400,
+    650
+  ],
+  "Ostropel": [
+    400,
+    650
+  ],
+  "Tamale": [
+    400,
+    650
+  ],
+  "Seattle-style hot dog": [
+    300,
+    450
+  ],
+  "Ammonia cookie": [
+    250,
+    500
+  ],
+  "Boston baked beans": [
+    400,
+    650
+  ],
+  "Amandine": [
+    400,
+    650
+  ],
+  "Duck blood and vermicelli soup": [
+    200,
+    400
+  ],
+  "Azerbaijani pakhlava": [
+    400,
+    650
+  ],
+  "Bakwan": [
+    400,
+    650
+  ],
+  "Wallenbergare": [
+    400,
+    650
+  ],
+  "Pastry": [
+    250,
+    500
+  ],
+  "Melomakarono": [
+    400,
+    650
+  ],
+  "Cocido lebaniego": [
+    400,
+    650
+  ],
+  "Koi": [
+    400,
+    650
+  ],
+  "Stir-fried tomato and scrambled eggs": [
+    200,
+    400
+  ],
+  "Fl\u00e6skesteg": [
+    400,
+    650
+  ],
+  "Beggar's Chicken": [
+    350,
+    650
+  ],
+  "Konkonte": [
+    400,
+    650
+  ],
+  "Stuffed squash": [
+    80,
+    220
+  ],
+  "Kaeng som": [
+    400,
+    650
+  ],
+  "Kentucky jam cake": [
+    250,
+    500
+  ],
+  "Mur\u0103turi": [
+    400,
+    650
+  ],
+  "Tochitur\u0103": [
+    400,
+    650
+  ],
+  "Urap": [
+    400,
+    650
+  ],
+  "Cornule\u021be": [
+    80,
+    220
+  ],
+  "Quad City-style pizza": [
+    500,
+    800
+  ],
+  "Paneer tikka": [
+    450,
+    750
+  ],
+  "Ciorb\u0103 de peri\u0219oare": [
+    400,
+    650
+  ],
+  "Shaker lemon pie": [
+    250,
+    500
+  ],
+  "Doodhpak": [
+    400,
+    650
+  ],
+  "Ceviche": [
+    400,
+    650
+  ],
+  "Cabbage soup": [
+    200,
+    400
+  ],
+  "Nasi timbel": [
+    400,
+    650
+  ],
+  "Pa amb tom\u00e0quet": [
+    400,
+    650
+  ],
+  "Escalivada": [
+    400,
+    650
+  ],
+  "Me\u0111imurska gibanica": [
+    400,
+    650
+  ],
+  "Khanom chan": [
+    400,
+    650
+  ],
+  "Ohaw": [
+    400,
+    650
+  ],
+  "Baghrir": [
+    400,
+    650
+  ],
+  "Hummingbird cake": [
+    250,
+    500
+  ],
+  "Neapolitan pizza": [
+    500,
+    800
+  ],
+  "Doughnut": [
+    250,
+    500
+  ],
+  "Hummus": [
+    150,
+    350
+  ],
+  "Nimono": [
+    400,
+    650
+  ],
+  "Chocolate chip cookie": [
+    250,
+    500
+  ],
+  "B\u00fan \u1ed1c": [
+    400,
+    650
+  ],
+  "Cheese straw": [
+    150,
+    350
+  ],
+  "Sausage": [
+    300,
+    450
+  ],
+  "Frogeye salad": [
+    200,
+    450
+  ],
+  "Senate bean soup": [
+    200,
+    400
+  ],
+  "Botifarra": [
+    400,
+    650
+  ],
+  "Leberkn\u00f6del": [
+    400,
+    650
+  ],
+  "Laziji": [
+    400,
+    650
+  ],
+  "Quzi": [
+    400,
+    650
+  ],
+  "Chazuke": [
+    400,
+    650
+  ],
+  "BLT": [
+    350,
+    650
+  ],
+  "Chikhirtma": [
+    400,
+    650
+  ],
+  "Pico de gallo": [
+    400,
+    650
+  ],
+  "Oden": [
+    400,
+    650
+  ],
+  "Tostada": [
+    400,
+    650
+  ],
+  "Chilaquiles": [
+    400,
+    650
+  ],
+  "Cocido monta\u00f1\u00e9s": [
+    400,
+    650
+  ],
+  "Lontong Cap Go Meh": [
+    400,
+    650
+  ],
+  "Porra antequerana": [
+    400,
+    650
+  ],
+  "Kedjenou": [
+    400,
+    650
+  ],
+  "Tourin": [
+    400,
+    650
+  ],
+  "Atti\u00e9k\u00e9": [
+    400,
+    650
+  ],
+  "Dak-bokkeum-tang": [
+    400,
+    650
+  ],
+  "\u017demlovka": [
+    400,
+    650
+  ],
+  "Dovga": [
+    400,
+    650
+  ],
+  "Rice and gravy": [
+    400,
+    650
+  ],
+  "Sai ua": [
+    400,
+    650
+  ],
+  "Nam ngiao": [
+    400,
+    650
+  ],
+  "Kaeng khae": [
+    400,
+    650
+  ],
+  "Kaeng tai pla": [
+    400,
+    650
+  ],
+  "Dim sum": [
+    300,
+    550
+  ],
+  "Tahri": [
+    400,
+    650
+  ],
+  "Bolo do caco": [
+    400,
+    650
+  ],
+  "Buffalo wing": [
+    400,
+    650
+  ],
+  "Pustakari": [
+    400,
+    650
+  ],
+  "Pieds paquets": [
+    250,
+    500
+  ],
+  "Tinginys": [
+    400,
+    650
+  ],
+  "Sunnundallu": [
+    400,
+    650
+  ],
+  "Lapskaus": [
+    400,
+    650
+  ],
+  "Caldo tlalpe\u00f1o": [
+    400,
+    650
+  ],
+  "Milho frito": [
+    400,
+    650
+  ],
+  "Kalu dodol": [
+    400,
+    650
+  ],
+  "Poppyseed muffin": [
+    220,
+    420
+  ],
+  "Peanut soup": [
+    200,
+    400
+  ],
+  "Tarte \u00e0 la Bouillie": [
+    250,
+    500
+  ],
+  "Caldo gallego": [
+    400,
+    650
+  ],
+  "Samay Baji": [
+    400,
+    650
+  ],
+  "Limburger sandwich": [
+    450,
+    750
+  ],
+  "Huachinango a la Veracruzana": [
+    400,
+    650
+  ],
+  "Sambal stingray": [
+    400,
+    650
+  ],
+  "Kuluban": [
+    400,
+    650
+  ],
+  "Modjeska": [
+    400,
+    650
+  ],
+  "Pan dulce": [
+    400,
+    650
+  ],
+  "Florina pepper": [
+    400,
+    650
+  ],
+  "Oysters Bienville": [
+    250,
+    500
+  ],
+  "Cronut": [
+    400,
+    650
+  ],
+  "Duck rice": [
+    400,
+    650
+  ],
+  "Sulu k\u00f6fte": [
+    400,
+    650
+  ],
+  "Toyga soup": [
+    200,
+    400
+  ],
+  "Majjige huli": [
+    400,
+    650
+  ],
+  "Ikan goreng": [
+    400,
+    650
+  ],
+  "Lekor": [
+    400,
+    650
+  ],
+  "Ciulama": [
+    400,
+    650
+  ],
+  "Ayam bakar": [
+    180,
+    350
+  ],
+  "Hinava": [
+    400,
+    650
+  ],
+  "Waakye": [
+    400,
+    650
+  ],
+  "Salbute": [
+    400,
+    650
+  ],
+  "Kuchmachi": [
+    400,
+    650
+  ],
+  "Kibinai": [
+    400,
+    650
+  ],
+  "Lobiani": [
+    400,
+    650
+  ],
+  "Chanakhi": [
+    400,
+    650
+  ],
+  "Baghali ghatogh": [
+    400,
+    650
+  ],
+  "Pkhali": [
+    400,
+    650
+  ],
+  "Poc Chuc": [
+    400,
+    650
+  ],
+  "Bionico": [
+    400,
+    650
+  ],
+  "Bamischijf": [
+    400,
+    650
+  ],
+  "Racuchy": [
+    400,
+    650
+  ],
+  "Kuurdak": [
+    400,
+    650
+  ],
+  "Hokkien fried rice": [
+    400,
+    650
+  ],
+  "Mu kratha": [
+    400,
+    650
+  ],
+  "Thong yip": [
+    400,
+    650
+  ],
+  "Zuppa toscana": [
+    400,
+    650
+  ],
+  "Dhindo": [
+    400,
+    650
+  ],
+  "Thiakry": [
+    400,
+    650
+  ],
+  "Kondowole": [
+    400,
+    650
+  ]
+}
