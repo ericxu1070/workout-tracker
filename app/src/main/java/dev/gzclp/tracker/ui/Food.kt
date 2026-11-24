@@ -1,9 +1,12 @@
 package dev.gzclp.tracker.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
@@ -11,25 +14,57 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.food.FoodLog
 import dev.gzclp.tracker.food.Meal
+import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
 /** What I ate on [day]: one photo per meal, oldest first, with camera and gallery buttons for the next one. */
 @Composable
-fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: String?, onDay: (LocalDate) -> Unit, onSnap: () -> Unit, onUpload: () -> Unit, onOpen: (Meal) -> Unit) {
+fun FoodScreen(
+    meals: List<Meal>,
+    day: LocalDate,
+    today: LocalDate,
+    error: String?,
+    onDay: (LocalDate) -> Unit,
+    onSnap: () -> Unit,
+    onUpload: () -> Unit,
+    onOpen: (Meal) -> Unit,
+    waterIntakeMl: Int? = null,
+    waterGoalMl: Int? = null,
+    onWater: (() -> Unit)? = null,
+) {
+    var showWaterTracker by rememberSaveable { mutableStateOf(false) }
+    if (showWaterTracker) {
+        BackHandler { showWaterTracker = false }
+        WaterScreen(
+            state = AppState(),
+            day = day,
+            goalMl = waterGoalMl ?: 2500,
+            onBack = { showWaterTracker = false },
+        )
+        return
+    }
+
     val p = LocalPalette.current
     val shown = meals.filter { it.at.toLocalDate() == day }
     ScreenFrame {
@@ -47,6 +82,32 @@ fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: Strin
             PillButton("Upload", onUpload, Modifier.weight(1f), icon = Icons.image)
         }
         if (error != null) GroupFooter(error, color = p.red)
+
+        Spacer(Modifier.height(Space.md))
+        GroupHeader("Water")
+        Group {
+            GroupRow(first = true, onClick = {
+                if (onWater != null) onWater() else showWaterTracker = true
+            }) {
+                val intake = waterIntakeMl ?: 0
+                val goal = waterGoalMl ?: 2500
+                val frac = if (goal > 0) (intake.toFloat() / goal).coerceIn(0f, 1f) else 0f
+                Canvas(Modifier.size(24.dp)) {
+                    val w = 3.dp.toPx()
+                    val inset = w / 2
+                    val arcSize = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
+                    val tl = androidx.compose.ui.geometry.Offset(inset, inset)
+                    drawArc(p.separator, 0f, 360f, false, tl, arcSize, style = Stroke(w))
+                    drawArc(p.accent, -90f, 360f * frac, false, tl, arcSize, style = Stroke(w, cap = StrokeCap.Round))
+                }
+                Spacer(Modifier.width(Space.md))
+                Column(Modifier.weight(1f)) {
+                    Txt("Water intake", Type.body)
+                    Txt("$intake / $goal ml", Type.footnote, color = p.fg2)
+                }
+                Icon(Icons.chevronRight, p.fg3, 20.dp)
+            }
+        }
         if (shown.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt(if (day == today) "No meals yet today" else "No meals logged", Type.headline)
