@@ -20,7 +20,7 @@ data class Meal(val file: File, val at: OffsetDateTime)
  * Meal photos in app-private storage, one JPEG per meal; the file name is the meal's time, so the folder is the log.
  * Never mirrored or synced: nothing here touches the event log.
  */
-class FoodLog(private val dir: File) {
+class FoodLog(private val dir: File, var export: GalleryExport? = null) {
     fun meals(): List<Meal> =
         dir.listFiles().orEmpty().mapNotNull { f -> parse(f.name)?.let { Meal(f, it) } }.sortedBy { it.at }
 
@@ -35,12 +35,22 @@ class FoodLog(private val dir: File) {
         tmp.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 82, it) }
         check(tmp.renameTo(out)) { "Could not save the photo" }
         photo.delete()
-        return Meal(out, t)
+        GalleryExport.ensureExif(out, t)
+        val meal = Meal(out, t)
+        runCatching { (export ?: defaultExport)?.export(meal) }
+        return meal
     }
 
-    fun delete(meal: Meal) = meal.file.delete()
+    fun delete(meal: Meal): Boolean {
+        runCatching { (export ?: defaultExport)?.delete(meal) }
+        GalleryExport.uriFileFor(meal.file).delete()
+        return meal.file.delete()
+    }
 
     companion object {
+        @Volatile
+        var defaultExport: GalleryExport? = null
+
         /** Long side of a saved photo, in pixels: sharp on a phone, about 150 KB. */
         const val MAX_SIDE = 1280
         private val fmt = DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmssxx")

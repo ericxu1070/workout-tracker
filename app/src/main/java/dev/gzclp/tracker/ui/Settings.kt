@@ -71,8 +71,21 @@ fun SettingsScreen(
     onStretchReminderTime: (Int) -> Unit = {},
     waterReminder: Boolean = false,
     onWaterReminder: (Boolean) -> Unit = {},
+    saveToGallery: Boolean? = null,
+    onSaveToGallery: ((Boolean) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
+    val galleryState = androidx.compose.runtime.remember(prefs) {
+        androidx.compose.runtime.mutableStateOf(saveToGallery ?: prefs.saveToGallery)
+    }
+    val galleryEnabled = saveToGallery ?: galleryState.value
+    androidx.compose.runtime.LaunchedEffect(context, prefs) {
+        if (dev.gzclp.tracker.food.FoodLog.defaultExport == null) {
+            dev.gzclp.tracker.food.FoodLog.defaultExport = dev.gzclp.tracker.food.GalleryExport(context, prefs)
+        }
+    }
     ScreenFrame {
         NavRow(onBack)
         Txt("Settings", Type.largeTitle)
@@ -240,7 +253,17 @@ fun SettingsScreen(
         }
 
         GroupHeader("Food")
-        // Stub for Food workstream
+        Group {
+            GroupRow(first = true) {
+                Txt("Also save meal photos to the gallery", Type.body, Modifier.weight(1f))
+                Toggle(galleryEnabled, "Also save meal photos to the gallery") { enabled ->
+                    galleryState.value = enabled
+                    prefs.saveToGallery = enabled
+                    onSaveToGallery?.invoke(enabled)
+                }
+            }
+        }
+        GroupFooter("Saved to Pictures/Food.")
 
         GroupHeader("Water")
         // Stub for Water workstream
