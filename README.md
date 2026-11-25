@@ -66,6 +66,8 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew assembleDebug                # app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Debug builds install as Plateline test (`dev.gzclp.tracker.debug`) next to the release app, with their own data (`./gradlew installDebug`). To try one with your log, copy `gzclp-log.jsonl` from the sync folder into a new folder and pick that folder under Restore log. Picking the real sync folder makes the debug build write its test workouts into it.
+
 Screenshots of every screen in every theme:
 
 ```bash

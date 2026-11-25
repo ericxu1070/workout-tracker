@@ -17,6 +17,7 @@ android {
         // The release workflow sets these from the tag and the commit count; local builds keep the defaults.
         versionCode = System.getenv("VERSION_CODE")?.toInt() ?: 2
         versionName = System.getenv("VERSION_NAME") ?: "2.0"
+        manifestPlaceholders["appLabel"] = "Plateline"
     }
     // Only when RELEASE_KEYSTORE is set (CI, or a local signed build); otherwise release builds stay unsigned.
     System.getenv("RELEASE_KEYSTORE")?.let { store ->
@@ -27,6 +28,11 @@ android {
             keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
         }
         buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
+    }
+    // Debug builds install beside the release app (which is signed with another key), with their own data and name.
+    buildTypes.getByName("debug") {
+        applicationIdSuffix = ".debug"
+        manifestPlaceholders["appLabel"] = "Plateline test"
     }
     buildFeatures { compose = true }
     aaptOptions { noCompress += "tflite" }
