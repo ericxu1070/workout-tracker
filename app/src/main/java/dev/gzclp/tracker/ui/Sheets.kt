@@ -45,6 +45,21 @@ import dev.gzclp.tracker.log.CardioRun
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.ExerciseDefine
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 
 /** Which sheet is open; values being edited live here so the sheet is a pure view. */
 sealed interface SheetState {
@@ -75,11 +90,15 @@ sealed interface SheetState {
     data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate, val delete: Boolean = false) : SheetState
     /** A gallery [photo] about to be saved as a meal at [at]; [note] says why its own time was not usable. */
     data class AddMeal(val photo: java.io.File, val at: OffsetDateTime, val now: OffsetDateTime, val note: String?) : SheetState
-    /** A new weigh-in when [id] is null, else an edit of that one, at stop [stop] of [scale]; [delete] marks the Delete button. */
+    /**
+     * A new weigh-in when [id] is null, else an edit of that one, at stop [stop] of [scale], or the [typed] weight when the
+     * number was typed; [delete] marks the Delete button.
+     */
     data class BodyWeight(
         val id: String?, val scale: WeighInScale, val at: OffsetDateTime, val today: LocalDate, val stop: Int = scale.start, val delete: Boolean = false,
+        val typed: Double? = null,
     ) : SheetState {
-        val lb: Double get() = scale.lb(stop)
+        val lb: Double get() = typed ?: scale.lb(stop)
     }
     /**
      * Stopping [run]; [maxSec] is its elapsed time when Stop was tapped. [distance] is in the activity's unit and [rpe] is a
@@ -196,15 +215,15 @@ fun ColumnScope.SheetContent(
             val p = LocalPalette.current
             val haptic = LocalHapticFeedback.current
             SheetTitle(if (s.id == null) "Log weight" else "Edit weigh-in", null)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
-                Txt(Fmt.tenths(s.lb), Type.display)
-                Txt(" lb", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
+            WeighInNumber(s.lb) { lb ->
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onConfirm(s.copy(typed = lb))
             }
             StepSlider(
                 s.stop, s.scale.count,
                 onStop = {
                     if (it != s.stop) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    update(s.copy(stop = it))
+                    update(s.copy(stop = it, typed = null))
                 },
                 description = "Weight",
                 from = s.scale.start.takeIf { s.scale.centered },
@@ -394,5 +413,48 @@ fun ColumnScope.SheetContent(
                 Modifier.fillMaxWidth(), primary = true, enabled = events.isNotEmpty(),
             )
         }
+    }
+}
+
+/**
+ * The weigh-in readout. A tap selects it for typing and Done saves the typed weight, so the same weight as last time
+ * saves without a drag; a slider move resets it to the slider's weight.
+ */
+@Composable
+private fun WeighInNumber(lb: Double, onSave: (Double) -> Unit) {
+    val p = LocalPalette.current
+    val focus = LocalFocusManager.current
+    val shown = Fmt.tenths(lb)
+    var edit by remember(lb) { mutableStateOf<TextFieldValue?>(null) }
+    var bad by remember(lb) { mutableStateOf(false) }
+    // The tap that focuses the field also drops a caret; the first selection after focus is widened back to all.
+    var selectAll by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
+        BasicTextField(
+            edit ?: TextFieldValue(shown, TextRange(shown.length)),
+            { v ->
+                val text = v.text.filter { it.isDigit() || it == '.' || it == ',' }.take(6)
+                edit = if (selectAll && text == shown) v.copy(selection = TextRange(0, text.length)) else v.copy(text = text)
+                selectAll = false
+                bad = false
+            },
+            Modifier.width(IntrinsicSize.Min).widthIn(min = 40.dp)
+                .onFocusChanged {
+                    edit = if (it.isFocused) TextFieldValue(shown, TextRange(0, shown.length)) else null
+                    selectAll = it.isFocused
+                }
+                .semantics { contentDescription = "Weight in pounds" },
+            textStyle = Type.display.copy(color = if (bad) p.red else p.fg),
+            singleLine = true, cursorBrush = SolidColor(p.accent),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                val typed = (edit?.text ?: shown).replace(',', '.').toDoubleOrNull()?.let { Math.round(it * 10) / 10.0 }
+                if (typed == null || typed !in Commands.BODY_WEIGHT_RANGE) bad = true else {
+                    focus.clearFocus()
+                    onSave(typed)
+                }
+            }),
+        )
+        Txt(" lb", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
     }
 }
