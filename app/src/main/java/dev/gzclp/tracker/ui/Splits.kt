@@ -61,12 +61,12 @@ fun EditButton(editing: Boolean, onClick: () -> Unit) {
 /**
  * A list in edit mode: each row has a red remove button, its [names] entry and [trailing] text, and a drag grip.
  * Remove asks once more with a red Delete in place of the grip. TalkBack moves a row with the grip's actions.
- * [keys] are stable ids in the same order; [onMove] and [onRemove] take indices.
+ * [keys] are stable ids in the same order; [onMove] and [onRemove] take indices. A null [onMove] shows no grip, for a list with a fixed order.
  */
 @Composable
 fun EditRows(
     names: List<String>, keys: List<String>, trailing: (Int) -> String?, removable: Boolean,
-    onMove: (Int, Int) -> Unit, onRemove: (Int) -> Unit,
+    onMove: ((Int, Int) -> Unit)?, onRemove: (Int) -> Unit,
 ) {
     val p = LocalPalette.current
     var from by remember { mutableIntStateOf(-1) }
@@ -74,7 +74,7 @@ fun EditRows(
     var rowPx by remember { mutableFloatStateOf(1f) }
     var armed by remember { mutableStateOf<String?>(null) }
     val count by rememberUpdatedState(keys.size)
-    val move by rememberUpdatedState(onMove)
+    val move by rememberUpdatedState(onMove ?: { _, _ -> })
     fun target() = if (from < 0) -1 else (from + (dy / rowPx).roundToInt()).coerceIn(0, count - 1)
     keys.forEachIndexed { i, k ->
         key(k) {
@@ -108,7 +108,7 @@ fun EditRows(
                     trailing(i)?.let { Txt(it, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2, maxLines = 1) }
                     if (armed == k) Pressable({ armed = null; onRemove(i) }, Modifier.padding(start = Space.sm).heightIn(min = 44.dp), CircleShape, p.red, label = "Delete $name") {
                         Txt("Delete", Type.subhead.copy(fontWeight = Type.headline.fontWeight), Modifier.padding(horizontal = Space.lg), p.onRed, maxLines = 1)
-                    } else Snug(22.dp, Modifier.padding(start = Space.lg)) { m ->
+                    } else if (onMove != null) Snug(22.dp, Modifier.padding(start = Space.lg)) { m ->
                         Box(
                             m.semantics {
                                 contentDescription = "Reorder $name"
