@@ -1,7 +1,10 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
@@ -216,6 +219,41 @@ class ScreenShots {
             }
         }
         RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+    }
+
+    /** One sheet per theme of every color pairing PaletteContrastTest checks: text levels, controls on and off, chart series. */
+    @Test fun paletteSheets() {
+        val pts = (0..5).map { t0.plusWeeks(it.toLong()) }
+        for (p in Palettes.all) shot(p, "00-palette") {
+            Column(Modifier.fillMaxSize().background(p.bg).padding(Space.lg)) {
+                Txt(p.name, Type.largeTitle)
+                Spacer(Modifier.height(Space.md))
+                Segmented(listOf("Lifting", "Cardio", "Stretching"), 0, {})
+                Spacer(Modifier.height(Space.md))
+                Group {
+                    GroupRow(true) { Txt("Primary", Type.body, Modifier.weight(1f)); Toggle(true, "On") {} }
+                    GroupRow(false) { Txt("Secondary", Type.body, Modifier.weight(1f), p.fg2); Toggle(false, "Off") {} }
+                    GroupRow(false) { Txt("Tertiary", Type.body, Modifier.weight(1f), p.fg3); Icon(Icons.chevronRight, p.fg3, 20.dp) }
+                    GroupRow(false) { Txt("Accent", Type.body, Modifier.weight(1f), p.accent); Txt("Delete", Type.body, color = p.red) }
+                    GroupRow(false) { Slider(60f, {}, 100f, 1f, "Slider") }
+                }
+                Spacer(Modifier.height(Space.md))
+                LineChart(listOf(pts.mapIndexed { i, t -> Pt(t, 150f + i * 4) } to p.fg2, pts.mapIndexed { i, t -> Pt(t, 120f + i * 5) } to p.accent), listOf("1RM", "Top"))
+                Spacer(Modifier.height(Space.md))
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                    PillButton("Start", {}, Modifier.weight(1f), primary = true)
+                    PillButton("Later", {}, Modifier.weight(1f))
+                    Pressable({}, Modifier.heightIn(min = 52.dp), CircleShape, p.red) {
+                        Txt("Delete", Type.headline, Modifier.padding(horizontal = Space.xl), p.onRed, maxLines = 1)
+                    }
+                }
+                Spacer(Modifier.height(Space.md))
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.xl)).background(p.elevated).padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
+                    Segmented(listOf("Week", "All"), 1, {})
+                    Slider(25f, {}, 100f, 1f, "Sheet slider")
+                }
+            }
+        }
     }
 
     /** The Laptop theme for every Omarchy theme on the laptop, as the laptop hook syncs it. */
@@ -449,6 +487,12 @@ class ScreenShots {
                 Box(Modifier.fillMaxSize()) {
                     BodyWeightScreen(idle, today, {}, {}, {})
                     Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, weighInScale(lastWeight, lastWeight.at.toLocalDate()), lastWeight.at, today), idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "16-weigh-in-undo") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) }
+                    UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = 64.dp))
                 }
             }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}, {}) {} } }

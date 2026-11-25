@@ -404,6 +404,10 @@ object Commands {
     fun clearBodyWeight(state: AppState, id: String): List<Event> =
         if (id in state.bodyWeights) listOf(BodyWeightCleared(id)) else emptyList()
 
+    /** Takes back the weigh-in just written to [id]: puts [before] back when it was an edit, else clears the new entry. */
+    fun undoBodyWeight(state: AppState, id: String, before: BodyWeight?): List<Event> =
+        if (before == null) clearBodyWeight(state, id) else logBodyWeight(state, id, before.at, before.lb)
+
     val BODY_WEIGHT_RANGE = 50.0..1000.0
 
     /** Starts a cardio session; nothing while a lifting workout or another cardio session is running. */

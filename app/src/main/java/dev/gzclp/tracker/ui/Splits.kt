@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -101,14 +100,14 @@ fun EditRows(
                             { armed = if (armed == k) null else k }, m.semantics { contentDescription = "Remove $name" }, CircleShape,
                             enabled = removable, label = "Remove $name",
                         ) {
-                            Box(Modifier.size(22.dp).clip(CircleShape).background(p.red), contentAlignment = Alignment.Center) { Icon(Icons.minus, Color.White, 16.dp) }
+                            Box(Modifier.size(22.dp).clip(CircleShape).background(p.red), contentAlignment = Alignment.Center) { Icon(Icons.minus, p.onRed, 16.dp) }
                         }
                     }
                     Spacer(Modifier.width(Space.md))
                     Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
                     trailing(i)?.let { Txt(it, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2, maxLines = 1) }
                     if (armed == k) Pressable({ armed = null; onRemove(i) }, Modifier.padding(start = Space.sm).heightIn(min = 44.dp), CircleShape, p.red, label = "Delete $name") {
-                        Txt("Delete", Type.subhead.copy(fontWeight = Type.headline.fontWeight), Modifier.padding(horizontal = Space.lg), Color.White, maxLines = 1)
+                        Txt("Delete", Type.subhead.copy(fontWeight = Type.headline.fontWeight), Modifier.padding(horizontal = Space.lg), p.onRed, maxLines = 1)
                     } else if (onMove != null) Snug(22.dp, Modifier.padding(start = Space.lg)) { m ->
                         Box(
                             m.semantics {

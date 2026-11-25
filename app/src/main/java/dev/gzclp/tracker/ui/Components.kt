@@ -64,6 +64,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import dev.gzclp.tracker.ui.Type.tabular
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -260,18 +263,16 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
-    // The selected pill stands a step off the track, as on iOS: a lighter fill in dark themes, white with a shadow in Light.
-    val pill = if (p.dark) p.fg.copy(alpha = 0.20f).compositeOver(p.elevated) else p.elevated
+    // The selected pill takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
     Row(modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)) {
         options.forEachIndexed { i, o ->
             val on = i == selected
             Pressable(
                 { onSelect(i) },
-                Modifier.weight(1f).height(36.dp).then(if (on && !p.dark) Modifier.shadow(1.dp, CircleShape) else Modifier)
-                    .semantics { this.selected = on },
-                CircleShape, if (on) pill else Color.Transparent, role = Role.Tab,
+                Modifier.weight(1f).height(36.dp).semantics { this.selected = on },
+                CircleShape, if (on) p.accent else Color.Transparent, role = Role.Tab,
             ) {
-                Txt(o, Type.subhead.copy(fontWeight = if (on) Type.headline.fontWeight else Type.subhead.fontWeight), maxLines = 1)
+                Txt(o, Type.subhead.copy(fontWeight = if (on) Type.headline.fontWeight else Type.subhead.fontWeight), color = if (on) p.onAccent else p.fg, maxLines = 1)
             }
         }
     }
@@ -311,15 +312,17 @@ fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, lab
     }
 }
 
-/** The 28dp white slider knob; in Light a hairline ring keeps it off a white sheet, as on iOS. */
+/** The 28dp white slider knob; where white can't clear 3:1 on the sheet (Light), a fg3 ring outlines it. */
 @Composable
 fun SliderThumb(modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     Box(
         modifier.size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape)
-            .then(if (p.dark) Modifier else Modifier.border(0.5.dp, p.separator, CircleShape)),
+            .then(if (thumbRinged(p)) Modifier.border(1.dp, p.fg3, CircleShape) else Modifier),
     )
 }
+
+fun thumbRinged(p: Palette) = contrast(Color.White, p.elevated) < 3f || contrast(Color.White, p.bg) < 3f
 
 /** A small round step button, for the − and + beside a value in a row. */
 @Composable
@@ -370,6 +373,33 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
                 verticalArrangement = Arrangement.spacedBy(Space.lg),
                 content = content,
             )
+        }
+    }
+}
+
+/** A floating "[text] · Undo" bar that rises while [text] is set; the caller clears it to let it go. */
+@Composable
+fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    // Keeps the last text on screen while the bar slides away.
+    val last = remember { arrayOf("") }
+    if (text != null) last[0] = text
+    AnimatedVisibility(
+        text != null, modifier.align(Alignment.BottomCenter),
+        enter = slideInVertically(tween(300, easing = SheetEase)) { it } + fadeIn(tween(200)),
+        exit = slideOutVertically(tween(200, easing = SheetEase)) { it } + fadeOut(tween(160)),
+    ) {
+        Row(
+            Modifier.padding(horizontal = Space.lg).fillMaxWidth().shadow(8.dp, CircleShape).clip(CircleShape).background(p.elevated)
+                // In a dark theme the bar steps above the cards it floats over, or it melts into them.
+                .then(if (p.dark) Modifier.background(p.fillPressed) else Modifier)
+                .padding(start = Space.xl, end = Space.xs).height(52.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Txt(last[0], Type.body.tabular(), Modifier.weight(1f))
+            Pressable(onUndo, Modifier.heightIn(min = 44.dp), shape = CircleShape, label = "Undo") {
+                Txt("Undo", Type.headline, Modifier.padding(horizontal = Space.lg), p.accent)
+            }
         }
     }
 }
