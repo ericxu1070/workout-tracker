@@ -126,7 +126,7 @@ fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditT
         NavRow(onBack)
         Txt(s.day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
-        Txt("${Fmt.date(s.startedAt)} · ${s.program.name}", Type.subhead, color = p.fg2)
+        Txt(Fmt.date(s.startedAt), Type.subhead, color = p.fg2)
         Spacer(Modifier.height(Space.lg))
         Group {
             GroupRow(first = true, onClick = onEditTime) {

@@ -467,7 +467,7 @@ fun GuidedStretchPlayerScreen(
                     }
                 }
             } else {
-                Txt("Last move of the routine!", Type.subhead, color = p.accent, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Txt("Last move", Type.subhead, color = p.accent, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         }
     }

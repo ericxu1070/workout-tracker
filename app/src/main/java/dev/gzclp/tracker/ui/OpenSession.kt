@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.AppModel
 import dev.gzclp.tracker.engine.Catalog
@@ -305,35 +304,27 @@ fun OpenSessionStartSheet(
     onStartBlank: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val p = LocalPalette.current
-    val day = state.nextDay
     Column(
         Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Txt("Open session", Type.title2)
-        Spacer(Modifier.height(Space.sm))
-        Txt("Choose how to begin your session:", Type.subhead, color = p.fg2)
         Spacer(Modifier.height(Space.xl))
 
         PillButton(
-            "Start from today's day",
+            "Start ${state.nextDay.title}",
             onClick = onStartFromToday,
             modifier = Modifier.fillMaxWidth(),
             primary = true,
+            icon = Icons.dumbbell,
         )
-        Spacer(Modifier.height(Space.xs))
-        Txt("Prefills ${day.title}'s lifts", Type.caption, color = p.fg2)
-
-        Spacer(Modifier.height(Space.lg))
-
+        Spacer(Modifier.height(Space.md))
         PillButton(
             "Start blank",
             onClick = onStartBlank,
             modifier = Modifier.fillMaxWidth(),
+            icon = Icons.plus,
         )
-        Spacer(Modifier.height(Space.xs))
-        Txt("Empty session, add exercises as you go", Type.caption, color = p.fg2)
 
         Spacer(Modifier.height(Space.xl))
         SmallPill("Cancel", onDismiss)
@@ -347,19 +338,11 @@ fun OpenSessionCountSheet(
     onNo: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val p = LocalPalette.current
     Column(
         Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Txt("Count toward your program?", Type.title2)
-        Spacer(Modifier.height(Space.md))
-        Txt(
-            "Yes advances matching program slots as if done in a program session.\n\nNo leaves your program state unchanged, but your strength model still learns from every set.",
-            Type.body,
-            color = p.fg2,
-            align = TextAlign.Center,
-        )
         Spacer(Modifier.height(Space.xxl))
 
         PillButton(
@@ -511,8 +494,6 @@ fun OpenSessionScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Txt("No exercises added yet", Type.headline)
-                Spacer(Modifier.height(Space.sm))
-                Txt("Add exercises from recents or search to get started.", Type.body, color = p.fg2, align = TextAlign.Center)
                 Spacer(Modifier.height(Space.lg))
                 PillButton("Add exercise", { showAddExercise = true }, primary = true)
             }

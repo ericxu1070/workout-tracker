@@ -429,6 +429,20 @@ class ScreenShots {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }
             shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
+            shot(p, "02-open-session-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) }
+                    Sheet(true, {}) { OpenSessionStartSheet(idle, {}, {}, {}) }
+                }
+            }
+            OpenSessionManager.reset()
+            shot(p, "02-open-session-empty") { TabFrame(Tab.Workout, {}) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}) } }
+            shot(p, "02-open-session-count-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}) }
+                    Sheet(true, {}) { OpenSessionCountSheet({}, {}, {}) }
+                }
+            }
             shot(p, "02-stretching") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}, {}, {}) } }
             shot(p, "02-stretching-full", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, evening.id, {}, {}, {}, {}, {}) } }
             shot(p, "28-stretch-routine") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}) }
