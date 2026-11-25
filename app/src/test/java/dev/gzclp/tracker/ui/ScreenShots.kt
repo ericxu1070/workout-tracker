@@ -344,7 +344,7 @@ class ScreenShots {
         fun settings(p: Palette) = @Composable {
             SettingsScreen(
                 true, mine.programId, mine.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
-                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(),
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(), page = SettingsPage.Program,
             )
         }
         for (p in Palettes.all) {
@@ -476,13 +476,14 @@ class ScreenShots {
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
-            shot(p, "12-settings-full", tall = true) {
+            for (page in SettingsPage.entries) shot(p, "12-settings-${page.name.lowercase()}", tall = page == SettingsPage.Lifting) {
                 SettingsScreen(
                     true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
-                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, stretchReminder = true, page = page,
                 )
             }
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }
+            shot(p, "13-days-edit") { DaysScreen(idle, {}, {}, { _, _ -> }, initialEditing = true) }
             shot(p, "14-workout-full", tall = true) {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }

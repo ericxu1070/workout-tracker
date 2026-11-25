@@ -45,7 +45,7 @@ class AccessibilityTest {
             SettingsScreen(
                 false, Programs.GZCLP, Increments(), "jade", null, Tier.entries.associateWith { it.defaultRestSec },
                 SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null, notice = "Restored 79 log entries"), true, false, 0, HealthUi(false, null), Plates(),
-                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Sync,
             )
         }
         rule.onAllNodesWithText("Restored 79 log entries").assertCountEquals(1)

@@ -5,22 +5,26 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Increments
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Program
 import dev.gzclp.tracker.engine.ProgramDay
+import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
 
 /** [notice] is a one-off result such as a restore count, shown apart from sync status. */
@@ -28,6 +32,11 @@ data class SyncUi(val folder: String?, val lastSync: String?, val error: String?
 
 /** [message] explains a failed write or why writing turned off. */
 data class HealthUi(val on: Boolean, val message: String?)
+
+/** A page under Settings' short root list, as in iOS Settings. Program needs a started log. */
+enum class SettingsPage(val title: String) {
+    Program("Program"), Lifting("Lifting"), Goals("Goals"), Stretching("Stretching"), Reminders("Reminders"), Sync("Sync folder"), Appearance("Appearance"),
+}
 
 @Composable
 fun SettingsScreen(
@@ -77,276 +86,276 @@ fun SettingsScreen(
     onSaveToGallery: ((Boolean) -> Unit)? = null,
     waterGoalMl: Int = 2500,
     onWaterGoal: (Int) -> Unit = {},
-    stretchRoutine: String = dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT,
+    stretchRoutine: String = StretchRoutines.ID_AFTER_WORKOUT,
     onStretchRoutine: (String) -> Unit = {},
     customStretches: List<dev.gzclp.tracker.stretch.StretchRoutine> = emptyList(),
+    page: SettingsPage? = null,
+    onPage: (SettingsPage) -> Unit = {},
 ) {
     val p = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
     val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
     val galleryEnabled = saveToGallery ?: galleryState.value
+    val routines = listOf(
+        StretchRoutines.ID_AFTER_WORKOUT to "After workout",
+        StretchRoutines.ID_FLEXIBILITY to "Flexibility",
+        StretchRoutines.ID_DANCE to "Dance",
+        StretchRoutines.ID_ATHLETICS to "Athletics",
+        StretchRoutines.ID_ATHLETICS_DYNAMIC to "Athletics dynamic",
+    ) + customStretches.map { it.id to it.name }
+    val anyReminder = weighInReminder || mealReminder || stretchReminder || waterReminder
+
+    @Composable
+    fun PageRow(to: SettingsPage, first: Boolean, value: String? = null, valueColor: Color = p.fg2) =
+        GroupRow(first = first, onClick = { onPage(to) }) {
+            Txt(to.title, Type.body, Modifier.padding(end = Space.lg), maxLines = 1)
+            Txt(value.orEmpty(), Type.body, Modifier.weight(1f), valueColor, maxLines = 1, align = TextAlign.End)
+            Spacer(Modifier.width(Space.xs))
+            Icon(Icons.chevronRight, p.fg3, 20.dp)
+        }
+
+    @Composable
+    fun ToggleRow(label: String, on: Boolean, first: Boolean, a11y: String = label, onChange: (Boolean) -> Unit) = GroupRow(first = first) {
+        Txt(label, Type.body, Modifier.weight(1f))
+        Toggle(on, a11y, onChange)
+    }
+
+    @Composable
+    fun StepRow(label: String, value: String, first: Boolean, valueWidth: androidx.compose.ui.unit.Dp, less: String, more: String, onLess: () -> Unit, onMore: () -> Unit) =
+        GroupRow(first = first) {
+            Txt(label, Type.body, Modifier.weight(1f), maxLines = 1)
+            MiniStep(Icons.minus, less, onClick = onLess)
+            Txt(value, Type.body.tabular(), Modifier.widthIn(min = valueWidth).padding(horizontal = Space.sm), maxLines = 1, align = TextAlign.Center)
+            MiniStep(Icons.plus, more, onClick = onMore)
+        }
 
     ScreenFrame {
         NavRow(onBack)
-        Txt("Settings", Type.largeTitle)
+        Txt(page?.title ?: "Settings", Type.largeTitle)
 
-        if (started) {
-            GroupHeader("Your splits")
-            Group {
-                // Tapping a split chooses it, like a preset; its chevron opens the editor.
-                splits.forEachIndexed { i, s ->
-                    GroupRow(first = i == 0, onClick = { onProgram(s.id) }) {
+        when (page) {
+            null -> {
+                if (started) {
+                    Spacer(Modifier.height(Space.xxl))
+                    Group { PageRow(SettingsPage.Program, true, (splits.firstOrNull { it.id == programId } ?: Programs.of(programId)).name) }
+                }
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    PageRow(SettingsPage.Lifting, true)
+                    PageRow(SettingsPage.Goals, false)
+                    PageRow(SettingsPage.Stretching, false, routines.firstOrNull { it.first == stretchRoutine }?.second ?: routines.first().second)
+                    val on = listOf(weighInReminder, mealReminder, stretchReminder, waterReminder).count { it }
+                    PageRow(SettingsPage.Reminders, false, if (on == 0) "Off" else "$on on")
+                }
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    GroupRow(first = true) {
                         Column(Modifier.weight(1f)) {
-                            Txt(s.name, Type.body, maxLines = 1)
-                            Txt("${s.days.size} ${if (s.days.size == 1) "day" else "days"} · 3-week cycle", Type.footnote, color = p.fg2)
+                            Txt("Health Connect", Type.body)
+                            health.message?.let { Txt(it, Type.footnote, color = p.fg2, maxLines = 2) }
                         }
-                        if (s.id == programId) Icon(Icons.check, p.accent, 20.dp)
-                        Spacer(Modifier.width(Space.x3 - 20.dp))
-                        Snug(20.dp) { m -> IconButton(Icons.chevronRight, "Edit ${s.name}", { onOpenSplit(s.id) }, m, tint = p.fg3) }
+                        Toggle(health.on, "Write workouts and weight to Health Connect", onHealthConnect)
                     }
+                    GroupRow(first = false) {
+                        Column(Modifier.weight(1f)) {
+                            Txt("Save meal photos", Type.body)
+                            Txt("Pictures/Food", Type.footnote, color = p.fg2)
+                        }
+                        Toggle(galleryEnabled, "Save meal photos to Pictures/Food") { enabled ->
+                            galleryState.value = enabled
+                            onSaveToGallery?.invoke(enabled) ?: run { prefs.saveToGallery = enabled }
+                        }
+                    }
+                    PageRow(
+                        SettingsPage.Sync, false,
+                        when {
+                            sync.folder == null -> "Off"
+                            sync.error != null -> "Failed"
+                            else -> sync.folder
+                        },
+                        if (sync.folder != null && sync.error != null) p.red else p.fg2,
+                    )
                 }
-                AddRow("New split", first = splits.isEmpty(), onClick = onNewSplit)
-            }
-            GroupHeader("Presets")
-            ProgramPicker(programId, onProgram)
-            Spacer(Modifier.height(Space.lg))
-            Group {
-                GroupRow(first = true, onClick = onDays) {
-                    Txt("Exercises per workout", Type.body, Modifier.weight(1f))
-                    Icon(Icons.chevronRight, p.fg3, 20.dp)
-                }
-            }
-            GroupFooter("Switching keeps your history.")
-
-            GroupHeader("Cycle steps")
-            Group {
-                val rows = listOf(
-                    Triple("Upper body", increments.upperStep) { v: Int -> increments.copy(upperStep = v) },
-                    Triple("Lower body", increments.lowerStep) { v: Int -> increments.copy(lowerStep = v) },
-                    Triple("Next cycle", increments.cycleBump) { v: Int -> increments.copy(cycleBump = v) },
-                )
-                rows.forEachIndexed { i, (label, v, with) ->
-                    GroupRow(first = i == 0) {
-                        Txt(label, Type.body, Modifier.weight(1f), maxLines = 1)
-                        MiniStep(Icons.minus, "Smaller step for $label") { onIncrements(with((v - 5).coerceAtLeast(0))) }
-                        Txt("+$v lb", Type.body.tabular(), Modifier.width(72.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
-                        MiniStep(Icons.plus, "Larger step for $label") { onIncrements(with((v + 5).coerceAtMost(50))) }
+                Spacer(Modifier.height(Space.xxl))
+                Group { PageRow(SettingsPage.Appearance, true, Palettes.all.firstOrNull { it.id == themeId }?.name ?: "Laptop") }
+                if (!notificationsAllowed) {
+                    Spacer(Modifier.height(Space.xxl))
+                    Group {
+                        GroupRow(first = true, onClick = onAllowNotifications) { Txt("Allow notifications", Type.body, color = p.accent) }
                     }
                 }
             }
-            GroupFooter("Lower body is squat, deadlift, Romanian deadlift, and leg press. Next cycle applies after a heavy week with every set at its target reps.")
-        }
 
-        GroupHeader("Bar and plates")
-        Group {
-            GroupRow(first = true) {
-                Txt("Bar", Type.body, Modifier.weight(1f))
-                MiniStep(Icons.minus, "Lighter bar") { onPlates(plates.copy(bar = (plates.bar - 5).coerceAtLeast(5))) }
-                Txt(Fmt.lb(plates.bar), Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
-                MiniStep(Icons.plus, "Heavier bar") { onPlates(plates.copy(bar = (plates.bar + 5).coerceAtMost(100))) }
-            }
-            Plates.SIZES.forEach { size ->
-                val n = plates.pairs[size] ?: 0
-                val name = "${Plates.label(size)} lb"
-                GroupRow(first = false) {
-                    Txt("$name plates", Type.body, Modifier.weight(1f), maxLines = 1)
-                    MiniStep(Icons.minus, "One less pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n - 1).coerceAtLeast(0)))) }
-                    Txt(if (n == 1) "1 pair" else "$n pairs", Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
-                    MiniStep(Icons.plus, "One more pair of $name plates") { onPlates(plates.copy(pairs = plates.pairs + (size to (n + 1).coerceAtMost(20)))) }
+            SettingsPage.Program -> {
+                GroupHeader("Your splits")
+                Group {
+                    // Tapping a split chooses it, like a preset; its chevron opens the editor.
+                    splits.forEachIndexed { i, s ->
+                        GroupRow(first = i == 0, onClick = { onProgram(s.id) }) {
+                            Column(Modifier.weight(1f)) {
+                                Txt(s.name, Type.body, maxLines = 1)
+                                Txt("${s.days.size} ${if (s.days.size == 1) "day" else "days"} · 3-week cycle", Type.footnote, color = p.fg2)
+                            }
+                            if (s.id == programId) Icon(Icons.check, p.accent, 20.dp)
+                            Spacer(Modifier.width(Space.x3 - 20.dp))
+                            Snug(20.dp) { m -> IconButton(Icons.chevronRight, "Edit ${s.name}", { onOpenSplit(s.id) }, m, tint = p.fg3) }
+                        }
+                    }
+                    AddRow("New split", first = splits.isEmpty(), onClick = onNewSplit)
+                }
+                GroupHeader("Presets")
+                ProgramPicker(programId, onProgram)
+                Spacer(Modifier.height(Space.lg))
+                Group {
+                    GroupRow(first = true, onClick = onDays) {
+                        Txt("Exercises per workout", Type.body, Modifier.weight(1f))
+                        Icon(Icons.chevronRight, p.fg3, 20.dp)
+                    }
+                }
+                GroupHeader("Cycle steps")
+                Group {
+                    val rows = listOf(
+                        Triple("Upper body", increments.upperStep) { v: Int -> increments.copy(upperStep = v) },
+                        Triple("Lower body", increments.lowerStep) { v: Int -> increments.copy(lowerStep = v) },
+                        Triple("Next cycle", increments.cycleBump) { v: Int -> increments.copy(cycleBump = v) },
+                    )
+                    rows.forEachIndexed { i, (label, v, with) ->
+                        StepRow(label, "+$v lb", i == 0, 72.dp, "Smaller step for $label", "Larger step for $label",
+                            { onIncrements(with((v - 5).coerceAtLeast(0))) }, { onIncrements(with((v + 5).coerceAtMost(50))) })
+                    }
                 }
             }
-        }
 
-        GroupHeader("Theme")
-        Group {
-            Palettes.all.forEachIndexed { i, t ->
-                GroupRow(first = i == 0, onClick = { onTheme(t.id) }) {
-                    Txt(t.name, Type.body, Modifier.weight(1f))
-                    if (t.id == themeId) Icon(Icons.check, p.accent, 20.dp)
+            SettingsPage.Lifting -> {
+                GroupHeader("Bar and plates")
+                Group {
+                    StepRow("Bar", Fmt.lb(plates.bar), true, 96.dp, "Lighter bar", "Heavier bar",
+                        { onPlates(plates.copy(bar = (plates.bar - 5).coerceAtLeast(5))) }, { onPlates(plates.copy(bar = (plates.bar + 5).coerceAtMost(100))) })
+                    Plates.SIZES.forEach { size ->
+                        val n = plates.pairs[size] ?: 0
+                        val name = "${Plates.label(size)} lb"
+                        StepRow("$name plates", if (n == 1) "1 pair" else "$n pairs", false, 96.dp, "One less pair of $name plates", "One more pair of $name plates",
+                            { onPlates(plates.copy(pairs = plates.pairs + (size to (n - 1).coerceAtLeast(0)))) },
+                            { onPlates(plates.copy(pairs = plates.pairs + (size to (n + 1).coerceAtMost(20)))) })
+                    }
+                }
+                GroupHeader("Rest timer")
+                Group {
+                    // Custom splits rest by each week's reps, so they get no row.
+                    Tier.entries.filter { it != Tier.CUSTOM }.forEachIndexed { i, tier ->
+                        val v = restTargets.getValue(tier)
+                        StepRow(tier.label, Fmt.clock(v.toLong()), i == 0, 56.dp, "Shorter ${tier.label} rest", "Longer ${tier.label} rest",
+                            { onRest(tier, (v - 15).coerceAtLeast(15)) }, { onRest(tier, (v + 15).coerceAtMost(600)) })
+                    }
+                }
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    ToggleRow("Warm-up sets", warmups, true, onChange = onWarmups)
+                    ToggleRow("Auto-adapt weights", autoAdaptWeights, false, onChange = onAutoAdaptWeights)
                 }
             }
-            GroupRow(first = false, onClick = { onTheme(LaptopTheme.ID) }) {
-                Column(Modifier.weight(1f)) {
-                    Txt("Laptop", Type.body)
-                    Txt(laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
-                }
-                if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
-            }
-        }
-        GroupFooter("Laptop uses the Omarchy theme your laptop syncs to the sync folder.")
 
-        GroupHeader("Rest timer")
-        Group {
-            // Custom splits rest by each week's reps, so they get no row.
-            Tier.entries.filter { it != Tier.CUSTOM }.forEachIndexed { i, tier ->
-                GroupRow(first = i == 0) {
-                    Txt(tier.label, Type.body, Modifier.weight(1f))
-                    val v = restTargets.getValue(tier)
-                    MiniStep(Icons.minus, "Shorter ${tier.label} rest") { onRest(tier, (v - 15).coerceAtLeast(15)) }
-                    Txt(Fmt.clock(v.toLong()), Type.body.tabular(), Modifier.width(56.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
-                    MiniStep(Icons.plus, "Longer ${tier.label} rest") { onRest(tier, (v + 15).coerceAtMost(600)) }
+            SettingsPage.Goals -> {
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    StepRow("Cardio each week", Fmt.minutes(cardioGoalMin * 60L), true, 120.dp, "Smaller weekly cardio goal", "Larger weekly cardio goal",
+                        { onCardioGoal((cardioGoalMin - 15).coerceAtLeast(15)) }, { onCardioGoal((cardioGoalMin + 15).coerceAtMost(20 * 60)) })
+                    StepRow("Water each day", "$waterGoalMl ml", false, 96.dp, "Less water", "More water",
+                        { onWaterGoal((waterGoalMl - 100).coerceAtLeast(500)) }, { onWaterGoal((waterGoalMl + 100).coerceAtMost(8000)) })
                 }
             }
-        }
 
-        GroupHeader("Warm-ups")
-        Group {
-            GroupRow(first = true) {
-                Txt("Warm-up sets", Type.body, Modifier.weight(1f))
-                Toggle(warmups, "Warm-up sets", onWarmups)
-            }
-        }
-        GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift, and before each split barbell lift at 6 reps or fewer. Not logged.")
-
-        GroupHeader("Strength")
-        Group {
-            GroupRow(first = true) {
-                Txt("Auto-adapt weights", Type.body, Modifier.weight(1f))
-                Toggle(autoAdaptWeights, "Auto-adapt weights", onAutoAdaptWeights)
-            }
-        }
-        GroupFooter("When recent sets show you are stronger, automatically adopt the suggested weight at session start.")
-
-        GroupHeader("Cardio")
-        Group {
-            GroupRow(first = true) {
-                Txt("Weekly goal", Type.body, Modifier.weight(1f), maxLines = 1)
-                MiniStep(Icons.minus, "Smaller weekly cardio goal") { onCardioGoal((cardioGoalMin - 15).coerceAtLeast(15)) }
-                Txt(Fmt.minutes(cardioGoalMin * 60L), Type.body.tabular(), Modifier.widthIn(min = 120.dp).padding(horizontal = Space.sm), maxLines = 1, align = androidx.compose.ui.text.style.TextAlign.Center)
-                MiniStep(Icons.plus, "Larger weekly cardio goal") { onCardioGoal((cardioGoalMin + 15).coerceAtMost(20 * 60)) }
-            }
-        }
-
-        GroupHeader("Reminders")
-        Group {
-            GroupRow(first = true) {
-                Txt("Morning reminder", Type.body, Modifier.weight(1f))
-                Toggle(weighInReminder, "Morning reminder", onWeighInReminder)
-            }
-            if (weighInReminder) GroupRow(first = false) {
-                Txt("Time", Type.body, Modifier.weight(1f))
-                MiniStep(Icons.minus, "Earlier reminder") { onWeighInTime((weighInMinutes - 15).mod(24 * 60)) }
-                Txt(Fmt.clockTime(weighInMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
-                MiniStep(Icons.plus, "Later reminder") { onWeighInTime((weighInMinutes + 15) % (24 * 60)) }
-            }
-            GroupRow(first = false) {
-                Txt("Meals", Type.body, Modifier.weight(1f))
-                Toggle(mealReminder, "Meal reminder", onMealReminder)
-            }
-            GroupRow(first = false) {
-                Txt("Stretching", Type.body, Modifier.weight(1f))
-                Toggle(stretchReminder, "Stretch reminder", onStretchReminder)
-            }
-            if (stretchReminder) GroupRow(first = false) {
-                Txt("Stretch time", Type.body, Modifier.weight(1f))
-                MiniStep(Icons.minus, "Earlier stretch reminder") { onStretchReminderTime((stretchReminderMinutes - 15).mod(24 * 60)) }
-                Txt(Fmt.clockTime(stretchReminderMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
-                MiniStep(Icons.plus, "Later stretch reminder") { onStretchReminderTime((stretchReminderMinutes + 15) % (24 * 60)) }
-            }
-            GroupRow(first = false) {
-                Txt("Water", Type.body, Modifier.weight(1f))
-                Toggle(waterReminder, "Water reminder", onWaterReminder)
-            }
-        }
-        if ((weighInReminder || mealReminder || stretchReminder || waterReminder) && !notificationsAllowed) {
-            GroupFooter("Allow notifications below to get the reminder.")
-        }
-
-        GroupHeader("Food")
-        Group {
-            GroupRow(first = true) {
-                Txt("Also save meal photos to the gallery", Type.body, Modifier.weight(1f))
-                Toggle(galleryEnabled, "Also save meal photos to the gallery") { enabled ->
-                    galleryState.value = enabled
-                    onSaveToGallery?.invoke(enabled) ?: run { prefs.saveToGallery = enabled }
+            SettingsPage.Stretching -> {
+                GroupHeader("Default routine")
+                Group {
+                    val current = routines.indexOfFirst { it.first == stretchRoutine }.coerceAtLeast(0)
+                    routines.forEachIndexed { i, (id, name) ->
+                        GroupRow(first = i == 0, onClick = { onStretchRoutine(id) }) {
+                            Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
+                            if (i == current) Icon(Icons.check, p.accent, 20.dp)
+                        }
+                    }
                 }
             }
-        }
-        GroupFooter("Saved to Pictures/Food.")
 
-        GroupHeader("Water")
-        Group {
-            GroupRow(first = true) {
-                Txt("Daily goal", Type.body, Modifier.weight(1f))
-                MiniStep(Icons.minus, "Less water") { onWaterGoal((waterGoalMl - 100).coerceAtLeast(500)) }
-                Txt("$waterGoalMl ml", Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
-                MiniStep(Icons.plus, "More water") { onWaterGoal((waterGoalMl + 100).coerceAtMost(8000)) }
-            }
-            GroupRow(first = false) {
-                Txt("Pace reminder", Type.body, Modifier.weight(1f))
-                Toggle(waterReminder, "Pace reminder", onWaterReminder)
-            }
-        }
-        GroupFooter("Reminds you if water intake falls 500 ml behind pace from wake time to 14 hours later (every 90 min max).")
-        if (waterReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
-
-        GroupHeader("Stretching")
-        val routineOptions = listOf(
-            dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT to "After workout",
-            dev.gzclp.tracker.stretch.StretchRoutines.ID_FLEXIBILITY to "Flexibility",
-            dev.gzclp.tracker.stretch.StretchRoutines.ID_DANCE to "Dance",
-            dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS to "Athletics",
-            dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS_DYNAMIC to "Athletics dynamic",
-        ) + customStretches.map { it.id to it.name }
-        val current = routineOptions.indexOfFirst { it.first == stretchRoutine }.coerceAtLeast(0)
-        Group {
-            GroupRow(first = true, onClick = { onStretchRoutine(routineOptions[(current + 1) % routineOptions.size].first) }) {
-                Txt("Default routine", Type.body, Modifier.weight(1f))
-                Txt(routineOptions[current].second, Type.body, Modifier.padding(start = Space.lg), p.accent, maxLines = 1)
-            }
-        }
-        GroupFooter(dev.gzclp.tracker.stretch.StretchRoutines.COACHING_DISCLAIMER)
-
-        GroupHeader("Health Connect")
-        Group {
-            GroupRow(first = true) {
-                Txt("Write workouts and weight", Type.body, Modifier.weight(1f))
-                Toggle(health.on, "Write workouts and weight to Health Connect", onHealthConnect)
-            }
-        }
-        health.message?.let { GroupFooter(it) }
-
-        GroupHeader("Sync folder")
-        Group {
-            GroupRow(first = true, onClick = onChooseFolder) {
-                Txt("Folder", Type.body, Modifier.weight(1f))
-                Txt(sync.folder ?: "Choose", Type.body, color = if (sync.folder == null) p.accent else p.fg2, maxLines = 1)
-            }
-            if (!started) {
-                GroupRow(first = false, onClick = onRestore) {
-                    Txt("Restore from folder", Type.body, color = p.accent)
+            SettingsPage.Reminders -> {
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    ToggleRow("Weigh-in", weighInReminder, true, "Weigh-in reminder", onWeighInReminder)
+                    if (weighInReminder) StepRow("Weigh-in time", Fmt.clockTime(weighInMinutes), false, 96.dp, "Earlier reminder", "Later reminder",
+                        { onWeighInTime((weighInMinutes - 15).mod(24 * 60)) }, { onWeighInTime((weighInMinutes + 15) % (24 * 60)) })
+                    ToggleRow("Meals", mealReminder, false, "Meal reminder", onMealReminder)
+                    ToggleRow("Stretching", stretchReminder, false, "Stretch reminder", onStretchReminder)
+                    if (stretchReminder) StepRow("Stretch time", Fmt.clockTime(stretchReminderMinutes), false, 96.dp, "Earlier stretch reminder", "Later stretch reminder",
+                        { onStretchReminderTime((stretchReminderMinutes - 15).mod(24 * 60)) }, { onStretchReminderTime((stretchReminderMinutes + 15) % (24 * 60)) })
+                    ToggleRow("Water pace", waterReminder, false, "Water pace reminder", onWaterReminder)
+                }
+                if (anyReminder && !notificationsAllowed) {
+                    Spacer(Modifier.height(Space.xxl))
+                    Group {
+                        GroupRow(first = true, onClick = onAllowNotifications) { Txt("Allow notifications", Type.body, color = p.accent) }
+                    }
                 }
             }
-        }
-        GroupFooter(
-            when {
-                sync.folder == null -> "Not syncing. The log stays on this phone."
-                sync.error != null -> "Last sync failed: ${sync.error}. Logging continues on this phone."
-                sync.lastSync != null -> "Last synced ${sync.lastSync}"
-                else -> "Not synced yet"
-            },
-        )
-        sync.notice?.let { GroupFooter(it) }
 
-        if (!notificationsAllowed) {
-            GroupHeader("Notifications")
-            Group {
-                GroupRow(first = true, onClick = onAllowNotifications) {
-                    Txt("Allow notifications", Type.body, color = p.accent)
+            SettingsPage.Sync -> {
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    GroupRow(first = true, onClick = onChooseFolder) {
+                        Column(Modifier.weight(1f)) {
+                            Txt("Folder", Type.body)
+                            val status = when {
+                                sync.folder == null -> null
+                                sync.error != null -> "Last sync failed: ${sync.error}"
+                                sync.lastSync != null -> "Last synced ${sync.lastSync}"
+                                else -> "Not synced yet"
+                            }
+                            status?.let { Txt(it, Type.footnote, color = if (sync.error != null) p.red else p.fg2, maxLines = 2) }
+                        }
+                        Txt(sync.folder ?: "Choose", Type.body, Modifier.padding(start = Space.lg), if (sync.folder == null) p.accent else p.fg2, maxLines = 1)
+                    }
+                    if (!started) {
+                        GroupRow(first = false, onClick = onRestore) {
+                            Column(Modifier.weight(1f)) {
+                                Txt("Restore from folder", Type.body, color = p.accent)
+                                sync.notice?.let { Txt(it, Type.footnote, color = p.fg2) }
+                            }
+                        }
+                    }
                 }
             }
-            GroupFooter("Needed for rest alerts and the weigh-in reminder.")
+
+            SettingsPage.Appearance -> {
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    Palettes.all.forEachIndexed { i, t ->
+                        GroupRow(first = i == 0, onClick = { onTheme(t.id) }) {
+                            Txt(t.name, Type.body, Modifier.weight(1f))
+                            if (t.id == themeId) Icon(Icons.check, p.accent, 20.dp)
+                        }
+                    }
+                    GroupRow(first = false, onClick = { onTheme(LaptopTheme.ID) }) {
+                        Column(Modifier.weight(1f)) {
+                            Txt("Laptop", Type.body)
+                            Txt(laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
+                        }
+                        if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
+                    }
+                }
+            }
         }
     }
 }
 
+/** A preset's exercises per day. Edit shows the red remove and Delete, as in a split's edit mode; presets keep their order. */
 @Composable
-fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit, onRemove: (ProgramDay, String) -> Unit) {
+fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit, onRemove: (ProgramDay, String) -> Unit, initialEditing: Boolean = false) {
     val p = LocalPalette.current
     val program = state.program
+    var editing by rememberSaveable { mutableStateOf(initialEditing) }
     ScreenFrame {
-        NavRow(onBack)
+        NavRow(onBack) { EditButton(editing) { editing = !editing } }
         Txt(program.name, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
         Txt(
@@ -356,16 +365,20 @@ fun DaysScreen(state: AppState, onBack: () -> Unit, onAdd: (ProgramDay) -> Unit,
         program.days.forEach { day ->
             val fixed = state.slots(program, day).filter { program.gzclp && it.tier != Tier.T3 }
             GroupHeader(day.title + fixed.joinToString("") { ", ${state.name(it.ex)} ${it.tier.label}" })
-            Group {
-                val ids = Commands.dayList(state, program, day)
-                ids.forEachIndexed { i, id ->
-                    val ex = state.exercise(Slot(id, if (program.gzclp) Tier.T3 else Tier.CYCLE))
+            val ids = Commands.dayList(state, program, day)
+            val exercises = ids.map { state.exercise(Slot(it, if (program.gzclp) Tier.T3 else Tier.CYCLE)) }
+            if (editing) {
+                if (ids.isNotEmpty()) Group {
+                    EditRows(
+                        exercises.map { it.name }, ids, { exercises[it].weight?.let(Fmt::lb) }, removable = true,
+                        onMove = null, onRemove = { i -> onRemove(day, ids[i]) },
+                    )
+                }
+            } else Group {
+                exercises.forEachIndexed { i, ex ->
                     GroupRow(first = i == 0) {
-                        Column(Modifier.weight(1f)) {
-                            Txt(ex.name, Type.body, maxLines = 1)
-                            Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.footnote.tabular(), color = p.fg2)
-                        }
-                        IconButton(Icons.x, "Remove ${ex.name}", { onRemove(day, id) }, tint = p.fg2)
+                        Txt(ex.name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2, maxLines = 1)
                     }
                 }
                 AddRow("Add exercise", first = ids.isEmpty()) { onAdd(day) }

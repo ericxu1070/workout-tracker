@@ -84,6 +84,7 @@ import dev.gzclp.tracker.ui.StretchRoutineScreen
 import dev.gzclp.tracker.log.StretchRoutineDefine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.LocalPlates
+import dev.gzclp.tracker.ui.SettingsPage
 import dev.gzclp.tracker.ui.SettingsScreen
 import dev.gzclp.tracker.ui.SetupScreen
 import dev.gzclp.tracker.ui.Sheet
@@ -125,9 +126,12 @@ class MainActivity : ComponentActivity() {
 
 /**
  * A screen pushed over the tabs; [arg] is a session or exercise id, for [Activities] "log" or "change" (blank starts a session),
- * a split id for [Split], "split/day" for [SplitDay], and a routine's [StretchRoutine.key] for [Stretch] and [StretchRoutine].
+ * a split id for [Split], "split/day" for [SplitDay], a routine's [StretchRoutine.key] for [Stretch] and [StretchRoutine],
+ * and nothing for [SettingsPage], which shows the app's settingsPage. [depth] orders them, so going back slides the way it came.
  */
-private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay, Stretch, StretchRoutine }
+private enum class Route(val depth: Int) {
+    Settings(1), SettingsPage(2), Days(3), Session(1), Exercise(1), BodyWeight(1), Activities(1), Split(3), SplitDay(4), Stretch(2), StretchRoutine(1),
+}
 
 @Composable
 private fun App(model: AppModel) {
@@ -137,6 +141,8 @@ private fun App(model: AppModel) {
     var arg by rememberSaveable { mutableStateOf("") }
     // The player was started from its routine's page, so leaving it goes back there.
     var playerFromPage by rememberSaveable { mutableStateOf(false) }
+    // Apart from [arg], so leaving a split for its settings page never changes what the split screen sliding out shows.
+    var settingsPage by rememberSaveable { mutableStateOf(SettingsPage.Program) }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
@@ -214,6 +220,10 @@ private fun App(model: AppModel) {
     fun push(r: Route, a: String = "") {
         arg = a
         route = r
+    }
+    fun openSettings(page: SettingsPage) {
+        settingsPage = page
+        route = Route.SettingsPage
     }
     fun requestNotifications() {
         if (!model.notificationsAllowed && Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -317,7 +327,8 @@ private fun App(model: AppModel) {
     BackHandler(sheet != null || route != null || tab != Tab.Workout) {
         when {
             sheet != null -> close()
-            route == Route.Days || route == Route.Split -> route = Route.Settings
+            route == Route.Days || route == Route.Split -> openSettings(SettingsPage.Program)
+            route == Route.SettingsPage -> route = Route.Settings
             route == Route.SplitDay -> push(Route.Split, arg.substringBefore('/'))
             route == Route.Activities -> closeActivities()
             route == Route.Stretch && playerFromPage -> push(Route.StretchRoutine, arg)
@@ -331,7 +342,7 @@ private fun App(model: AppModel) {
         AnimatedContent(
             route,
             transitionSpec = {
-                val push = targetState != null
+                val push = (targetState?.depth ?: 0) > (initialState?.depth ?: 0)
                 val ease = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
                 (if (push) slideInHorizontally(tween(300, easing = ease)) { it } togetherWith fadeOut(tween(200))
                 else fadeIn(tween(200)) togetherWith slideOutHorizontally(tween(200, easing = ease)) { it })
@@ -348,19 +359,19 @@ private fun App(model: AppModel) {
             val stretch = if (shown == Route.Stretch) remember(arg) { StretchRoutines.all(state).firstOrNull { it.key == arg } } else null
             val routine = if (shown == Route.StretchRoutine) remember(state, arg) { StretchRoutines.all(state).firstOrNull { it.key == arg } } else null
             when {
-                !state.started && shown != Route.Settings -> SetupScreen(
+                !state.started && shown != Route.Settings && shown != Route.SettingsPage -> SetupScreen(
                     onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
                     onRestore = ::restore, message = model.notice,
                 )
-                shown == Route.Settings -> SettingsScreen(
+                shown == Route.Settings || shown == Route.SettingsPage -> SettingsScreen(
                     started = state.started, programId = state.programId, increments = state.increments,
                     themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
                     sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                     weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
-                    onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
+                    onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = model::chooseTheme, onRest = model::setRest,
                     onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                     onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
-                    onDays = { if (state.program.custom) push(Route.Split, state.programId) else push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
+                    onDays = { if (state.program.custom) push(Route.Split, state.programId) else route = Route.Days }, onChooseFolder = { folderPicker.launch(null) },
                     onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
                     onWeighInReminder = {
                         model.chooseWeighInReminder(it)
@@ -378,18 +389,19 @@ private fun App(model: AppModel) {
                     waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
                     saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
                     waterGoalMl = model.waterGoalMl, onWaterGoal = model::chooseWaterGoal,
+                    page = settingsPage.takeIf { shown == Route.SettingsPage }, onPage = ::openSettings,
                     onHealthConnect = { on ->
                         val unavailable = if (on) model.healthUnavailable() else null
                         if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
                     },
                 )
                 shown == Route.Days -> DaysScreen(
-                    state, { route = Route.Settings },
+                    state, { openSettings(SettingsPage.Program) },
                     onAdd = { open(SheetState.AddExercise(it, "")) },
                     onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
                 )
                 shown == Route.Split && split != null -> SplitScreen(
-                    state, split, { route = Route.Settings }, { push(Route.SplitDay, "${split.id}/$it") }, ::open, model::dispatch,
+                    state, split, { openSettings(SettingsPage.Program) }, { push(Route.SplitDay, "${split.id}/$it") }, ::open, model::dispatch,
                 )
                 shown == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
                     state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
@@ -548,7 +560,7 @@ private fun App(model: AppModel) {
                         is SheetState.DeleteSplit -> {
                             if (c.day == null) {
                                 model.dispatch { Commands.deleteSplit(it, c.split) }
-                                route = Route.Settings
+                                openSettings(SettingsPage.Program)
                             } else {
                                 model.dispatch { Commands.removeDay(it, c.split, c.day) }
                                 push(Route.Split, c.split)
