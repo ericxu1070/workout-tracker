@@ -30,6 +30,18 @@ class FormTest {
         assertEquals(35f, o.yaw, 0f)
     }
 
+    @Test fun cameraCirclesUntilAFingerHoldsIt() {
+        val o = Orbit()
+        o.spin(1f)
+        assertEquals(47f, o.yaw, 0.001f)
+        o.held = true
+        o.spin(1f)
+        assertEquals(47f, o.yaw, 0.001f)
+        o.held = false
+        o.spin(30f)
+        assertEquals(47f, o.yaw, 0.001f) // a full turn
+    }
+
     @Test fun lookAtTargetProjectsToTheCanvasCenter() {
         val pr = Projector()
         val target = floatArrayOf(0.3f, 0.9f, -0.2f)

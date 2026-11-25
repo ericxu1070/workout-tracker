@@ -69,10 +69,10 @@ class Prefs(context: Context) {
         get() = p.getInt("weigh_in_minutes", 7 * 60)
         set(v) = p.edit().putInt("weigh_in_minutes", v).apply()
 
-    /** The Workout tab shows Cardio instead of Lifting while idle. */
-    var cardioMode: Boolean
-        get() = p.getBoolean("cardio_mode", false)
-        set(v) = p.edit().putBoolean("cardio_mode", v).apply()
+    /** What the idle Workout tab shows: 0 Lifting, 1 Cardio, 2 Stretching. Falls back to the older Lifting | Cardio flag. */
+    var workoutMode: Int
+        get() = p.getInt("workout_mode", if (p.getBoolean("cardio_mode", false)) 1 else 0)
+        set(v) = p.edit().putInt("workout_mode", v).apply()
 
     var cardioGoalMin: Int
         get() = p.getInt("cardio_goal_min", 150)

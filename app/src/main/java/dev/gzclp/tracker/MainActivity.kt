@@ -78,6 +78,9 @@ import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HomeScreen
+import dev.gzclp.tracker.ui.GuidedStretchPlayerScreen
+import dev.gzclp.tracker.ui.StretchScreen
+import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.LocalPlates
 import dev.gzclp.tracker.ui.SettingsScreen
 import dev.gzclp.tracker.ui.SetupScreen
@@ -122,7 +125,7 @@ class MainActivity : ComponentActivity() {
  * A screen pushed over the tabs; [arg] is a session or exercise id, for [Activities] "log" or "change" (blank starts a session),
  * a split id for [Split], and "split/day" for [SplitDay].
  */
-private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay }
+private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay, Stretch }
 
 @Composable
 private fun App(model: AppModel) {
@@ -336,6 +339,8 @@ private fun App(model: AppModel) {
             val run = state.cardioActive
             val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { shown == Route.Split || shown == Route.SplitDay }
             val splitDay = split?.day(arg.substringAfter('/', ""))
+            // Held for the whole session, so a log change mid-routine cannot rebuild After workout under the player.
+            val stretch = if (shown == Route.Stretch) remember(arg) { StretchRoutines.all(state).firstOrNull { it.name == arg } } else null
             when {
                 !state.started && shown != Route.Settings -> SetupScreen(
                     onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
@@ -363,6 +368,7 @@ private fun App(model: AppModel) {
                     mealReminder = model.mealReminder, onMealReminder = { model.chooseMealReminder(it); if (it) requestNotifications() },
                     stretchReminder = model.stretchReminder, stretchReminderMinutes = model.stretchReminderMinutes,
                     onStretchReminder = { model.chooseStretchReminder(it); if (it) requestNotifications() }, onStretchReminderTime = model::chooseStretchReminderTime,
+                    stretchRoutine = model.stretchRoutine, onStretchRoutine = model::chooseStretchRoutine,
                     waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
                     saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
                     waterGoalMl = model.waterGoalMl, onWaterGoal = model::chooseWaterGoal,
@@ -387,6 +393,10 @@ private fun App(model: AppModel) {
                 }
                 shown == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } })
                 shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
+                shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
+                    stretch, onBack = { route = null },
+                    onFinish = { logged -> model.dispatch { listOf(logged) }; route = null },
+                )
                 shown == Route.Activities -> ActivitiesScreen(
                     state, { closeActivities() }, ::closeActivities,
                     title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
@@ -396,14 +406,17 @@ private fun App(model: AppModel) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
-                            ) else if (state.active == null && model.cardioMode) CardioScreen(
-                                state, LocalDate.now(), model.cardioGoalMin, onLifting = { model.chooseCardioMode(false) },
+                            ) else if (state.active == null && model.workoutMode == 1) CardioScreen(
+                                state, LocalDate.now(), model.cardioGoalMin, onMode = model::chooseWorkoutMode,
                                 onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
                                 onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
+                            ) else if (state.active == null && model.workoutMode == 2) StretchScreen(
+                                state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
+                                onSettings = { push(Route.Settings) }, onStartRoutine = { push(Route.Stretch, it.name) },
                             ) else if (state.active == null) HomeScreen(
                                 state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
                                 onEditWeight = { open(weightSheet(it)) },
-                                onCardio = { model.chooseCardioMode(true) },
+                                onMode = model::chooseWorkoutMode,
                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                 onStartOpen = ::startOpenFlow,
                             ) else WorkoutScreen(

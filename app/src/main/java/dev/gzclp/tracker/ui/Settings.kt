@@ -77,51 +77,15 @@ fun SettingsScreen(
     onSaveToGallery: ((Boolean) -> Unit)? = null,
     waterGoalMl: Int = 2500,
     onWaterGoal: (Int) -> Unit = {},
-    defaultStretchRoutine: String? = null,
-    onStretchRoutine: ((String) -> Unit)? = null,
-    onOpenStretchPlayer: ((String) -> Unit)? = null,
-    onOpenStretchLibrary: (() -> Unit)? = null,
+    stretchRoutine: String = dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT,
+    onStretchRoutine: (String) -> Unit = {},
 ) {
     val p = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
     val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
     val galleryEnabled = saveToGallery ?: galleryState.value
-    var currentStretchRoutineId by androidx.compose.runtime.remember(defaultStretchRoutine) {
-        androidx.compose.runtime.mutableStateOf(defaultStretchRoutine ?: prefs.stretchRoutine)
-    }
-    var activeStretchRoutine by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf<dev.gzclp.tracker.stretch.StretchRoutine?>(null)
-    }
-    var showStretchLibrary by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf(false)
-    }
 
-    // System back leaves the player or library for Settings, as their own back buttons do, instead of closing Settings under them.
-    androidx.activity.compose.BackHandler(activeStretchRoutine != null || showStretchLibrary) {
-        if (activeStretchRoutine != null) activeStretchRoutine = null else showStretchLibrary = false
-    }
-    if (activeStretchRoutine != null) {
-        GuidedStretchPlayerScreen(
-            routine = activeStretchRoutine!!,
-            onBack = { activeStretchRoutine = null },
-            onFinish = { logged ->
-                activeStretchRoutine = null
-                runCatching { dev.gzclp.tracker.AppModel.get(context).dispatch { listOf(logged) } }
-            },
-        )
-        return
-    }
-    if (showStretchLibrary) {
-        StretchScreen(
-            onBack = { showStretchLibrary = false },
-            onStartRoutine = { routine ->
-                showStretchLibrary = false
-                activeStretchRoutine = routine
-            },
-        )
-        return
-    }
     ScreenFrame {
         NavRow(onBack)
         Txt("Settings", Type.largeTitle)
@@ -322,41 +286,13 @@ fun SettingsScreen(
             dev.gzclp.tracker.stretch.StretchRoutines.ID_FLEXIBILITY to "Flexibility",
             dev.gzclp.tracker.stretch.StretchRoutines.ID_DANCE to "Dance",
             dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS to "Athletics",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS_DYNAMIC to "Athletics dynamic",
         )
-        val selectedRoutineName = routineOptions.firstOrNull { it.first == currentStretchRoutineId }?.second ?: "After workout"
+        val current = routineOptions.indexOfFirst { it.first == stretchRoutine }.coerceAtLeast(0)
         Group {
-            GroupRow(first = true, onClick = {
-                val currentIndex = routineOptions.indexOfFirst { it.first == currentStretchRoutineId }
-                val nextIndex = (currentIndex + 1) % routineOptions.size
-                val nextId = routineOptions[nextIndex].first
-                currentStretchRoutineId = nextId
-                prefs.stretchRoutine = nextId
-                onStretchRoutine?.invoke(nextId)
-            }) {
+            GroupRow(first = true, onClick = { onStretchRoutine(routineOptions[(current + 1) % routineOptions.size].first) }) {
                 Txt("Default routine", Type.body, Modifier.weight(1f))
-                Txt(selectedRoutineName, Type.body, color = p.accent)
-            }
-            GroupRow(first = false, onClick = {
-                if (onOpenStretchPlayer != null) {
-                    onOpenStretchPlayer(currentStretchRoutineId)
-                } else {
-                    // After workout picks its moves from today's lifts, so it needs the log.
-                    val state = runCatching { dev.gzclp.tracker.AppModel.get(context).store.state.value }.getOrNull()
-                    activeStretchRoutine = dev.gzclp.tracker.stretch.StretchRoutines.of(currentStretchRoutineId, state)
-                }
-            }) {
-                Txt("Start routine", Type.body, Modifier.weight(1f), color = p.accent)
-                Icon(Icons.play, p.accent, size = 18.dp)
-            }
-            GroupRow(first = false, onClick = {
-                if (onOpenStretchLibrary != null) {
-                    onOpenStretchLibrary()
-                } else {
-                    showStretchLibrary = true
-                }
-            }) {
-                Txt("Move library & routines", Type.body, Modifier.weight(1f))
-                Icon(Icons.chevronRight, p.fg2, size = 18.dp)
+                Txt(routineOptions[current].second, Type.body, color = p.accent)
             }
         }
         GroupFooter(dev.gzclp.tracker.stretch.StretchRoutines.COACHING_DISCLAIMER)

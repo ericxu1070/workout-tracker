@@ -55,10 +55,10 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
-/** The Lifting | Cardio switch atop the idle Workout tab. */
+/** The Lifting | Cardio | Stretching switch atop the idle Workout tab; [mode] is the selected index. */
 @Composable
-fun WorkoutSwitch(cardio: Boolean, onSelect: (Boolean) -> Unit) =
-    Segmented(listOf("Lifting", "Cardio"), if (cardio) 1 else 0, { onSelect(it == 1) })
+fun WorkoutSwitch(mode: Int, onSelect: (Int) -> Unit) =
+    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) })
 
 /** Finished sessions whose own local start date falls in the week from [monday], newest first. */
 fun AppState.cardioWeek(monday: LocalDate): List<Cardio> =
@@ -121,7 +121,7 @@ fun CardioScreen(
     state: AppState,
     today: LocalDate,
     goalMin: Int,
-    onLifting: () -> Unit,
+    onMode: (Int) -> Unit,
     onSettings: () -> Unit,
     onStart: () -> Unit,
     onQuick: (Activity) -> Unit,
@@ -134,7 +134,7 @@ fun CardioScreen(
     val total = summary.cardioSec
     ScreenFrame(bottom = { BottomBar { PillButton("Start cardio", onStart, Modifier.weight(1f), primary = true) } }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        WorkoutSwitch(true) { if (!it) onLifting() }
+        WorkoutSwitch(1, onMode)
         Spacer(Modifier.height(Space.xxl))
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(Fmt.minutes(total), Type.title1)

@@ -70,6 +70,9 @@ const val DEFAULT_PITCH = 15f
 const val MAX_PITCH = 89f
 private const val DRAG_DEG_PER_PX = 0.4f
 
+/** How fast the camera circles the figure when no finger holds it: one turn in 30 s. */
+private const val SPIN_DEG_PER_SEC = 12f
+
 /** One breath at rest, in seconds (about 14 a minute). */
 private const val BREATH_SEC = 4.2
 
@@ -88,11 +91,19 @@ private const val HIDDEN = 8
 /** Contact shadows fade out by this height above the floor, in metres. */
 private const val LIFT = 0.35
 
-/** The orbit camera angles. Pitch stays between the floor plane (0) and straight down (89), so the eye never goes below the floor. */
+/**
+ * The orbit camera angles. Pitch stays between the floor plane (0) and straight down (89), so the eye never goes below the floor.
+ * While no finger [held] it, a playing view [spin]s it slowly around the figure.
+ */
 @Stable
 class Orbit(private val home: Float = DEFAULT_YAW) {
     var yaw by mutableFloatStateOf(home)
     var pitch by mutableFloatStateOf(DEFAULT_PITCH)
+    var held = false
+
+    fun spin(sec: Float) {
+        if (!held) yaw = (yaw + sec * SPIN_DEG_PER_SEC) % 360f
+    }
 
     fun drag(dx: Float, dy: Float) {
         yaw = (yaw - dx * DRAG_DEG_PER_PX) % 360f
@@ -529,15 +540,14 @@ private fun mix(a: Int, b: Int, t: Float): Int {
 }
 
 /**
- * The exercise as a 3D figure you can orbit: drag to turn around it or look down on it, double-tap to reset. It loops one rep at
- * the lift's real tempo; [hold] keeps it in the end position, breathing; [still] freezes it at one point of the rep and stops
- * the frame clock (thumbnails, tests).
+ * The exercise as a 3D figure you can orbit: drag to turn around it or look down on it, double-tap to reset; let go and the
+ * camera circles it again. It loops one rep at the lift's real tempo; [still] freezes it at one point of the rep and stops
+ * the frame clock and the circling (thumbnails, tests).
  */
 @Composable
 fun FormView(
     motion: Motion,
     modifier: Modifier = Modifier,
-    hold: Boolean = false,
     area: BodyArea? = null,
     still: Float? = null,
     orbit: Orbit = remember(motion) { Orbit(motion.yaw ?: DEFAULT_YAW) },
@@ -546,16 +556,28 @@ fun FormView(
     val scene = remember { Scene() }
     val tones = remember(p) { Tones(p) }
     var clock by remember { mutableLongStateOf(0L) }
-    if (still == null) LaunchedEffect(motion) {
+    if (still == null) LaunchedEffect(motion, orbit) {
         val start = withFrameNanos { it }
-        while (true) withFrameNanos { clock = it - start }
+        var last = start
+        while (true) withFrameNanos {
+            clock = it - start
+            orbit.spin((it - last) / 1e9f)
+            last = it
+        }
     }
+    // Keyed on the orbit: a new motion brings a new orbit, and a gesture bound to the old one would turn nothing on screen.
     val gestures = if (still != null) Modifier else Modifier
-        .pointerInput(Unit) { detectDragGestures { change, d -> change.consume(); orbit.drag(d.x, d.y) } }
-        .pointerInput(Unit) { detectTapGestures(onDoubleTap = { orbit.reset() }) }
+        .pointerInput(orbit) {
+            detectDragGestures(
+                onDragStart = { orbit.held = true },
+                onDragEnd = { orbit.held = false },
+                onDragCancel = { orbit.held = false },
+            ) { change, d -> change.consume(); orbit.drag(d.x, d.y) }
+        }
+        .pointerInput(orbit) { detectTapGestures(onDoubleTap = { orbit.reset() }) }
     Canvas(modifier.clipToBounds().semantics { contentDescription = "3D exercise form. Drag to look around it, double-tap to reset." }.then(gestures)) {
         val sec = clock / 1e9
-        val d = still?.toDouble() ?: if (hold) 1.0 else motion.tempo.at(sec)
+        val d = still?.toDouble() ?: motion.tempo.at(sec)
         val breath = if (still != null) 0.0 else 0.5 - 0.5 * cos(2 * PI * sec / BREATH_SEC)
         drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, mask(area)) }
     }

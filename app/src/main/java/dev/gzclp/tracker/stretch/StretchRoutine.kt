@@ -250,11 +250,13 @@ object StretchRoutines {
     )
 
     /**
-     * Returns all available preset routines.
+     * Returns every preset routine, each Flexibility day included, so any of them can be started on any day.
      */
     fun all(state: AppState? = null, date: LocalDate = LocalDate.now()): List<StretchRoutine> = listOf(
         afterWorkout(state, date),
-        flexibility(date),
+        flexibilityLegs(),
+        flexibilityBack(),
+        flexibilityRest(),
         dance(),
         athleticsStatic(),
         athleticsDynamic(),

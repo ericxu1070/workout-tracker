@@ -34,6 +34,11 @@ object Icons {
     val grip = lucide("equal", "M5 9h14", "M5 15h14")
     val check = lucide("check", "M20 6 9 17l-5-5")
     val play = lucide("play", "M6 3 20 12 6 21z")
+    val pause = lucide(
+        "pause",
+        "M15 3h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
+        "M6 3h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
+    )
     val dumbbell = lucide(
         "dumbbell",
         "M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z",

@@ -192,6 +192,16 @@ class StretchTest {
     }
 
     @Test
+    fun everyRoutineIsListedOnceByName() {
+        val names = StretchRoutines.all().map { it.name }
+        assertEquals(7, names.size)
+        assertEquals(names.size, names.toSet().size)
+        // The default routine resolves to a listed one on every day of the Flexibility rotation.
+        val d0 = LocalDate.of(2026, 11, 24)
+        for (d in 0L..2L) assertTrue(StretchRoutines.of(StretchRoutines.ID_FLEXIBILITY, date = d0.plusDays(d)).name in names)
+    }
+
+    @Test
     fun testStretchPlayerStateFlow() {
         val routine = StretchRoutine(
             id = "test_routine",
@@ -205,22 +215,31 @@ class StretchTest {
         )
 
         val player = StretchPlayerState(routine)
+        val ready = StretchPlayerState.READY_SEC
         assertEquals(0, player.moveIndex)
         assertEquals(2, player.secondsRemaining)
         assertEquals(StretchMoves.PIGEON_POSE.id, player.currentMove?.id)
         assertEquals(StretchMoves.STANDING_QUAD_STRETCH.id, player.nextMove?.id)
         assertFalse(player.isFinished)
 
+        // The first move opens with the get-ready countdown; the hold waits for it.
+        assertTrue(player.isGettingReady)
+        assertEquals(ready, player.readyRemaining)
+        repeat(ready) { player.tick() }
+        assertFalse(player.isGettingReady)
+        assertEquals(2, player.secondsRemaining)
+
         // Tick 1s
         player.tick()
         assertEquals(1, player.secondsRemaining)
         assertEquals(0, player.moveIndex)
-        assertEquals(1L, player.elapsedTotalSec)
+        assertEquals(ready + 1L, player.elapsedTotalSec)
 
-        // Tick 2s -> Move 1 completes, advances to Move 2
+        // Tick 2s -> Move 1 completes, advances to Move 2, which gets ready again
         player.tick()
         assertEquals(1, player.moveIndex)
         assertEquals(3, player.secondsRemaining)
+        assertEquals(ready, player.readyRemaining)
         assertEquals(StretchMoves.STANDING_QUAD_STRETCH.id, player.currentMove?.id)
         assertEquals(listOf(StretchMoves.PIGEON_POSE.id), player.completedMoves)
 
@@ -228,7 +247,7 @@ class StretchTest {
         player.pause()
         assertTrue(player.isPaused)
         player.tick()
-        assertEquals(3, player.secondsRemaining) // did not decrement
+        assertEquals(ready, player.readyRemaining) // did not decrement
         player.resume()
         assertFalse(player.isPaused)
 
