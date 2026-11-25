@@ -2,7 +2,6 @@ package dev.gzclp.tracker.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 
 /**
@@ -37,6 +36,9 @@ object LaptopTheme {
             "dark" -> true
             else -> bg.toArgb().let { (it shr 16 and 0xFF) + (it shr 8 and 0xFF) + (it and 0xFF) } <= 382
         }
+        val on = surfaces(bg, elevated, fg)
+        val toward = if (dark) Color.White else Color.Black
+        val readAccent = readable(accent, on, toward)
         return Palette(
             id = ID,
             name = kv["name"]?.takeIf { it.isNotBlank() } ?: "Laptop",
@@ -44,10 +46,11 @@ object LaptopTheme {
             bg = bg,
             elevated = elevated,
             fg = fg,
-            fg2 = readable(fg2, fg, bg, elevated),
-            accent = accent,
-            onAccent = if (contrast(Color.Black, accent) >= contrast(Color.White, accent)) Color.Black else Color.White,
-            red = color("red", "color1") ?: DANGER,
+            // The theme's own secondary, lifted toward fg until it reads; without one, the dimmest fg-bg blend that reads.
+            fg2 = fg2?.let { readable(it, on, fg) } ?: readable(fg, on, bg, dimmest = true),
+            accent = readAccent,
+            onAccent = if (contrast(Color.Black, readAccent) >= contrast(Color.White, readAccent)) Color.Black else Color.White,
+            red = readable(color("red", "color1") ?: DANGER, on, toward),
         )
     }
 
@@ -60,15 +63,15 @@ object LaptopTheme {
             .forEach { (k, c) -> appendLine("$k = \"${hex(c)}\"") }
     }
 
-    fun contrast(a: Color, b: Color): Float {
-        val (hi, lo) = listOf(a.luminance(), b.luminance()).sortedDescending()
-        return (hi + 0.05f) / (lo + 0.05f)
-    }
+    private fun reads(c: Color, on: List<Color>) = on.all { contrast(c, it) >= 4.5f }
 
-    /** Secondary text must reach 4.5:1 on both surfaces; otherwise take the dimmest foreground-background blend that does. */
-    private fun readable(fg2: Color?, fg: Color, bg: Color, elevated: Color): Color {
-        fun ok(c: Color) = contrast(c, bg) >= 4.5f && contrast(c, elevated) >= 4.5f
-        if (fg2 != null && ok(fg2)) return fg2
-        return (60 downTo 0 step 5).map { lerp(fg, bg, it / 100f) }.firstOrNull(::ok) ?: fg
+    /**
+     * [c] when it reads at 4.5:1 on every surface; otherwise the nearest blend toward [toward] that does,
+     * or with [dimmest] the farthest one, for secondary text. Blends snap to 8-bit so the cached copy parses back unchanged.
+     */
+    private fun readable(c: Color, on: List<Color>, toward: Color, dimmest: Boolean = false): Color {
+        if (!dimmest && reads(c, on)) return c
+        val steps = (0..100).map { Color(lerp(c, toward, it / 100f).toArgb()) }
+        return (if (dimmest) steps.reversed() else steps).firstOrNull { reads(it, on) } ?: c
     }
 }

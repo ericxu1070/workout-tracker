@@ -26,6 +26,11 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +55,7 @@ import dev.gzclp.tracker.ui.durationEndingAt
 import dev.gzclp.tracker.ui.withActivity
 import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
+import dev.gzclp.tracker.log.BodyWeightLogged
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
@@ -63,6 +69,8 @@ import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.ui.BodyWeightScreen
 import dev.gzclp.tracker.ui.Fmt
+import dev.gzclp.tracker.ui.Space
+import dev.gzclp.tracker.ui.UndoBar
 import java.time.LocalDate
 import dev.gzclp.tracker.log.SetKey
 import dev.gzclp.tracker.log.exerciseLogs
@@ -130,6 +138,9 @@ class MainActivity : ComponentActivity() {
  */
 private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay, Stretch, StretchRoutine }
 
+/** The weigh-in just saved at [lb] to entry [id]; [before] is that entry before an edit, null for a new one. */
+private data class WeighInUndo(val id: String, val before: BodyWeight?, val lb: Double)
+
 @Composable
 private fun App(model: AppModel) {
     val state by model.store.state.collectAsState()
@@ -140,6 +151,7 @@ private fun App(model: AppModel) {
     var playerFromPage by rememberSaveable { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
+    var weighUndo by remember { mutableStateOf<WeighInUndo?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
     var foodDay by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows today across midnight
     var historyView by rememberSaveable { mutableStateOf(HistoryView.Week) }
@@ -488,6 +500,19 @@ private fun App(model: AppModel) {
                 }
             }
         }
+        LaunchedEffect(weighUndo) {
+            delay(4000)
+            weighUndo = null
+        }
+        UndoBar(
+            weighUndo?.let { "Saved ${Fmt.lb(it.lb)}" },
+            onUndo = {
+                weighUndo?.let { u -> model.dispatch { Commands.undoBodyWeight(it, u.id, u.before) } }
+                weighUndo = null
+            },
+            // Clears the tab bar where there is one.
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = if (route == null) 64.dp else Space.lg),
+        )
         Sheet(sheet != null, ::close) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
@@ -503,7 +528,11 @@ private fun App(model: AppModel) {
                         is SheetState.EndConfirm -> endFlow()
                         is SheetState.BodyWeight -> {
                             if (c.delete && c.id != null) model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
-                            else model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, c.lb) }
+                            else model.dispatchWeighIn { s ->
+                                Commands.logBodyWeight(s, c.id, c.at, c.lb).also { e ->
+                                    e.filterIsInstance<BodyWeightLogged>().firstOrNull()?.let { weighUndo = WeighInUndo(it.entryId, s.bodyWeights[it.entryId], it.weight) }
+                                }
+                            }
                             close()
                             if (model.weighInReminder) requestNotifications()
                         }

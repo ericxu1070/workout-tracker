@@ -22,7 +22,7 @@ class LaptopThemeTest {
     @Test fun everyLaptopThemeIsCompleteAndReadable() {
         assertEquals(26, themes.size)
         fun ok(what: String, a: Color, b: Color, min: Float) =
-            assertTrue("$what ${LaptopTheme.contrast(a, b)}", LaptopTheme.contrast(a, b) >= min)
+            assertTrue("$what ${contrast(a, b)}", contrast(a, b) >= min)
         for (name in themes) {
             val p = parse(name)
             assertEquals(name, p.name)
@@ -40,7 +40,7 @@ class LaptopThemeTest {
 
     @Test fun jadeHorseMapsKeysToTokens() {
         val p = parse("jade-horse")
-        assertEquals(Palette("laptop", "jade-horse", true, Color(0xFF142620), Color(0xFF203B31), Color(0xFFDFEDE5), Color(0xFF91AD9F), Color(0xFF8BCBB1), Color.Black, Color(0xFFD88D91)), p)
+        assertEquals(Palette("laptop", "jade-horse", true, Color(0xFF142620), Color(0xFF203B31), Color(0xFFDFEDE5), Color(0xFF9BB5A8), Color(0xFF8BCBB1), Color.Black, Color(0xFFDF9EA1)), p)
     }
 
     @Test fun shortAliasKeysAreRead() {
@@ -49,14 +49,15 @@ class LaptopThemeTest {
         assertEquals(Color(0xFF20232A), p.elevated)
         assertEquals(Color(0xFF181A1F), p.bg)
         assertEquals(Color(0xFFB9BEC6), p.fg)
-        assertEquals(Color(0xFFFF5C5C), p.accent)
+        // text_accent #ff5c5c, lifted a step to read on the sheet.
+        assertEquals(Color(0xFFFF5E5E), p.accent)
     }
 
     @Test fun lowContrastSecondaryTextIsBlendedUntilReadable() {
         for (name in listOf("tokyo-night", "catppuccin-latte")) {
             val p = parse(name)
             assertNotEquals(name, Color(if (name == "tokyo-night") 0xFF565F89 else 0xFF9CA0B0), p.fg2)
-            assertTrue("$name: dimmer than foreground", LaptopTheme.contrast(p.fg2, p.bg) < LaptopTheme.contrast(p.fg, p.bg))
+            assertTrue("$name: dimmer than foreground", contrast(p.fg2, p.bg) < contrast(p.fg, p.bg))
         }
     }
 
@@ -71,9 +72,10 @@ class LaptopThemeTest {
         val p = LaptopTheme.parse("background = \"#ffffff\"\nforeground = \"#000000\"\n")!!
         assertFalse(p.dark)
         assertNotEquals(p.bg, p.elevated)
-        assertTrue(LaptopTheme.contrast(p.fg2, p.bg) in 4.5f..20f)
+        assertTrue(contrast(p.fg2, p.bg) in 4.5f..20f)
         assertEquals(p.fg, p.accent)
-        assertEquals(Color(0xFFE5484D), p.red)
+        // The fallback red, darkened until it reads on white.
+        assertEquals(Color(0xFFA43135), p.red)
         assertEquals("Laptop", p.name)
     }
 
