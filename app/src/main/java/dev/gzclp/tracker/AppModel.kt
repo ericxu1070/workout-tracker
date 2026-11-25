@@ -369,6 +369,8 @@ class AppModel private constructor(private val context: Context) {
     fun startRest(ex: Exercise, setIndex: Int) =
         RestAlarm.start(context, Commands.restSec(ex.tier, ex.scheme.reps, restTargets) ?: ex.tier.defaultRestSec, restLabel(ex, setIndex))
     fun cancelRest() = RestAlarm.cancel(context)
+    /** Clearing a set ends the rest it started, and no other. */
+    fun cancelRestFor(ex: Exercise, setIndex: Int) = RestAlarm.cancelFor(context, restLabel(ex, setIndex))
 
     fun rest(nowMillis: Long): RestUi? {
         val end = prefs.restEndMillis
