@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.stretch.StretchMoves
+import dev.gzclp.tracker.stretch.StretchRoutines
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -336,6 +337,10 @@ class ScreenShots {
         val mineLive = mine.then(splitNow) { Commands.start(it, splitNow) }
         val ppl = mine.program
         val pushA = ppl.days.first()
+        // An evening routine of the user's own: a one-sided move held longer, and a move added twice.
+        val stretchy = idle.then(now) { Commands.newStretchRoutine(it, "Evening wind-down", listOf(StretchMoves.CHILDS_POSE_LAT, StretchMoves.PIGEON_POSE, StretchMoves.SUPINE_SPINAL_TWIST, StretchMoves.BUTTERFLY_STRETCH, StretchMoves.PIGEON_POSE)) }
+            .let { s -> s.then(now) { Commands.setStretchHold(it, s.customStretches.keys.last(), 1, 60) } }
+        val evening = stretchy.customStretches.values.last()
         fun settings(p: Palette) = @Composable {
             SettingsScreen(
                 true, mine.programId, mine.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
@@ -381,8 +386,29 @@ class ScreenShots {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }
             shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
-            shot(p, "02-stretching") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
-            shot(p, "02-stretching-full", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
+            shot(p, "02-stretching") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}, {}, {}) } }
+            shot(p, "02-stretching-full", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, evening.id, {}, {}, {}, {}, {}) } }
+            shot(p, "28-stretch-routine") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}) }
+            shot(p, "28-stretch-routine-edit") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}, initialEditing = true) }
+            shot(p, "28-stretch-routine-builtin") { StretchRoutineScreen(StretchRoutines.flexibilityRest(), {}, {}, {}, {}, {}) }
+            shot(p, "28-stretch-hold-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    StretchRoutineScreen(evening, {}, {}, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.StretchHold(evening.id, 1, 45), stretchy, {}, {}, {}) }
+                }
+            }
+            shot(p, "28-stretch-add-move-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    StretchRoutineScreen(evening, {}, {}, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.AddStretchMove(evening.id), stretchy, {}, {}, {}) }
+                }
+            }
+            shot(p, "28-stretch-new-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, "after_workout", {}, {}, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.StretchName(null, "Morning"), stretchy, {}, {}, {}) }
+                }
+            }
             shot(p, "03-workout-rest") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }

@@ -131,6 +131,18 @@ data class StretchLogged(
 @Serializable @SerialName("stretch_clear")
 data class StretchCleared(val id: String) : Event
 
+/** Creates or redefines a custom stretch routine; the newest line per [routine] wins. [moves] in play order. */
+@Serializable @SerialName("stretch_routine_define")
+data class StretchRoutineDefine(val routine: String, val name: String, val moves: List<StretchRoutineMove>) : Event
+
+/** One move of a custom routine: a [dev.gzclp.tracker.stretch.StretchMoves] id held for [holdSec], both sides together. */
+@Serializable
+data class StretchRoutineMove(val move: String, val holdSec: Int)
+
+/** Deletes a custom stretch routine. Its logged sessions keep its id. */
+@Serializable @SerialName("stretch_routine_remove")
+data class StretchRoutineRemove(val routine: String) : Event
+
 @Serializable @SerialName("water")
 data class WaterLogged(
     val id: String,

@@ -19,6 +19,10 @@ import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Wave
 import dev.gzclp.tracker.engine.round5
+import dev.gzclp.tracker.stretch.StretchMove
+import dev.gzclp.tracker.stretch.StretchMoves
+import dev.gzclp.tracker.stretch.StretchRoutine
+import dev.gzclp.tracker.stretch.StretchRoutines
 import java.time.Duration
 import java.time.OffsetDateTime
 import kotlin.math.roundToInt
@@ -339,6 +343,46 @@ object Commands {
     }
 
     const val SPLIT_NAME_MAX = 40
+
+    /**
+     * A new custom stretch routine named [name] with [moves], a built-in routine's when duplicating one. Its id never reuses
+     * a built-in, custom or logged routine id, so a logged session never changes routine.
+     */
+    fun newStretchRoutine(state: AppState, name: String, moves: List<StretchMove> = emptyList()): List<Event> {
+        val n = label(name)
+        if (n.isEmpty()) return emptyList()
+        val taken = StretchRoutines.IDS + state.customStretches.keys + state.stretches.values.map { it.routine }
+        val holds = moves.map { it.copy(holdSec = it.holdSec.coerceIn(StretchRoutines.HOLD_SEC)) }
+        return listOf(StretchRoutine(newId(n, "routine") { it in taken }, n, "", "", holds, custom = true).toDefine())
+    }
+
+    /** One `stretch_routine_define` line for routine [id] after [edit]; nothing when it is unknown, unchanged, or left unnamed. */
+    private fun editStretchRoutine(state: AppState, id: String, edit: (StretchRoutine) -> StretchRoutine): List<Event> {
+        val r = state.customStretches[id] ?: return emptyList()
+        val to = edit(r)
+        return if (to == r || to.name.isEmpty()) emptyList() else listOf(to.toDefine())
+    }
+
+    fun renameStretchRoutine(state: AppState, id: String, name: String) = editStretchRoutine(state, id) { it.copy(name = label(name)) }
+
+    /** Adds move [move] at the end, held for its own default. */
+    fun addStretchMove(state: AppState, id: String, move: String): List<Event> {
+        val m = StretchMoves.of(move) ?: return emptyList()
+        return editStretchRoutine(state, id) { it.copy(moves = it.moves + m) }
+    }
+
+    fun removeStretchMove(state: AppState, id: String, index: Int) =
+        editStretchRoutine(state, id) { r -> r.copy(moves = r.moves.filterIndexed { i, _ -> i != index }) }
+
+    fun moveStretchMove(state: AppState, id: String, from: Int, to: Int) = editStretchRoutine(state, id) { it.copy(moves = it.moves.moved(from, to)) }
+
+    /** Holds move [index] for [sec], split between the sides of a one-sided move. */
+    fun setStretchHold(state: AppState, id: String, index: Int, sec: Int): List<Event> =
+        if (sec !in StretchRoutines.HOLD_SEC) emptyList()
+        else editStretchRoutine(state, id) { r -> r.copy(moves = r.moves.mapIndexed { i, m -> if (i == index) m.copy(holdSec = sec) else m }) }
+
+    fun deleteStretchRoutine(state: AppState, id: String): List<Event> =
+        if (id in state.customStretches) listOf(StretchRoutineRemove(id)) else emptyList()
 
     /** Logs a weigh-in, or edits the one with [id]. [lb] is kept to one decimal; nonsense weights write nothing. */
     fun logBodyWeight(state: AppState, id: String?, at: OffsetDateTime, lb: Double): List<Event> {

@@ -78,11 +78,12 @@ private slots:
         QCOMPARE(find(rows, "id", "leg_curl")["events"].toList().value(0).toMap()["kind"].toString(),
                  QString("cycle_repeat"));
 
-        // Cleared water and cleared stretch in doc example
+        // Cleared water and one cleared stretch; the custom routine's stretch counts after its routine is deleted.
         QCOMPARE(log.water.size(), 0);
-        QCOMPARE(log.stretches.size(), 0);
+        QCOMPARE(log.stretches.size(), 1);
+        QCOMPARE(log.stretches[0].routine, QString("evening"));
         QVERIFY(d["water"].toList().isEmpty());
-        QCOMPARE(d["stretches"].toMap()["total"].toInt(), 0);
+        QCOMPARE(d["stretches"].toMap()["total"].toInt(), 1);
     }
 
     void partialLastLineIsSkipped() {

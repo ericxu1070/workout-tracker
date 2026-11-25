@@ -16,6 +16,9 @@ import dev.gzclp.tracker.engine.Schemes
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Wave
+import dev.gzclp.tracker.stretch.StretchMoves
+import dev.gzclp.tracker.stretch.StretchRoutine
+import dev.gzclp.tracker.stretch.StretchRoutines
 import java.time.Duration
 import java.time.OffsetDateTime
 
@@ -78,6 +81,15 @@ fun Program.toDefine() = ProgramDefine(
     id, name, from!!, days.map { d -> SplitDay(d.id, d.title, d.slots.map { SplitSlot(it.ex, it.wave!!.sets, it.wave.reps) }) },
 )
 
+/** A move this version does not know, or a hold out of range, is left out. */
+fun StretchRoutineDefine.toRoutine() = StretchRoutine(
+    routine, name, "", "",
+    moves.mapNotNull { m -> StretchMoves.of(m.move)?.takeIf { m.holdSec in StretchRoutines.HOLD_SEC }?.copy(holdSec = m.holdSec) },
+    custom = true,
+)
+
+fun StretchRoutine.toDefine() = StretchRoutineDefine(id, name, moves.map { StretchRoutineMove(it.id, it.holdSec) })
+
 /** Everything the app knows, rebuilt by folding the log from the start. */
 data class AppState(
     val fiveRm: Map<String, Int> = emptyMap(),
@@ -106,6 +118,8 @@ data class AppState(
     val cardioActive: CardioRun? = null,
     val exerciseMeta: Map<String, ExerciseMeta> = emptyMap(),
     val stretches: Map<String, StretchLogged> = emptyMap(),
+    /** Custom stretch routines by id, in the order first defined. */
+    val customStretches: Map<String, StretchRoutine> = emptyMap(),
     val water: Map<String, WaterLogged> = emptyMap(),
     val foodEstimates: Map<String, FoodEstimate> = emptyMap(),
     /** Estimated 1RMs from finished sessions and weight edits, in log order; see [strengthModel]. */
@@ -229,6 +243,9 @@ data class AppState(
             is ExerciseMeta -> s.copy(exerciseMeta = exerciseMeta + (e.exercise to e))
             is StretchLogged -> s.copy(stretches = stretches + (e.id to e))
             is StretchCleared -> s.copy(stretches = stretches - e.id)
+            // A built-in routine id is not ours to define.
+            is StretchRoutineDefine -> if (e.routine in StretchRoutines.IDS) s else s.copy(customStretches = customStretches + (e.routine to e.toRoutine()))
+            is StretchRoutineRemove -> s.copy(customStretches = customStretches - e.routine)
             is WaterLogged -> s.copy(water = water + (e.id to e))
             is WaterCleared -> s.copy(water = water - e.id)
             is FoodEstimate -> s.copy(foodEstimates = foodEstimates + (e.meal to e))

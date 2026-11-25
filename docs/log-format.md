@@ -23,6 +23,8 @@ Calisthenics fields on `set` were added within version 2: the optional `added_lb
 
 The `stretch` and `stretch_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
+Custom stretch routines were added within version 2: the `stretch_routine_define` and `stretch_routine_remove` types. A `stretch` line from one names the custom routine's id in `routine`. A reader that predates them skips the new types, and still reads such a `stretch` line as a session of an unknown routine.
+
 The `water` and `water_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
 The `food_estimate` type was added within version 2. Meal photos never enter the log; only this text does. A reader that predates it skips it as an unknown type.
@@ -293,7 +295,7 @@ A finished stretching session.
 |---|---|---|
 | `id` | string | Unique stretch session id, such as `st1795834800`. |
 | `at` | string | When completed, ISO-8601 string. |
-| `routine` | string | Routine id (e.g. `after_workout`, `flexibility`). |
+| `routine` | string | Routine id: a built-in one, `after_workout`, `flexibility`, `dance`, `athletics`, or `athletics_dynamic`, or a custom routine named by a `stretch_routine_define` line. |
 | `duration_sec` | int | Duration in seconds. |
 | `moves` | array of string | List of move ids performed. |
 
@@ -304,6 +306,26 @@ Deletes a stretching session.
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | string | Stretch session id. |
+
+### `stretch_routine_define`
+
+Creates a custom stretch routine, or redefines one after an edit. The newest line per `routine` wins. One line holds the whole routine.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `routine` | string | The routine's id, made from its first name, such as `evening`. Never a built-in routine id, another custom routine's id, or an id a `stretch` line already names. |
+| `name` | string | Display name, at most 40 characters. |
+| `moves` | array | The moves in play order, each `{"move": id, "hold_sec": 5 to 300}`. A move can appear more than once. The array can be empty while the user builds the routine. |
+
+A move id is a stretch move from the app's built-in catalog, such as `hips_pigeon`. A one-sided move splits its `hold_sec` between the two sides. A reader skips a move it does not know and keeps the rest.
+
+### `stretch_routine_remove`
+
+Deletes a custom stretch routine. Its `stretch` lines are unchanged and keep its id.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `routine` | string | The routine. |
 
 ### `water`
 
@@ -444,6 +466,9 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":60,"ts":"2026-11-02T19:31:40-08:00","type":"session_end","session_id":"s1794191725","program":"gzclp","day":"A1","started_at":"2026-11-02T18:42:05-08:00","duration_sec":2975}
 {"v":2,"seq":61,"ts":"2026-11-02T21:05:00-08:00","type":"session_edit","session_id":"s1794191725","duration_sec":3120}
 {"v":2,"seq":62,"ts":"2026-11-03T07:00:00-08:00","type":"program","program":"ppl"}
+{"v":2,"seq":63,"ts":"2026-11-03T20:00:00-08:00","type":"stretch_routine_define","routine":"evening","name":"Evening","moves":[{"move":"lats_childs_pose","hold_sec":30},{"move":"hips_pigeon","hold_sec":60}]}
+{"v":2,"seq":64,"ts":"2026-11-03T21:00:00-08:00","type":"stretch","id":"st1793768400","at":"2026-11-03T21:00:00-08:00","routine":"evening","duration_sec":115,"moves":["lats_childs_pose","hips_pigeon"]}
+{"v":2,"seq":65,"ts":"2026-11-04T08:00:00-08:00","type":"stretch_routine_remove","routine":"evening"}
 {"v":2,"seq":90,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"squat","tier":"cycle","kind":"cycle_up","from_weight":180,"to_weight":165,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":165}
 {"v":2,"seq":91,"ts":"2026-11-20T19:10:00-08:00","type":"progression","exercise":"leg_curl","tier":"cycle","kind":"cycle_repeat","from_weight":80,"to_weight":70,"from_stage":"3x8","to_stage":"3x12","session_id":"s1795656000","cycle_week":1,"cycle_base":70}
 {"v":2,"seq":92,"ts":"2026-11-21T07:02:00-08:00","type":"body_weight","entry_id":"w1795791720","at":"2026-11-21T07:02:00-08:00","weight":182.4}
