@@ -389,7 +389,7 @@ fun StepSlider(
                     .height(4.dp).clip(CircleShape).background(p.accent),
             )
         }
-        Box(Modifier.padding(start = track * frac).size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
+        SliderThumb(Modifier.padding(start = track * frac))
     }
 }
 
@@ -452,6 +452,10 @@ fun InteractiveCup(
         Box(
             modifier = Modifier
                 .size(240.dp)
+                .semantics {
+                    contentDescription = "Water cup"
+                    customActions = listOf(CustomAccessibilityAction("Log $cupSizeMl ml") { onLogWater(cupSizeMl); true })
+                }
                 .pointerInput(cupSizeMl) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
