@@ -41,12 +41,9 @@ fun UpcomingScreen(
     onUseSuggestion: (Exercise, Int) -> Unit = { _, _ -> },
 ) {
     val p = LocalPalette.current
-    val program = state.active?.program ?: state.program
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("Upcoming", Type.largeTitle)
-        Spacer(Modifier.height(Space.xs))
-        Txt("${program.name}, if every set hits its target", Type.subhead, color = p.fg2)
         Commands.upcoming(state, 8).forEachIndexed { n, (day, exercises) ->
             val tag = when {
                 n > 0 -> ""

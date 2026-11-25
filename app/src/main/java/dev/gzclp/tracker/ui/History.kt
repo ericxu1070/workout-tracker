@@ -72,12 +72,12 @@ fun HistoryScreen(
         }
         if (done.isNotEmpty()) {
             val recent = done.takeLast(16)
-            val avg = recent.sumOf { it.durationSec } / recent.size
+            val avg = done.sumOf { it.durationSec } / done.size
             Spacer(Modifier.height(Space.xxl))
             Row(verticalAlignment = Alignment.Bottom) {
                 Txt(Fmt.minutes(avg), Type.title1)
                 Spacer(Modifier.width(Space.sm))
-                Txt("average workout, last ${recent.size}", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
+                Txt("average workout", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
             }
             Spacer(Modifier.height(Space.md))
             BarChart(recent)
@@ -137,10 +137,6 @@ fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditT
             }
         }
         val gaps = s.setGaps
-        if (gaps.isNotEmpty()) Txt(
-            "The time beside each set runs from the set before it, or from the start for the first.",
-            Type.footnote, Modifier.padding(horizontal = Space.lg, vertical = Space.sm), p.fg2,
-        )
         s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
             val first = sets.first()
             GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")

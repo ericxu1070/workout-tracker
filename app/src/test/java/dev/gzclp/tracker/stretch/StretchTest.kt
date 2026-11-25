@@ -23,6 +23,13 @@ import java.time.ZoneOffset
 class StretchTest {
 
     @Test
+    fun namesUseSentenceCase() {
+        // A capital only opens the name or the part after a colon, as in "Flexibility: Legs & splits".
+        val names = StretchMoves.ALL.map { it.name } + StretchRoutines.all().map { it.name }
+        names.forEach { n -> n.split(": ").forEach { assertEquals(n, it.take(1) + it.drop(1).lowercase(), it) } }
+    }
+
+    @Test
     fun testMovesCountAndAreaCoverage() {
         val moves = StretchMoves.ALL
         assertTrue("At least 20 moves must be present (got ${moves.size})", moves.size >= 20)

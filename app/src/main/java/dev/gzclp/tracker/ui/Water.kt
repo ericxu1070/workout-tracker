@@ -438,12 +438,6 @@ fun InteractiveCup(
                     Type.headline.tabular(),
                     color = LocalPalette.current.accent,
                 )
-            } else {
-                Txt(
-                    "Drag up to fill",
-                    Type.footnote,
-                    color = LocalPalette.current.fg3,
-                )
             }
         }
 

@@ -86,7 +86,7 @@ object StretchRoutines {
         val areaNames = targetAreas.joinToString(", ") { it.displayName }
         return StretchRoutine(
             id = ID_AFTER_WORKOUT,
-            name = "After Workout",
+            name = "After workout",
             description = "8–10 minute post-training recovery tailored to today's muscle groups ($areaNames).",
             frequency = "After every lifting session",
             moves = selectedMoves,
@@ -108,7 +108,7 @@ object StretchRoutines {
 
     fun flexibilityLegs(): StretchRoutine = StretchRoutine(
         id = ID_FLEXIBILITY,
-        name = "Flexibility: Legs & Splits",
+        name = "Flexibility: Legs & splits",
         description = "Deep hip opening, front & middle split progression, and hamstring length.",
         frequency = "Alternate with back days (rest day between)",
         moves = listOf(
@@ -134,7 +134,7 @@ object StretchRoutines {
 
     fun flexibilityBack(): StretchRoutine = StretchRoutine(
         id = ID_FLEXIBILITY,
-        name = "Flexibility: Back-Bending",
+        name = "Flexibility: Back-bending",
         description = "Thoracic spine extension, shoulder flexion, and anterior chain mobility.",
         frequency = "Alternate with legs days (rest day between)",
         moves = listOf(
@@ -160,7 +160,7 @@ object StretchRoutines {
 
     fun flexibilityRest(): StretchRoutine = StretchRoutine(
         id = ID_FLEXIBILITY,
-        name = "Flexibility: Rest & Recovery",
+        name = "Flexibility: Rest & recovery",
         description = "Gentle passive mobility and decompression between deep stretching days.",
         frequency = "Scheduled rest day",
         moves = listOf(
@@ -177,7 +177,7 @@ object StretchRoutines {
      */
     fun dance(): StretchRoutine = StretchRoutine(
         id = ID_DANCE,
-        name = "Dance Mobility",
+        name = "Dance mobility",
         description = "Turnout, arabesque extension, hamstring lines, and foot/ankle articulation.",
         frequency = "4–6 days / week",
         moves = listOf(
@@ -206,7 +206,7 @@ object StretchRoutines {
      */
     fun athleticsStatic(): StretchRoutine = StretchRoutine(
         id = ID_ATHLETICS,
-        name = "Athletics: Post-Training Static",
+        name = "Athletics: Post-training static",
         description = "Targeted recovery for shoulders, hips, ankles, and thoracic spine with 20–30s holds.",
         frequency = "3–5 days / week (after training)",
         moves = listOf(
@@ -234,7 +234,7 @@ object StretchRoutines {
      */
     fun athleticsDynamic(): StretchRoutine = StretchRoutine(
         id = ID_ATHLETICS_DYNAMIC,
-        name = "Athletics: Pre-Training Dynamic",
+        name = "Athletics: Pre-training dynamic",
         description = "Dynamic movement prep for shoulders, hips, ankles, and upper back before training.",
         frequency = "3–5 days / week (before training)",
         moves = listOf(
