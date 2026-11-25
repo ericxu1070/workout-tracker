@@ -36,9 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextRange
 import androidx.core.content.FileProvider
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.health.connect.client.PermissionController
 import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.engine.Activity
@@ -61,6 +59,7 @@ import dev.gzclp.tracker.log.ProgramDefine
 import dev.gzclp.tracker.ui.SplitDayScreen
 import dev.gzclp.tracker.ui.SplitScreen
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.ui.BodyWeightScreen
 import dev.gzclp.tracker.ui.Fmt
@@ -212,10 +211,11 @@ private fun App(model: AppModel) {
     fun requestNotifications() {
         if (!model.notificationsAllowed && Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
-    /** Opens the weigh-in sheet: a new one prefilled with the latest weight, or [entry] to edit. */
+    /** Opens the weigh-in sheet: a new one on a slider around the latest weight, or [entry] to edit around its own. */
     fun logWeight(entry: BodyWeight? = null) {
-        val text = (entry ?: model.store.state.value.weighIns().lastOrNull())?.lb?.let(Fmt::tenths) ?: ""
-        open(SheetState.BodyWeight(entry?.id, TextFieldValue(text, TextRange(0, text.length)), entry?.at ?: model.now(), LocalDate.now()))
+        val today = LocalDate.now()
+        val scale = if (entry != null) weighInScale(entry, entry.at.toLocalDate()) else weighInScale(model.store.state.value.weighIns().lastOrNull(), today)
+        open(SheetState.BodyWeight(entry?.id, scale, entry?.at ?: model.now(), today))
     }
     LaunchedEffect(model.logWeightRequested, state.started) {
         if (model.logWeightRequested && state.started) {
@@ -467,11 +467,8 @@ private fun App(model: AppModel) {
                         is SheetState.FiveRm -> finishWorkout(c.fiveRm)
                         is SheetState.EndConfirm -> endFlow()
                         is SheetState.BodyWeight -> {
-                            val lb = c.lb
-                            when {
-                                c.delete && c.id != null -> model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
-                                lb != null -> model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, lb) }
-                            }
+                            if (c.delete && c.id != null) model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
+                            else model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, c.lb) }
                             close()
                             if (model.weighInReminder) requestNotifications()
                         }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.awaitVerticalDragOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.horizontalDrag
@@ -56,7 +57,9 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -304,15 +307,6 @@ fun CupSizeSlider(
     modifier: Modifier = Modifier,
 ) {
     val p = LocalPalette.current
-    val range = (maxMl - minMl).toFloat()
-    val frac = ((valueMl - minMl) / range).coerceIn(0f, 1f)
-    val change by rememberUpdatedState(onValueChange)
-
-    fun snap(rawMl: Float): Int {
-        val stepped = (Math.round((rawMl - minMl) / stepMl) * stepMl + minMl)
-        return stepped.coerceIn(minMl, maxMl)
-    }
-
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -323,38 +317,79 @@ fun CupSizeSlider(
             Txt(WaterLog.formatVolume(valueMl), Type.body.tabular(), color = p.accent)
         }
         Spacer(Modifier.height(Space.xs))
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .semantics {
-                    contentDescription = "Cup size slider"
-                    progressBarRangeInfo = ProgressBarRangeInfo(valueMl.toFloat(), minMl.toFloat()..maxMl.toFloat())
-                    setProgress { change(snap(it)); true }
+        StepSlider(
+            stop = (valueMl - minMl) / stepMl,
+            count = (maxMl - minMl) / stepMl,
+            onStop = { onValueChange(minMl + it * stepMl) },
+            description = "Cup size slider",
+        )
+    }
+}
+
+/**
+ * A slider of [count] + 1 stops. The fill runs from the start, or from stop [from] with a tick there for a value that
+ * goes both ways. A press on the track jumps there; a drag that starts on the thumb keeps its grab offset. [onRelease]
+ * runs when a drag ends with the finger lifted, and as the accessibility action named [releaseLabel].
+ */
+@Composable
+fun StepSlider(
+    stop: Int,
+    count: Int,
+    onStop: (Int) -> Unit,
+    description: String,
+    modifier: Modifier = Modifier,
+    from: Int? = null,
+    releaseLabel: String? = null,
+    onRelease: () -> Unit = {},
+) {
+    val p = LocalPalette.current
+    val frac = (stop.toFloat() / count.coerceAtLeast(1)).coerceIn(0f, 1f)
+    val current by rememberUpdatedState(stop)
+    val change by rememberUpdatedState(onStop)
+    val release by rememberUpdatedState(onRelease)
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .semantics {
+                contentDescription = description
+                progressBarRangeInfo = ProgressBarRangeInfo(stop.toFloat(), 0f..count.toFloat(), count - 1)
+                setProgress { change(it.roundToInt().coerceIn(0, count)); true }
+                if (releaseLabel != null) customActions = listOf(CustomAccessibilityAction(releaseLabel) { release(); true })
+            }
+            .pointerInput(count) {
+                val thumb = 28.dp.toPx()
+                val available = (size.width - thumb).coerceAtLeast(1f)
+                fun stopAt(center: Float) = ((center - thumb / 2) / available * count).roundToInt().coerceIn(0, count)
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val thumbCenter = thumb / 2 + available * current / count.coerceAtLeast(1)
+                    val grab = if (kotlin.math.abs(down.position.x - thumbCenter) <= thumb) thumbCenter - down.position.x else 0f
+                    change(stopAt(down.position.x + grab))
+                    val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
+                    change(stopAt(slop.position.x + grab))
+                    val lifted = horizontalDrag(slop.id) {
+                        change(stopAt(it.position.x + grab))
+                        it.consume()
+                    }
+                    if (lifted) release()
                 }
-                .pointerInput(minMl, maxMl, stepMl) {
-                    val thumb = 28.dp.toPx()
-                    fun at(x: Float) {
-                        val available = (size.width - thumb).coerceAtLeast(1f)
-                        val ratio = ((x - thumb / 2) / available).coerceIn(0f, 1f)
-                        val rawMl = minMl + ratio * range
-                        change(snap(rawMl))
-                    }
-                    awaitEachGesture {
-                        val down = awaitFirstDown()
-                        at(down.position.x)
-                        horizontalDrag(down.id) {
-                            at(it.position.x)
-                            it.consume()
-                        }
-                    }
-                },
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
-            Box(Modifier.width(14.dp + (maxWidth - 28.dp) * frac).height(4.dp).clip(CircleShape).background(p.accent))
-            Box(Modifier.padding(start = (maxWidth - 28.dp) * frac).size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        val track = maxWidth - 28.dp
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
+        if (from == null) {
+            Box(Modifier.width(14.dp + track * frac).height(4.dp).clip(CircleShape).background(p.accent))
+        } else {
+            val origin = (from.toFloat() / count.coerceAtLeast(1)).coerceIn(0f, 1f)
+            Box(Modifier.padding(start = 14.dp + track * origin - 1.dp).size(2.dp, 12.dp).clip(CircleShape).background(p.fg3))
+            Box(
+                Modifier.padding(start = 14.dp + track * minOf(frac, origin)).width(track * kotlin.math.abs(frac - origin))
+                    .height(4.dp).clip(CircleShape).background(p.accent),
+            )
         }
+        Box(Modifier.padding(start = track * frac).size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
     }
 }
 
