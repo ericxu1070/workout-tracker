@@ -1,0 +1,45 @@
+# Every pull request and every push to main: unit, Robolectric and Compose UI tests, then the debug APK.
+# Screenshots are recorded, never compared: no baselines are committed, and renders differ between hosts (fonts).
+# The renders are attached to the run so a reviewer can look at them. Needs no secrets.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+      - name: Test and build
+        run: ./gradlew --console=plain recordRoborazziDebug assembleDebug -PgzclpShots="$RUNNER_TEMP/shots"
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+      - name: Upload screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/shots/
+          retention-days: 14
