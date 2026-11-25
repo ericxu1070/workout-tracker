@@ -53,6 +53,7 @@ import java.time.OffsetDateTime
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /** The Lifting | Cardio switch atop the idle Workout tab. */
 @Composable
@@ -201,7 +202,12 @@ private fun WeekBars(labels: List<String>, mins: List<Float>) {
     val top = mins.max()
     val step = generateSequence(15f) { it * 2 }.first { it * 3 >= top }
     val hi = ceil(top / step) * step
-    Canvas(Modifier.fillMaxWidth().height(140.dp)) {
+    fun read(i: Int) = labels[i] + ", " + Fmt.minutes((mins[i] * 60).roundToLong())
+    val pick = remember(labels, mins) { mutableStateOf<Int?>(null) }
+    Canvas(Modifier.fillMaxWidth().height(140.dp).chartPick(pick, mins.size, mins.indices.joinToString("; ") { read(it) }, ::read) { i, w ->
+        val left = 48.dp.toPx()
+        left + (w - left) / mins.size * (i + 0.5f)
+    }) {
         val left = 48.dp.toPx()
         val bottom = size.height - 24.dp.toPx()
         fun y(v: Float) = bottom - (bottom - 8.dp.toPx()) * v / hi
@@ -216,8 +222,12 @@ private fun WeekBars(labels: List<String>, mins: List<Float>) {
         mins.forEachIndexed { i, m ->
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
-            if (m > 0f) drawRoundRect(if (i == mins.lastIndex) p.accent else p.fg3, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
+            val color = if (i == mins.lastIndex) p.accent else p.fg3
+            if (m > 0f) drawRoundRect(if (pick.value.let { it != null && it != i }) color.copy(alpha = color.alpha * 0.35f) else color, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
             label(tm, labels[i], Offset(x + barW / 2, bottom + 6.dp.toPx()), p.fg2, alignX = 0.5f)
+        }
+        pick.value?.takeIf { it < mins.size }?.let { i ->
+            callout(tm, p, left + slot * (i + 0.5f), labels[i], listOf(Fmt.minutes((mins[i] * 60).roundToLong()) to p.fg), barW / 2)
         }
     }
 }
