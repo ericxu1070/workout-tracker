@@ -245,7 +245,7 @@ fun SettingsScreen(
                     // Custom splits rest by each week's reps, so they get no row.
                     Tier.entries.filter { it != Tier.CUSTOM }.forEachIndexed { i, tier ->
                         val v = restTargets.getValue(tier)
-                        StepRow(tier.label, Fmt.clock(v.toLong()), i == 0, 56.dp, "Shorter ${tier.label} rest", "Longer ${tier.label} rest",
+                        StepRow(tier.label, Fmt.clock(v.toLong()), i == 0, 96.dp, "Shorter ${tier.label} rest", "Longer ${tier.label} rest",
                             { onRest(tier, (v - 15).coerceAtLeast(15)) }, { onRest(tier, (v + 15).coerceAtMost(600)) })
                     }
                 }
@@ -261,7 +261,7 @@ fun SettingsScreen(
                 Group {
                     StepRow("Cardio each week", Fmt.minutes(cardioGoalMin * 60L), true, 120.dp, "Smaller weekly cardio goal", "Larger weekly cardio goal",
                         { onCardioGoal((cardioGoalMin - 15).coerceAtLeast(15)) }, { onCardioGoal((cardioGoalMin + 15).coerceAtMost(20 * 60)) })
-                    StepRow("Water each day", "$waterGoalMl ml", false, 96.dp, "Less water", "More water",
+                    StepRow("Water each day", "$waterGoalMl ml", false, 120.dp, "Less water", "More water",
                         { onWaterGoal((waterGoalMl - 100).coerceAtLeast(500)) }, { onWaterGoal((waterGoalMl + 100).coerceAtMost(8000)) })
                 }
             }
