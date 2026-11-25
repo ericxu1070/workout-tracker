@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.horizontalDrag
@@ -70,6 +71,8 @@ import dev.gzclp.tracker.ui.Type.tabular
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -89,6 +92,14 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.onSizeChanged
 
+/** The screen's large title and where its bottom edge is on screen, so [ScreenFrame] can show it inline once it scrolls away. */
+class LargeTitle {
+    var text by androidx.compose.runtime.mutableStateOf("")
+    var bottom by androidx.compose.runtime.mutableFloatStateOf(Float.MAX_VALUE)
+}
+val LocalLargeTitle = androidx.compose.runtime.staticCompositionLocalOf<LargeTitle?> { null }
+
+/** A [Type.largeTitle] text inside a [ScreenFrame] reports itself as the screen's title. */
 @Composable
 fun Txt(
     text: String,
@@ -97,11 +108,18 @@ fun Txt(
     color: Color = LocalPalette.current.fg,
     maxLines: Int = Int.MAX_VALUE,
     align: TextAlign? = null,
-) = BasicText(
-    text, modifier,
-    style = style.copy(color = color, textAlign = align ?: TextAlign.Unspecified),
-    maxLines = maxLines, overflow = TextOverflow.Ellipsis,
-)
+) {
+    val title = if (style == Type.largeTitle) LocalLargeTitle.current else null
+    BasicText(
+        text,
+        if (title == null) modifier else modifier.onGloballyPositioned {
+            title.text = text
+            title.bottom = it.positionInRoot().y + it.size.height
+        },
+        style = style.copy(color = color, textAlign = align ?: TextAlign.Unspecified),
+        maxLines = maxLines, overflow = TextOverflow.Ellipsis,
+    )
+}
 
 @Composable
 fun Icon(icon: ImageVector, tint: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) =

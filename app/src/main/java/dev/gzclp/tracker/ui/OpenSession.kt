@@ -255,26 +255,29 @@ object OpenSessionManager {
     }
 }
 
-/** Weekly volume per muscle group bar on the Workout tab ("Pull · 8 of 10 sets"). */
+/** Sets per muscle group in the week of [date] against each group's target ("8 of 10"); groups at 0 are left out, and nothing shows at all 0. */
 @Composable
 fun WeeklyVolumeSection(
     state: AppState,
     modifier: Modifier = Modifier,
     targets: Map<MuscleGroup, Int> = emptyMap(),
+    date: java.time.LocalDate = java.time.LocalDate.now(),
 ) {
     val p = LocalPalette.current
-    val counts = state.weeklyMuscleGroupSets()
+    val counts = state.weeklyMuscleGroupSets(date)
+    val groups = MuscleGroup.entries.filter { (counts[it] ?: 0) > 0 }
+    if (groups.isEmpty()) return
+    GroupHeader("Sets by muscle group")
     Group(modifier) {
-        GroupHeader("Weekly volume")
-        MuscleGroup.entries.forEachIndexed { i, group ->
+        groups.forEachIndexed { i, group ->
             val done = counts[group] ?: 0
             val target = targets[group] ?: group.targetSets
             val frac = (done.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
             GroupRow(first = i == 0) {
                 Column(Modifier.fillMaxWidth().padding(vertical = Space.xs)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Txt(group.label, Type.headline, Modifier.weight(1f))
-                        Txt("$done of $target sets", Type.footnote.tabular(), color = if (done >= target) p.accent else p.fg2)
+                        Txt(group.label, Type.body, Modifier.weight(1f))
+                        Txt("$done of $target", Type.subhead.tabular(), color = p.fg2)
                     }
                     Spacer(Modifier.height(Space.xs))
                     Box(
@@ -285,7 +288,7 @@ fun WeeklyVolumeSection(
                         Box(
                             Modifier.fillMaxHeight().fillMaxWidth(frac)
                                 .clip(RoundedCornerShape(3.dp))
-                                .background(p.accent),
+                                .background(p.fg2),
                         )
                     }
                 }
@@ -471,6 +474,7 @@ fun OpenSessionScreen(
     onClear: (Exercise, Int) -> Unit,
     onFinish: (Boolean) -> Unit,
     onSettings: () -> Unit,
+    onMode: ((Int) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val a = state.active
@@ -490,6 +494,7 @@ fun OpenSessionScreen(
             SmallPill("Add exercise", { showAddExercise = true })
             IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2)
         }
+        onMode?.let { WorkoutSwitch(0, it); Spacer(Modifier.height(Space.xxl)) }
 
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -498,9 +503,6 @@ fun OpenSessionScreen(
                 Txt(Fmt.clock(elapsed) + " elapsed", Type.subhead.tabular(), color = p.fg2)
             }
         }
-
-        Spacer(Modifier.height(Space.lg))
-        WeeklyVolumeSection(state)
 
         if (OpenSessionManager.exercises.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
@@ -533,6 +535,7 @@ fun OpenSessionScreen(
 
         Spacer(Modifier.height(Space.xxl))
         SmallPill("+ Add another exercise", { showAddExercise = true }, Modifier.align(Alignment.CenterHorizontally))
+        WeeklyVolumeSection(state)
     }
 
     Sheet(showAddExercise, { showAddExercise = false }) {

@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +38,6 @@ fun UpcomingScreen(
     state: AppState,
     today: LocalDate,
     onOpenSession: (String) -> Unit,
-    initialMonth: YearMonth = YearMonth.from(today),
     onUseSuggestion: (Exercise, Int) -> Unit = { _, _ -> },
 ) {
     val p = LocalPalette.current
@@ -69,8 +69,6 @@ fun UpcomingScreen(
                 }
             }
         }
-        GroupHeader("Past workouts")
-        MonthGrid(state, today, initialMonth, onOpenSession)
     }
 }
 
@@ -113,11 +111,13 @@ fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpen
                                 val isToday = date == today
                                 val style = Type.subhead.tabular().copy(fontWeight = if (isToday || session != null) FontWeight.SemiBold else FontWeight.Normal)
                                 if (session != null) {
-                                    Pressable({ onOpenSession(session.id) }, Modifier.size(40.dp), CircleShape, p.accent, label = "${session.day.title} on ${Fmt.date(session.startedAt)}") {
-                                        Txt("$d", style, color = p.onAccent)
+                                    Pressable({ onOpenSession(session.id) }, Modifier.size(40.dp), CircleShape, p.fg, p.fg2, label = "${session.day.title} on ${Fmt.date(session.startedAt)}") {
+                                        Txt("$d", style, color = p.bg)
                                     }
                                 } else {
-                                    Txt("$d", style, color = if (isToday) p.accent else p.fg)
+                                    Box(Modifier.size(40.dp).then(if (isToday) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier), contentAlignment = Alignment.Center) {
+                                        Txt("$d", style, color = if (date > today) p.fg2 else p.fg)
+                                    }
                                 }
                             }
                         }

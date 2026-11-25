@@ -85,6 +85,7 @@ import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.HistoryScreen
+import dev.gzclp.tracker.ui.HistoryView
 import dev.gzclp.tracker.ui.HomeScreen
 import dev.gzclp.tracker.ui.GuidedStretchPlayerScreen
 import dev.gzclp.tracker.ui.StretchScreen
@@ -159,7 +160,7 @@ private fun App(model: AppModel) {
     var weighUndo by remember { mutableStateOf<WeighInUndo?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
     var foodDay by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows today across midnight
-    var historyAll by rememberSaveable { mutableStateOf(false) }
+    var historyView by rememberSaveable { mutableStateOf(HistoryView.Week) }
     var historyWeek by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows this week across Sunday midnight
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -446,11 +447,11 @@ private fun App(model: AppModel) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
-                            ) else if (state.active == null && model.workoutMode == 1) CardioScreen(
+                            ) else if (model.workoutMode == 1) CardioScreen(
                                 state, LocalDate.now(), model.cardioGoalMin, onMode = model::chooseWorkoutMode,
                                 onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
-                                onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
-                            ) else if (state.active == null && model.workoutMode == 2) StretchScreen(
+                                onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) }, lifting = state.active != null,
+                            ) else if (model.workoutMode == 2) StretchScreen(
                                 state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
                                 onSettings = { push(Route.Settings) }, onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
                                 onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
@@ -482,6 +483,7 @@ private fun App(model: AppModel) {
                                 warmups = model.warmups,
                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                 onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
+                                onMode = model::chooseWorkoutMode,
                             )
                             Tab.Upcoming -> UpcomingScreen(
                                 state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) },
@@ -489,7 +491,7 @@ private fun App(model: AppModel) {
                             )
                             Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
                             Tab.History -> HistoryScreen(
-                                state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
+                                state, historyView, { historyView = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
                             ) {
                                 val today = LocalDate.now()
                                 val thisWeek = mondayOf(today)
