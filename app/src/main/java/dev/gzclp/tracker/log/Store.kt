@@ -25,7 +25,8 @@ class Store(private val file: File) {
             out.write(entries.joinToString("") { LogCodec.encode(it) + "\n" }.toByteArray())
             out.fd.sync()
         }
-        _state.value = entries.fold(_state.value) { s, e -> s.apply(e) }
+        // A remap rewrites earlier lines, so the state is folded again from the file.
+        _state.value = if (entries.any { it.event is ExerciseRemap }) load() else entries.fold(_state.value) { s, e -> s.apply(e) }
         return entries
     }
 

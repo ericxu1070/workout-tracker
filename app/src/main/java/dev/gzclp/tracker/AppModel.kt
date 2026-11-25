@@ -122,6 +122,7 @@ class AppModel private constructor(private val context: Context) {
         private set
 
     init {
+        store.dispatch(now(), Commands::merge)
         // Pass the state: scheduling through AppModel.get here would build a second AppModel.
         HabitAlarm.scheduleAll(context, store.state.value)
     }
@@ -323,6 +324,7 @@ class AppModel private constructor(private val context: Context) {
             val msg = try {
                 val text = mirror.read(uri) ?: error("No ${Mirror.NAME} in that folder")
                 val n = store.restore(text)
+                store.dispatch(now(), Commands::merge)
                 prefs.mirroredBytes = -1
                 mirror.sync(store.bytes())
                 "Restored $n log entries"

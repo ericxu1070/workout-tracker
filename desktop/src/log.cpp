@@ -12,6 +12,26 @@ QDateTime parseTime(const QJsonValue &value) {
     return QDateTime::fromString(value.toString(), Qt::ISODate);
 }
 
+// Applies an exercise_remap to one earlier line (docs/log-format.md); false drops the line.
+bool remap(QJsonObject &o, const QJsonObject &r) {
+    const QString from = r["from"].toString(), to = r["to"].toString(), type = o["type"].toString();
+    if ((type == "exercise_define" || type == "exercise_meta") && o["exercise"].toString() == from)
+        return false;
+    if (o["parent"].toString() == from)
+        o["parent"] = to;
+    if (o["exercise"].toString() != from)
+        return true;
+    o["exercise"] = to;
+    // The weight typed for a bodyweight move was the body weight: nothing was added.
+    if (type == "set" && r["bodyweight"].toBool() && !o.contains("added_lb") && !o.contains("bodyweight_lb")) {
+        if (o["weight"].toInt() > 0)
+            o["bodyweight_lb"] = o["weight"].toInt();
+        o["added_lb"] = 0;
+        o["weight"] = 0;
+    }
+    return true;
+}
+
 QString setKey(const QJsonObject &o) {
     return o["session_id"].toString() + '\x1f' + o["exercise"].toString() + '\x1f' + o["tier"].toString() + '\x1f'
            + QString::number(o["set_index"].toInt());
@@ -32,7 +52,7 @@ QString Log::name(const QString &exercise) const {
 Log parseLog(const QByteArray &bytes) {
     static const QSet<QString> known{"exercise_define", "session_start", "session_end", "session_edit", "set", "set_clear",
                                      "progression", "body_weight", "body_weight_clear", "cardio",
-                                     "cardio_clear", "exercise_meta", "water", "water_clear", "stretch", "stretch_clear"};
+                                     "cardio_clear", "exercise_meta", "water", "water_clear", "stretch", "stretch_clear", "exercise_remap"};
 
     QList<QByteArray> lines = bytes.split('\n');
     // The last piece is either empty (the file ends with \n) or an append in progress.
@@ -49,6 +69,19 @@ Log parseLog(const QByteArray &bytes) {
     }
     std::stable_sort(objects.begin(), objects.end(),
                      [](const QJsonObject &a, const QJsonObject &b) { return a["seq"].toInteger() < b["seq"].toInteger(); });
+
+    // Each remap rewrites the lines before it, in log order.
+    for (qsizetype i = 0; i < objects.size(); ++i) {
+        if (objects[i]["type"].toString() != "exercise_remap")
+            continue;
+        const QJsonObject r = objects[i];
+        QVector<QJsonObject> kept;
+        for (qsizetype j = 0; j < objects.size(); ++j)
+            if (j >= i || remap(objects[j], r))
+                kept.append(objects[j]);
+        i -= objects.size() - kept.size();
+        objects = kept;
+    }
 
     Log log;
     QHash<QString, LoggedSet> sets;

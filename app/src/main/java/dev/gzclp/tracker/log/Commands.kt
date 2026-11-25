@@ -46,6 +46,13 @@ object Commands {
     private fun cycleEvent(state: AppState, ex: Exercise, kind: ChangeKind, to: CycleState, sessionId: String?) =
         cycleEvent(ex.id, kind, ex, to, state.step(ex.id), sessionId, ex.wave)
 
+    /** Custom exercises that were typed in place of a built-in one, each merged into it once. */
+    private val merges = listOf(ExerciseRemap("pull_ups", "pull_up", bodyweight = true), ExerciseRemap("incl", "incline_db_press"))
+
+    /** The [merges] this log still needs: a custom exercise with that id exists and was never merged before. */
+    fun merge(state: AppState): List<Event> =
+        merges.filter { r -> r.from in state.moves && r.from !in state.remappedFrom && Catalog.all.none { it.id == r.from } }
+
     fun chooseProgram(state: AppState, id: String): List<Event> = if (id == state.programId) emptyList() else listOf(ProgramChosen(id))
 
     fun setIncrements(state: AppState, to: Increments): List<Event> =
