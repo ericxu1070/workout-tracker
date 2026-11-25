@@ -230,10 +230,10 @@ fun ColumnScope.SheetContent(
         }
         is SheetState.CardioStop -> {
             val n = s.run.name
-            // Lowercase reads naturally ("Save running") but would mangle an acronym like HIIT.
+            // Lowercase reads naturally ("Save running session") but would mangle an acronym like HIIT.
             SheetTitle(
                 when {
-                    s.now == null -> "Save " + if (n.drop(1).any(Char::isUpperCase)) n else n.lowercase()
+                    s.now == null -> "Save " + (if (n.drop(1).any(Char::isUpperCase)) n else n.lowercase()) + " session"
                     s.run.id.isEmpty() -> "Log past session"
                     else -> "Edit session"
                 },

@@ -410,7 +410,7 @@ fun AddExerciseSheet(
                 .background(p.fill).padding(horizontal = Space.md),
             contentAlignment = Alignment.CenterStart,
         ) {
-            if (query.isEmpty()) Txt("Search exercises...", Type.body, color = p.fg3)
+            if (query.isEmpty()) Txt("Search exercises…", Type.body, color = p.fg3)
             BasicTextField(
                 value = query,
                 onValueChange = { query = it },

@@ -82,6 +82,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onSizeChanged
 
 @Composable
 fun Txt(
@@ -359,17 +362,36 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
             // Apple's sheet curve: fast out of the gate, long settle; leaving takes about two thirds as long.
             enter = slideInVertically(tween(300, easing = SheetEase)) { it }, exit = slideOutVertically(tween(200, easing = SheetEase)) { it },
         ) {
-            Column(
+            // Dragged down, the sheet follows the finger 1:1; past a quarter of its height or on a downward flick it closes, else it springs back.
+            val drag = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+            val height = remember { androidx.compose.runtime.mutableIntStateOf(1) }
+            LaunchedEffect(visible) { if (visible) drag.floatValue = 0f }
+            Box(
                 Modifier.fillMaxWidth()
+                    .onSizeChanged { height.intValue = it.height }
+                    .offset { androidx.compose.ui.unit.IntOffset(0, drag.floatValue.toInt()) }
+                    .draggable(
+                        androidx.compose.foundation.gestures.rememberDraggableState { d -> drag.floatValue = (drag.floatValue + d).coerceAtLeast(0f) },
+                        androidx.compose.foundation.gestures.Orientation.Vertical,
+                        onDragStopped = { v: Float ->
+                            if (drag.floatValue > height.intValue / 4f || v > 1500f) onDismiss()
+                            else androidx.compose.animation.core.animate(drag.floatValue, 0f, animationSpec = tween(200, easing = SheetEase)) { x, _ -> drag.floatValue = x }
+                        },
+                    )
                     .clip(RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl))
                     .background(p.elevated)
-                    .clickable(remember { MutableInteractionSource() }, null) {}
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .imePadding()
-                    .padding(Space.xl),
-                verticalArrangement = Arrangement.spacedBy(Space.lg),
-                content = content,
-            )
+                    .clickable(remember { MutableInteractionSource() }, null) {},
+            ) {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .imePadding()
+                        .padding(Space.xl),
+                    verticalArrangement = Arrangement.spacedBy(Space.lg),
+                    content = content,
+                )
+                Box(Modifier.align(Alignment.TopCenter).padding(top = Space.sm).size(36.dp, 5.dp).clip(CircleShape).background(p.fg3))
+            }
         }
     }
 }

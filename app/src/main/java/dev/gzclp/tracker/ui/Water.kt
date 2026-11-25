@@ -15,7 +15,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.awaitVerticalDragOrCancellation
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -514,7 +513,7 @@ fun InteractiveCup(
 fun WaterDailyRing(
     totalMl: Int,
     goalMl: Int,
-    deficitMl: Int = 0,
+    deficitMl: Int? = 0,
     dayLabel: String = "Today",
     modifier: Modifier = Modifier,
 ) {
@@ -559,18 +558,14 @@ fun WaterDailyRing(
                 Type.footnote.tabular(),
                 color = p.fg2,
             )
+            // Pace is a status, not a control: fg2, red only when far behind. Null [deficitMl] means no pace to show.
             val paceText = when {
                 totalMl >= goalMl -> "Goal reached"
+                deficitMl == null -> null
                 deficitMl > 0 -> "$deficitMl ml behind pace"
                 else -> "On pace"
             }
-            val paceColor = when {
-                totalMl >= goalMl -> p.accent
-                deficitMl > 500 -> p.red
-                deficitMl > 0 -> p.fg2
-                else -> p.accent
-            }
-            Txt(paceText, Type.footnote, color = paceColor)
+            paceText?.let { Txt(it, Type.footnote, color = if (totalMl < goalMl && (deficitMl ?: 0) > 500) p.red else p.fg2) }
         }
     }
 }
@@ -588,14 +583,15 @@ fun WaterScreen(
     onLogWater: (Int) -> Unit = {},
     onClearWater: (String) -> Unit = {},
     onCupSizeChange: ((Int) -> Unit)? = null,
+    pace: Boolean = true,
 ) {
     val p = LocalPalette.current
-    val haptic = LocalHapticFeedback.current
     var currentCupSize by rememberSaveable { mutableIntStateOf(cupSizeMl) }
     val todayEntries = remember(state.water, day) { WaterLog.entriesForDay(state, day) }
     val totalToday = remember(todayEntries) { todayEntries.sumOf { it.ml } }
-    val deficit = remember(totalToday, goalMl, day) {
-        if (day != LocalDate.now()) 0
+    // Pace follows the pace reminder: with it off, or on a past day, there is no pace to keep.
+    val deficit = remember(totalToday, goalMl, day, pace) {
+        if (!pace || day != LocalDate.now()) null
         else WaterLog.intakeDeficitMl(totalToday, LocalTime.now(), goalMl, WaterLog.predictedWakeTime(day))
     }
 
@@ -649,37 +645,20 @@ fun WaterScreen(
             GroupHeader("Log (${todayEntries.size})")
             Group {
                 todayEntries.asReversed().forEachIndexed { idx, entry ->
-                    val isLast = idx == 0
                     val atText = try {
                         Fmt.time(OffsetDateTime.parse(entry.at, LogCodec.TS))
                     } catch (_: Exception) {
                         entry.at
                     }
                     GroupRow(first = idx == 0) {
-                        Row(
-                            modifier = if (isLast) {
-                                Modifier.fillMaxWidth().pointerInput(entry.id) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onClearWater(entry.id)
-                                        },
-                                    )
-                                }
-                            } else Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Txt(atText, Type.body.tabular(), Modifier.weight(1f))
-                            Txt(WaterLog.formatVolume(entry.ml), Type.body.tabular())
-                            if (isLast) {
-                                Spacer(Modifier.width(Space.sm))
-                                Txt("Hold to undo", Type.caption.tabular(), color = p.accent)
-                            }
-                        }
+                        Txt(atText, Type.body.tabular(), Modifier.weight(1f))
+                        Txt(WaterLog.formatVolume(entry.ml), Type.body.tabular())
                     }
                 }
+                // An action row, as in iOS lists, so every amount keeps one right edge.
+                val newest = todayEntries.last()
+                GroupRow(first = false, onClick = { onClearWater(newest.id) }) { Txt("Undo ${newest.ml} ml", Type.body, color = p.accent) }
             }
-            GroupFooter("Long-press the latest entry to undo.")
         }
     }
 }

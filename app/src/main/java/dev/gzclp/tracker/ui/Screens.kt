@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -124,19 +125,18 @@ fun SetupScreen(onStart: (Map<Lift, Int>, String) -> Unit, onRestore: () -> Unit
         Group {
             Lift.entries.forEachIndexed { i, lift ->
                 GroupRow(first = i == 0) {
-                    Column(Modifier.weight(1f)) {
+                    // Two lines tall even before a 5RM is typed, so the row keeps its height and the name stays centered.
+                    val twoLines = with(androidx.compose.ui.platform.LocalDensity.current) { Type.headline.lineHeight.toDp() + Type.footnote.lineHeight.toDp() }
+                    Column(Modifier.weight(1f).heightIn(min = twoLines), verticalArrangement = Arrangement.Center) {
                         Txt(lift.label, Type.headline)
                         val rm = parsed[lift]
-                        Txt(
-                            when {
-                                rm == null -> "5RM"
-                                gzclp -> "T1 ${Fmt.lb(Progression.t1FromFiveRm(rm))} · T2 ${Fmt.lb(Progression.t2FromFiveRm(rm))}"
-                                else -> "Week 1 at ${Fmt.lb(Cycle.baseFromFiveRm(rm))}"
-                            },
+                        if (rm != null) Txt(
+                            if (gzclp) "T1 ${Fmt.lb(Progression.t1FromFiveRm(rm))} · T2 ${Fmt.lb(Progression.t2FromFiveRm(rm))}"
+                            else "Week 1 at ${Fmt.lb(Cycle.baseFromFiveRm(rm))}",
                             Type.footnote, color = p.fg2,
                         )
                     }
-                    NumberField(values[lift].orEmpty(), { v -> values[lift] = v.filter(Char::isDigit).take(4) }, last = i == Lift.entries.lastIndex)
+                    NumberField(values[lift].orEmpty(), { v -> values[lift] = v.filter(Char::isDigit).take(4) }, last = i == Lift.entries.lastIndex, placeholder = "5RM")
                     Txt(" lb", Type.body, color = p.fg2)
                 }
             }
@@ -339,7 +339,7 @@ fun RestBar(rest: RestUi, onSkip: () -> Unit, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Txt(Fmt.clock(rest.remainingSec), Type.title2.tabular(), Modifier.alignByBaseline())
                 Spacer(Modifier.width(Space.sm))
-                Txt(rest.label, Type.footnote, Modifier.weight(1f).alignByBaseline(), p.fg2, maxLines = 1)
+                Txt(rest.label, Type.footnote, Modifier.weight(1f).alignByBaseline(), p.fg2, maxLines = 2)
             }
             Spacer(Modifier.height(Space.sm))
             val frac = (rest.remainingSec.toFloat() / rest.totalSec.coerceAtLeast(1)).coerceIn(0f, 1f)
@@ -547,7 +547,7 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, p
     val p = LocalPalette.current
     var done by rememberSaveable(sessionId) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        Txt("W", Type.headline, Modifier.width(SET_COL), p.fg3)
+        Txt("W", Type.headline, Modifier.width(SET_COL), p.fg2)
         Txt("$weight", Type.body.tabular(), Modifier.width(WEIGHT_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
         Txt("$reps", Type.body.tabular(), Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
         Spacer(Modifier.weight(1f))
@@ -559,7 +559,7 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, p
             Icon(Icons.check, if (done) p.accent else p.fg3, 20.dp)
         }
     }
-    plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg3, maxLines = 1) }
+    plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
 }
 
 fun restLabel(ex: Exercise, setIndex: Int): String =

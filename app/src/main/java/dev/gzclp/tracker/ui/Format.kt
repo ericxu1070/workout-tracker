@@ -7,7 +7,7 @@ import java.util.Locale
 object Fmt {
     private val time = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val date = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US)
-    private val short = DateTimeFormatter.ofPattern("MMM d", Locale.US)
+    private val short = DateTimeFormatter.ofPattern("MMM\u00A0d", Locale.US) // no-break space: a date never splits across lines
 
     fun lb(w: Int) = "$w lb"
     /** Body weight, always one decimal: 182.4 lb, 181.0 lb. */

@@ -222,7 +222,7 @@ private fun WeekBars(labels: List<String>, mins: List<Float>) {
         mins.forEachIndexed { i, m ->
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
-            val color = if (i == mins.lastIndex) p.accent else p.fg3
+            val color = if (i == mins.lastIndex) p.accent else p.fg2
             if (m > 0f) drawRoundRect(if (pick.value.let { it != null && it != i }) color.copy(alpha = color.alpha * 0.35f) else color, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
             label(tm, labels[i], Offset(x + barW / 2, bottom + 6.dp.toPx()), p.fg2, alignX = 0.5f)
         }
@@ -349,7 +349,8 @@ fun CardioStopSheet(
                     )
                     Txt(" ${unit.label}", Type.body, color = p.fg2)
                 } else Pressable({ update(s.copy(distanceText = if (s.distance > 0) distanceValue(s.distance, unit) else "")) }, Modifier.heightIn(min = 44.dp), label = "Type the distance") {
-                    Txt(if (s.distance > 0) "${distanceValue(s.distance, unit)} ${unit.label}" else "–", Type.headline.tabular(), color = p.accent)
+                    if (s.distance > 0) Txt("${distanceValue(s.distance, unit)} ${unit.label}", Type.headline.tabular(), color = p.accent)
+                    else Txt("Not set", Type.body, color = p.fg2)
                 }
             }
             Slider(s.distance.toFloat(), { update(s.copy(distance = it.toDouble(), distanceText = null)) }, max.toFloat(), unit.step.toFloat(), "Distance in ${unit.label}")
@@ -361,13 +362,10 @@ fun CardioStopSheet(
         Column {
             Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
                 Txt("RPE", Type.body, Modifier.weight(1f))
-                Txt(s.rpeValue?.let(Fmt::rpe) ?: "–", Type.headline.tabular(), color = p.accent)
+                s.rpeValue?.let { Txt(Fmt.rpe(it), Type.headline.tabular(), color = p.accent) } ?: Txt("Not set", Type.body, color = p.fg2)
             }
             Slider(s.rpe.toFloat(), { update(s.copy(rpe = it.roundToInt())) }, 19f, 1f, "RPE")
-            Row {
-                Txt("–", Type.caption, Modifier.weight(1f), p.fg2)
-                Txt("10", Type.caption, color = p.fg2)
-            }
+            Txt("10", Type.caption, Modifier.align(Alignment.End), p.fg2)
         }
         NameField(s.notes, "Notes (optional)", Commands.CARDIO_NOTES_MAX) { update(s.copy(notes = it)) }
         val ok = s.durationSec in Commands.CARDIO_DURATION_SEC && (now == null || !s.run.startedAt.isAfter(now))
