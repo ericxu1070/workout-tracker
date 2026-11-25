@@ -136,7 +136,7 @@ fun StretchScreen(
             displayedMoves.forEachIndexed { i, move ->
                 GroupRow(first = i == 0, onClick = { previewMove = move }) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(p.fill)) {
-                        FormView(Motions.of(move), Modifier.fillMaxSize(), area = move.targetArea, still = 1f)
+                        FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus, still = 1f)
                     }
                     Spacer(Modifier.width(Space.sm))
                     Column(Modifier.weight(1f)) {
@@ -279,7 +279,7 @@ fun GuidedStretchPlayerScreen(
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
         ) {
-            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), area = currentMove.targetArea)
+            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), focus = currentMove.focus, mirror = player.isSecondSide)
         }
 
         Spacer(Modifier.height(Space.md))
@@ -294,7 +294,7 @@ fun GuidedStretchPlayerScreen(
             ) {
                 Txt(currentMove.targetArea.displayName, Type.caption.copy(fontWeight = FontWeight.SemiBold), color = p.accent)
             }
-            if (currentMove.isBilateral) {
+            if (currentMove.isUnilateral) {
                 Spacer(Modifier.width(Space.xs))
                 Box(
                     Modifier
@@ -302,7 +302,7 @@ fun GuidedStretchPlayerScreen(
                         .background(p.fill)
                         .padding(horizontal = Space.xs, vertical = 4.dp),
                 ) {
-                    Txt("Bilateral", Type.caption, color = p.fg2)
+                    Txt(if (player.isSecondSide) "Side 2" else "Side 1", Type.caption, color = p.fg2)
                 }
             }
         }
@@ -325,7 +325,7 @@ fun GuidedStretchPlayerScreen(
         ) {
             val ready = player.isGettingReady
             val secondsLeft = if (ready) player.readyRemaining else player.secondsRemaining
-            val total = if (ready) StretchPlayerState.READY_SEC else currentMove.holdSec
+            val total = player.countdownSec
             val ringProgress = (secondsLeft.toFloat() / total.coerceAtLeast(1)).coerceIn(0f, 1f)
 
             Box(
@@ -353,7 +353,7 @@ fun GuidedStretchPlayerScreen(
                         style = Type.largeTitle.tabular(),
                         color = p.fg,
                     )
-                    Txt(if (ready) "Get ready" else "seconds", Type.caption, color = p.fg2)
+                    Txt(if (!ready) "seconds" else if (player.isSecondSide) "Switch" else "Get ready", Type.caption, color = p.fg2)
                 }
             }
         }
@@ -376,7 +376,7 @@ fun GuidedStretchPlayerScreen(
                         Txt(nextMove.targetArea.displayName, Type.footnote, color = p.fg2)
                     }
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(p.elevated)) {
-                        FormView(Motions.of(nextMove), Modifier.fillMaxSize(), area = nextMove.targetArea, still = 1f)
+                        FormView(Motions.of(nextMove), Modifier.fillMaxSize(), focus = nextMove.focus, still = 1f)
                     }
                 }
             } else {
@@ -506,7 +506,7 @@ fun MovePreviewDialog(
                         .padding(Space.sm),
                     contentAlignment = Alignment.Center,
                 ) {
-                    FormView(Motions.of(move), Modifier.fillMaxSize(), area = move.targetArea)
+                    FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus)
                 }
 
                 Spacer(Modifier.height(Space.md))

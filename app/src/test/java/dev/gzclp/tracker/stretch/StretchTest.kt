@@ -209,8 +209,8 @@ class StretchTest {
             description = "Quick test routine",
             frequency = "Daily",
             moves = listOf(
-                StretchMoves.PIGEON_POSE.copy(holdSec = 2),
-                StretchMoves.STANDING_QUAD_STRETCH.copy(holdSec = 3),
+                StretchMoves.BUTTERFLY_STRETCH.copy(holdSec = 2),
+                StretchMoves.STANDING_FORWARD_FOLD.copy(holdSec = 3),
             ),
         )
 
@@ -218,8 +218,8 @@ class StretchTest {
         val ready = StretchPlayerState.READY_SEC
         assertEquals(0, player.moveIndex)
         assertEquals(2, player.secondsRemaining)
-        assertEquals(StretchMoves.PIGEON_POSE.id, player.currentMove?.id)
-        assertEquals(StretchMoves.STANDING_QUAD_STRETCH.id, player.nextMove?.id)
+        assertEquals(StretchMoves.BUTTERFLY_STRETCH.id, player.currentMove?.id)
+        assertEquals(StretchMoves.STANDING_FORWARD_FOLD.id, player.nextMove?.id)
         assertFalse(player.isFinished)
 
         // The first move opens with the get-ready countdown; the hold waits for it.
@@ -240,8 +240,8 @@ class StretchTest {
         assertEquals(1, player.moveIndex)
         assertEquals(3, player.secondsRemaining)
         assertEquals(ready, player.readyRemaining)
-        assertEquals(StretchMoves.STANDING_QUAD_STRETCH.id, player.currentMove?.id)
-        assertEquals(listOf(StretchMoves.PIGEON_POSE.id), player.completedMoves)
+        assertEquals(StretchMoves.STANDING_FORWARD_FOLD.id, player.currentMove?.id)
+        assertEquals(listOf(StretchMoves.BUTTERFLY_STRETCH.id), player.completedMoves)
 
         // Pause test
         player.pause()
@@ -264,8 +264,72 @@ class StretchTest {
         assertEquals("test_routine", logged.routine)
         assertTrue(logged.durationSec >= 1L)
         assertEquals(2, logged.moves.size)
-        assertTrue(logged.moves.contains(StretchMoves.PIGEON_POSE.id))
-        assertTrue(logged.moves.contains(StretchMoves.STANDING_QUAD_STRETCH.id))
+        assertTrue(logged.moves.contains(StretchMoves.BUTTERFLY_STRETCH.id))
+        assertTrue(logged.moves.contains(StretchMoves.STANDING_FORWARD_FOLD.id))
+    }
+
+    @Test
+    fun oneSidedMoveSplitsItsHoldAroundASwitch() {
+        val calf = StretchMoves.WALL_CALF_STRETCH.copy(holdSec = 5)
+        val player = StretchPlayerState(StretchRoutine("t", "T", "", "", listOf(calf, StretchMoves.BUTTERFLY_STRETCH)))
+        val ready = StretchPlayerState.READY_SEC
+        val switch = StretchPlayerState.SWITCH_SEC
+        assertEquals(3, calf.firstSideSec)
+        assertEquals(2, calf.secondSideSec)
+
+        repeat(ready) { player.tick() }
+        assertFalse(player.isSecondSide)
+        assertEquals(3, player.secondsRemaining)
+        assertEquals(3, player.countdownSec)
+        repeat(3) { player.tick() }
+        // The first side is done: the switch counts down like getting ready, already on the second side.
+        assertTrue(player.isSecondSide)
+        assertTrue(player.isGettingReady)
+        assertEquals(switch, player.readyRemaining)
+        assertEquals(switch, player.countdownSec)
+        assertEquals(0, player.moveIndex)
+        assertEquals(3f / 5 / 2, player.progressFraction, 1e-6f)
+        repeat(switch) { player.tick() }
+        assertFalse(player.isGettingReady)
+        assertEquals(2, player.secondsRemaining)
+        assertEquals(2, player.countdownSec)
+        repeat(2) { player.tick() }
+        assertEquals(1, player.moveIndex)
+        assertFalse(player.isSecondSide)
+        assertEquals(ready, player.readyRemaining)
+        // Both sides together hold for the move's whole time; the switch is extra, like getting ready.
+        assertEquals((ready + 5 + switch).toLong(), player.elapsedTotalSec)
+        assertEquals(listOf(calf.id), player.completedMoves)
+
+        // Going back starts the move over on its first side.
+        player.skipPrev()
+        assertEquals(0, player.moveIndex)
+        assertFalse(player.isSecondSide)
+        assertEquals(3, player.secondsRemaining)
+    }
+
+    @Test
+    fun aMoveForBothSidesAtOnceHasNoSwitch() {
+        val fold = StretchMoves.STANDING_FORWARD_FOLD.copy(holdSec = 4)
+        assertEquals(4, fold.firstSideSec)
+        assertEquals(0, fold.secondSideSec)
+        // A one-second one-sided hold has no time left for a second side.
+        assertEquals(0, StretchMoves.WALL_CALF_STRETCH.copy(holdSec = 1).secondSideSec)
+        val player = StretchPlayerState(StretchRoutine("t", "T", "", "", listOf(fold)))
+        repeat(StretchPlayerState.READY_SEC + 4) { player.tick() }
+        assertTrue(player.isFinished)
+        assertFalse(player.isSecondSide)
+    }
+
+    @Test
+    fun everyMoveThatWorksOneSideAtATimeIsMarked() {
+        val oneSided = setOf(
+            "hips_pigeon", "hips_lizard", "hamstrings_seated_single", "quads_standing", "quads_couch", "calves_wall_drive",
+            "calves_heel_drop", "ankles_kneeling_dorsi", "upper_back_thread_needle", "upper_back_eagle", "chest_doorway",
+            "shoulders_cross_body", "shoulders_overhead_triceps", "shoulders_sleeper", "lats_childs_pose", "lats_side_bend",
+            "spine_supine_twist", "spine_seated_twist",
+        )
+        assertEquals(oneSided, StretchMoves.ALL.filter { it.isUnilateral }.map { it.id }.toSet())
     }
 
     @Test

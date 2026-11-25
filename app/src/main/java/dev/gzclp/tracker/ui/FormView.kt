@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.lerp
@@ -44,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.form.Body
 import dev.gzclp.tracker.form.Bone
+import dev.gzclp.tracker.form.Focus
 import dev.gzclp.tracker.form.Frame
 import dev.gzclp.tracker.form.Mesh
 import dev.gzclp.tracker.form.Motion
@@ -54,7 +56,6 @@ import dev.gzclp.tracker.form.Side
 import dev.gzclp.tracker.form.Tone
 import dev.gzclp.tracker.form.Skin
 import dev.gzclp.tracker.form.V
-import dev.gzclp.tracker.stretch.BodyArea
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
@@ -191,25 +192,6 @@ private class Tones(p: Palette) {
     fun of(t: Tone) = when (t) { Tone.METAL -> metal; Tone.RUBBER -> rubber; Tone.PAD -> pad }
 }
 
-/** Which area bits ([mask]) light each bone in the accent. */
-private fun bit(b: Bone) = when (b) {
-    Bone.WAIST, Bone.CHEST -> 1
-    Bone.PELVIS -> 2
-    Bone.THIGH_L, Bone.THIGH_R -> 4
-    Bone.SHIN_L, Bone.SHIN_R, Bone.FOOT_L, Bone.FOOT_R, Bone.TOES_L, Bone.TOES_R -> 8
-    Bone.ARM_L, Bone.ARM_R -> 16
-    else -> 0
-}
-
-private fun mask(area: BodyArea?) = when (area) {
-    BodyArea.SPINE, BodyArea.UPPER_BACK, BodyArea.CHEST, BodyArea.LATS -> 1
-    BodyArea.HIPS -> 2
-    BodyArea.QUADS, BodyArea.HAMSTRINGS -> 4
-    BodyArea.CALVES, BodyArea.ANKLES -> 8
-    BodyArea.SHOULDERS -> 16
-    null -> 0
-}
-
 /** Each bone's print on the floor for its contact shadow: from [0] to [1] along it, [2] toward its front, [3] wide. */
 private val PRINT: Array<DoubleArray> = Bone.entries.map { b ->
     when (b) {
@@ -256,6 +238,7 @@ private class Scene {
     private val skinNormal = FloatArray(pose.bent.size)
     private var nv = 0
     private var nt = 0
+    private var hot = IntArray(0)
 
     /** Each surface placed this frame and its first vertex; per bone, the surface it moves and where the bone starts in it. */
     private val placed = ArrayList<Mesh>()
@@ -266,7 +249,7 @@ private class Scene {
     private val poly = IntArray(4)
     private var gearAt = IntArray(64)
 
-    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, mask: Int) {
+    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, focus: Focus?) {
         val r = motion.radius
         val dist = r * 3.5f
         pr.set(orbit.yaw, orbit.pitch, motion.center, dist, min(w, h) * 0.46f * sqrt(dist * dist - r * r) / r, w / 2, h / 2)
@@ -284,9 +267,9 @@ private class Scene {
             else -> shadow(c, g.frame.o, g.frame.o, max(g.sx, g.sz) / 2, tones.shadow)
         }
 
-        nv = 0; nt = 0; placed.clear(); meshOf.fill(null)
-        for ((s, bones) in pose.chains()) if (bones.all { pose.has(it) }) chain(s, bones, tones, mask)
-        for (b in Bone.entries) if (pose.has(b)) Body.of(b)?.let { part(it, pose[b], 1.0, 1.0, 1.0, if (bit(b) and mask != 0) tones.accent else tones.body, false, b) }
+        nv = 0; nt = 0; placed.clear(); meshOf.fill(null); hot = tones.accent
+        for ((s, bones) in pose.chains()) if (bones.all { pose.has(it) }) chain(s, bones, tones, focus?.of(s, bones))
+        for (b in Bone.entries) if (pose.has(b)) Body.of(b)?.let { part(it, pose[b], 1.0, 1.0, 1.0, tones.body, false, b, focus?.of(it, b)) }
         val body = nv
         val gear = pose.gear
         if (gearAt.size <= gear.size) gearAt = IntArray(gear.size * 2 + 1)
@@ -363,8 +346,8 @@ private class Scene {
         nt++
     }
 
-    /** Projects and lights one mesh placed by [f] and stretched by [sx], [sy], [sz]; [bone] is the body part it is, if any. */
-    private fun part(mesh: Mesh, f: Frame, sx: Double, sy: Double, sz: Double, ramp: IntArray, metal: Boolean, bone: Bone? = null) {
+    /** Projects and lights one mesh placed by [f] and stretched by [sx], [sy], [sz]; [bone] is the body part it is, if any, and [glow] each vertex's share of the accent. */
+    private fun part(mesh: Mesh, f: Frame, sx: Double, sy: Double, sz: Double, ramp: IntArray, metal: Boolean, bone: Bone? = null, glow: FloatArray? = null) {
         if (!place(mesh)) return
         if (bone != null) { meshOf[bone.ordinal] = mesh; startOf[bone.ordinal] = nv; originOf[bone.ordinal] = V.ZERO }
         val p = mesh.pos
@@ -377,21 +360,20 @@ private class Scene {
                 nv + i,
                 (o.x + fx.x * lx + fy.x * ly + fz.x * lz).toFloat(), (o.y + fx.y * lx + fy.y * ly + fz.y * lz).toFloat(), (o.z + fx.z * lx + fy.z * ly + fz.z * lz).toFloat(),
                 (fx.x * ax + fy.x * ay + fz.x * az).toFloat(), (fx.y * ax + fy.y * ay + fz.y * az).toFloat(), (fx.z * ax + fy.z * ay + fz.z * az).toFloat(),
-                ramp, metal,
+                ramp, metal, glow?.get(i) ?: 0f,
             )
         }
         nv += mesh.verts
     }
 
-    /** A [Skin] bent by [bones]; a vertex takes the accent when the bone it follows is in [mask]. */
-    private fun chain(s: Skin, bones: Array<Bone>, tones: Tones, mask: Int) {
+    /** A [Skin] bent by [bones]; each vertex takes its [glow] share of the accent. */
+    private fun chain(s: Skin, bones: Array<Bone>, tones: Tones, glow: FloatArray?) {
         val mesh = s.mesh
         if (!place(mesh)) return
         for (k in bones.indices) { meshOf[bones[k].ordinal] = mesh; startOf[bones[k].ordinal] = nv; originOf[bones[k].ordinal] = s.origin(k) }
         s.pose(pose, bones, skin, skinNormal)
         for (i in 0 until mesh.verts) {
-            val ramp = if (bit(bones[s.lead[i]]) and mask != 0) tones.accent else tones.body
-            vertex(nv + i, skin[i * 3], skin[i * 3 + 1], skin[i * 3 + 2], skinNormal[i * 3], skinNormal[i * 3 + 1], skinNormal[i * 3 + 2], ramp, false)
+            vertex(nv + i, skin[i * 3], skin[i * 3 + 1], skin[i * 3 + 2], skinNormal[i * 3], skinNormal[i * 3 + 1], skinNormal[i * 3 + 2], tones.body, false, glow?.get(i) ?: 0f)
         }
         nv += mesh.verts
     }
@@ -446,8 +428,8 @@ private class Scene {
         }
     }
 
-    /** Projects vertex [v] at ([x], [y], [z]) and shades it along [ramp] by its normal ([nx], [ny], [nz], any length); [metal] adds a glint. */
-    private fun vertex(v: Int, x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float, ramp: IntArray, metal: Boolean) {
+    /** Projects vertex [v] at ([x], [y], [z]) and shades it along [ramp] by its normal ([nx], [ny], [nz], any length), [glow] of the way to the accent; [metal] adds a glint. */
+    private fun vertex(v: Int, x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float, ramp: IntArray, metal: Boolean, glow: Float = 0f) {
         pr.project(x, y, z)
         xy[v * 2] = pr.sx; xy[v * 2 + 1] = pr.sy; dep[v] = pr.depth
         wp[v * 3] = x; wp[v * 3 + 1] = y; wp[v * 3 + 2] = z; cut[v] = 1f
@@ -457,7 +439,9 @@ private class Scene {
         val wrap = ((ux * lit[0] + uy * lit[1] + uz * lit[2] + 0.3f) / 1.3f).coerceIn(0f, 1f)
         val facing = (ux * eye[0] + uy * eye[1] + uz * eye[2]).coerceIn(0f, 1f)
         val k = 0.04f + 0.6f * wrap + 0.18f * (0.5f + 0.5f * uy) + 0.18f * facing
-        var c = ramp[(k.coerceIn(0f, 1f) * (ramp.size - 1)).toInt()]
+        val shade = (k.coerceIn(0f, 1f) * (ramp.size - 1)).toInt()
+        var c = ramp[shade]
+        if (glow > 0f) c = mix(c, hot[shade], glow)
         if (metal) {
             val hx = lit[0] + eye[0]; val hy = lit[1] + eye[1]; val hz = lit[2] + eye[2]
             val s = ((ux * hx + uy * hy + uz * hz) / sqrt(hx * hx + hy * hy + hz * hz)).coerceAtLeast(0f).pow(24) * 0.7f
@@ -542,13 +526,15 @@ private fun mix(a: Int, b: Int, t: Float): Int {
 /**
  * The exercise as a 3D figure you can orbit: drag to turn around it or look down on it, double-tap to reset; let go and the
  * camera circles it again. It loops one rep at the lift's real tempo; [still] freezes it at one point of the rep and stops
- * the frame clock and the circling (thumbnails, tests).
+ * the frame clock and the circling (thumbnails, tests). [focus] lights where a stretch is felt; [mirror] shows the move
+ * done on the other side.
  */
 @Composable
 fun FormView(
     motion: Motion,
     modifier: Modifier = Modifier,
-    area: BodyArea? = null,
+    focus: Focus? = null,
+    mirror: Boolean = false,
     still: Float? = null,
     orbit: Orbit = remember(motion) { Orbit(motion.yaw ?: DEFAULT_YAW) },
 ) {
@@ -575,11 +561,12 @@ fun FormView(
             ) { change, d -> change.consume(); orbit.drag(d.x, d.y) }
         }
         .pointerInput(orbit) { detectTapGestures(onDoubleTap = { orbit.reset() }) }
-    Canvas(modifier.clipToBounds().semantics { contentDescription = "3D exercise form. Drag to look around it, double-tap to reset." }.then(gestures)) {
+    // The mirror flips the drawn picture, and the drag with it, so the figure still turns under the finger.
+    Canvas(modifier.clipToBounds().semantics { contentDescription = "3D exercise form. Drag to look around it, double-tap to reset." }.graphicsLayer(scaleX = if (mirror) -1f else 1f).then(gestures)) {
         val sec = clock / 1e9
         val d = still?.toDouble() ?: motion.tempo.at(sec)
         val breath = if (still != null) 0.0 else 0.5 - 0.5 * cos(2 * PI * sec / BREATH_SEC)
-        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, mask(area)) }
+        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus) }
     }
 }
 

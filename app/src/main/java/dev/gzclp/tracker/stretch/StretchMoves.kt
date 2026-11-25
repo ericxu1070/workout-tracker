@@ -1,8 +1,13 @@
 package dev.gzclp.tracker.stretch
 
+import dev.gzclp.tracker.form.Bone
+import dev.gzclp.tracker.form.Focus
+import dev.gzclp.tracker.form.Spot
+import dev.gzclp.tracker.form.V
+
 /**
  * Built-in catalog of stretch moves covering hips, hamstrings, quads, calves, ankles,
- * upper back, chest, shoulders, lats, and spine.
+ * upper back, chest, shoulders, lats, and spine. A one-sided move's motion and focus show its first side, mostly the left.
  */
 object StretchMoves {
 
@@ -13,7 +18,8 @@ object StretchMoves {
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Square your hips to the mat and sink gently into the stretch.",
-        isBilateral = true,
+        focus = Focus(0.34, Spot(Bone.PELVIS, V(0.08, -0.03, -0.11))),
+        isUnilateral = true,
     )
 
     val BUTTERFLY_STRETCH = StretchMove(
@@ -22,6 +28,7 @@ object StretchMoves {
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Press your soles together and hinge gently forward from your hips.",
+        focus = Focus.both(0.3, Spot(Bone.THIGH_L, V(0.05, 0.1, 0.0))),
     )
 
     val LIZARD_LUNGE = StretchMove(
@@ -30,7 +37,8 @@ object StretchMoves {
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Sink your pelvis low while keeping your front knee stacked over your heel.",
-        isBilateral = true,
+        focus = Focus(0.3, Spot(Bone.THIGH_R, V(0.0, 0.04, 0.07))),
+        isUnilateral = true,
     )
 
     // 2. HAMSTRINGS
@@ -40,6 +48,7 @@ object StretchMoves {
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 35,
         cue = "Hinge from the hips with soft knees and let your torso hang heavy.",
+        focus = Focus.both(0.36, Spot(Bone.THIGH_L, V(0.0, 0.22, -0.07))),
     )
 
     val SEATED_SINGLE_LEG = StretchMove(
@@ -48,7 +57,8 @@ object StretchMoves {
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 30,
         cue = "Hinge forward from the hip crease toward your flexed front foot.",
-        isBilateral = true,
+        focus = Focus(0.36, Spot(Bone.THIGH_L, V(0.0, 0.22, -0.07))),
+        isUnilateral = true,
     )
 
     val DOWNWARD_DOG = StretchMove(
@@ -57,6 +67,7 @@ object StretchMoves {
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 30,
         cue = "Drive your hips up and back while pressing your heels toward the mat.",
+        focus = Focus.both(0.42, Spot(Bone.THIGH_L, V(0.0, 0.36, -0.06))),
     )
 
     // 3. QUADS
@@ -66,7 +77,8 @@ object StretchMoves {
         targetArea = BodyArea.QUADS,
         holdSec = 30,
         cue = "Keep your knees together and tuck your tailbone slightly.",
-        isBilateral = true,
+        focus = Focus(0.36, Spot(Bone.THIGH_L, V(0.0, 0.22, 0.08))),
+        isUnilateral = true,
     )
 
     val COUCH_STRETCH = StretchMove(
@@ -75,7 +87,8 @@ object StretchMoves {
         targetArea = BodyArea.QUADS,
         holdSec = 35,
         cue = "Squeeze your glute on the rear leg and gently press your hip forward.",
-        isBilateral = true,
+        focus = Focus(0.38, Spot(Bone.THIGH_L, V(0.0, 0.12, 0.08))),
+        isUnilateral = true,
     )
 
     val KNEELING_QUAD_LEAN = StretchMove(
@@ -84,6 +97,7 @@ object StretchMoves {
         targetArea = BodyArea.QUADS,
         holdSec = 30,
         cue = "Brace your core and lean your torso back in one straight line.",
+        focus = Focus.both(0.36, Spot(Bone.THIGH_L, V(0.0, 0.22, 0.08))),
     )
 
     // 4. CALVES
@@ -93,7 +107,8 @@ object StretchMoves {
         targetArea = BodyArea.CALVES,
         holdSec = 30,
         cue = "Drive your back heel firmly into the ground with a straight rear knee.",
-        isBilateral = true,
+        focus = Focus(0.3, Spot(Bone.SHIN_L, V(0.0, 0.14, -0.05))),
+        isUnilateral = true,
     )
 
     val HEEL_DROP_STRETCH = StretchMove(
@@ -102,7 +117,8 @@ object StretchMoves {
         targetArea = BodyArea.CALVES,
         holdSec = 25,
         cue = "Lower your heel below the step level for a deep, steady calf stretch.",
-        isBilateral = true,
+        focus = Focus(0.3, Spot(Bone.SHIN_L, V(0.0, 0.16, -0.05))),
+        isUnilateral = true,
     )
 
     // 5. ANKLES
@@ -112,7 +128,8 @@ object StretchMoves {
         targetArea = BodyArea.ANKLES,
         holdSec = 25,
         cue = "Drive your front knee over your toes while keeping your heel grounded.",
-        isBilateral = true,
+        focus = Focus(0.26, Spot(Bone.SHIN_L, V(0.0, 0.36, -0.04))),
+        isUnilateral = true,
     )
 
     val PLANTAR_ANKLE_SIT = StretchMove(
@@ -121,6 +138,7 @@ object StretchMoves {
         targetArea = BodyArea.ANKLES,
         holdSec = 25,
         cue = "Sit gently back on your shins with feet flat to stretch the top of ankles.",
+        focus = Focus.both(0.24, Spot(Bone.FOOT_L, V(0.0, 0.04, 0.0))),
     )
 
     // 6. UPPER BACK
@@ -130,7 +148,8 @@ object StretchMoves {
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 30,
         cue = "Slide one arm under your torso and rest your shoulder gently on the mat.",
-        isBilateral = true,
+        focus = Focus(0.24, Spot(Bone.CHEST, V(0.1, 0.18, -0.1))),
+        isUnilateral = true,
     )
 
     val CAT_COW_STRETCH = StretchMove(
@@ -139,6 +158,7 @@ object StretchMoves {
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 30,
         cue = "Round your upper back toward the ceiling and tuck your chin.",
+        focus = Focus(0.36, Spot(Bone.CHEST, V(0.0, 0.15, -0.11))),
     )
 
     val EAGLE_ARMS = StretchMove(
@@ -147,6 +167,8 @@ object StretchMoves {
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 25,
         cue = "Cross your elbows and lift your forearms to open across the shoulder blades.",
+        isUnilateral = true,
+        focus = Focus(0.34, Spot(Bone.CHEST, V(0.0, 0.18, -0.11))),
     )
 
     // 7. CHEST
@@ -156,7 +178,8 @@ object StretchMoves {
         targetArea = BodyArea.CHEST,
         holdSec = 30,
         cue = "Rest your forearm on the frame at 90 degrees and step your chest forward.",
-        isBilateral = true,
+        focus = Focus(0.22, Spot(Bone.CHEST, V(0.12, 0.17, 0.09))),
+        isUnilateral = true,
     )
 
     val BEHIND_BACK_CLASP = StretchMove(
@@ -165,6 +188,7 @@ object StretchMoves {
         targetArea = BodyArea.CHEST,
         holdSec = 30,
         cue = "Interlace your fingers behind your back and gently lift your chest.",
+        focus = Focus.both(0.3, Spot(Bone.CHEST, V(0.09, 0.17, 0.1))),
     )
 
     // 8. SHOULDERS
@@ -174,7 +198,8 @@ object StretchMoves {
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Gently draw your arm across your chest without hiking your shoulder.",
-        isBilateral = true,
+        focus = Focus(0.26, Spot(Bone.ARM_L, V(0.0, 0.04, -0.04))),
+        isUnilateral = true,
     )
 
     val OVERHEAD_TRICEPS = StretchMove(
@@ -183,7 +208,8 @@ object StretchMoves {
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Reach down the center of your back and guide your elbow with the other hand.",
-        isBilateral = true,
+        focus = Focus(0.26, Spot(Bone.ARM_L, V(0.0, 0.16, -0.04))),
+        isUnilateral = true,
     )
 
     val SLEEPER_STRETCH = StretchMove(
@@ -192,7 +218,8 @@ object StretchMoves {
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Lie on your side and gently guide your forearm down toward the mat.",
-        isBilateral = true,
+        focus = Focus(0.24, Spot(Bone.ARM_L, V(0.0, 0.03, -0.04))),
+        isUnilateral = true,
     )
 
     // 9. LATS
@@ -202,7 +229,8 @@ object StretchMoves {
         targetArea = BodyArea.LATS,
         holdSec = 30,
         cue = "Walk your hands to one side and sink your hips deeply back onto your heels.",
-        isBilateral = true,
+        focus = Focus(0.28, Spot(Bone.CHEST, V(0.13, 0.08, -0.05))),
+        isUnilateral = true,
     )
 
     val OVERHEAD_SIDE_BEND = StretchMove(
@@ -211,7 +239,8 @@ object StretchMoves {
         targetArea = BodyArea.LATS,
         holdSec = 25,
         cue = "Clasp hands overhead and gently arc your ribcage to the side.",
-        isBilateral = true,
+        focus = Focus(0.28, Spot(Bone.CHEST, V(0.13, 0.08, -0.05))),
+        isUnilateral = true,
     )
 
     // 10. SPINE
@@ -221,7 +250,8 @@ object StretchMoves {
         targetArea = BodyArea.SPINE,
         holdSec = 30,
         cue = "Drop your knees to the side while keeping both shoulders flat on the floor.",
-        isBilateral = true,
+        focus = Focus(0.36, Spot(Bone.WAIST, V(0.05, 0.08, -0.1))),
+        isUnilateral = true,
     )
 
     val COBRA_POSE = StretchMove(
@@ -230,6 +260,7 @@ object StretchMoves {
         targetArea = BodyArea.SPINE,
         holdSec = 30,
         cue = "Press the floor away to extend your thoracic spine without pinching your low back.",
+        focus = Focus(0.36, Spot(Bone.WAIST, V(0.0, 0.12, 0.0))),
     )
 
     val SEATED_SPINAL_TWIST = StretchMove(
@@ -238,7 +269,8 @@ object StretchMoves {
         targetArea = BodyArea.SPINE,
         holdSec = 25,
         cue = "Sit tall, elongate your spine, and rotate gently from your ribcage.",
-        isBilateral = true,
+        focus = Focus(0.36, Spot(Bone.WAIST, V(0.0, 0.16, -0.08))),
+        isUnilateral = true,
     )
 
     /** Complete list of all 26 moves across 10 body areas. */
