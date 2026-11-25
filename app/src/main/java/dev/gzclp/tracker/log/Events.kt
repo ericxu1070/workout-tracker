@@ -98,6 +98,10 @@ data class SetLogged(
 @Serializable @SerialName("exercise_swap")
 data class ExerciseSwap(val sessionId: String, val exercise: String, val tier: String, val substitute: String? = null) : Event
 
+/** Every earlier line naming [from] reads as naming [to]; with [bodyweight], [from]'s set weight was the body weight. See [remapped]. */
+@Serializable @SerialName("exercise_remap")
+data class ExerciseRemap(val from: String, val to: String, val bodyweight: Boolean = false) : Event
+
 @Serializable @SerialName("set_clear")
 data class SetCleared(val sessionId: String, val exercise: String, val tier: String, val setIndex: Int) : Event
 

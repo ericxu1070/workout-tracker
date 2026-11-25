@@ -253,6 +253,28 @@ private slots:
         QCOMPARE(dip["ratio"].toDouble(), expectedDip / 180.0);
     }
 
+    void remapMergesEarlierLinesIntoTheBuiltIn() {
+        const QByteArray lines =
+            "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-20T07:00:00-08:00\",\"type\":\"body_weight\",\"entry_id\":\"w1\",\"at\":\"2026-11-20T07:00:00-08:00\",\"weight\":180.0}\n"
+            "{\"v\":2,\"seq\":2,\"ts\":\"2026-11-20T17:00:00-08:00\",\"type\":\"exercise_define\",\"exercise\":\"pull_ups\",\"name\":\"Pull ups\",\"lower\":false}\n"
+            "{\"v\":2,\"seq\":3,\"ts\":\"2026-11-20T17:01:00-08:00\",\"type\":\"set\",\"session_id\":\"s1\",\"exercise\":\"pull_ups\",\"tier\":\"t3\",\"stage\":\"3x15+\",\"set_index\":1,\"target_reps\":15,\"actual_reps\":10,\"target_weight\":0,\"weight\":180,\"amrap\":false}\n"
+            "{\"v\":2,\"seq\":4,\"ts\":\"2026-11-20T17:30:00-08:00\",\"type\":\"session_end\",\"session_id\":\"s1\",\"program\":\"gzclp\",\"day\":\"A1\",\"started_at\":\"2026-11-20T17:00:00-08:00\",\"duration_sec\":1800}\n"
+            "{\"v\":2,\"seq\":5,\"ts\":\"2026-11-24T09:00:00-08:00\",\"type\":\"exercise_remap\",\"from\":\"pull_ups\",\"to\":\"pull_up\",\"bodyweight\":true}\n"
+            "{\"v\":2,\"seq\":6,\"ts\":\"2026-11-24T09:01:00-08:00\",\"type\":\"exercise_define\",\"exercise\":\"pull_ups\",\"name\":\"Pull ups\",\"lower\":false}\n";
+
+        const Log log = parseLog(lines);
+        QCOMPARE(log.sets.size(), 1);
+        QCOMPARE(log.sets[0].exercise, QString("pull_up"));
+        QCOMPARE(log.sets[0].weight, 0);
+        QCOMPARE(log.sets[0].bodyweightLb, 180.0);
+        QVERIFY(log.sets[0].hasAddedLb);
+        QCOMPARE(log.name("pull_ups"), QString("Pull ups"));  // defined again after the remap
+
+        // Load is the body weight once, not body weight plus the 180 typed as the weight.
+        const QVariantMap pullUp = find(dashboard(log)["strength"].toMap()["lifts"].toList(), "id", "pull_up");
+        QCOMPARE(pullUp["latest"].toDouble(), 180.0 * (1.0 + 10.0 / 30.0));
+    }
+
     void waterPerDayAndCleared() {
         const QByteArray lines =
             "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-20T08:00:00-08:00\",\"type\":\"water\",\"id\":\"wt1\",\"at\":\"2026-11-20T08:00:00-08:00\",\"ml\":500}\n"

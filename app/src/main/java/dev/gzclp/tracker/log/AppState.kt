@@ -110,6 +110,8 @@ data class AppState(
     val foodEstimates: Map<String, FoodEstimate> = emptyMap(),
     /** Estimated 1RMs from finished sessions and weight edits, in log order; see [strengthModel]. */
     val strength: StrengthState = StrengthState(),
+    /** Exercise ids an [ExerciseRemap] has merged into another. */
+    val remappedFrom: Set<String> = emptySet(),
     val lastSeq: Long = 0,
 ) {
     val started: Boolean get() = fiveRm.isNotEmpty()
@@ -232,6 +234,8 @@ data class AppState(
             is WaterLogged -> s.copy(water = water + (e.id to e))
             is WaterCleared -> s.copy(water = water - e.id)
             is FoodEstimate -> s.copy(foodEstimates = foodEstimates + (e.meal to e))
+            // The lines it rewrites came before it; fold applies it to them.
+            is ExerciseRemap -> s.copy(remappedFrom = remappedFrom + e.from)
         }
     }
 
@@ -272,6 +276,6 @@ data class AppState(
     }
 
     companion object {
-        fun fold(entries: Iterable<Entry>): AppState = entries.fold(AppState()) { s, e -> s.apply(e) }
+        fun fold(entries: Iterable<Entry>): AppState = remapped(entries.toList()).fold(AppState()) { s, e -> s.apply(e) }
     }
 }

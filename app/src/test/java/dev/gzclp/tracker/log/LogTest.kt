@@ -65,6 +65,7 @@ class LogTest {
             SetCleared("s1", "squat", "t1", 5),
             ExerciseSwap("s1", "squat", "t1", "leg_press"),
             ExerciseSwap("s1", "squat", "t1"),
+            ExerciseRemap("pull_ups", "pull_up", bodyweight = true),
             SessionEnd("s1", "gzclp", "A1", "2026-11-10T18:00:00-08:00", 3120),
             BodyWeightLogged("w1794326400", "2026-11-10T07:02:00-08:00", 182.4),
             BodyWeightCleared("w1794326400"),

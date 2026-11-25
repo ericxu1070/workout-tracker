@@ -25,6 +25,8 @@ The `stretch` and `stretch_clear` types were added within version 2. A reader th
 
 The `water` and `water_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
+The `exercise_remap` type was added within version 2. A reader that predates it skips it as an unknown type and still shows the remapped exercise under its old id.
+
 The `food_estimate` type was added within version 2. Meal photos never enter the log; only this text does. A reader that predates it skips it as an unknown type.
 
 ## File
@@ -252,6 +254,24 @@ The newest line for a (`session_id`, `exercise`, `tier`) wins, and it lasts unti
 - The substitute gets no `progression` line either: a swap never changes any prescription.
 - The substitute is never an exercise the session already has at that tier, so a set's identity stays unique.
 
+### `exercise_remap`
+
+Merges an exercise into another one, such as a custom `pull_ups` typed in place of the built-in `pull_up`. The app writes it once, at launch, for a custom id it knows duplicates a built-in exercise. Earlier lines stay as written; a reader rewrites them while reading.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `from` | string | The exercise id merged away. |
+| `to` | string | The exercise id it becomes. |
+| `bodyweight` | bool | True when `from`'s logged `weight` was the user's body weight and `to` is a bodyweight move. |
+
+Apply each `exercise_remap` to every line with a lower `seq`, in `seq` order, before resolving anything:
+
+- Drop the `exercise_define` and `exercise_meta` lines for `from`.
+- Read `from` as `to` in every other field that names an exercise: `exercise`, `substitute`, `parent`, `day_exercises.exercises`, and the exercises of `program_define` days. A list that then names `to` twice keeps the first. A swap whose `substitute` becomes the slot's own `exercise` is a swap back.
+- With `bodyweight`, a `from` set that has neither `added_lb` nor `bodyweight_lb` reads as `weight` `0`, `added_lb` `0.0`, and `bodyweight_lb` equal to its `weight` (absent when that was `0`).
+
+Lines after the remap are not changed, so an exercise later defined again with the `from` id is a new exercise.
+
 ### `set_clear`
 
 The user removed a logged set. It no longer counts.
@@ -468,4 +488,5 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":111,"ts":"2026-12-01T09:30:00-08:00","type":"water","id":"wt1795836600","at":"2026-12-01T09:30:00-08:00","ml":350}
 {"v":2,"seq":112,"ts":"2026-12-01T09:35:00-08:00","type":"water_clear","id":"wt1795836600"}
 {"v":2,"seq":113,"ts":"2026-12-01T12:30:00-08:00","type":"food_estimate","meal":"20261201T123000-0800.jpg","label":"Chicken rice bowl","kcal_low":600,"kcal_high":800,"confirmed":true}
+{"v":2,"seq":114,"ts":"2026-12-02T08:00:00-08:00","type":"exercise_remap","from":"pull_ups","to":"pull_up","bodyweight":true}
 ```
