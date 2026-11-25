@@ -16,7 +16,7 @@ The app logs a weight and reps for every set, shows the next eight workouts and 
 
 ### Food & Nutrition
 - **Photo Food Log**: Take a photo of each meal or pick one from your gallery, saved at the photo capture timestamp.
-- **On-Device Food Classifier & Calories**: Features an on-device TensorFlow Lite quantized classifier (Google AIY Food V1, Apache 2.0 license) paired with nutritional calorie ranges from USDA FoodData Central (Public Domain). Runs entirely offline on your phone; photos and nutrition data never leave your device.
+- **On-Device Food Classifier & Calories**: Features an on-device TensorFlow Lite quantized classifier (Google AIY Food V1, Apache 2.0 license) paired with rough per-serving calorie ranges bucketed by food category (hand-assigned, not from a nutrient database). Runs entirely offline on your phone; photos and nutrition data never leave your device.
 - **Gallery Export**: Option to save a copy of meal photos to `Pictures/Food` in the phone gallery (MediaStore, no extra permissions needed). Deleting a meal in the app automatically removes the gallery copy. *Note: Photos saved to the gallery may be backed up by Google Photos or other cloud backup services enabled on your device.*
 
 ### Water Tracker & Stretching

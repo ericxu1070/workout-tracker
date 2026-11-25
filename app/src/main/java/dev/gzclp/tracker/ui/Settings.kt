@@ -85,22 +85,10 @@ fun SettingsScreen(
     val p = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
-    val galleryState = androidx.compose.runtime.remember(prefs) {
-        androidx.compose.runtime.mutableStateOf(saveToGallery ?: prefs.saveToGallery)
-    }
+    val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
     val galleryEnabled = saveToGallery ?: galleryState.value
-    androidx.compose.runtime.LaunchedEffect(context, prefs) {
-        if (dev.gzclp.tracker.food.FoodLog.defaultExport == null) {
-            dev.gzclp.tracker.food.FoodLog.defaultExport = dev.gzclp.tracker.food.GalleryExport(context, prefs)
-        }
-    }
-    val stretchSp = androidx.compose.runtime.remember(context) {
-        context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE)
-    }
     var currentStretchRoutineId by androidx.compose.runtime.remember(defaultStretchRoutine) {
-        androidx.compose.runtime.mutableStateOf(
-            defaultStretchRoutine ?: stretchSp.getString("stretch_default_routine", dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT) ?: dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT
-        )
+        androidx.compose.runtime.mutableStateOf(defaultStretchRoutine ?: prefs.stretchRoutine)
     }
     var activeStretchRoutine by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf<dev.gzclp.tracker.stretch.StretchRoutine?>(null)
@@ -109,6 +97,10 @@ fun SettingsScreen(
         androidx.compose.runtime.mutableStateOf(false)
     }
 
+    // System back leaves the player or library for Settings, as their own back buttons do, instead of closing Settings under them.
+    androidx.activity.compose.BackHandler(activeStretchRoutine != null || showStretchLibrary) {
+        if (activeStretchRoutine != null) activeStretchRoutine = null else showStretchLibrary = false
+    }
     if (activeStretchRoutine != null) {
         GuidedStretchPlayerScreen(
             routine = activeStretchRoutine!!,
@@ -302,8 +294,7 @@ fun SettingsScreen(
                 Txt("Also save meal photos to the gallery", Type.body, Modifier.weight(1f))
                 Toggle(galleryEnabled, "Also save meal photos to the gallery") { enabled ->
                     galleryState.value = enabled
-                    prefs.saveToGallery = enabled
-                    onSaveToGallery?.invoke(enabled)
+                    onSaveToGallery?.invoke(enabled) ?: run { prefs.saveToGallery = enabled }
                 }
             }
         }
@@ -339,7 +330,7 @@ fun SettingsScreen(
                 val nextIndex = (currentIndex + 1) % routineOptions.size
                 val nextId = routineOptions[nextIndex].first
                 currentStretchRoutineId = nextId
-                stretchSp.edit().putString("stretch_default_routine", nextId).apply()
+                prefs.stretchRoutine = nextId
                 onStretchRoutine?.invoke(nextId)
             }) {
                 Txt("Default routine", Type.body, Modifier.weight(1f))
@@ -349,7 +340,9 @@ fun SettingsScreen(
                 if (onOpenStretchPlayer != null) {
                     onOpenStretchPlayer(currentStretchRoutineId)
                 } else {
-                    activeStretchRoutine = dev.gzclp.tracker.stretch.StretchRoutines.of(currentStretchRoutineId)
+                    // After workout picks its moves from today's lifts, so it needs the log.
+                    val state = runCatching { dev.gzclp.tracker.AppModel.get(context).store.state.value }.getOrNull()
+                    activeStretchRoutine = dev.gzclp.tracker.stretch.StretchRoutines.of(currentStretchRoutineId, state)
                 }
             }) {
                 Txt("Start routine", Type.body, Modifier.weight(1f), color = p.accent)

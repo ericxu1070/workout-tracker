@@ -33,9 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.StretchLogged
-import dev.gzclp.tracker.stretch.AnimatedStickFigure
+import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.stretch.BodyArea
-import dev.gzclp.tracker.stretch.StickFigureCanvas
 import dev.gzclp.tracker.stretch.StretchMove
 import dev.gzclp.tracker.stretch.StretchMoves
 import dev.gzclp.tracker.stretch.StretchPlayerState
@@ -167,11 +166,7 @@ fun StretchScreen(
             displayedMoves.forEachIndexed { i, move ->
                 GroupRow(first = i == 0, onClick = { previewMove = move }) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(p.fill)) {
-                        StickFigureCanvas(
-                            pose = move.endPose,
-                            targetArea = move.targetArea,
-                            modifier = Modifier.fillMaxSize().padding(2.dp),
-                        )
+                        FormView(Motions.of(move), Modifier.fillMaxSize(), area = move.targetArea, still = 1f)
                     }
                     Spacer(Modifier.width(Space.sm))
                     Column(Modifier.weight(1f)) {
@@ -326,7 +321,7 @@ fun GuidedStretchPlayerScreen(
 
         Spacer(Modifier.height(Space.md))
 
-        // Stick Figure Animation Canvas
+        // 3D form, orbitable
         Box(
             Modifier
                 .fillMaxWidth()
@@ -336,11 +331,7 @@ fun GuidedStretchPlayerScreen(
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
         ) {
-            AnimatedStickFigure(
-                move = currentMove,
-                isHolding = !isPaused,
-                modifier = Modifier.fillMaxSize(),
-            )
+            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), hold = !isPaused, area = currentMove.targetArea)
         }
 
         Spacer(Modifier.height(Space.md))
@@ -435,11 +426,7 @@ fun GuidedStretchPlayerScreen(
                         Txt(nextMove.targetArea.displayName, Type.footnote, color = p.fg2)
                     }
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(p.elevated)) {
-                        StickFigureCanvas(
-                            pose = nextMove.endPose,
-                            targetArea = nextMove.targetArea,
-                            modifier = Modifier.fillMaxSize().padding(2.dp),
-                        )
+                        FormView(Motions.of(nextMove), Modifier.fillMaxSize(), area = nextMove.targetArea, still = 1f)
                     }
                 }
             } else {
@@ -569,11 +556,7 @@ fun MovePreviewDialog(
                         .padding(Space.sm),
                     contentAlignment = Alignment.Center,
                 ) {
-                    AnimatedStickFigure(
-                        move = move,
-                        isHolding = false,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    FormView(Motions.of(move), Modifier.fillMaxSize(), hold = false, area = move.targetArea)
                 }
 
                 Spacer(Modifier.height(Space.md))

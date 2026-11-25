@@ -47,14 +47,9 @@ This directory contains on-device machine learning models, label mappings, and n
 
 ---
 
-## 3. Calorie & Nutrition Reference Table (`calories.json`)
+## 3. Calorie Range Table (`calories.json`)
 
-* **Source:** U.S. Department of Agriculture (USDA) FoodData Central (FDC)
-* **Databases:**
-  - USDA Food and Nutrient Database for Dietary Studies (FNDDS) 2019–2020 & 2021–2023
-  - USDA National Nutrient Database for Standard Reference (SR Legacy)
-  - USDA Foundation Foods (Release October 2024)
-* **URL:** `https://fdc.nal.usda.gov/`
-* **License / Terms of Use:** U.S. Government Public Domain
-  As a work of the United States Government prepared by officers and employees thereof as part of their official duties (Agricultural Research Service, USDA), this data is in the public domain in the United States and worldwide under 17 U.S.C. § 105. No copyright restrictions apply.
-* **Serving Methodology:** Each food category maps to a typical single-meal serving portion with a lower and upper bound calorie estimate (`kcalLow` to `kcalHigh`), reflecting natural preparation and portion variances. In accordance with guidelines, calorie estimates are never presented as a single exact number.
+* **Source:** Written for this app. Each classifier label is assigned a rough per-serving calorie bucket by food category (21 distinct ranges across 1,989 labels; 1,419 labels fall back to 400–650 kcal).
+* **Not derived from** USDA FoodData Central or any other published nutrient database. Treat every range as a coarse guess the user confirms or edits.
+* **License:** Same as this repository.
+* **Serving Methodology:** Each label maps to a lower and upper bound (`kcalLow` to `kcalHigh`), never a single exact number.

@@ -18,15 +18,13 @@ data class Prediction(
     val score: Float,
     val kcalRange: Nutrition.KcalRange,
 ) {
-    val display: String get() = Nutrition.format(label, kcalRange)
-
-    fun toEstimate(mealFileName: String, confirmed: Boolean = true): FoodEstimate =
+    fun toEstimate(mealFileName: String): FoodEstimate =
         FoodEstimate(
             meal = mealFileName,
             label = label,
             kcalLow = kcalRange.low,
             kcalHigh = kcalRange.high,
-            confirmed = confirmed,
+            confirmed = true,
         )
 }
 
@@ -46,18 +44,10 @@ object Classifier {
     @Volatile
     private var labels: List<String>? = null
 
-    /** Last measured inference time in milliseconds, or null if not yet measured or measured on JVM. */
-    var lastInferenceTimeMs: Long? = null
-        private set
-
-    /** Whether inference time has been measured on this device. */
-    var inferenceMeasured: Boolean = false
-        private set
-
     /** Synchronously classifies [photo] into the top [topK] candidate predictions. */
     fun classifySync(context: Context, photo: File, topK: Int = 3): List<Prediction> {
-        val bmp = BitmapFactory.decodeFile(photo.absolutePath) ?: return fallbackPredictions(photo.name, topK)
-        return classifyBitmap(context, bmp, photo.name, topK)
+        val bmp = BitmapFactory.decodeFile(photo.absolutePath) ?: return emptyList()
+        return classifyBitmap(context, bmp, topK)
     }
 
     /** Asynchronously classifies [photo] off the main thread. */
@@ -67,13 +57,12 @@ object Classifier {
         }
 
     /** Classifies a decoded [bmp]. */
-    fun classifyBitmap(context: Context, bmp: Bitmap, name: String = "", topK: Int = 3): List<Prediction> {
+    fun classifyBitmap(context: Context, bmp: Bitmap, topK: Int = 3): List<Prediction> {
         val classLabels = getLabels(context)
         val interp = getInterpreter(context)
 
-        if (interp == null || classLabels.isEmpty()) {
-            return fallbackPredictions(name, topK)
-        }
+        // No model, no guess: a made-up label would read as the photo's estimate.
+        if (interp == null || classLabels.isEmpty()) return emptyList()
 
         return try {
             val scaled = if (bmp.width == INPUT_SIZE && bmp.height == INPUT_SIZE) bmp
@@ -94,11 +83,8 @@ object Classifier {
 
             val outputBuffer = Array(1) { ByteArray(NUM_CLASSES) }
 
-            val startNs = System.nanoTime()
-            interp.run(inputBuffer, outputBuffer)
-            val durationMs = (System.nanoTime() - startNs) / 1_000_000
-            lastInferenceTimeMs = durationMs
-            inferenceMeasured = true
+            // One shared Interpreter, which is not thread-safe; meals classify concurrently.
+            synchronized(interp) { interp.run(inputBuffer, outputBuffer) }
 
             val scores = outputBuffer[0]
             val ranked = mutableListOf<Pair<Int, Float>>()
@@ -115,9 +101,9 @@ object Classifier {
                 val range = Nutrition.range(label, context)
                 Prediction(label, score, range)
             }
-            if (results.isEmpty()) fallbackPredictions(name, topK) else results
+            results
         } catch (t: Throwable) {
-            fallbackPredictions(name, topK)
+            emptyList()
         }
     }
 
@@ -157,21 +143,4 @@ object Classifier {
             }
         }
     }.getOrNull()
-
-    /**
-     * Fallback predictions when TFLite native runtime or assets are unavailable (e.g. JVM tests).
-     * Provides valid, non-null predictions with USDA-backed ranges.
-     */
-    fun fallbackPredictions(hint: String = "", topK: Int = 3): List<Prediction> {
-        val candidates = listOf(
-            "Chicken rice bowl" to Nutrition.KcalRange(600, 800),
-            "Fried rice" to Nutrition.KcalRange(450, 700),
-            "Pilaf" to Nutrition.KcalRange(400, 650),
-            "Pizza" to Nutrition.KcalRange(500, 800),
-            "Cheeseburger" to Nutrition.KcalRange(500, 800),
-        )
-        return candidates.take(topK).mapIndexed { i, (label, range) ->
-            Prediction(label, 0.85f - (i * 0.15f), range)
-        }
-    }
 }

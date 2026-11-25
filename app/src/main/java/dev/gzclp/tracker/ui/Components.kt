@@ -322,17 +322,22 @@ fun Toggle(on: Boolean, label: String, onChange: (Boolean) -> Unit) {
     }
 }
 
+private val SheetEase = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
+
 /** Bottom sheet over a scrim; tapping the scrim dismisses. */
 @Composable
 fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
+    // Back closes the sheet, never the screen or the app beneath it.
+    androidx.activity.compose.BackHandler(visible, onDismiss)
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
             Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         }
         AnimatedVisibility(
             visible, Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(tween(280)) { it }, exit = slideOutVertically(tween(180)) { it },
+            // Apple's sheet curve: fast out of the gate, long settle; leaving takes about two thirds as long.
+            enter = slideInVertically(tween(300, easing = SheetEase)) { it }, exit = slideOutVertically(tween(200, easing = SheetEase)) { it },
         ) {
             Column(
                 Modifier.fillMaxWidth()

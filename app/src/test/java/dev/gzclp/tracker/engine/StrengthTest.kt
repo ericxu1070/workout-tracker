@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.engine
 
+import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.ExerciseMeta
@@ -46,12 +47,12 @@ class StrengthTest {
         val updatedSuggestion = updatedState.suggest("ohp", reps = 3, targetRir = 2.0)
         assertEquals(110, updatedSuggestion)
 
-        // Case C: Log replay via fromEntries
+        // Case C: log replay
         val entries = listOf(
             Entry(1, now.minusDays(2), ProgressionEvent("ohp", "t1", "initial", toWeight = 105, toStage = "5x3+")),
             Entry(2, now.minusDays(1), ProgressionEvent("ohp", "t2", "manual_edit", toWeight = 95, toStage = "3x10")),
         )
-        val replayed = StrengthState.fromEntries(entries)
+        val replayed = dev.gzclp.tracker.log.AppState.fold(entries).strengthModel()
         val replayedSuggestion = replayed.suggest("ohp", reps = 3, targetRir = 2.0)
         assertNotNull(replayedSuggestion)
         assertTrue("Expected 110 or 115 but was $replayedSuggestion", replayedSuggestion in listOf(110, 115))
@@ -122,7 +123,7 @@ class StrengthTest {
             Entry(3, now, SetLogged("s1", "lat_pulldown", "t3", "3x15+", 2, 15, 13, 100, 100, false)),
             Entry(4, now, SessionEnd("s1", "gzclp", "A1", now.toString(), 3600)),
         )
-        val model = StrengthState.fromEntries(entries)
+        val model = dev.gzclp.tracker.log.AppState.fold(entries).strengthModel()
         assertNull(model.estimate("lat_pulldown"))
     }
 
@@ -136,7 +137,7 @@ class StrengthTest {
         val entries = listOf(
             Entry(1, now, ProgressionEvent("bench", "t2", "manual_edit", toWeight = 155, toStage = "3x8")),
         )
-        val model = StrengthState.fromEntries(entries)
+        val model = dev.gzclp.tracker.log.AppState.fold(entries).strengthModel()
 
         // T1 sibling (reps = 3, targetRir = 2.0)
         val t1Suggest = model.suggest("bench", reps = 3, targetRir = 2.0)
@@ -218,5 +219,21 @@ class StrengthTest {
         assertEquals(ChangeKind.MANUAL_EDIT.id, ohpAdapt!!.kind)
         assertEquals(105, ohpAdapt.fromWeight)
         assertEquals(110, ohpAdapt.toWeight)
+    }
+
+    @Test
+    fun manualEditDownAfterAStrongSessionLowersTheModel() {
+        val fiveRm = mapOf(Lift.SQUAT to 245, Lift.BENCH to 175, Lift.DEADLIFT to 295, Lift.OHP to 115)
+        var state = AppState.fold(Commands.setup(fiveRm, Programs.GZCLP).mapIndexed { i, e -> Entry(i.toLong(), now, e) })
+        val day = state.nextDay
+        state = Commands.startOpen(state, now).fold(state) { s, e -> s.apply(Entry(50, now, e)) }
+        val squat = state.exercises(day).first { it.id == "squat" && it.tier == Tier.T1 }
+        state = Commands.logSet(state, squat, 1, 5, 300, now, emptyMap()).fold(state) { s, e -> s.apply(Entry(51, now, e)) }
+        state = Commands.end(state, now.plusMinutes(30), null).fold(state) { s, e -> s.apply(Entry(52, now, e)) }
+        val strong = state.strengthModel().estimate("squat")!!
+        val t1 = state.exercises(day).first { it.id == "squat" && it.tier == Tier.T1 }
+        state = Commands.editWeight(state, t1, 150).fold(state) { s, e -> s.apply(Entry(53, now, e)) }
+        val after = state.strengthModel().estimate("squat")!!
+        assertTrue("a lower manual edit lowers the estimate ($after < $strong)", after < strong)
     }
 }

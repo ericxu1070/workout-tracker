@@ -21,28 +21,8 @@ object WaterLog {
     val DEFAULT_WAKE_TIME: LocalTime = LocalTime.of(7, 0)
     const val ML_PER_OZ = 29.5735
 
-    fun ozToMl(oz: Double): Int = Math.round(oz * ML_PER_OZ).toInt()
-    fun mlToOz(ml: Int): Double = ml / ML_PER_OZ
-
-    /** Formats a volume in ml and optional oz. */
-    fun formatVolume(ml: Int, isLb: Boolean = true): String {
-        return if (isLb) {
-            val oz = ml / ML_PER_OZ
-            "%.1f oz (%d ml)".format(Locale.US, oz, ml)
-        } else {
-            "$ml ml"
-        }
-    }
-
-    /** Formats cup size for slider labels. */
-    fun formatCupSize(ml: Int, isLb: Boolean = true): String {
-        return if (isLb) {
-            val oz = ml / ML_PER_OZ
-            "$ml ml · %.1f oz".format(Locale.US, oz)
-        } else {
-            "$ml ml"
-        }
-    }
+    /** A volume as "250 ml · 8.5 oz". */
+    fun formatVolume(ml: Int): String = "$ml ml · %.1f oz".format(Locale.US, ml / ML_PER_OZ)
 
     /** Returns all water entries for [day] (or all if null), chronologically ordered. */
     fun entriesForDay(state: AppState, day: LocalDate? = null): List<WaterLogged> {
@@ -62,11 +42,6 @@ object WaterLog {
         return entriesForDay(state, day).sumOf { it.ml }
     }
 
-    /** Last logged water entry on [day] (or overall if null). */
-    fun lastEntry(state: AppState, day: LocalDate? = null): WaterLogged? {
-        return entriesForDay(state, day).lastOrNull()
-    }
-
     /** Command to log water intake. Releasing above 10% logs [ml]. */
     fun logWater(
         state: AppState,
@@ -84,12 +59,6 @@ object WaterLog {
     /** Command to clear/undo a water entry. */
     fun clearWater(id: String): List<Event> {
         return listOf(WaterCleared(id))
-    }
-
-    /** Undo the most recent water entry on [day]. */
-    fun undoLast(state: AppState, day: LocalDate = LocalDate.now()): List<Event> {
-        val last = lastEntry(state, day) ?: return emptyList()
-        return clearWater(last.id)
     }
 
     /**

@@ -13,7 +13,15 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-enum class HabitKind { WEIGH_IN, MEAL, STRETCH, WATER }
+/** Alarm request codes and notification ids are fixed per kind; WEIGH_IN's id 2 matches the old single weigh-in alarm. */
+enum class HabitKind(val requestCode: Int, val channelId: String, val channelName: String) {
+    WEIGH_IN(1, "weigh_in", "Weigh-in reminder"),
+    MEAL(2, "meal", "Meal reminder"),
+    STRETCH(3, "stretch", "Stretch reminder"),
+    WATER(4, "water", "Water reminder");
+
+    val notificationId: Int get() = requestCode + 1
+}
 
 const val DAY_START_HOUR = 4
 const val MINUTES_PER_DAY = 24 * 60
@@ -44,9 +52,6 @@ fun minutesFrom4amToTime(minutes: Double): LocalTime {
 /** The logical day starting at 4:00 a.m. */
 fun logicalDateOf(local: LocalDateTime): LocalDate =
     if (local.hour < DAY_START_HOUR) local.toLocalDate().minusDays(1) else local.toLocalDate()
-
-fun logicalDateOf(dateTime: OffsetDateTime, zone: ZoneId = ZoneId.systemDefault()): LocalDate =
-    logicalDateOf(dateTime.atZoneSameInstant(zone).toLocalDateTime())
 
 data class WeekdayEma(
     val mean: DoubleArray = DoubleArray(7),
@@ -176,76 +181,41 @@ data class HabitModel(
     val weighIn: WeekdayEma = WeekdayEma(),
     val meals: MealTracker = MealTracker(),
     val stretch: WeekdayEma = WeekdayEma(),
-    val water: WeekdayEma = WeekdayEma(),
 ) {
     fun predict(kind: HabitKind, date: LocalDate): List<LocalTime> = when (kind) {
         HabitKind.WEIGH_IN -> weighIn.predictTime(date.dayOfWeek)?.let { listOf(it) }.orEmpty()
         HabitKind.MEAL -> meals.predict(date)
         HabitKind.STRETCH -> stretch.predictTime(date.dayOfWeek)?.let { listOf(it) }.orEmpty()
-        HabitKind.WATER -> water.predictTime(date.dayOfWeek)?.let { listOf(it) }.orEmpty()
+        // Water reminders follow intake pace from the wake time, not a learned drinking time.
+        HabitKind.WATER -> emptyList()
     }
 
     fun count(kind: HabitKind): Int = when (kind) {
         HabitKind.WEIGH_IN -> weighIn.allN
         HabitKind.MEAL -> meals.totalCount
         HabitKind.STRETCH -> stretch.allN
-        HabitKind.WATER -> water.allN
+        HabitKind.WATER -> 0
     }
 }
 
+/** Only each logical day's first event trains the EMA. */
+private fun firstPerDay(times: List<LocalDateTime>): WeekdayEma =
+    times.groupBy(::logicalDateOf).toSortedMap().entries.fold(WeekdayEma()) { ema, (day, ts) ->
+        ema.update(day.dayOfWeek, ts.minOf { timeToMinutesFrom4am(it.toLocalTime()) }.toDouble())
+    }
+
 /** Rebuilds habits model from app state events and food folder photos. */
 fun rebuildHabits(state: AppState, meals: List<Meal>, zone: ZoneId = ZoneId.systemDefault()): HabitModel {
-    // 1. WEIGH_IN: only first event per logical day updates it
-    var weighInEma = WeekdayEma()
-    val weighInsByDay = state.bodyWeights.values
-        .map { it.at.atZoneSameInstant(zone).toLocalDateTime() }
-        .groupBy { logicalDateOf(it) }
-        .toSortedMap()
-    for ((logicalDate, times) in weighInsByDay) {
-        val earliest = times.minByOrNull { it.toLocalTime() } ?: continue
-        val m = timeToMinutesFrom4am(earliest.toLocalTime()).toDouble()
-        weighInEma = weighInEma.update(logicalDate.dayOfWeek, m)
-    }
-
-    // 2. MEALS: chronologically processed through MealTracker
-    var mealTracker = MealTracker()
-    val sortedMeals = meals.sortedBy { it.at }
-    for (meal in sortedMeals) {
-        mealTracker = mealTracker.addMeal(meal.at, zone)
-    }
-
-    // 3. STRETCH: only first event per logical day updates it
-    var stretchEma = WeekdayEma()
-    val stretchesByDay = state.stretches.values
-        .mapNotNull { runCatching { OffsetDateTime.parse(it.at, LogCodec.TS).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull() }
-        .groupBy { logicalDateOf(it) }
-        .toSortedMap()
-    for ((logicalDate, times) in stretchesByDay) {
-        val earliest = times.minByOrNull { it.toLocalTime() } ?: continue
-        val m = timeToMinutesFrom4am(earliest.toLocalTime()).toDouble()
-        stretchEma = stretchEma.update(logicalDate.dayOfWeek, m)
-    }
-
-    // 4. WATER: only first event per logical day updates it
-    var waterEma = WeekdayEma()
-    val waterByDay = state.water.values
-        .mapNotNull { runCatching { OffsetDateTime.parse(it.at, LogCodec.TS).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull() }
-        .groupBy { logicalDateOf(it) }
-        .toSortedMap()
-    for ((logicalDate, times) in waterByDay) {
-        val earliest = times.minByOrNull { it.toLocalTime() } ?: continue
-        val m = timeToMinutesFrom4am(earliest.toLocalTime()).toDouble()
-        waterEma = waterEma.update(logicalDate.dayOfWeek, m)
-    }
-
-    return HabitModel(weighInEma, mealTracker, stretchEma, waterEma)
+    fun local(at: String) = runCatching { OffsetDateTime.parse(at, LogCodec.TS).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull()
+    return HabitModel(
+        weighIn = firstPerDay(state.bodyWeights.values.map { it.at.atZoneSameInstant(zone).toLocalDateTime() }),
+        meals = meals.sortedBy { it.at }.fold(MealTracker()) { t, m -> t.addMeal(m.at, zone) },
+        stretch = firstPerDay(state.stretches.values.mapNotNull { local(it.at) }),
+    )
 }
 
 fun AppState.hasStretch(day: LocalDate, zone: ZoneId = ZoneId.systemDefault()): Boolean =
     stretches.values.any { runCatching { OffsetDateTime.parse(it.at, LogCodec.TS).atZoneSameInstant(zone).toLocalDate() == day }.getOrDefault(false) }
-
-fun AppState.hasWater(day: LocalDate, zone: ZoneId = ZoneId.systemDefault()): Boolean =
-    water.values.any { runCatching { OffsetDateTime.parse(it.at, LogCodec.TS).atZoneSameInstant(zone).toLocalDate() == day }.getOrDefault(false) }
 
 /** In-memory cache for habit models. */
 @Volatile

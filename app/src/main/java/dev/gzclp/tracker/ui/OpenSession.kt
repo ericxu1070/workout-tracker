@@ -66,26 +66,26 @@ enum class MuscleGroup(val label: String, val targetSets: Int = 10) {
     Core("Core", 10);
 
     companion object {
+        private val catalog: Map<String, MuscleGroup> = mapOf(
+            Legs to "squat leg_press leg_curl leg_extension calf_raise romanian_deadlift pistol_squat",
+            Chest to "bench incline_db_press chest_fly push_up dip",
+            Arms to "barbell_curl hammer_curl tricep_pushdown overhead_tricep_extension",
+            Shoulders to "ohp lateral_raise",
+            Pull to "deadlift barbell_row lat_pulldown dumbbell_row seated_cable_row face_pull rear_delt_fly pull_up chin_up muscle_up inverted_row",
+        ).flatMap { (g, ids) -> ids.split(" ").map { it to g } }.toMap()
+
+        /** Catalog moves by table; a custom exercise by whole words in its id, so "seated_cable_row" never reads as "ab". */
         fun of(exerciseId: String): MuscleGroup {
-            val id = exerciseId.lowercase()
+            val id = exerciseId.lowercase().removePrefix("weighted_").removePrefix("assisted_")
+            catalog[id]?.let { return it }
+            val words = id.split('_', '-', ' ').toSet()
+            fun has(vararg w: String) = w.any { it in words }
             return when {
-                id == "romanian_deadlift" || id in listOf("squat", "leg_press", "leg_curl", "leg_extension", "calf_raise") ||
-                    id.contains("squat") || id.contains("leg") || id.contains("calf") || id.contains("lunge") || id.contains("quad") || id.contains("hamstring") -> Legs
-
-                id in listOf("bench", "incline_db_press", "chest_fly", "push_up", "dip", "dips") ||
-                    id.contains("chest") || id.contains("bench") || id.contains("push_up") || id.contains("dip") -> Chest
-
-                id in listOf("barbell_curl", "hammer_curl", "tricep_pushdown", "overhead_tricep_extension") ||
-                    id.contains("curl") || id.contains("tricep") || id.contains("bicep") || id.contains("arm") -> Arms
-
-                id in listOf("ohp", "lateral_raise") ||
-                    id.contains("shoulder") || id.contains("delt") || id.contains("ohp") || id.contains("overhead_press") -> Shoulders
-
-                id.contains("crunch") || id.contains("plank") || id.contains("ab") || id.contains("core") -> Core
-
-                id in listOf("deadlift", "barbell_row", "lat_pulldown", "dumbbell_row", "seated_cable_row", "pull_up", "chin_up", "face_pull", "rear_delt_fly") ||
-                    id.contains("row") || id.contains("pulldown") || id.contains("pull_up") || id.contains("chin_up") || id.contains("lat") || id.contains("back") || id.contains("deadlift") || id.contains("pull") -> Pull
-
+                has("squat", "leg", "legs", "calf", "lunge", "quad", "quads", "hamstring", "glute") -> Legs
+                has("chest", "bench", "fly", "dip") -> Chest
+                has("curl", "tricep", "triceps", "bicep", "biceps") -> Arms
+                has("crunch", "plank", "ab", "abs", "core", "situp") -> Core
+                has("shoulder", "delt", "ohp", "raise") -> Shoulders
                 else -> Pull
             }
         }
@@ -143,9 +143,12 @@ object OpenSessionManager {
     var isBlank by mutableStateOf(false)
     val exercises = mutableStateListOf<OpenExercise>()
     var showCountSheet by mutableStateOf(false)
+    /** The logged session these exercises belong to; null between [start] and the session_start landing. */
+    private var sessionId: String? = null
 
     fun start(fromToday: Boolean, state: AppState, onStartWorkout: () -> Unit) {
         isActive = true
+        sessionId = null
         isBlank = !fromToday
         exercises.clear()
         showCountSheet = false
@@ -173,6 +176,24 @@ object OpenSessionManager {
             weight = weight,
         )
         exercises.add(OpenExercise(ex, weight, reps, matchingSlot?.scheme?.sets ?: 3, isMatchingProgramSlot = matchingSlot != null))
+    }
+
+    /** Binds to the open session in the log, rebuilding the cards from its logged sets after a restart or a stale start. */
+    fun attach(state: AppState) {
+        val a = state.active?.takeIf { it.open } ?: return
+        if (isActive && sessionId == a.id) return
+        if (!isActive || sessionId != null) {
+            exercises.clear()
+            isBlank = true
+            showCountSheet = false
+        }
+        isActive = true
+        sessionId = a.id
+        a.sets.keys.groupBy { it.exercise }.forEach { (id, keys) ->
+            addExercise(state, id)
+            val i = exercises.indexOfFirst { it.exercise.id == id }
+            if (i >= 0) exercises[i] = exercises[i].copy(setsCount = maxOf(exercises[i].setsCount, keys.maxOf { it.setIndex }))
+        }
     }
 
     fun removeExercise(exerciseId: String) {
@@ -227,13 +248,14 @@ object OpenSessionManager {
 
     fun reset() {
         isActive = false
+        sessionId = null
         isBlank = false
         exercises.clear()
         showCountSheet = false
     }
 }
 
-/** Weekly volume per muscle group bar on the Workout tab ("Pull 8 / 12 this week"). */
+/** Weekly volume per muscle group bar on the Workout tab ("Pull · 8 of 10 sets"). */
 @Composable
 fun WeeklyVolumeSection(
     state: AppState,
@@ -252,7 +274,7 @@ fun WeeklyVolumeSection(
                 Column(Modifier.fillMaxWidth().padding(vertical = Space.xs)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Txt(group.label, Type.headline, Modifier.weight(1f))
-                        Txt("${group.label} $done / $target this week", Type.footnote, color = if (done >= target) p.accent else p.fg2)
+                        Txt("$done of $target sets", Type.footnote.tabular(), color = if (done >= target) p.accent else p.fg2)
                     }
                     Spacer(Modifier.height(Space.xs))
                     Box(
@@ -283,7 +305,7 @@ fun OpenSessionStartSheet(
     val p = LocalPalette.current
     val day = state.nextDay
     Column(
-        Modifier.fillMaxWidth().background(p.bg).padding(Space.lg),
+        Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Txt("Open session", Type.title2)
@@ -324,7 +346,7 @@ fun OpenSessionCountSheet(
 ) {
     val p = LocalPalette.current
     Column(
-        Modifier.fillMaxWidth().background(p.bg).padding(Space.lg),
+        Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Txt("Count toward your program?", Type.title2)
@@ -374,7 +396,7 @@ fun AddExerciseSheet(
     }
 
     Column(
-        Modifier.fillMaxWidth().heightIn(max = 500.dp).background(p.bg).padding(Space.lg),
+        Modifier.fillMaxWidth().heightIn(max = 500.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Txt("Add exercise", Type.title2, Modifier.weight(1f))
@@ -448,7 +470,7 @@ fun OpenSessionScreen(
     onLog: (Exercise, Int, Int, Int, Double?) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onFinish: (Boolean) -> Unit,
-    onCancel: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val p = LocalPalette.current
     val a = state.active
@@ -464,8 +486,9 @@ fun OpenSessionScreen(
             )
         }
     }) {
-        NavRow(onBack = onCancel) {
+        NavRow {
             SmallPill("Add exercise", { showAddExercise = true })
+            IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2)
         }
 
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -512,39 +535,29 @@ fun OpenSessionScreen(
         SmallPill("+ Add another exercise", { showAddExercise = true }, Modifier.align(Alignment.CenterHorizontally))
     }
 
-    if (showAddExercise) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            AddExerciseSheet(
-                state = state,
-                onSelect = { id ->
-                    OpenSessionManager.addExercise(state, id)
-                    showAddExercise = false
-                },
-                onDismiss = { showAddExercise = false },
-            )
-        }
+    Sheet(showAddExercise, { showAddExercise = false }) {
+        AddExerciseSheet(
+            state = state,
+            onSelect = { id ->
+                OpenSessionManager.addExercise(state, id)
+                showAddExercise = false
+            },
+            onDismiss = { showAddExercise = false },
+        )
     }
 
-    if (OpenSessionManager.showCountSheet) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            OpenSessionCountSheet(
-                onYes = {
-                    OpenSessionManager.showCountSheet = false
-                    onFinish(true)
-                },
-                onNo = {
-                    OpenSessionManager.showCountSheet = false
-                    onFinish(false)
-                },
-                onDismiss = { OpenSessionManager.showCountSheet = false },
-            )
-        }
+    Sheet(OpenSessionManager.showCountSheet, { OpenSessionManager.showCountSheet = false }) {
+        OpenSessionCountSheet(
+            onYes = {
+                OpenSessionManager.showCountSheet = false
+                onFinish(true)
+            },
+            onNo = {
+                OpenSessionManager.showCountSheet = false
+                onFinish(false)
+            },
+            onDismiss = { OpenSessionManager.showCountSheet = false },
+        )
     }
 }
 
@@ -581,6 +594,7 @@ fun OpenExerciseCard(
             }
             SmallPill("Remove", onRemoveExercise)
         }
+        FormToggle(ex.id)
 
         Spacer(Modifier.height(Space.md))
 

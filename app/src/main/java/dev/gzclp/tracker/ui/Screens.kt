@@ -46,9 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
-import dev.gzclp.tracker.AppModel
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -222,6 +220,7 @@ fun HomeScreen(
     onEditWeight: (Exercise) -> Unit,
     onCardio: () -> Unit = {},
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
+    onStartOpen: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val day = state.nextDay
@@ -267,24 +266,19 @@ fun HomeScreen(
         }
         if (missing > 0) GroupFooter(if (missing == 1) "One exercise needs a starting weight." else "$missing exercises need a starting weight.")
     }
-    if (showOpenSessionSheet) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            OpenSessionStartSheet(
-                state = state,
-                onStartFromToday = {
-                    showOpenSessionSheet = false
-                    OpenSessionManager.start(fromToday = true, state, onStart)
-                },
-                onStartBlank = {
-                    showOpenSessionSheet = false
-                    OpenSessionManager.start(fromToday = false, state, onStart)
-                },
-                onDismiss = { showOpenSessionSheet = false },
-            )
-        }
+    Sheet(showOpenSessionSheet, { showOpenSessionSheet = false }) {
+        OpenSessionStartSheet(
+            state = state,
+            onStartFromToday = {
+                showOpenSessionSheet = false
+                OpenSessionManager.start(fromToday = true, state, onStartOpen)
+            },
+            onStartBlank = {
+                showOpenSessionSheet = false
+                OpenSessionManager.start(fromToday = false, state, onStartOpen)
+            },
+            onDismiss = { showOpenSessionSheet = false },
+        )
     }
 }
 /** What the rest card needs; null when not resting. */
@@ -304,25 +298,22 @@ fun WorkoutScreen(
     onEnd: () -> Unit,
     warmups: Boolean = true,
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
+    onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
-    if (OpenSessionManager.isActive) {
-        val context = LocalContext.current
+    if (a.open) {
+        LaunchedEffect(a.id, OpenSessionManager.isActive) { OpenSessionManager.attach(state) }
         OpenSessionScreen(
             state = state,
             now = now,
             onLog = onLog,
             onClear = onClear,
             onFinish = { counts ->
-                runCatching {
-                    val model = AppModel.get(context)
-                    model.dispatch { s -> Commands.endOpen(s, model.now(), counts = counts) }
-                    model.cancelRest()
-                }
                 OpenSessionManager.reset()
+                onFinishOpen(counts)
             },
-            onCancel = onEnd,
+            onSettings = onSettings,
         )
         return
     }
@@ -404,6 +395,7 @@ private fun ExerciseBlock(
             Txt(Fmt.lb(ex.weight ?: 0), Type.title3.tabular(), Modifier.padding(start = Space.lg), p.accent)
         }
     }
+    FormToggle(ex.id)
     val plan = ex.weight
     val suggested = if (plan != null) state.strengthSuggestion(ex) else null
     if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {

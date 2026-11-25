@@ -1,6 +1,9 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -33,6 +36,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -293,7 +298,6 @@ fun MorphingCup(
 fun CupSizeSlider(
     valueMl: Int,
     onValueChange: (Int) -> Unit,
-    isLb: Boolean = true,
     minMl: Int = 100,
     maxMl: Int = 1000,
     stepMl: Int = 50,
@@ -316,7 +320,7 @@ fun CupSizeSlider(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Txt(vesselName(valueMl), Type.headline)
-            Txt(WaterLog.formatCupSize(valueMl, isLb), Type.body.tabular(), color = p.accent)
+            Txt(WaterLog.formatVolume(valueMl), Type.body.tabular(), color = p.accent)
         }
         Spacer(Modifier.height(Space.xs))
         BoxWithConstraints(
@@ -358,23 +362,29 @@ fun CupSizeSlider(
 fun InteractiveCup(
     cupSizeMl: Int,
     onLogWater: (Int) -> Unit,
-    isLb: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val haptic = LocalHapticFeedback.current
     var isDragging by remember { mutableStateOf(false) }
     var fillFraction by remember { mutableFloatStateOf(0f) }
     var lastTickStep by remember { mutableIntStateOf(0) }
-    val infiniteTransition = rememberInfiniteTransition(label = "wave")
-    val animWavePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2.0 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "phase",
-    )
+    // After release the water settles out of the cup instead of vanishing: drains on a log, sinks back on a cancel.
+    val settle = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val shownFill = if (isDragging) fillFraction else settle.value
+    // The wave only runs while there is water to move, so an idle cup costs no frames.
+    val animWavePhase = if (shownFill > 0f) {
+        val infiniteTransition = rememberInfiniteTransition(label = "wave")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = (2.0 * Math.PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "phase",
+        ).value
+    } else 0f
 
     Column(
         modifier = modifier,
@@ -389,7 +399,7 @@ fun InteractiveCup(
             if (isDragging && fillFraction > 0.05f) {
                 val currentMl = (fillFraction * cupSizeMl).roundToInt()
                 Txt(
-                    "+ ${WaterLog.formatVolume(currentMl, isLb)}",
+                    "+ ${WaterLog.formatVolume(currentMl)}",
                     Type.headline.tabular(),
                     color = LocalPalette.current.accent,
                 )
@@ -410,6 +420,7 @@ fun InteractiveCup(
                 .pointerInput(cupSizeMl) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        scope.launch { settle.snapTo(0f) }
                         isDragging = true
                         val h = size.height.toFloat()
                         val bottomY = h * 0.92f
@@ -430,26 +441,34 @@ fun InteractiveCup(
                         updateFraction(down.position.y)
 
                         var change = awaitVerticalDragOrCancellation(down.id)
+                        // A tap lands at some height too; only a drag logs.
+                        val dragged = change != null
                         while (change != null && change.pressed) {
                             updateFraction(change.position.y)
                             change.consume()
                             change = awaitVerticalDragOrCancellation(change.id)
                         }
 
-                        if (fillFraction >= 0.10f) {
-                            val loggedMl = (fillFraction * cupSizeMl).roundToInt()
-                            onLogWater(loggedMl)
+                        val logged = dragged && fillFraction >= 0.10f
+                        if (logged) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLogWater((fillFraction * cupSizeMl).roundToInt())
                         }
+                        val from = fillFraction
                         isDragging = false
                         fillFraction = 0f
                         lastTickStep = 0
+                        scope.launch {
+                            settle.snapTo(from)
+                            settle.animateTo(0f, tween(if (logged) 420 else 220, easing = EaseOutQuart))
+                        }
                     }
                 },
             contentAlignment = Alignment.Center,
         ) {
             MorphingCup(
                 cupSizeMl = cupSizeMl,
-                fillFraction = fillFraction,
+                fillFraction = shownFill,
                 modifier = Modifier.fillMaxSize(),
                 wavePhase = animWavePhase,
                 isDragging = isDragging,
@@ -462,12 +481,13 @@ fun InteractiveCup(
 fun WaterDailyRing(
     totalMl: Int,
     goalMl: Int,
-    isLb: Boolean = true,
     deficitMl: Int = 0,
+    dayLabel: String = "Today",
     modifier: Modifier = Modifier,
 ) {
     val p = LocalPalette.current
-    val frac = if (goalMl > 0) (totalMl.toFloat() / goalMl).coerceIn(0f, 1f) else 0f
+    val target = if (goalMl > 0) (totalMl.toFloat() / goalMl).coerceIn(0f, 1f) else 0f
+    val frac by animateFloatAsState(target, tween(300, easing = EaseOutQuart), label = "ring")
     val pct = if (goalMl > 0) (totalMl * 100 / goalMl) else 0
 
     Row(
@@ -496,20 +516,18 @@ fun WaterDailyRing(
         Spacer(Modifier.width(Space.lg))
 
         Column(Modifier.weight(1f)) {
-            Txt("Daily Intake", Type.footnote, color = p.fg2)
+            Txt(dayLabel, Type.footnote, color = p.fg2)
             Txt(
                 "${totalMl} / ${goalMl} ml",
                 Type.title2.tabular(),
             )
-            if (isLb) {
-                Txt(
-                    "%.1f / %.1f oz".format(Locale.US, totalMl / WaterLog.ML_PER_OZ, goalMl / WaterLog.ML_PER_OZ),
-                    Type.footnote.tabular(),
-                    color = p.fg2,
-                )
-            }
+            Txt(
+                "%.1f / %.1f oz".format(Locale.US, totalMl / WaterLog.ML_PER_OZ, goalMl / WaterLog.ML_PER_OZ),
+                Type.footnote.tabular(),
+                color = p.fg2,
+            )
             val paceText = when {
-                totalMl >= goalMl -> "Goal reached!"
+                totalMl >= goalMl -> "Goal reached"
                 deficitMl > 0 -> "$deficitMl ml behind pace"
                 else -> "On pace"
             }
@@ -533,7 +551,6 @@ fun WaterScreen(
     day: LocalDate = LocalDate.now(),
     goalMl: Int = WaterLog.DEFAULT_GOAL_ML,
     cupSizeMl: Int = WaterLog.DEFAULT_CUP_ML,
-    isLb: Boolean = true,
     onBack: (() -> Unit)? = null,
     onLogWater: (Int) -> Unit = {},
     onClearWater: (String) -> Unit = {},
@@ -544,8 +561,9 @@ fun WaterScreen(
     var currentCupSize by rememberSaveable { mutableIntStateOf(cupSizeMl) }
     val todayEntries = remember(state.water, day) { WaterLog.entriesForDay(state, day) }
     val totalToday = remember(todayEntries) { todayEntries.sumOf { it.ml } }
-    val deficit = remember(totalToday, goalMl) {
-        WaterLog.intakeDeficitMl(totalToday, LocalTime.now(), goalMl)
+    val deficit = remember(totalToday, goalMl, day) {
+        if (day != LocalDate.now()) 0
+        else WaterLog.intakeDeficitMl(totalToday, LocalTime.now(), goalMl, WaterLog.predictedWakeTime(day))
     }
 
     ScreenFrame {
@@ -570,7 +588,6 @@ fun WaterScreen(
                 currentCupSize = it
                 onCupSizeChange?.invoke(it)
             },
-            isLb = isLb,
         )
 
         Spacer(Modifier.height(Space.md))
@@ -579,7 +596,6 @@ fun WaterScreen(
         InteractiveCup(
             cupSizeMl = currentCupSize,
             onLogWater = onLogWater,
-            isLb = isLb,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -589,15 +605,15 @@ fun WaterScreen(
         WaterDailyRing(
             totalMl = totalToday,
             goalMl = goalMl,
-            isLb = isLb,
             deficitMl = deficit,
+            dayLabel = Fmt.day(day, LocalDate.now()),
         )
 
         Spacer(Modifier.height(Space.lg))
 
         // 5. Entries list with undo
         if (todayEntries.isNotEmpty()) {
-            GroupHeader("Today's log (${todayEntries.size})")
+            GroupHeader("Log (${todayEntries.size})")
             Group {
                 todayEntries.asReversed().forEachIndexed { idx, entry ->
                     val isLast = idx == 0
@@ -621,7 +637,7 @@ fun WaterScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Txt(atText, Type.body.tabular(), Modifier.weight(1f))
-                            Txt(WaterLog.formatVolume(entry.ml, isLb), Type.body.tabular())
+                            Txt(WaterLog.formatVolume(entry.ml), Type.body.tabular())
                             if (isLast) {
                                 Spacer(Modifier.width(Space.sm))
                                 Txt("Hold to undo", Type.caption.tabular(), color = p.accent)

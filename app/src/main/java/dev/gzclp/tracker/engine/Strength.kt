@@ -38,15 +38,6 @@ fun updateEma(current: Double?, observation: Double, alphaUp: Double = 0.4, alph
 }
 
 /**
- * Manual weight edit update with α = 0.6.
- */
-fun updateEmaManualEdit(current: Double?, observation: Double): Double {
-    if (observation <= 0.0) return current ?: 0.0
-    if (current == null || current <= 0.0) return observation
-    return current + 0.6 * (observation - current)
-}
-
-/**
  * RIR for a set:
  * Uses RIR = 10 - RPE when RPE is logged; otherwise 0 for an AMRAP last set, 2 for fixed sets.
  */
@@ -54,16 +45,4 @@ fun rirForSet(rpe: Double?, amrap: Boolean): Double = when {
     rpe != null -> (10.0 - rpe).coerceAtLeast(0.0)
     amrap -> 0.0
     else -> 2.0
-}
-
-interface StrengthModel {
-    fun estimate(exercise: String): Double?
-    fun suggest(exercise: String, reps: Int, targetRir: Double): Int?
-    fun suggest(exercise: String, reps: Int, targetRir: Double, currentWeight: Int?): Int? =
-        suggest(exercise, reps, targetRir)?.let { raw ->
-            if (currentWeight != null && currentWeight > 0) {
-                val minAllowed = round5(currentWeight * 0.90)
-                maxOf(raw, minAllowed)
-            } else raw
-        }
 }

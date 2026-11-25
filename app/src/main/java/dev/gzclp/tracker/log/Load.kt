@@ -1,6 +1,5 @@
 package dev.gzclp.tracker.log
 
-import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.engine.e1rm
 import dev.gzclp.tracker.engine.rirForSet
 import java.time.LocalDate
@@ -17,39 +16,20 @@ import kotlin.math.roundToInt
  */
 val DEFAULT_BODYWEIGHT_FACTORS: Map<String, Double> = mapOf(
     "pull_up" to 1.0,
-    "weighted_pull_up" to 1.0,
-    "assisted_pull_up" to 1.0,
     "chin_up" to 1.0,
-    "weighted_chin_up" to 1.0,
-    "assisted_chin_up" to 1.0,
     "muscle_up" to 1.0,
-    "weighted_muscle_up" to 1.0,
-    "assisted_muscle_up" to 1.0,
     "dip" to 0.95,
-    "weighted_dip" to 0.95,
-    "assisted_dip" to 0.95,
     "push_up" to 0.65,
-    "weighted_push_up" to 0.65,
-    "assisted_push_up" to 0.65,
     "inverted_row" to 0.5,
-    "weighted_inverted_row" to 0.5,
-    "assisted_inverted_row" to 0.5,
     "pistol_squat" to 0.8,
-    "weighted_pistol_squat" to 0.8,
-    "assisted_pistol_squat" to 0.8,
 )
 
-/** Returns the default bodyweight factor for known calisthenics exercises and their variants. */
-fun defaultBodyweightFactor(exercise: String): Double? {
-    val clean = exercise.lowercase().trim().replace('-', '_')
-    DEFAULT_BODYWEIGHT_FACTORS[clean]?.let { return it }
-    val base = clean.removePrefix("weighted_").removePrefix("assisted_")
-    return DEFAULT_BODYWEIGHT_FACTORS[base]
-}
+/** The default bodyweight factor for a calisthenics move or its weighted_ / assisted_ variant. */
+fun defaultBodyweightFactor(exercise: String): Double? =
+    DEFAULT_BODYWEIGHT_FACTORS[exercise.lowercase().trim().replace('-', '_').removePrefix("weighted_").removePrefix("assisted_")]
 
 /** Whether the given exercise ID or name is a calisthenics movement. */
-fun isCalisthenics(exercise: String): Boolean =
-    defaultBodyweightFactor(exercise) != null || exercise in Catalog.calisthenics
+fun isCalisthenics(exercise: String): Boolean = defaultBodyweightFactor(exercise) != null
 
 /**
  * Effective bodyweight factor: uses explicit [meta] factor if present,
@@ -71,58 +51,17 @@ fun effectiveLoad(
     meta: ExerciseMeta? = null,
 ): Double {
     val factor = bodyweightFactor(exercise, meta)
-    return if (factor != null && bodyweightLb != null) {
-        val added = addedLb ?: weightLb
-        factor * bodyweightLb + added
-    } else {
-        weightLb
+    return when {
+        factor != null && bodyweightLb != null -> factor * bodyweightLb + (addedLb ?: weightLb)
+        // Assistance without a body weight measures nothing; scoring its weight as load would credit the help.
+        factor != null && (addedLb ?: 0.0) < 0 -> 0.0
+        else -> weightLb
     }
-}
-
-/**
- * Score a set through Strength.e1rm on effective load.
- */
-fun scoreSet(
-    exercise: String,
-    actualReps: Int,
-    weightLb: Double = 0.0,
-    addedLb: Double? = null,
-    bodyweightLb: Double? = null,
-    meta: ExerciseMeta? = null,
-    rpe: Double? = null,
-    amrap: Boolean = false,
-): Double {
-    val load = effectiveLoad(exercise, weightLb, addedLb, bodyweightLb, meta)
-    val rir = rirForSet(rpe, amrap)
-    return e1rm(load, actualReps, rir)
-}
-
-/** Score a logged set through Strength.e1rm on effective load. */
-fun scoreSet(
-    set: SetLogged,
-    bodyweightLb: Double? = null,
-    meta: ExerciseMeta? = null,
-): Double {
-    val bw = set.bodyweightLb ?: bodyweightLb
-    return scoreSet(
-        exercise = set.exercise,
-        actualReps = set.actualReps,
-        weightLb = set.weight.toDouble(),
-        addedLb = set.addedLb,
-        bodyweightLb = bw,
-        meta = meta,
-        rpe = set.rpe,
-        amrap = set.amrap,
-    )
 }
 
 /** Snapshot the bodyweight in effect for an entry timestamp. */
 fun AppState.snapshotBodyweight(at: OffsetDateTime): Double? =
     dailyBodyWeight().inEffect(at.toLocalDate())
-
-/** Copy a SetLogged with a snapshotted bodyweight if not already set. */
-fun SetLogged.withSnapshot(bodyweight: Double?, added: Double? = null): SetLogged =
-    copy(bodyweightLb = this.bodyweightLb ?: bodyweight, addedLb = this.addedLb ?: added)
 
 /** Progression recommendations for bodyweight movements. */
 sealed interface CalisthenicsProgression {
@@ -185,21 +124,6 @@ fun calisthenicsProgression(
         CalisthenicsProgression.AddReps(repsList)
     }
 }
-
-/**
- * Muscle-up keeps its own chart and is excluded from cross-exercise comparisons.
- */
-fun isMuscleUp(exercise: String): Boolean {
-    val clean = exercise.lowercase().trim().replace('-', '_')
-    return clean == "muscle_up" || clean == "weighted_muscle_up" || clean == "assisted_muscle_up"
-}
-
-/** Muscle-up is excluded from cross-exercise comparisons. */
-fun isExcludedFromCrossExercise(exercise: String): Boolean = isMuscleUp(exercise)
-
-/** Exclude muscle-up from cross-exercise comparisons. */
-fun filterCrossExerciseComparison(exercises: Iterable<String>): List<String> =
-    exercises.filterNot(::isExcludedFromCrossExercise)
 
 /** Computes session bests for a calisthenics exercise based on effective load and Strength.e1rm. */
 fun calisthenicsBests(state: AppState, log: ExerciseLog): List<SessionBest> {

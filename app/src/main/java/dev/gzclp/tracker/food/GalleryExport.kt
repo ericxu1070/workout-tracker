@@ -32,7 +32,7 @@ class ContentResolverMediaStoreWriter(private val resolver: ContentResolver) : M
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, RELATIVE_PATH)
+            put(MediaStore.Images.Media.RELATIVE_PATH, GalleryExport.RELATIVE_PATH)
             put(MediaStore.Images.Media.IS_PENDING, 1)
             put(MediaStore.Images.Media.DATE_TAKEN, at.toInstant().toEpochMilli())
         }
@@ -53,9 +53,6 @@ class ContentResolverMediaStoreWriter(private val resolver: ContentResolver) : M
         resolver.delete(uri, null, null) > 0
     }.getOrDefault(false)
 
-    companion object {
-        const val RELATIVE_PATH = "Pictures/Food"
-    }
 }
 
 /**
@@ -70,23 +67,18 @@ class GalleryExport(
     private val writer: MediaStoreWriter,
     private val isEnabled: () -> Boolean = { true },
 ) {
-    constructor(resolver: ContentResolver, isEnabled: () -> Boolean = { true }) :
-        this(ContentResolverMediaStoreWriter(resolver), isEnabled)
-
     constructor(context: Context, prefs: Prefs = Prefs(context)) :
         this(ContentResolverMediaStoreWriter(context.contentResolver), { prefs.saveToGallery })
-
-    val enabled: Boolean get() = isEnabled()
 
     /**
      * Exports [meal] to the gallery if enabled.
      * Ensures EXIF capture time (TAG_DATETIME_ORIGINAL, TAG_OFFSET_TIME_ORIGINAL) is preserved,
      * writes the copy to MediaStore under Pictures/Food, and records the content URI.
      */
-    fun export(meal: Meal): Uri? = export(meal.file, meal.at)
-
-    fun export(file: File, at: OffsetDateTime): Uri? {
-        if (!enabled) return null
+    fun export(meal: Meal): Uri? {
+        if (!isEnabled()) return null
+        val file = meal.file
+        val at = meal.at
         ensureExif(file, at)
         val uri = writer.insert(file.name, at) ?: return null
         try {
@@ -108,18 +100,14 @@ class GalleryExport(
      * Does NOT delete the meal's private file.
      * Returns true if a gallery copy was found and deleted.
      */
-    fun delete(meal: Meal): Boolean = delete(meal.file)
-
-    fun delete(file: File): Boolean {
-        val uri = uriFor(file)
-        uriFileFor(file).delete()
+    fun delete(meal: Meal): Boolean {
+        val uri = uriFor(meal)
+        uriFileFor(meal.file).delete()
         return if (uri != null) writer.delete(uri) else false
     }
 
-    fun uriFor(meal: Meal): Uri? = uriFor(meal.file)
-
-    fun uriFor(file: File): Uri? {
-        val uriFile = uriFileFor(file)
+    fun uriFor(meal: Meal): Uri? {
+        val uriFile = uriFileFor(meal.file)
         if (!uriFile.exists()) return null
         val text = runCatching { uriFile.readText().trim() }.getOrNull() ?: return null
         return if (text.isNotEmpty()) runCatching { Uri.parse(text) }.getOrNull() else null

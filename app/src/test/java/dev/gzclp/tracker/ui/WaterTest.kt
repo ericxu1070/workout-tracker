@@ -151,8 +151,6 @@ class WaterUiTest {
                         onSnap = {},
                         onUpload = {},
                         onOpen = {},
-                        waterIntakeMl = 1250,
-                        waterGoalMl = 2500,
                     )
                 }
             }

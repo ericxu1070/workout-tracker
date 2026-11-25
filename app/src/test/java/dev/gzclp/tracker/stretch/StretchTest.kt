@@ -59,45 +59,6 @@ class StretchTest {
     }
 
     @Test
-    fun testPoseInterpolation() {
-        val start = Pose.STANDING_NEUTRAL
-        val end = Pose(
-            rootX = 0.6f,
-            rootY = 0.8f,
-            torsoAngle = 90f,
-            leftArmAngle = 90f,
-            leftForearmAngle = 90f,
-            rightArmAngle = 90f,
-            rightForearmAngle = 90f,
-            leftThighAngle = 80f,
-            leftCalfAngle = 80f,
-            rightThighAngle = 100f,
-            rightCalfAngle = 100f,
-        )
-
-        val at0 = Pose.interpolate(start, end, 0f)
-        assertEquals(start.rootX, at0.rootX, 0.001f)
-        assertEquals(start.rootY, at0.rootY, 0.001f)
-        assertEquals(start.torsoAngle, at0.torsoAngle, 0.001f)
-
-        val at1 = Pose.interpolate(start, end, 1f)
-        assertEquals(end.rootX, at1.rootX, 0.001f)
-        assertEquals(end.rootY, at1.rootY, 0.001f)
-        assertEquals(end.torsoAngle, at1.torsoAngle, 0.001f)
-
-        val atHalf = Pose.interpolate(start, end, 0.5f)
-        assertEquals((start.rootX + end.rootX) / 2f, atHalf.rootX, 0.001f)
-        assertEquals((start.torsoAngle + end.torsoAngle) / 2f, atHalf.torsoAngle, 0.001f)
-
-        // Clamping check
-        val atBelow = Pose.interpolate(start, end, -0.5f)
-        assertEquals(start.rootX, atBelow.rootX, 0.001f)
-
-        val atAbove = Pose.interpolate(start, end, 1.5f)
-        assertEquals(end.rootX, atAbove.rootX, 0.001f)
-    }
-
-    @Test
     fun testCoachingDisclaimer() {
         assertEquals(
             "These are coaching defaults, not validated programs.",

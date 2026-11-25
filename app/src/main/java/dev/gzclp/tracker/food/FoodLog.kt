@@ -20,7 +20,7 @@ data class Meal(val file: File, val at: OffsetDateTime)
  * Meal photos in app-private storage, one JPEG per meal; the file name is the meal's time, so the folder is the log.
  * Never mirrored or synced: nothing here touches the event log.
  */
-class FoodLog(private val dir: File, var export: GalleryExport? = null) {
+class FoodLog(private val dir: File, private val export: GalleryExport? = null) {
     fun meals(): List<Meal> =
         dir.listFiles().orEmpty().mapNotNull { f -> parse(f.name)?.let { Meal(f, it) } }.sortedBy { it.at }
 
@@ -37,24 +37,20 @@ class FoodLog(private val dir: File, var export: GalleryExport? = null) {
         photo.delete()
         GalleryExport.ensureExif(out, t)
         val meal = Meal(out, t)
-        runCatching { (export ?: defaultExport)?.export(meal) }
+        // A failed gallery copy never loses the meal: the private file is the source of truth.
+        runCatching { export?.export(meal) }
         return meal
     }
 
     fun delete(meal: Meal): Boolean {
-        runCatching { (export ?: defaultExport)?.delete(meal) }
-        GalleryExport.uriFileFor(meal.file).delete()
+        runCatching { export?.delete(meal) }
         return meal.file.delete()
     }
 
     companion object {
-        @Volatile
-        var defaultExport: GalleryExport? = null
-
         /** Long side of a saved photo, in pixels: sharp on a phone, about 150 KB. */
         const val MAX_SIDE = 1280
         private val fmt = DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmssxx")
-        private val exifFmt = DateTimeFormatter.ofPattern("uuuu:MM:dd HH:mm:ss")
         /** How old a picked photo's own time may be and still be trusted as when the meal was eaten. */
         val MAX_AGE: Duration = Duration.ofDays(7)
 
@@ -70,7 +66,7 @@ class FoodLog(private val dir: File, var export: GalleryExport? = null) {
 
         /** EXIF DateTimeOriginal ("2026:11:10 12:30:05") at its OffsetTimeOriginal ("-08:00"), or in [zone] when that is missing. */
         fun takenAt(dateTime: String?, offset: String?, zone: ZoneId): OffsetDateTime? {
-            val local = dateTime?.let { runCatching { LocalDateTime.parse(it.trim(), exifFmt) }.getOrNull() } ?: return null
+            val local = dateTime?.let { runCatching { LocalDateTime.parse(it.trim(), GalleryExport.exifDateTimeFmt) }.getOrNull() } ?: return null
             val off = offset?.let { runCatching { ZoneOffset.of(it.trim()) }.getOrNull() }
             return if (off != null) local.atOffset(off) else local.atZone(zone).toOffsetDateTime()
         }

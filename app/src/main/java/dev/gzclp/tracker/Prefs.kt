@@ -87,10 +87,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("auto_adapt_weights", false)
         set(v) = p.edit().putBoolean("auto_adapt_weights", v).apply()
 
+    /** On for a fresh install, off for an existing one until opted in; the first read stores the answer. */
     var saveToGallery: Boolean
         get() {
-            if (p.contains("save_to_gallery")) return p.getBoolean("save_to_gallery", false)
-            return p.all.isEmpty()
+            if (!p.contains("save_to_gallery")) p.edit().putBoolean("save_to_gallery", p.all.isEmpty()).apply()
+            return p.getBoolean("save_to_gallery", false)
         }
         set(v) = p.edit().putBoolean("save_to_gallery", v).apply()
 
@@ -105,6 +106,11 @@ class Prefs(context: Context) {
     var waterReminder: Boolean
         get() = p.getBoolean("water_reminder", false)
         set(v) = p.edit().putBoolean("water_reminder", v).apply()
+
+    /** When the water pace reminder last posted, epoch millis; 0 for never. */
+    var waterRemindedMillis: Long
+        get() = p.getLong("water_reminded_millis", 0L)
+        set(v) = p.edit().putLong("water_reminded_millis", v).apply()
 
     var mealReminder: Boolean
         get() = p.getBoolean("meal_reminder", true)

@@ -26,32 +26,12 @@ class WaterTest {
         val applied = state.apply(Entry(1, t0, event))
         assertEquals(1, applied.water.size)
         assertEquals(350, WaterLog.totalMlForDay(applied, day))
-        assertEquals("wt1795836600", WaterLog.lastEntry(applied, day)?.id)
 
         val clearEvents = WaterLog.clearWater("wt1795836600")
         assertEquals(1, clearEvents.size)
         val cleared = applied.apply(Entry(2, t0.plusMinutes(5), clearEvents.first()))
         assertEquals(0, cleared.water.size)
         assertEquals(0, WaterLog.totalMlForDay(cleared, day))
-        assertNull(WaterLog.lastEntry(cleared, day))
-    }
-
-    @Test
-    fun undoLastWater() {
-        var s = AppState()
-        val e1 = WaterLog.logWater(s, 200, t0, "wt1").first()
-        s = s.apply(Entry(1, t0, e1))
-        val e2 = WaterLog.logWater(s, 300, t0.plusHours(1), "wt2").first()
-        s = s.apply(Entry(2, t0.plusHours(1), e2))
-
-        assertEquals(500, WaterLog.totalMlForDay(s, day))
-        assertEquals("wt2", WaterLog.lastEntry(s, day)?.id)
-
-        val undo = WaterLog.undoLast(s, day)
-        assertEquals(1, undo.size)
-        s = s.apply(Entry(3, t0.plusHours(1).plusMinutes(1), undo.first()))
-        assertEquals(200, WaterLog.totalMlForDay(s, day))
-        assertEquals("wt1", WaterLog.lastEntry(s, day)?.id)
     }
 
     @Test
@@ -133,18 +113,7 @@ class WaterTest {
     }
 
     @Test
-    fun unitConversions() {
-        // 1 oz = 29.5735 ml
-        assertEquals(30, WaterLog.ozToMl(1.0))
-        assertEquals(296, WaterLog.ozToMl(10.0))
-        val oz = WaterLog.mlToOz(300)
-        assertTrue(oz > 10.1 && oz < 10.2)
-
-        val formattedLb = WaterLog.formatVolume(300, isLb = true)
-        assertTrue(formattedLb.contains("oz"))
-        assertTrue(formattedLb.contains("300 ml"))
-
-        val formattedNonLb = WaterLog.formatVolume(300, isLb = false)
-        assertEquals("300 ml", formattedNonLb)
+    fun volumeShowsMlAndOz() {
+        assertEquals("300 ml · 10.1 oz", WaterLog.formatVolume(300))
     }
 }

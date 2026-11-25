@@ -3,7 +3,6 @@ package dev.gzclp.tracker.log
 import dev.gzclp.tracker.engine.ChangeKind
 import dev.gzclp.tracker.engine.ProgramDay
 import dev.gzclp.tracker.engine.Schemes
-import dev.gzclp.tracker.engine.StrengthModel
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.e1rm
 import dev.gzclp.tracker.engine.rirForSet
@@ -11,23 +10,23 @@ import dev.gzclp.tracker.engine.round5
 import dev.gzclp.tracker.engine.suggestLoad
 import dev.gzclp.tracker.engine.targetRir
 import dev.gzclp.tracker.engine.updateEma
-import dev.gzclp.tracker.engine.updateEmaManualEdit
 
 /**
  * In-memory state of estimated 1RMs per exercise, rebuilt dynamically from the log.
  */
 data class StrengthState(
     val estimates: Map<String, Double> = emptyMap()
-) : StrengthModel {
+) {
 
-    override fun estimate(exercise: String): Double? = estimates[exercise]
+    fun estimate(exercise: String): Double? = estimates[exercise]
 
-    override fun suggest(exercise: String, reps: Int, targetRir: Double): Int? {
+    fun suggest(exercise: String, reps: Int, targetRir: Double): Int? {
         val e1rm = estimate(exercise) ?: return null
         return suggestLoad(e1rm, reps, targetRir)
     }
 
-    override fun suggest(exercise: String, reps: Int, targetRir: Double, currentWeight: Int?): Int? {
+    /** Never suggests more than a 10% drop from [currentWeight] at once. */
+    fun suggest(exercise: String, reps: Int, targetRir: Double, currentWeight: Int?): Int? {
         val raw = suggest(exercise, reps, targetRir) ?: return null
         if (currentWeight != null && currentWeight > 0) {
             val minAllowed = round5(currentWeight * 0.90)
@@ -39,7 +38,7 @@ data class StrengthState(
     fun observeSession(exercise: String, bestE1rm: Double): StrengthState {
         if (bestE1rm <= 0.0) return this
         val prev = estimates[exercise]
-        val updated = updateEma(prev, bestE1rm, alphaUp = 0.4, alphaDown = 0.15)
+        val updated = updateEma(prev, bestE1rm)
         return copy(estimates = estimates + (exercise to updated))
     }
 
@@ -48,7 +47,7 @@ data class StrengthState(
         val obs = e1rm(loadLb, reps, rir = 2.0)
         if (obs <= 0.0) return this
         val prev = estimates[exercise]
-        val updated = updateEmaManualEdit(prev, obs)
+        val updated = updateEma(prev, obs, alphaUp = 0.6, alphaDown = 0.6)
         return copy(estimates = estimates + (exercise to updated))
     }
 
@@ -60,117 +59,43 @@ data class StrengthState(
             val t = tier?.let(Tier::of) ?: return null
             return Schemes.of(t).firstOrNull()?.reps
         }
-
-        /**
-         * Rebuilds the strength model by replaying entries in log order.
-         */
-        fun fromEntries(entries: Iterable<Entry>): StrengthState {
-            var state = StrengthState()
-            val metaMap = mutableMapOf<String, ExerciseMeta>()
-            val sessionSets = mutableMapOf<String, MutableMap<String, MutableList<SetLogged>>>()
-            val sessionOrder = mutableListOf<String>()
-
-            fun flushSession(sessionId: String) {
-                val exMap = sessionSets.remove(sessionId) ?: return
-                for ((exercise, sets) in exMap) {
-                    val best = sets.map { s ->
-                        val rir = rirForSet(s.rpe, s.amrap)
-                        val load = effectiveLoad(s.exercise, s.weight.toDouble(), s.addedLb, s.bodyweightLb, metaMap[s.exercise])
-                        e1rm(load, s.actualReps, rir)
-                    }.filter { it > 0.0 }.maxOrNull()
-                    if (best != null && best > 0.0) {
-                        state = state.observeSession(exercise, best)
-                    }
-                }
-            }
-
-            for (entry in entries) {
-                when (val e = entry.event) {
-                    is ExerciseMeta -> metaMap[e.exercise] = e
-                    is SetLogged -> {
-                        val map = sessionSets.getOrPut(e.sessionId) {
-                            sessionOrder.add(e.sessionId)
-                            mutableMapOf()
-                        }
-                        val list = map.getOrPut(e.exercise) { mutableListOf() }
-                        val idx = list.indexOfFirst { it.tier == e.tier && it.setIndex == e.setIndex }
-                        if (idx >= 0) list[idx] = e else list.add(e)
-                    }
-                    is SetCleared -> {
-                        sessionSets[e.sessionId]?.get(e.exercise)?.removeAll { it.tier == e.tier && it.setIndex == e.setIndex }
-                    }
-                    is SessionEnd -> {
-                        flushSession(e.sessionId)
-                        sessionOrder.remove(e.sessionId)
-                    }
-                    is ProgressionEvent -> {
-                        if (e.kind == "manual_edit" || e.kind == ChangeKind.MANUAL_EDIT.id) {
-                            val reps = parsePrescribedReps(e.toStage, e.tier)
-                            if (reps != null && reps in 1..12) {
-                                state = state.observeManualEdit(e.exercise, e.toWeight.toDouble(), reps)
-                            }
-                        }
-                    }
-                    else -> {}
-                }
-            }
-            for (sessionId in sessionOrder.toList()) {
-                flushSession(sessionId)
-            }
-            return state
-        }
-
-        /**
-         * Rebuilds from AppState: folding past sessions, active session, and current lift states.
-         */
-        fun from(appState: AppState): StrengthState {
-            var state = StrengthState()
-            for (s in appState.sessions) {
-                val byEx = s.sets.groupBy { it.exercise }
-                for ((ex, sets) in byEx) {
-                    val best = sets.map { set ->
-                        val rir = rirForSet(set.rpe, set.amrap)
-                        val load = effectiveLoad(set.exercise, set.weight.toDouble(), set.addedLb, set.bodyweightLb, appState.exerciseMeta[set.exercise])
-                        e1rm(load, set.actualReps, rir)
-                    }.filter { it > 0.0 }.maxOrNull()
-                    if (best != null && best > 0.0) {
-                        state = state.observeSession(ex, best)
-                    }
-                }
-            }
-            appState.active?.let { a ->
-                val byEx = a.sets.values.map { it.event }.groupBy { it.exercise }
-                for ((ex, sets) in byEx) {
-                    val best = sets.map { set ->
-                        val rir = rirForSet(set.rpe, set.amrap)
-                        val load = effectiveLoad(set.exercise, set.weight.toDouble(), set.addedLb, set.bodyweightLb, appState.exerciseMeta[set.exercise])
-                        e1rm(load, set.actualReps, rir)
-                    }.filter { it > 0.0 }.maxOrNull()
-                    if (best != null && best > 0.0) {
-                        state = state.observeSession(ex, best)
-                    }
-                }
-            }
-            for ((key, liftState) in appState.gz) {
-                val (ex, tier) = key
-                val stage = Schemes.of(tier).getOrNull(liftState.stage)
-                val reps = stage?.reps
-                if (reps != null && reps in 1..12) {
-                    val obs = e1rm(liftState.weight.toDouble(), reps, 2.0)
-                    val current = state.estimates[ex]
-                    if (current == null) {
-                        state = state.copy(estimates = state.estimates + (ex to obs))
-                    } else if (obs > current) {
-                        state = state.observeManualEdit(ex, liftState.weight.toDouble(), reps)
-                    }
-                }
-            }
-            return state
-        }
     }
 }
 
-fun AppState.strengthModel(): StrengthState = StrengthState.from(this)
+/** Folds [sets] in as one session: each exercise's best e1RM on effective load updates its EMA. */
+fun StrengthState.observeSets(sets: List<SetLogged>, meta: Map<String, ExerciseMeta>): StrengthState =
+    sets.groupBy { it.exercise }.entries.fold(this) { st, (ex, list) ->
+        val best = list.maxOfOrNull { set ->
+            e1rm(effectiveLoad(set.exercise, set.weight.toDouble(), set.addedLb, set.bodyweightLb, meta[set.exercise]), set.actualReps, rirForSet(set.rpe, set.amrap))
+        } ?: 0.0
+        st.observeSession(ex, best)
+    }
+
+/**
+ * A manual edit is a strong observation at its prescribed reps and RIR 2, up or down.
+ * An initial weight seeds the estimate as a prior, and only raises one that already exists.
+ */
+fun StrengthState.observeProgression(e: ProgressionEvent): StrengthState {
+    val reps = StrengthState.parsePrescribedReps(e.toStage, e.tier)?.takeIf { it in 1..12 } ?: return this
+    return when (e.kind) {
+        ChangeKind.MANUAL_EDIT.id -> observeManualEdit(e.exercise, e.toWeight.toDouble(), reps)
+        ChangeKind.INITIAL.id -> {
+            val obs = e1rm(e.toWeight.toDouble(), reps, 2.0)
+            val current = estimates[e.exercise]
+            when {
+                obs <= 0.0 -> this
+                current == null -> copy(estimates = estimates + (e.exercise to obs))
+                obs > current -> observeManualEdit(e.exercise, e.toWeight.toDouble(), reps)
+                else -> this
+            }
+        }
+        else -> this
+    }
+}
+
+/** The model as of the log, plus the sets of the session in progress. */
+fun AppState.strengthModel(): StrengthState =
+    active?.let { a -> strength.observeSets(a.sets.values.map { it.event }, exerciseMeta) } ?: strength
 
 fun AppState.strengthSuggestion(ex: Exercise): Int? {
     val model = strengthModel()

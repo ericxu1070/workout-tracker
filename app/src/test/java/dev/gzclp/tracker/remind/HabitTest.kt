@@ -244,14 +244,26 @@ class HabitTest {
         // Stretch has 1 event
         assertEquals(1, model.count(HabitKind.STRETCH))
         assertEquals(1, model.predict(HabitKind.STRETCH, t0.toLocalDate()).size)
-
-        // Water has 1 event
-        assertEquals(1, model.count(HabitKind.WATER))
-        assertEquals(1, model.predict(HabitKind.WATER, t0.toLocalDate()).size)
     }
 
     @Test
-    fun weighInActionLogConstMatches() {
-        assertEquals("dev.gzclp.tracker.LOG_WEIGHT", WeighIn.ACTION_LOG)
+    fun aLateNightWeighInIsNotTheDaysFirst() {
+        val zone = ZoneOffset.UTC
+        // Logical Monday: 22:00 Monday, then 00:30 Tuesday morning.
+        val evening = OffsetDateTime.of(LocalDateTime.of(2026, 11, 23, 22, 0), zone)
+        val night = OffsetDateTime.of(LocalDateTime.of(2026, 11, 24, 0, 30), zone)
+        val state = listOf(BodyWeightLogged("a", LogCodec.TS.format(night), 180.0), BodyWeightLogged("b", LogCodec.TS.format(evening), 180.0))
+            .mapIndexed { i, e -> Entry(i.toLong(), evening, e) }.fold(AppState()) { s, e -> s.apply(e) }
+        val model = rebuildHabits(state, emptyList(), zone)
+        assertEquals(LocalTime.of(22, 0), model.weighIn.predictTime(DayOfWeek.MONDAY))
+    }
+
+    @Test
+    fun aLearnedSlotAfterMidnightFiresThatNightNotADayLate() {
+        val mondayEvening = java.time.ZonedDateTime.of(2026, 11, 23, 21, 0, 0, 0, ZoneOffset.UTC)
+        val next = HabitAlarm.nextTime(mondayEvening, 20) { listOf(LocalTime.of(0, 30)) }
+        assertEquals(java.time.ZonedDateTime.of(2026, 11, 24, 0, 50, 0, 0, ZoneOffset.UTC), next)
+        val afternoon = HabitAlarm.nextTime(mondayEvening) { listOf(LocalTime.of(14, 0)) }
+        assertEquals(java.time.ZonedDateTime.of(2026, 11, 24, 14, 0, 0, 0, ZoneOffset.UTC), afternoon)
     }
 }

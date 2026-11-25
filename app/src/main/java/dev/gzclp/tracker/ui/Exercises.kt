@@ -121,6 +121,7 @@ fun ExerciseScreen(
     ScreenFrame {
         NavRow(onBack)
         Txt(state.name(log.id), Type.largeTitle)
+        FormToggle(log.id)
         if (bests.isNotEmpty()) {
             Spacer(Modifier.height(Space.lg))
             Segmented(listOf("Weight", "× body weight"), if (relative) 1 else 0, { relative = it == 1 })

@@ -53,7 +53,7 @@ class OpenSessionTest {
         val strengthBefore = state.strengthModel().estimate(Lift.SQUAT.id)
 
         // 1. Start open session
-        val startEvents = Commands.startOpen(state, now, state.nextDay, counts = false)
+        val startEvents = Commands.startOpen(state, now)
         state = startEvents.fold(state) { s, e -> s.apply(Entry(100, now, e)) }
 
         // 2. Log sets for Squat with 5 reps at 250 lb (above current 1RM estimate)
@@ -62,7 +62,7 @@ class OpenSessionTest {
         state = setEvents.fold(state) { s, e -> s.apply(Entry(101, now.plusMinutes(5), e)) }
 
         // 3. End session with counts = false
-        val endEvents = Commands.endOpen(state, now.plusMinutes(20), counts = false)
+        val endEvents = Commands.end(state, now.plusMinutes(20), null, counts = false)
         state = endEvents.fold(state) { s, e -> s.apply(Entry(102, now.plusMinutes(20), e)) }
 
         // Assert: program state (weights, stages, 5RM) is completely unchanged
@@ -83,7 +83,7 @@ class OpenSessionTest {
         val initialSquatWeight = state.gz[Lift.SQUAT.id to Tier.T1]!!.weight // 210
 
         // Start open session
-        val startEvents = Commands.startOpen(state, now, state.nextDay, counts = true)
+        val startEvents = Commands.startOpen(state, now)
         state = startEvents.fold(state) { s, e -> s.apply(Entry(200, now, e)) }
 
         // Perform all 5 sets of Squat 5x3+ hitting targets
@@ -94,7 +94,7 @@ class OpenSessionTest {
         }
 
         // End session with counts = true
-        val endEvents = Commands.endOpen(state, now.plusMinutes(30), counts = true)
+        val endEvents = Commands.end(state, now.plusMinutes(30), null, counts = true)
         state = endEvents.fold(state) { s, e -> s.apply(Entry(210, now.plusMinutes(30), e)) }
 
         // Assert: Squat T1 progressed by +10 lb to 220
@@ -213,5 +213,31 @@ class OpenSessionTest {
         val recents = recentExercises(state)
         assertTrue(recents.contains("lat_pulldown"))
         assertTrue(recents.contains("barbell_curl"))
+    }
+
+    @Test
+    fun nonCountingOpenSessionKeepsRotationAndCountingOneAdvances() {
+        fun run(counts: Boolean): AppState {
+            var state = setupGzclp()
+            state = Commands.startOpen(state, now).fold(state) { s, e -> s.apply(Entry(100, now, e)) }
+            assertTrue("the log marks the session open", state.active!!.open)
+            val squat = state.exercises(state.nextDay).first { it.id == Lift.SQUAT.id }
+            state = Commands.logSet(state, squat, setIndex = 1, reps = 5, weight = 250, now = now.plusMinutes(5), restTargets = emptyMap())
+                .fold(state) { s, e -> s.apply(Entry(101, now.plusMinutes(5), e)) }
+            return Commands.end(state, now.plusMinutes(20), null, counts = counts).fold(state) { s, e -> s.apply(Entry(102, now.plusMinutes(20), e)) }
+        }
+        val first = setupGzclp().nextDay.id
+        assertEquals("counts = false keeps the rotation", first, run(counts = false).nextDay.id)
+        assertTrue("counts = true advances the rotation", run(counts = true).nextDay.id != first)
+    }
+
+    @Test
+    fun everyCatalogMoveLandsInItsMuscleGroup() {
+        assertEquals(MuscleGroup.Pull, MuscleGroup.of("seated_cable_row"))
+        assertEquals(MuscleGroup.Pull, MuscleGroup.of("rear_delt_fly"))
+        assertEquals(MuscleGroup.Shoulders, MuscleGroup.of("lateral_raise"))
+        assertEquals(MuscleGroup.Chest, MuscleGroup.of("weighted_dip"))
+        assertEquals(MuscleGroup.Core, MuscleGroup.of("hanging_ab_raise"))
+        assertEquals(MuscleGroup.Legs, MuscleGroup.of("bulgarian_split_squat"))
     }
 }

@@ -15,6 +15,7 @@ import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.food.FoodLog
+import dev.gzclp.tracker.food.GalleryExport
 import dev.gzclp.tracker.food.Meal
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
@@ -22,8 +23,13 @@ import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.Exercise
+import dev.gzclp.tracker.log.BodyWeightLogged
+import dev.gzclp.tracker.log.StretchLogged
 import dev.gzclp.tracker.log.Store
+import dev.gzclp.tracker.log.WaterLogged
 import dev.gzclp.tracker.log.hasWeighIn
+import dev.gzclp.tracker.remind.HabitAlarm
+import dev.gzclp.tracker.remind.HabitKind
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
@@ -45,10 +51,15 @@ import kotlinx.coroutines.runBlocking
 /** Process-wide owner of the store, settings and sync; outlives activity recreation. */
 class AppModel private constructor(private val context: Context) {
     val prefs = Prefs(context)
+
+    init {
+        // Settles the gallery default before anything else writes a pref, so only a fresh install starts with it on.
+        prefs.saveToGallery
+    }
     val store = Store(File(context.filesDir, Mirror.NAME))
     private val mirror = Mirror(context, prefs)
     /** Meal photos stay in app-private files; [mirror] never sees them. */
-    private val food = FoodLog(File(context.filesDir, "food"))
+    private val food = FoodLog(File(context.filesDir, "food"), GalleryExport(context, prefs))
     /** Where the camera writes a photo before [addMeal] downscales it into [food]. */
     val capture = File(context.cacheDir, "camera/meal.jpg")
     /** Where a photo picked from the gallery is copied before the meal sheet saves it into [food]. */
@@ -91,9 +102,26 @@ class AppModel private constructor(private val context: Context) {
         private set
     var cardioGoalMin by mutableStateOf(prefs.cardioGoalMin)
         private set
+    var autoAdaptWeights by mutableStateOf(prefs.autoAdaptWeights)
+        private set
+    var mealReminder by mutableStateOf(prefs.mealReminder)
+        private set
+    var stretchReminder by mutableStateOf(prefs.stretchReminder)
+        private set
+    var stretchReminderMinutes by mutableStateOf(prefs.stretchReminderMinutes)
+        private set
+    var waterReminder by mutableStateOf(prefs.waterReminder)
+        private set
+    var waterGoalMl by mutableStateOf(prefs.waterGoalMl)
+        private set
+    var waterCupMl by mutableStateOf(prefs.waterCupMl)
+        private set
+    var saveToGallery by mutableStateOf(prefs.saveToGallery)
+        private set
 
     init {
-        WeighIn.schedule(context)
+        // Pass the state: scheduling through AppModel.get here would build a second AppModel.
+        HabitAlarm.scheduleAll(context, store.state.value)
     }
 
     fun now(): OffsetDateTime = OffsetDateTime.now().withNano(0)
@@ -102,6 +130,15 @@ class AppModel private constructor(private val context: Context) {
         val before = store.state.value
         val entries = store.dispatch(now(), build)
         if (store.state.value.cardioActive != before.cardioActive) CardioNotice.sync(context, store.state.value.cardioActive)
+        // Habit predictions learn from each new weigh-in, stretch and drink.
+        entries.mapNotNullTo(mutableSetOf()) {
+            when (it.event) {
+                is BodyWeightLogged -> HabitKind.WEIGH_IN
+                is StretchLogged -> HabitKind.STRETCH
+                is WaterLogged -> HabitKind.WATER
+                else -> null
+            }
+        }.forEach { HabitAlarm.schedule(context, it, store.state.value) }
         syncLater()
         if (prefs.healthConnect && entries.isNotEmpty()) writeHealth(before, entries)
     }
@@ -203,6 +240,50 @@ class AppModel private constructor(private val context: Context) {
         plates = v
     }
 
+    fun chooseAutoAdaptWeights(on: Boolean) {
+        prefs.autoAdaptWeights = on
+        autoAdaptWeights = on
+    }
+
+    fun chooseMealReminder(on: Boolean) {
+        prefs.mealReminder = on
+        mealReminder = on
+        HabitAlarm.schedule(context, HabitKind.MEAL, store.state.value)
+    }
+
+    fun chooseStretchReminder(on: Boolean) {
+        prefs.stretchReminder = on
+        stretchReminder = on
+        HabitAlarm.schedule(context, HabitKind.STRETCH, store.state.value)
+    }
+
+    fun chooseStretchReminderTime(minutes: Int) {
+        prefs.stretchReminderMinutes = minutes
+        stretchReminderMinutes = minutes
+        HabitAlarm.schedule(context, HabitKind.STRETCH, store.state.value)
+    }
+
+    fun chooseWaterReminder(on: Boolean) {
+        prefs.waterReminder = on
+        waterReminder = on
+        HabitAlarm.schedule(context, HabitKind.WATER, store.state.value)
+    }
+
+    fun chooseWaterGoal(ml: Int) {
+        prefs.waterGoalMl = ml
+        waterGoalMl = ml
+    }
+
+    fun chooseWaterCup(ml: Int) {
+        prefs.waterCupMl = ml
+        waterCupMl = ml
+    }
+
+    fun chooseSaveToGallery(on: Boolean) {
+        prefs.saveToGallery = on
+        saveToGallery = on
+    }
+
     fun chooseWeighInReminder(on: Boolean) {
         prefs.weighInReminder = on
         weighInReminder = on
@@ -255,6 +336,7 @@ class AppModel private constructor(private val context: Context) {
             main.post {
                 meals = food.meals()
                 mealError = error?.let { "Meal not saved: ${it.message ?: it.javaClass.simpleName}" }
+                HabitAlarm.schedule(context, HabitKind.MEAL, store.state.value)
             }
         }
     }

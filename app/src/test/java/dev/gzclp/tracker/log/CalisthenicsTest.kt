@@ -1,5 +1,9 @@
 package dev.gzclp.tracker.log
 
+import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.engine.Scheme
+import dev.gzclp.tracker.engine.Programs
+import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.engine.e1rm
 import org.junit.Assert.assertEquals
@@ -63,12 +67,8 @@ class CalisthenicsTest {
             assertFalse("weighted_$id" in Catalog.barbell)
             assertFalse("assisted_$id" in Catalog.barbell)
         }
-
-        // Catalog.calisthenics contains all 21 entries
-        assertEquals(21, Catalog.calisthenics.size)
-        assertTrue("pull_up" in Catalog.calisthenics)
-        assertTrue("weighted_dip" in Catalog.calisthenics)
-        assertTrue("assisted_muscle_up" in Catalog.calisthenics)
+        assertTrue(listOf("pull_up", "weighted_dip", "assisted_muscle_up").all(::isCalisthenics))
+        assertFalse(isCalisthenics("bench"))
     }
 
     @Test
@@ -163,13 +163,13 @@ class CalisthenicsTest {
         val reps = 5
 
         // Case A: 100 lb body weight + 100 lb added (effective load = 1.0 * 100 + 100 = 200 lb)
-        val scoreA = scoreSet("pull_up", actualReps = reps, weightLb = 100.0, addedLb = 100.0, bodyweightLb = 100.0)
+        val scoreA = e1rm(effectiveLoad("pull_up", 100.0, 100.0, 100.0), reps, 2.0)
 
         // Case B: 200 lb body weight + 0 added (effective load = 1.0 * 200 + 0 = 200 lb)
-        val scoreB = scoreSet("pull_up", actualReps = reps, weightLb = 0.0, addedLb = 0.0, bodyweightLb = 200.0)
+        val scoreB = e1rm(effectiveLoad("pull_up", 0.0, 0.0, 200.0), reps, 2.0)
 
         // Case C: 100 lb body weight + 0 added (effective load = 1.0 * 100 + 0 = 100 lb)
-        val scoreC = scoreSet("pull_up", actualReps = reps, weightLb = 0.0, addedLb = 0.0, bodyweightLb = 100.0)
+        val scoreC = e1rm(effectiveLoad("pull_up", 0.0, 0.0, 100.0), reps, 2.0)
 
         // Verify effective loads
         val loadA = effectiveLoad("pull_up", weightLb = 100.0, addedLb = 100.0, bodyweightLb = 100.0)
@@ -266,25 +266,6 @@ class CalisthenicsTest {
     }
 
     @Test
-    fun muscleUpIsolatedAndExcludedFromCrossExerciseComparisons() {
-        // Spec 6: Muscle-up keeps its own chart and is excluded from cross-exercise comparisons.
-        assertTrue(isMuscleUp("muscle_up"))
-        assertTrue(isMuscleUp("weighted_muscle_up"))
-        assertTrue(isMuscleUp("assisted_muscle_up"))
-        assertFalse(isMuscleUp("pull_up"))
-        assertFalse(isMuscleUp("dip"))
-
-        assertTrue(isExcludedFromCrossExercise("muscle_up"))
-        assertFalse(isExcludedFromCrossExercise("pull_up"))
-
-        val exercisePool = listOf("pull_up", "dip", "push_up", "muscle_up", "pistol_squat")
-        val filtered = filterCrossExerciseComparison(exercisePool)
-
-        assertEquals(listOf("pull_up", "dip", "push_up", "pistol_squat"), filtered)
-        assertFalse("muscle_up" in filtered)
-    }
-
-    @Test
     fun calisthenicsBestsComputesAbsoluteAndRelativeE1rm() {
         // Setup AppState with bodyweight and pull-up session
         val entries = listOf(
@@ -310,5 +291,26 @@ class CalisthenicsTest {
         // Relative ratio = e1rm / bodyweight = 252 / 180 = 1.40x
         val relativeRatio = best.e1rm / 180.0
         assertEquals(1.40, relativeRatio, 0.01)
+    }
+
+    @Test
+    fun loggedSetSnapshotsBodyweightAndLogsAssistanceNegative() {
+        val t = OffsetDateTime.parse("2026-11-24T10:00:00-08:00")
+        var state = (Commands.setup(mapOf(Lift.SQUAT to 245), Programs.GZCLP) + BodyWeightLogged("bw1", LogCodec.TS.format(t), 180.0))
+            .mapIndexed { i, e -> Entry(i.toLong(), t, e) }.fold(AppState()) { s, e -> s.apply(e) }
+        state = Commands.startOpen(state, t).fold(state) { s, e -> s.apply(Entry(50, t, e)) }
+        val assisted = Exercise("assisted_pull_up", "Assisted pull-up", Tier.CUSTOM, Scheme(3, 8, false), 40)
+        val set = Commands.logSet(state, assisted, 1, 8, 40, t, emptyMap()).single() as SetLogged
+        assertEquals(180.0, set.bodyweightLb!!, 0.0)
+        assertEquals(-40.0, set.addedLb!!, 0.0)
+        val weighted = Commands.logSet(state, assisted.copy(id = "pull_up"), 1, 8, 25, t, emptyMap()).single() as SetLogged
+        assertEquals(25.0, weighted.addedLb!!, 0.0)
+        assertTrue("bodyweight sets feed the strength model", state.apply(Entry(51, t, set)).strengthModel().estimate("assisted_pull_up")!! > 0.0)
+    }
+
+    @Test
+    fun assistanceWithoutABodyWeightIsNotScoredAsLoad() {
+        assertEquals(0.0, effectiveLoad("assisted_pull_up", 40.0, -40.0, null), 0.0)
+        assertEquals(25.0, effectiveLoad("pull_up", 25.0, 25.0, null), 0.0)
     }
 }

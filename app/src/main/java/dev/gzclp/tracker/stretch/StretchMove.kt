@@ -1,7 +1,7 @@
 package dev.gzclp.tracker.stretch
 
 /**
- * A single stretch move with target body area, hold duration, one-line cue, and keyframed poses.
+ * A single stretch move with target body area, hold duration, and one-line cue.
  */
 data class StretchMove(
     val id: String,
@@ -9,9 +9,6 @@ data class StretchMove(
     val targetArea: BodyArea,
     val holdSec: Int,
     val cue: String,
-    val startPose: Pose,
-    val endPose: Pose,
-    val holdPose: Pose = endPose,
     val isBilateral: Boolean = false,
     val isDynamic: Boolean = false,
 ) {

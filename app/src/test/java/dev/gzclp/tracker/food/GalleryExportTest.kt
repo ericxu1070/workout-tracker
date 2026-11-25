@@ -240,7 +240,7 @@ class GalleryExportTest {
     fun realContentResolverMediaStoreWriterIntegration() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val resolver = context.contentResolver
-        val export = GalleryExport(resolver, isEnabled = { true })
+        val export = GalleryExport(ContentResolverMediaStoreWriter(resolver), isEnabled = { true })
 
         val photo = samplePhoto("resolver_test.jpg")
         val meal = Meal(photo, noon)

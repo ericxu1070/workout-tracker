@@ -43,9 +43,8 @@ import dev.gzclp.tracker.food.Nutrition
 import dev.gzclp.tracker.food.Prediction
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.FoodEstimate
+import dev.gzclp.tracker.log.WaterLog
 import dev.gzclp.tracker.ui.Type.tabular
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
@@ -60,49 +59,30 @@ fun FoodScreen(
     onSnap: () -> Unit,
     onUpload: () -> Unit,
     onOpen: (Meal) -> Unit,
-    waterIntakeMl: Int? = null,
-    waterGoalMl: Int? = null,
-    onWater: (() -> Unit)? = null,
-    estimates: Map<String, FoodEstimate>? = null,
-    onEstimate: ((FoodEstimate) -> Unit)? = null,
 ) {
-    var showWaterTracker by rememberSaveable { mutableStateOf(false) }
-    if (showWaterTracker) {
-        BackHandler { showWaterTracker = false }
-        WaterScreen(
-            state = AppState(),
-            day = day,
-            goalMl = waterGoalMl ?: 2500,
-            onBack = { showWaterTracker = false },
-        )
-        return
-    }
-
     val context = LocalContext.current
     val p = LocalPalette.current
     val model = remember(context) { runCatching { AppModel.get(context) }.getOrNull() }
     val storeState = model?.store?.state?.collectAsState()?.value
-    val currentEstimates = estimates ?: storeState?.foodEstimates ?: emptyMap()
-    val dispatchEstimate: (FoodEstimate) -> Unit = onEstimate ?: { est ->
-        model?.dispatch { listOf(est) }
+    var showWaterTracker by rememberSaveable { mutableStateOf(false) }
+    if (showWaterTracker && model != null && storeState != null) {
+        BackHandler { showWaterTracker = false }
+        WaterScreen(
+            state = storeState,
+            day = day,
+            goalMl = model.waterGoalMl,
+            cupSizeMl = model.waterCupMl,
+            onBack = { showWaterTracker = false },
+            // A past day's drink is stamped at this time of day on that date, so it lands on the day being viewed.
+            onLogWater = { ml -> model.dispatch { WaterLog.logWater(it, ml, model.now().with(day)) } },
+            onClearWater = { id -> model.dispatch { WaterLog.clearWater(id) } },
+            onCupSizeChange = model::chooseWaterCup,
+        )
+        return
     }
-
+    val currentEstimates = storeState?.confirmedEstimates().orEmpty()
+    // Only a tapped or edited estimate is logged (confirmed); the classifier's guesses stay in the meal sheet.
     val shown = meals.filter { it.at.toLocalDate() == day }
-
-    // Run classifier off main thread after photos are saved for any unestimated meals
-    for (m in shown) {
-        val fileName = m.file.name
-        if (currentEstimates[fileName] == null) {
-            LaunchedEffect(fileName) {
-                withContext(Dispatchers.IO) {
-                    val preds = Classifier.classify(context, m.file, topK = 3)
-                    if (preds.isNotEmpty() && currentEstimates[fileName] == null) {
-                        dispatchEstimate(preds.first().toEstimate(fileName, confirmed = false))
-                    }
-                }
-            }
-        }
-    }
 
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
@@ -123,11 +103,9 @@ fun FoodScreen(
         Spacer(Modifier.height(Space.md))
         GroupHeader("Water")
         Group {
-            GroupRow(first = true, onClick = {
-                if (onWater != null) onWater() else showWaterTracker = true
-            }) {
-                val intake = waterIntakeMl ?: 0
-                val goal = waterGoalMl ?: 2500
+            GroupRow(first = true, onClick = { showWaterTracker = true }) {
+                val intake = storeState?.let { WaterLog.totalMlForDay(it, day) } ?: 0
+                val goal = model?.waterGoalMl ?: WaterLog.DEFAULT_GOAL_ML
                 val frac = if (goal > 0) (intake.toFloat() / goal).coerceIn(0f, 1f) else 0f
                 Canvas(Modifier.size(24.dp)) {
                     val w = 3.dp.toPx()
@@ -163,7 +141,6 @@ fun FoodScreen(
                             Txt(
                                 "${est.label} · ${est.kcalLow}–${est.kcalHigh} kcal",
                                 Type.caption,
-                                color = if (est.confirmed) p.fg else p.fg3,
                                 maxLines = 1,
                             )
                         }
@@ -216,18 +193,13 @@ fun MealSheet(
     today: LocalDate,
     onDelete: () -> Unit,
     onDone: () -> Unit,
-    estimates: Map<String, FoodEstimate>? = null,
-    onEstimate: ((FoodEstimate) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val p = LocalPalette.current
     val model = remember(context) { runCatching { AppModel.get(context) }.getOrNull() }
     val storeState = model?.store?.state?.collectAsState()?.value
-    val currentEstimates = estimates ?: storeState?.foodEstimates ?: emptyMap()
-    val dispatchEstimate: (FoodEstimate) -> Unit = onEstimate ?: { est ->
-        model?.dispatch { listOf(est) }
-    }
-    val currentEst = currentEstimates[meal.file.name]
+    val dispatchEstimate: (FoodEstimate) -> Unit = { est -> model?.dispatch { listOf(est) } }
+    val currentEst = storeState?.confirmedEstimates()?.get(meal.file.name)
 
     var suggestions by remember { mutableStateOf<List<Prediction>>(emptyList()) }
     var editing by remember { mutableStateOf(false) }
@@ -235,16 +207,7 @@ fun MealSheet(
     var editLow by remember(currentEst) { mutableStateOf(currentEst?.kcalLow ?: 500) }
     var editHigh by remember(currentEst) { mutableStateOf(currentEst?.kcalHigh ?: 700) }
 
-    LaunchedEffect(meal.file.name) {
-        withContext(Dispatchers.IO) {
-            val preds = Classifier.classify(context, meal.file, topK = 3)
-            suggestions = preds
-            if (currentEstimates[meal.file.name] == null && preds.isNotEmpty()) {
-                val top = preds.first()
-                dispatchEstimate(top.toEstimate(meal.file.name, confirmed = false))
-            }
-        }
-    }
+    LaunchedEffect(meal.file.name) { suggestions = Classifier.classify(context, meal.file, topK = 3) }
 
     Txt(Fmt.weighInTime(meal.at, today), Type.title2)
     MealPhoto(meal, FoodLog.MAX_SIDE, Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)), ownShape = true)
@@ -311,7 +274,7 @@ fun MealSheet(
             )
         }
     } else {
-        if (currentEst != null && currentEst.confirmed) {
+        if (currentEst != null) {
             GroupHeader("Confirmed estimate")
             Group {
                 GroupRow(first = true) {
@@ -330,20 +293,18 @@ fun MealSheet(
             Spacer(Modifier.height(Space.sm))
         }
 
-        val showSuggestions = suggestions.ifEmpty {
-            Classifier.fallbackPredictions(meal.file.name, 3)
-        }
-        GroupHeader(if (currentEst?.confirmed == true) "Other suggestions" else "Top estimates (tap to confirm)")
-        Group {
+        val showSuggestions = suggestions
+        if (showSuggestions.isNotEmpty()) GroupHeader(if (currentEst != null) "Other suggestions" else "Top estimates (tap to confirm)")
+        if (showSuggestions.isNotEmpty()) Group {
             showSuggestions.forEachIndexed { idx, pred ->
                 GroupRow(first = idx == 0, onClick = {
-                    dispatchEstimate(pred.toEstimate(meal.file.name, confirmed = true))
+                    dispatchEstimate(pred.toEstimate(meal.file.name))
                 }) {
                     Column(Modifier.weight(1f)) {
                         Txt(pred.label, Type.body)
                         Txt(pred.kcalRange.formatted, Type.caption, color = p.fg2)
                     }
-                    if (currentEst?.label == pred.label && currentEst.confirmed) {
+                    if (currentEst?.label == pred.label) {
                         Txt("✓", Type.headline, color = p.accent)
                     } else {
                         Icon(Icons.chevronRight, p.fg3, 16.dp)
@@ -351,7 +312,7 @@ fun MealSheet(
                 }
             }
         }
-        if (currentEst?.confirmed != true) {
+        if (currentEst == null) {
             Spacer(Modifier.height(Space.xs))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 SmallPill("Custom estimate", {
@@ -373,3 +334,6 @@ fun MealSheet(
         PillButton("Done", onDone, Modifier.weight(1f), primary = true)
     }
 }
+
+/** Unconfirmed guesses an earlier build logged are not the user's answer, so they never show. */
+private fun dev.gzclp.tracker.log.AppState.confirmedEstimates(): Map<String, FoodEstimate> = foodEstimates.filterValues { it.confirmed }
