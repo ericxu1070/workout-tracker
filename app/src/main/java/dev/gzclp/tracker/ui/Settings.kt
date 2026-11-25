@@ -1,5 +1,24 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseOutQuart
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -91,8 +110,10 @@ fun SettingsScreen(
     customStretches: List<dev.gzclp.tracker.stretch.StretchRoutine> = emptyList(),
     page: SettingsPage? = null,
     onPage: (SettingsPage) -> Unit = {},
+    initialShowMore: Boolean = Palettes.custom.any { it.id == themeId },
 ) {
     val p = LocalPalette.current
+    var showMore by rememberSaveable { mutableStateOf(initialShowMore) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
     val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
@@ -178,7 +199,7 @@ fun SettingsScreen(
                     )
                 }
                 Spacer(Modifier.height(Space.xxl))
-                Group { PageRow(SettingsPage.Appearance, true, Palettes.all.firstOrNull { it.id == themeId }?.name ?: "Laptop") }
+                Group { PageRow(SettingsPage.Appearance, true, Palettes.label(themeId)) }
                 if (!notificationsAllowed) {
                     Spacer(Modifier.height(Space.xxl))
                     Group {
@@ -329,22 +350,48 @@ fun SettingsScreen(
             SettingsPage.Appearance -> {
                 Spacer(Modifier.height(Space.xxl))
                 Group {
-                    Palettes.all.forEachIndexed { i, t ->
-                        GroupRow(first = i == 0, onClick = { onTheme(t.id) }) {
-                            Txt(t.name, Type.body, Modifier.weight(1f))
-                            if (t.id == themeId) Icon(Icons.check, p.accent, 20.dp)
+                    @Composable
+                    fun ThemeRow(id: String, name: String, first: Boolean, detail: String? = null, swatch: @Composable () -> Unit) =
+                        GroupRow(first = first, onClick = { onTheme(id) }, inset = Space.lg + 22.dp + Space.md) {
+                            swatch()
+                            Spacer(Modifier.width(Space.md))
+                            Column(Modifier.weight(1f)) {
+                                Txt(name, Type.body, maxLines = 1)
+                                detail?.let { Txt(it, Type.footnote, color = p.fg2, maxLines = 1) }
+                            }
+                            if (id == themeId) Icon(Icons.check, p.accent, 20.dp)
                         }
+                    ThemeRow(Palettes.light.id, "Light", true) { Swatch(Palettes.light) }
+                    ThemeRow(Palettes.dark.id, "Dark", false) { Swatch(Palettes.dark) }
+                    ThemeRow(Palettes.SYSTEM, "System", false) { Swatch(Palettes.light, Palettes.dark) }
+                    GroupRow(first = false, onClick = { showMore = !showMore }, inset = Space.lg + 22.dp + Space.md) {
+                        Spacer(Modifier.width(22.dp + Space.md))
+                        Txt(if (showMore) "Show less" else "Show more", Type.body, Modifier.weight(1f), p.accent)
+                        val turn by animateFloatAsState(if (showMore) 90f else 0f, tween(220, easing = EaseOutQuart), label = "more")
+                        Icon(Icons.chevronRight, p.accent, 20.dp, Modifier.rotate(turn))
                     }
-                    GroupRow(first = false, onClick = { onTheme(LaptopTheme.ID) }) {
-                        Column(Modifier.weight(1f)) {
-                            Txt("Laptop", Type.body)
-                            Txt(laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder", Type.footnote, color = p.fg2, maxLines = 1)
-                        }
-                        if (themeId == LaptopTheme.ID) Icon(Icons.check, p.accent, 20.dp)
+                    AnimatedVisibility(showMore, enter = expandVertically(tween(260, easing = EaseOutQuart)) + fadeIn(tween(260)), exit = shrinkVertically(tween(180, easing = EaseOutQuart)) + fadeOut(tween(120))) {
+                        Column { Palettes.custom.forEach { t -> ThemeRow(t.id, t.name, false) { Swatch(t) } } }
                     }
+                    ThemeRow(
+                        LaptopTheme.ID, "Laptop", false,
+                        laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder",
+                    ) { Swatch(laptop) }
                 }
             }
         }
+    }
+}
+
+/** A theme's page color ringed by a hairline, with its accent dotted in; [second] splits it down the middle, and null is an empty ring. */
+@Composable
+private fun Swatch(palette: Palette?, second: Palette? = null) {
+    Box(Modifier.size(22.dp).clip(CircleShape).border(1.dp, LocalPalette.current.separator, CircleShape)) {
+        if (palette != null) Row(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxHeight().background(palette.bg))
+            Box(Modifier.weight(1f).fillMaxHeight().background((second ?: palette).bg))
+        }
+        if (palette != null && second == null) Box(Modifier.size(8.dp).align(Alignment.Center).clip(CircleShape).background(palette.accent))
     }
 }
 

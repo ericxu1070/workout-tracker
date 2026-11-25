@@ -390,6 +390,12 @@ class ScreenShots {
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(), page = SettingsPage.Program,
             )
         }
+        for (p in listOf(Palettes.light, Palettes.tokyo)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
+            SettingsScreen(
+                true, mine.programId, mine.increments, p.id, Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, initialShowMore = more,
+            )
+        }
         for (p in Palettes.all) {
             shot(p, "23-settings-splits") { settings(p)() }
             shot(p, "23-start-from-sheet") {

@@ -12,7 +12,7 @@ class PaletteContrastTest {
     private val laptop = File(javaClass.getResource("/themes")!!.toURI()).list()!!
         .filter { it.endsWith(".raw.toml") }.sorted()
         .map { LaptopTheme.parse(javaClass.getResource("/themes/$it")!!.readText())!!.let { p -> p.copy(id = "laptop-${it.removeSuffix(".raw.toml")}") } }
-    private val themes = Palettes.all + laptop
+    private val themes = Palettes.all + Palettes.omarchy + laptop
 
     private fun Palette.check(what: String, fgColor: Color, bgColor: Color, min: Float) {
         val solid = if (fgColor.alpha < 1f) fgColor.compositeOver(bgColor) else fgColor
@@ -20,7 +20,7 @@ class PaletteContrastTest {
         assertTrue("$id $what %.2f < $min".format(c), c >= min)
     }
 
-    @Test fun coversEveryTheme() = assertEquals(4 + 26, themes.size)
+    @Test fun coversEveryTheme() = assertEquals(4 + 24 + 26, themes.size)
 
     @Test fun textReadsOnEverySurface() {
         for (p in themes) for ((i, s) in p.surfaces.withIndex()) {
