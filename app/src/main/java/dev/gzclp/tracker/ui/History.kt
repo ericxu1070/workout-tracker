@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Activities
@@ -200,12 +201,23 @@ fun LineChart(
     val lo = floor(lo0 / step + 0.001f) * step
     val hi = (ceil(hi0 / step - 0.001f) * step).let { if (it <= lo) lo + step else it }
     val ticks = (0..((hi - lo) / step).roundToInt()).map { lo + it * step }
-    Canvas(Modifier.fillMaxWidth().height(200.dp)) {
+    fun Density.xAt(i: Int, w: Float): Float {
+        val left = 48.dp.toPx()
+        val right = w - 64.dp.toPx()
+        return if (times.size < 2) (left + right) / 2 else left + (right - left) * i / (times.size - 1)
+    }
+    // Each series' value at time i, as "Top 185 lb", for the callout and screen readers.
+    fun at(i: Int) = series.mapIndexedNotNull { si, (pts, color) ->
+        pts.firstOrNull { it.t.toEpochSecond() == times[i] }?.let { pt -> listOf(names[si], value(pt.v) + unit).filter { it.isNotEmpty() }.joinToString(" ") to color }
+    }
+    fun read(i: Int) = Fmt.shortDate(all.first { it.t.toEpochSecond() == times[i] }.t) + ", " + at(i).joinToString(", ") { it.first }
+    val pick = remember(times) { mutableStateOf<Int?>(null) }
+    Canvas(Modifier.fillMaxWidth().height(200.dp).chartPick(pick, times.size, times.indices.joinToString("; ") { read(it) }, ::read) { i, w -> xAt(i, w) }) {
         val left = 48.dp.toPx()
         val right = size.width - 64.dp.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 24.dp.toPx()
-        fun x(t: Long) = if (times.size < 2) (left + right) / 2 else left + (right - left) * times.indexOf(t) / (times.size - 1)
+        fun x(t: Long) = xAt(times.indexOf(t), size.width)
         fun y(v: Float) = bottom - (bottom - top) * (v - lo) / (hi - lo)
         ticks.forEachIndexed { i, g ->
             drawLine(p.separator, Offset(left, y(g)), Offset(size.width, y(g)), 1.dp.toPx())
@@ -235,6 +247,17 @@ fun LineChart(
             floorY = ly
             label(tm, text, Offset(end.x + 8.dp.toPx(), ly), color, alignY = 0.5f)
         }
+        pick.value?.takeIf { it < times.size }?.let { i ->
+            val px = xAt(i, size.width)
+            drawLine(p.fg3, Offset(px, top), Offset(px, bottom), 1.dp.toPx())
+            series.forEach { (pts, color) ->
+                pts.firstOrNull { it.t.toEpochSecond() == times[i] }?.let {
+                    drawCircle(p.bg, 6.dp.toPx(), Offset(px, y(it.v)))
+                    drawCircle(color, 4.dp.toPx(), Offset(px, y(it.v)))
+                }
+            }
+            callout(tm, p, px, Fmt.shortDate(all.first { it.t.toEpochSecond() == times[i] }.t), at(i))
+        }
     }
 }
 
@@ -245,7 +268,12 @@ fun BarChart(sessions: List<SessionRecord>) {
     val mins = sessions.map { it.durationSec / 60f }
     val step = niceStep(mins.max().coerceAtLeast(30f))
     val hi = ceil(mins.max() / step) * step
-    Canvas(Modifier.fillMaxWidth().height(160.dp)) {
+    fun read(i: Int) = Fmt.shortDate(sessions[i].startedAt) + ", " + Fmt.minutes(sessions[i].durationSec)
+    val pick = remember(sessions) { mutableStateOf<Int?>(null) }
+    Canvas(Modifier.fillMaxWidth().height(160.dp).chartPick(pick, sessions.size, sessions.indices.joinToString("; ") { read(it) }, ::read) { i, w ->
+        val left = 48.dp.toPx()
+        left + (w - left) / 16 * (i + 0.5f)
+    }) {
         val left = 48.dp.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 24.dp.toPx()
@@ -261,12 +289,16 @@ fun BarChart(sessions: List<SessionRecord>) {
         mins.forEachIndexed { i, m ->
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
-            drawRoundRect(p.accent, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
+            val dim = pick.value.let { it != null && it != i }
+            drawRoundRect(if (dim) p.accent.copy(alpha = 0.35f) else p.accent, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
         }
         label(tm, Fmt.shortDate(sessions.first().startedAt), Offset(left, bottom + 6.dp.toPx()), p.fg2)
         if (sessions.size > 1) {
             val lastX = left + slot * (sessions.size - 1) + slot / 2
             label(tm, Fmt.shortDate(sessions.last().startedAt), Offset(lastX, bottom + 6.dp.toPx()), p.fg2, alignX = if (sessions.size > 13) 1f else 0.5f)
+        }
+        pick.value?.takeIf { it < sessions.size }?.let { i ->
+            callout(tm, p, left + slot * (i + 0.5f), Fmt.shortDate(sessions[i].startedAt), listOf(Fmt.minutes(sessions[i].durationSec) to p.fg), barW / 2)
         }
     }
 }
