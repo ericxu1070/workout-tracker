@@ -42,4 +42,4 @@ jobs:
         with:
           name: screenshots
           path: ${{ runner.temp }}/shots/
-          retention-days: 14
+          retention-days: 7
