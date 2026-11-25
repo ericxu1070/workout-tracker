@@ -64,6 +64,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import dev.gzclp.tracker.ui.Type.tabular
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -370,6 +373,33 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
                 verticalArrangement = Arrangement.spacedBy(Space.lg),
                 content = content,
             )
+        }
+    }
+}
+
+/** A floating "[text] · Undo" bar that rises while [text] is set; the caller clears it to let it go. */
+@Composable
+fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    // Keeps the last text on screen while the bar slides away.
+    val last = remember { arrayOf("") }
+    if (text != null) last[0] = text
+    AnimatedVisibility(
+        text != null, modifier.align(Alignment.BottomCenter),
+        enter = slideInVertically(tween(300, easing = SheetEase)) { it } + fadeIn(tween(200)),
+        exit = slideOutVertically(tween(200, easing = SheetEase)) { it } + fadeOut(tween(160)),
+    ) {
+        Row(
+            Modifier.padding(horizontal = Space.lg).fillMaxWidth().shadow(8.dp, CircleShape).clip(CircleShape).background(p.elevated)
+                // In a dark theme the bar steps above the cards it floats over, or it melts into them.
+                .then(if (p.dark) Modifier.background(p.fillPressed) else Modifier)
+                .padding(start = Space.xl, end = Space.xs).height(52.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Txt(last[0], Type.body.tabular(), Modifier.weight(1f))
+            Pressable(onUndo, Modifier.heightIn(min = 44.dp), shape = CircleShape, label = "Undo") {
+                Txt("Undo", Type.headline, Modifier.padding(horizontal = Space.lg), p.accent)
+            }
         }
     }
 }

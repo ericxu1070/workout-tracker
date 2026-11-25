@@ -451,6 +451,12 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, weighInScale(lastWeight, lastWeight.at.toLocalDate()), lastWeight.at, today), idle, {}, {}, {}) }
                 }
             }
+            shot(p, "16-weigh-in-undo") {
+                Box(Modifier.fillMaxSize()) {
+                    TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) }
+                    UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = 64.dp))
+                }
+            }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}, {}) {} } }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-week-full" else "10-history-week", tall) {
                 TabFrame(Tab.History, {}) { HistoryScreen(withCardio, false, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today), today, {}, {}) } }
