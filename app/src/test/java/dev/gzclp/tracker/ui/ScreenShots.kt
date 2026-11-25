@@ -165,6 +165,7 @@ class ScreenShots {
     private fun shot(p: Palette, name: String, tall: Boolean = false, content: @Composable () -> Unit) {
         out.mkdirs()
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h3000dp-420dpi")
+        System.getProperty("gzclp.fontScale")?.let { RuntimeEnvironment.setFontScale(it.toFloat()) }
         captureRoboImage(File(out, "${p.id}-$name.png").path) {
             GzTheme(p) { Box(Modifier.fillMaxSize()) { content() } }
         }

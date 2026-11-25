@@ -68,4 +68,6 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 
 tasks.withType<Test>().configureEach {
     systemProperty("gzclp.shots", providers.gradleProperty("gzclpShots").getOrElse(layout.buildDirectory.dir("shots").get().asFile.path))
+    // -PgzclpFontScale=1.3 renders every screenshot at that system font size, to catch truncation.
+    providers.gradleProperty("gzclpFontScale").orNull?.let { systemProperty("gzclp.fontScale", it) }
 }

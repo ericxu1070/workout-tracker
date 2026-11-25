@@ -53,11 +53,11 @@ class ChartTouchTest {
 
     @Test fun tappingABarShowsItsValueUntilTappedAgain() {
         show { BarChart(sessions) }
-        val chart = rule.onNodeWithContentDescription("Oct 1, 52 min", substring = true)
+        val chart = rule.onNodeWithContentDescription("Oct\u00A01, 52 min", substring = true)
         chart.assert(state(null))
         // 16 slots after a 48 dp axis, in a 379 dp wide chart: bar 3 centers at 48 + 20.7 × 3.5.
         chart.performTouchInput { click(Offset((48 + 331f / 16 * 3.5f).dp.toPx(), height / 2f)) }
-        chart.assert(state("Oct 7, 1 hr 10 min"))
+        chart.assert(state("Oct\u00A07, 1 hr 10 min"))
         rule.onRoot().captureRoboImage(File(out, "charts/bar-tap.png").path)
         chart.performTouchInput { click(Offset((48 + 331f / 16 * 3.5f).dp.toPx(), height / 2f)) }
         chart.assert(state(null))
@@ -67,15 +67,15 @@ class ChartTouchTest {
 
     @Test fun draggingALineScrubsAndReleasingHidesIt() {
         show { LineChart(listOf(e1rm to Palettes.jade.fg2, top to Palettes.jade.accent), listOf("1RM", "Top")) }
-        val chart = rule.onNodeWithContentDescription("Oct 1, 1RM 160 lb, Top 135 lb", substring = true)
+        val chart = rule.onNodeWithContentDescription("Oct\u00A01, 1RM 160 lb, Top 135 lb", substring = true)
         chart.performTouchInput {
             down(Offset(60.dp.toPx(), height / 2f))
             moveBy(Offset(40.dp.toPx(), 0f))
             moveTo(Offset(width - 64.dp.toPx(), height / 2f))
         }
-        chart.assert(state("Oct 13, 1RM 178 lb, Top 150 lb"))
+        chart.assert(state("Oct\u00A013, 1RM 178 lb, Top 150 lb"))
         chart.performTouchInput { moveTo(Offset(48.dp.toPx() + (width - 112.dp.toPx()) / 2, height / 2f)) }
-        chart.assert(state("Oct 7, 1RM 171 lb, Top 145 lb"))
+        chart.assert(state("Oct\u00A07, 1RM 171 lb, Top 145 lb"))
         rule.onRoot().captureRoboImage(File(out, "charts/line-scrub.png").path)
         chart.performTouchInput { up() }
         chart.assert(state(null))
@@ -83,7 +83,7 @@ class ChartTouchTest {
 
     @Test fun aVerticalDragIsNotAScrub() {
         show { LineChart(listOf(top to Palettes.jade.accent), listOf("Top")) }
-        val chart = rule.onNodeWithContentDescription("Oct 1, Top 135 lb", substring = true)
+        val chart = rule.onNodeWithContentDescription("Oct\u00A01, Top 135 lb", substring = true)
         chart.performTouchInput {
             down(center)
             moveBy(Offset(0f, 60.dp.toPx()))

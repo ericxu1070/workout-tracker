@@ -77,6 +77,7 @@ fun FoodScreen(
             onLogWater = { ml -> model.dispatch { WaterLog.logWater(it, ml, model.now().with(day)) } },
             onClearWater = { id -> model.dispatch { WaterLog.clearWater(id) } },
             onCupSizeChange = model::chooseWaterCup,
+            pace = model.waterReminder,
         )
         return
     }
@@ -134,15 +135,12 @@ fun FoodScreen(
                 GroupRow(first = i == 0, onClick = { onOpen(m) }) {
                     MealPhoto(m, 240, Modifier.size(72.dp).clip(RoundedCornerShape(Radius.md)))
                     Column(Modifier.weight(1f).padding(start = Space.lg)) {
-                        Txt(Fmt.time(m.at), Type.body.tabular(), maxLines = 1)
+                        // Named once estimated, so the list scans by what was eaten; the time drops to the subtitle.
                         val est = currentEstimates[m.file.name]
-                        if (est != null) {
-                            Spacer(Modifier.height(4.dp))
-                            Txt(
-                                "${est.label} · ${est.kcalLow}–${est.kcalHigh} kcal",
-                                Type.caption,
-                                maxLines = 1,
-                            )
+                        if (est == null) Txt(Fmt.time(m.at), Type.body.tabular(), maxLines = 1)
+                        else {
+                            Txt(est.label, Type.body, maxLines = 1)
+                            Txt("${Fmt.time(m.at)} · ${est.kcalLow}–${est.kcalHigh} kcal", Type.footnote.tabular(), color = p.fg2, maxLines = 1)
                         }
                     }
                     Icon(Icons.chevronRight, p.fg3, 20.dp)
