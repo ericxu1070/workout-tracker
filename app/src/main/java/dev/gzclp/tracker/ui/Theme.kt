@@ -28,8 +28,6 @@ data class Palette(
     val fill: Color get() = fg.copy(alpha = 0.07f)
     val fillPressed: Color get() = fg.copy(alpha = 0.14f)
     val scrim: Color get() = Color.Black.copy(alpha = if (dark) 0.55f else 0.30f)
-    /** Text and glyphs on a red fill, black or white like onAccent: white fails 4.5:1 on the dark themes' lighter reds. */
-    val onRed: Color get() = if (LaptopTheme.contrast(Color.Black, red) >= LaptopTheme.contrast(Color.White, red)) Color.Black else Color.White
 }
 
 object Palettes {
