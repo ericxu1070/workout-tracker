@@ -60,7 +60,10 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,6 +118,7 @@ fun Pressable(
     onLongClick: (() -> Unit)? = null,
     label: String? = null,
     repeat: Boolean = false,
+    role: Role = Role.Button,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = LocalPalette.current
@@ -145,7 +149,7 @@ fun Pressable(
             .alpha(if (enabled) 1f else 0.4f)
             .combinedClickable(
                 interactionSource = source, indication = null, enabled = enabled,
-                role = Role.Button, onClickLabel = label, onLongClick = if (repeat) ({}) else onLongClick, onClick = onClick,
+                role = role, onClickLabel = label, onLongClick = if (repeat) ({}) else onLongClick, onClick = onClick,
             )
             .focusable(enabled, source),
         contentAlignment = Alignment.Center,
@@ -256,13 +260,18 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
+    // The selected pill stands a step off the track, as on iOS: a lighter fill in dark themes, white with a shadow in Light.
+    val pill = if (p.dark) p.fg.copy(alpha = 0.20f).compositeOver(p.elevated) else p.elevated
     Row(modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)) {
         options.forEachIndexed { i, o ->
+            val on = i == selected
             Pressable(
-                { onSelect(i) }, Modifier.weight(1f).height(36.dp), CircleShape,
-                if (i == selected) p.elevated else Color.Transparent,
+                { onSelect(i) },
+                Modifier.weight(1f).height(36.dp).then(if (on && !p.dark) Modifier.shadow(1.dp, CircleShape) else Modifier)
+                    .semantics { this.selected = on },
+                CircleShape, if (on) pill else Color.Transparent, role = Role.Tab,
             ) {
-                Txt(o, Type.subhead.copy(fontWeight = if (i == selected) Type.headline.fontWeight else Type.subhead.fontWeight), maxLines = 1)
+                Txt(o, Type.subhead.copy(fontWeight = if (on) Type.headline.fontWeight else Type.subhead.fontWeight), maxLines = 1)
             }
         }
     }
@@ -298,8 +307,18 @@ fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, lab
     ) {
         Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
         Box(Modifier.width(14.dp + (maxWidth - 28.dp) * frac).height(4.dp).clip(CircleShape).background(p.accent))
-        Box(Modifier.padding(start = (maxWidth - 28.dp) * frac).size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
+        SliderThumb(Modifier.padding(start = (maxWidth - 28.dp) * frac))
     }
+}
+
+/** The 28dp white slider knob; in Light a hairline ring keeps it off a white sheet, as on iOS. */
+@Composable
+fun SliderThumb(modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Box(
+        modifier.size(28.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape)
+            .then(if (p.dark) Modifier else Modifier.border(0.5.dp, p.separator, CircleShape)),
+    )
 }
 
 /** A small round step button, for the − and + beside a value in a row. */
@@ -315,8 +334,9 @@ fun Toggle(on: Boolean, label: String, onChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
     val x by androidx.compose.animation.core.animateDpAsState(if (on) 22.dp else 2.dp, tween(200), label = "knob")
     Pressable(
-        { onChange(!on) }, Modifier.size(width = 51.dp, height = 31.dp), CircleShape,
-        if (on) p.accent else p.fillPressed, label = label,
+        { onChange(!on) },
+        Modifier.size(width = 51.dp, height = 31.dp).semantics { contentDescription = label; toggleableState = ToggleableState(on) },
+        CircleShape, if (on) p.accent else p.fillPressed, role = Role.Switch,
     ) {
         Box(Modifier.align(Alignment.CenterStart).padding(start = x).size(27.dp).clip(CircleShape).background(Color.White))
     }
@@ -385,7 +405,7 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
         Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp)) {
             Tab.entries.forEach { t ->
                 val c = if (t == selected) p.accent else p.fg2
-                Pressable({ onSelect(t) }, Modifier.weight(1f).fillMaxHeight(), RectangleShape, label = t.label) {
+                Pressable({ onSelect(t) }, Modifier.weight(1f).fillMaxHeight().semantics { this.selected = t == selected }, RectangleShape, role = Role.Tab) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Icon(t.icon(), c, 24.dp)
                         Txt(t.label, Type.caption.copy(fontWeight = if (t == selected) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
