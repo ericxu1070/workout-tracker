@@ -21,8 +21,8 @@ import org.robolectric.annotation.Config
 class StretchPlayerUiTest {
     @get:Rule val rule = createComposeRule()
 
-    private val first = StretchMoves.PIGEON_POSE.copy(holdSec = 2)
-    private val second = StretchMoves.STANDING_QUAD_STRETCH.copy(holdSec = 3)
+    private val first = StretchMoves.BUTTERFLY_STRETCH.copy(holdSec = 2)
+    private val second = StretchMoves.STANDING_FORWARD_FOLD.copy(holdSec = 3)
     private val routine = StretchRoutine("t", "Test", "", "", listOf(first, second))
 
     private fun play() {
@@ -56,5 +56,19 @@ class StretchPlayerUiTest {
         rule.mainClock.advanceTimeByFrame()
         rule.onNodeWithText(second.name).assertExists()
         rule.onAllNodesWithText(first.name).assertCountEquals(0)
+    }
+
+    @Test fun aOneSidedMoveSwitchesSidesHalfwayThroughItsHold() {
+        val calf = StretchMoves.WALL_CALF_STRETCH.copy(holdSec = 4)
+        rule.mainClock.autoAdvance = false
+        rule.setContent { GuidedStretchPlayerScreen(StretchRoutine("t", "Test", "", "", listOf(calf, first)), {}, {}) }
+        rule.onNodeWithText("Side 1").assertExists()
+        rule.mainClock.advanceTimeBy((StretchPlayerState.READY_SEC + calf.firstSideSec) * 1000L + 500)
+        rule.onNodeWithText("Switch").assertExists()
+        rule.onNodeWithText("Side 2").assertExists()
+        rule.onNodeWithText(calf.name).assertExists()
+        rule.mainClock.advanceTimeBy((StretchPlayerState.SWITCH_SEC + calf.secondSideSec) * 1000L)
+        rule.onNodeWithText(first.name).assertExists()
+        rule.onNodeWithText("Get ready").assertExists()
     }
 }

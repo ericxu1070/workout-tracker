@@ -183,6 +183,23 @@ class ScreenShots {
         }
     }
 
+    /** Each stretch held, lit where it is felt: from its opening view, from behind, and mirrored for its second side. */
+    @Test fun stretchFocus() {
+        val p = Palettes.jade
+        RuntimeEnvironment.setQualifiers("w420dp-h200dp-420dpi")
+        for (move in StretchMoves.ALL) captureRoboImage(File(out, "focus/${move.id}.png").path) {
+            GzTheme(p) {
+                Row(Modifier.fillMaxSize().background(p.bg)) {
+                    val home = Motions.of(move).yaw ?: DEFAULT_YAW
+                    for ((yaw, mirror) in listOf(home to false, home + 180f to false, home to true)) {
+                        FormView(Motions.of(move), Modifier.weight(1f).fillMaxHeight(), focus = move.focus, mirror = mirror, still = 1f, orbit = Orbit().apply { this.yaw = yaw; this.pitch = 15f })
+                    }
+                }
+            }
+        }
+        RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+    }
+
     /** Every exercise and stretch at its start and far end, from the side and three-quarters, one row each, to review them all at once. */
     @Test fun formGallery() {
         val ids = Catalog.all.map { it.id } + StretchMoves.ALL.map { it.id }

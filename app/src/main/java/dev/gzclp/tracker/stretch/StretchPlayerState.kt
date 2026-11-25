@@ -11,7 +11,8 @@ import java.time.OffsetDateTime
 
 /**
  * State machine managing the guided stretch player session. Each move opens with a [READY_SEC] get-ready countdown, then
- * its hold. Its fields are snapshot state, so a screen reading them recomposes on every tick.
+ * its hold; a one-sided move holds its first side, counts [SWITCH_SEC] to change sides, then holds the second. Its fields
+ * are snapshot state, so a screen reading them recomposes on every tick.
  */
 class StretchPlayerState(
     val routine: StretchRoutine,
@@ -25,13 +26,25 @@ class StretchPlayerState(
     val currentMove: StretchMove? get() = moves.getOrNull(moveIndex)
     val nextMove: StretchMove? get() = moves.getOrNull(moveIndex + 1)
 
-    /** Seconds left to get into position before the hold starts; 0 while holding. */
+    /** True from the switch on, while a one-sided move works its second side. */
+    var isSecondSide: Boolean by mutableStateOf(false)
+        private set
+
+    /** Seconds left to get into position (or switch sides) before the hold starts; 0 while holding. */
     var readyRemaining: Int by mutableIntStateOf(if (moves.isEmpty()) 0 else READY_SEC)
         private set
 
     val isGettingReady: Boolean get() = readyRemaining > 0
 
-    var secondsRemaining: Int by mutableIntStateOf(currentMove?.holdSec ?: 0)
+    /** The length of the countdown under way: getting ready, switching sides, or this side's hold. */
+    val countdownSec: Int
+        get() = when {
+            isGettingReady -> if (isSecondSide) SWITCH_SEC else READY_SEC
+            isSecondSide -> currentMove?.secondSideSec ?: 0
+            else -> currentMove?.firstSideSec ?: 0
+        }
+
+    var secondsRemaining: Int by mutableIntStateOf(currentMove?.firstSideSec ?: 0)
         private set
 
     var elapsedTotalSec: Long by mutableLongStateOf(0L)
@@ -49,8 +62,9 @@ class StretchPlayerState(
     val progressFraction: Float
         get() {
             if (moves.isEmpty()) return 1f
-            val curHold = currentMove?.holdSec ?: 1
-            val curProgress = (curHold - secondsRemaining).coerceAtLeast(0).toFloat() / curHold
+            val move = currentMove ?: return 1f
+            val held = if (isSecondSide) move.firstSideSec + move.secondSideSec - secondsRemaining else move.firstSideSec - secondsRemaining
+            val curProgress = held.coerceAtLeast(0).toFloat() / move.holdSec
             return (moveIndex + curProgress) / moves.size
         }
 
@@ -60,6 +74,11 @@ class StretchPlayerState(
         when {
             readyRemaining > 0 -> readyRemaining--
             secondsRemaining > 1 -> secondsRemaining--
+            !isSecondSide && (currentMove?.secondSideSec ?: 0) > 0 -> {
+                isSecondSide = true
+                secondsRemaining = currentMove!!.secondSideSec
+                readyRemaining = SWITCH_SEC
+            }
             else -> advance()
         }
     }
@@ -99,7 +118,8 @@ class StretchPlayerState(
 
     private fun begin(i: Int) {
         moveIndex = i
-        secondsRemaining = moves[i].holdSec
+        isSecondSide = false
+        secondsRemaining = moves[i].firstSideSec
         readyRemaining = READY_SEC
     }
 
@@ -124,5 +144,8 @@ class StretchPlayerState(
     companion object {
         /** Long enough to get down to the floor or switch sides. */
         const val READY_SEC = 8
+
+        /** Long enough to change sides in a one-sided stretch. */
+        const val SWITCH_SEC = 3
     }
 }
