@@ -49,6 +49,12 @@ object RestAlarm {
         context.getSystemService(NotificationManager::class.java).cancel(ID)
     }
 
+    /** Cancels the running rest only when [label] names the set that started it. */
+    fun cancelFor(context: Context, label: String) {
+        val prefs = Prefs(context)
+        if (prefs.restEndMillis != 0L && prefs.restLabel == label) cancel(context)
+    }
+
     internal fun fire(context: Context) {
         val prefs = Prefs(context)
         if (prefs.restEndMillis == 0L) return

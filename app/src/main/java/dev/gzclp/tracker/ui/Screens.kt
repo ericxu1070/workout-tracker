@@ -1,12 +1,5 @@
 package dev.gzclp.tracker.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,7 +41,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -55,8 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -317,23 +311,17 @@ fun WorkoutScreen(
         )
         return
     }
+    // The rest timer lives in the fixed bar, never in the list, so logging a set moves no row under the thumb.
     ScreenFrame(bottom = {
-        BottomBar { PillButton("End workout", onEnd, Modifier.weight(1f), primary = true) }
+        BottomBar {
+            if (rest != null && rest.remainingSec > 0) RestBar(rest, onSkipRest, Modifier.weight(1f))
+            else PillButton("End workout", onEnd, Modifier.weight(1f))
+        }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        Row(Modifier.fillMaxWidth()) {
-            Txt(a.day.title, Type.largeTitle, Modifier.weight(1f).alignByBaseline(), maxLines = 1)
-            Txt(Fmt.clock(Duration.between(a.startedAt, now).seconds), Type.title3.tabular(), Modifier.alignByBaseline())
-        }
+        Txt(a.day.title, Type.largeTitle, maxLines = 1)
         Spacer(Modifier.height(Space.xs))
-        Txt("${a.program.name} · started ${Fmt.time(a.startedAt)}", Type.subhead, color = p.fg2)
-        AnimatedVisibility(
-            rest != null && rest.remainingSec > 0,
-            enter = expandVertically(tween(240)) + fadeIn(tween(240)),
-            exit = shrinkVertically(tween(180)) + fadeOut(tween(120)),
-        ) {
-            if (rest != null) RestCard(rest, onSkipRest, Modifier.padding(top = Space.xl))
-        }
+        Txt("${a.program.name} · ${Fmt.minutes(Duration.between(a.startedAt, now).seconds)}", Type.subhead.tabular(), color = p.fg2)
         val exercises = state.sessionExercises().map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
@@ -343,28 +331,24 @@ fun WorkoutScreen(
     }
 }
 
+/** The running rest in the bottom bar: time left over a draining bar, and Skip rest. Same height as End workout. */
 @Composable
-fun RestCard(rest: RestUi, onSkip: () -> Unit, modifier: Modifier = Modifier) {
+fun RestBar(rest: RestUi, onSkip: () -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
-    Row(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.elevated).padding(Space.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val frac = (rest.remainingSec.toFloat() / rest.totalSec.coerceAtLeast(1)).coerceIn(0f, 1f)
-        Canvas(Modifier.size(44.dp)) {
-            val w = 4.dp.toPx()
-            val inset = w / 2
-            val arcSize = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
-            val tl = androidx.compose.ui.geometry.Offset(inset, inset)
-            drawArc(p.separator, 0f, 360f, false, tl, arcSize, style = Stroke(w))
-            drawArc(p.accent, -90f, 360f * frac, false, tl, arcSize, style = Stroke(w, cap = StrokeCap.Round))
-        }
-        Spacer(Modifier.width(Space.md))
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
         Column(Modifier.weight(1f)) {
-            Txt(Fmt.clock(rest.remainingSec), Type.title1)
-            Txt(rest.label, Type.footnote, color = p.fg2, maxLines = 1)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Txt(Fmt.clock(rest.remainingSec), Type.title2.tabular(), Modifier.alignByBaseline())
+                Spacer(Modifier.width(Space.sm))
+                Txt(rest.label, Type.footnote, Modifier.weight(1f).alignByBaseline(), p.fg2, maxLines = 1)
+            }
+            Spacer(Modifier.height(Space.sm))
+            val frac = (rest.remainingSec.toFloat() / rest.totalSec.coerceAtLeast(1)).coerceIn(0f, 1f)
+            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed)) {
+                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(p.accent))
+            }
         }
-        SmallPill("Skip rest", onSkip)
+        PillButton("Skip rest", onSkip)
     }
 }
 
@@ -486,6 +470,7 @@ fun SetRow(
 ) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
+    val haptic = LocalHapticFeedback.current
     var w by remember(logged?.weight, defaultWeight) { mutableStateOf((logged?.weight ?: defaultWeight)?.toString() ?: "") }
     val weightFocus = remember { FocusRequester() }
     var r by remember(logged?.actualReps) { mutableStateOf(logged?.actualReps?.toString() ?: if (amrap) "" else targetReps.toString()) }
@@ -517,9 +502,15 @@ fun SetRow(
                 focus.clearFocus()
                 val wt = weight()
                 when {
-                    logged != null -> onClear()
+                    logged != null -> {
+                        haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                        onClear()
+                    }
                     wt == null -> weightFocus.requestFocus()
-                    else -> onLog(wt, reps(), e.toDoubleOrNull())
+                    else -> {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onLog(wt, reps(), e.toDoubleOrNull())
+                    }
                 }
             },
             Modifier.size(44.dp), CircleShape,

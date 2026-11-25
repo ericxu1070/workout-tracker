@@ -426,7 +426,10 @@ private fun App(model: AppModel) {
                                     model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
                                     if (!wasLogged) model.startRest(ex, i)
                                 },
-                                onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
+                                onClear = { ex, i ->
+                                    model.dispatch { Commands.clearSet(it, ex, i) }
+                                    model.cancelRestFor(ex, i)
+                                },
                                 onEditWeight = { open(weightSheet(it)) },
                                 onSwap = { open(SheetState.Swap(it, "")) },
                                 onSkipRest = model::cancelRest,
