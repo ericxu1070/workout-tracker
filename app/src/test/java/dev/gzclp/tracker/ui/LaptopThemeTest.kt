@@ -35,6 +35,21 @@ class LaptopThemeTest {
             ok("$name fg2/elevated", p.fg2, p.elevated, 4.5f)
             ok("$name onAccent/accent", p.onAccent, p.accent, 4.5f)
             ok("$name accent/bg", p.accent, p.bg, 3f)
+            ok("$name onRed/red", p.onRed, p.red, 4.5f)
+        }
+    }
+
+    /** The built-in themes: text 4.5:1; accent and the 17sp semibold button labels on it 3:1 (Light's system blue is 3.6:1, as on iOS). */
+    @Test fun everyBuiltInThemeIsReadable() {
+        fun ok(what: String, a: Color, b: Color, min: Float) =
+            assertTrue("$what ${LaptopTheme.contrast(a, b)}", LaptopTheme.contrast(a, b) >= min)
+        for (p in Palettes.all) for ((surface, c) in listOf("bg" to p.bg, "elevated" to p.elevated)) {
+            ok("${p.id} fg/$surface", p.fg, c, 4.5f)
+            ok("${p.id} fg2/$surface", p.fg2, c, 4.5f)
+            ok("${p.id} red/$surface", p.red, c, 4.5f)
+            ok("${p.id} accent/$surface", p.accent, c, 3f)
+            ok("${p.id} onAccent/accent", p.onAccent, p.accent, 3f)
+            ok("${p.id} onRed/red", p.onRed, p.red, 4.5f)
         }
     }
 
