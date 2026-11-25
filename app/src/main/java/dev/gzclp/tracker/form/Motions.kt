@@ -175,6 +175,14 @@ object Motions {
     /** True when [id] has its own motion rather than the generic one. */
     fun known(id: String) = id in defs
 
+    /** [id] with case, separators and a plural "s" on each word dropped, so "pull_ups", "Pull-ups" and "pullup" all meet. */
+    private fun fold(id: String) = id.lowercase().split(Regex("[^a-z0-9]+")).joinToString("") { it.removeSuffix("s") }
+
+    private val folded = defs.keys.associateBy(::fold)
+
+    /** The id of [id]'s own motion, or of the known exercise a custom id spells differently (a custom "pull_ups" is "pull_up"); null when there is none. */
+    fun resolve(id: String): String? = id.takeIf { it in defs } ?: folded[fold(id)]
+
     /** The motion for an exercise or stretch id; an unknown id gets a generic arm raise. */
     fun of(id: String): Motion = made.getOrPut(id) { defs[id]?.invoke() ?: generic }
 

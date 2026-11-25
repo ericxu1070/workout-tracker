@@ -570,9 +570,10 @@ fun FormView(
     }
 }
 
-/** A collapsed "Show form" row that opens the exercise's 3D figure inline; it loads and animates nothing until opened. */
+/** A collapsed "Show form" row that opens the exercise's 3D figure inline; it loads and animates nothing until opened, and is absent for an exercise with no motion. */
 @Composable
 fun FormToggle(exId: String, modifier: Modifier = Modifier) {
+    val id = Motions.resolve(exId) ?: return
     val p = LocalPalette.current
     var open by rememberSaveable { mutableStateOf(false) }
     Column(modifier) {
@@ -584,7 +585,7 @@ fun FormToggle(exId: String, modifier: Modifier = Modifier) {
             }
         }
         if (open) FormView(
-            Motions.of(exId),
+            Motions.of(id),
             Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(Radius.lg)).background(p.fill),
         )
     }

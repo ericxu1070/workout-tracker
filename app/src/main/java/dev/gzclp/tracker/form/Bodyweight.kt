@@ -52,13 +52,10 @@ private fun pull(kind: Kind, chin: Boolean) = Motion(Tempo(1.0, 0.4, 1.6, 0.6), 
     }
 }
 
-/** A bar at [BAR] on arms out from two uprights behind it, which keeps the side view clear. */
+/** A bar at [BAR] running between the tops of two uprights. */
 private fun Poser.pullUpBar() {
     rod(V(-0.62, BAR, 0.0), V(0.62, BAR, 0.0), 0.016)
-    for (s in SIDES) {
-        rod(V(s * 0.62, BAR, 0.0), V(s * 0.62, BAR, -0.32), 0.022)
-        rod(V(s * 0.62, 0.0, -0.32), V(s * 0.62, BAR + 0.05, -0.32), 0.03)
-    }
+    for (s in SIDES) rod(V(s * 0.62, 0.0, 0.0), V(s * 0.62, BAR + 0.05, 0.0), 0.03)
 }
 
 /** A push-up on the toes with the body straight from heels to head, pivoting about the toes; weighted adds a plate on the back, assisted puts the hands on a box. */
