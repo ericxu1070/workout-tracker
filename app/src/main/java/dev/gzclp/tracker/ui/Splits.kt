@@ -53,7 +53,7 @@ fun Snug(width: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, cont
 
 /** The navigation bar's Edit, which reads Done while editing. */
 @Composable
-private fun EditButton(editing: Boolean, onClick: () -> Unit) {
+fun EditButton(editing: Boolean, onClick: () -> Unit) {
     Pressable(onClick, Modifier.heightIn(min = 44.dp)) {
         Txt(if (editing) "Done" else "Edit", if (editing) Type.headline else Type.body, Modifier.padding(horizontal = Space.sm), LocalPalette.current.accent)
     }
@@ -65,7 +65,7 @@ private fun EditButton(editing: Boolean, onClick: () -> Unit) {
  * [keys] are stable ids in the same order; [onMove] and [onRemove] take indices.
  */
 @Composable
-private fun EditRows(
+fun EditRows(
     names: List<String>, keys: List<String>, trailing: (Int) -> String?, removable: Boolean,
     onMove: (Int, Int) -> Unit, onRemove: (Int) -> Unit,
 ) {

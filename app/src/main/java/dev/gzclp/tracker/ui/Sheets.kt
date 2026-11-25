@@ -14,6 +14,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import dev.gzclp.tracker.form.Motions
+import dev.gzclp.tracker.stretch.StretchMoves
+import dev.gzclp.tracker.stretch.StretchRoutines
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextAlign
 import dev.gzclp.tracker.log.Commands
@@ -55,6 +62,13 @@ sealed interface SheetState {
     data class SplitWave(val split: String, val day: String?, val ex: String?, val title: String, val wave: Wave) : SheetState
     /** Confirms deleting day [day] of [split], or the whole split when [day] is null. */
     data class DeleteSplit(val split: String, val day: String?) : SheetState
+    /** Names custom stretch routine [routine], or a new one when null. */
+    data class StretchName(val routine: String?, val name: String) : SheetState
+    /** Hold time [sec] for move [index] of custom stretch routine [routine]. */
+    data class StretchHold(val routine: String, val index: Int, val sec: Int) : SheetState
+    /** Picks a move to add to custom stretch routine [routine]; confirmed with the picked [move]. */
+    data class AddStretchMove(val routine: String, val move: String = "") : SheetState
+    data class DeleteStretchRoutine(val routine: String) : SheetState
     /** Swaps [ex] for the exercise named [name], for the active workout only; [create] asks before adding [name] as a new exercise. */
     data class Swap(val ex: Exercise, val name: String, val create: Boolean = false) : SheetState
     /** A logged meal's photo, with Delete as the confirm action once [delete] has asked. */
@@ -315,6 +329,49 @@ fun ColumnScope.SheetContent(
                 // Deleting the split in use hands the workout to its preset; say which.
                 if (s.day == null && state.programId == s.split) split?.from?.let { "${Programs.of(it).name} takes over." } else null,
             )
+            CancelOr("Delete", onDismiss) { onConfirm(s) }
+        }
+        is SheetState.StretchName -> {
+            SheetTitle(if (s.routine == null) "New routine" else "Rename routine", null)
+            NameField(s.name, "Name, e.g. Morning", Commands.SPLIT_NAME_MAX) { update(s.copy(name = it)) }
+            PillButton(if (s.routine == null) "Create routine" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
+        }
+        is SheetState.StretchHold -> {
+            val move = state.customStretches[s.routine]?.moves?.getOrNull(s.index) ?: return
+            val p = LocalPalette.current
+            SheetTitle(move.name, null)
+            Box(Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(Radius.md)).background(p.bg)) {
+                FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus, still = 1f)
+            }
+            val hold = StretchRoutines.HOLD_SEC
+            Stepper(
+                "${s.sec}",
+                { update(s.copy(sec = (s.sec - StretchRoutines.HOLD_STEP).coerceAtLeast(hold.first))) },
+                { update(s.copy(sec = (s.sec + StretchRoutines.HOLD_STEP).coerceAtMost(hold.last))) },
+                unit = "sec", repeat = true,
+            )
+            PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
+        }
+        is SheetState.AddStretchMove -> {
+            val p = LocalPalette.current
+            SheetTitle("Add move", null)
+            Group(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
+                StretchMoves.ALL.forEachIndexed { i, move ->
+                    GroupRow(first = i == 0, onClick = { onConfirm(s.copy(move = move.id)) }) {
+                        MoveThumb(move)
+                        Spacer(Modifier.width(Space.sm))
+                        Column(Modifier.weight(1f)) {
+                            Txt(move.name, Type.body, maxLines = 1)
+                            Txt(move.targetArea.displayName, Type.footnote, color = p.fg2)
+                        }
+                        Txt("${move.holdSec}s", Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                    }
+                }
+            }
+            PillButton("Cancel", onDismiss, Modifier.fillMaxWidth(), onSurface = true)
+        }
+        is SheetState.DeleteStretchRoutine -> {
+            SheetTitle("Delete ${state.customStretches[s.routine]?.name}?", null)
             CancelOr("Delete", onDismiss) { onConfirm(s) }
         }
         is SheetState.Swap -> if (s.create) {

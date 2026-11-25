@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.StretchLogged
 import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.stretch.BodyArea
@@ -46,7 +49,7 @@ import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
 import kotlinx.coroutines.delay
 
-/** The Workout tab's Stretching page: every routine to pick and start, then the move library. */
+/** The Workout tab's Stretching page: every routine to pick and start, each with its own page, then the move library. */
 @Composable
 fun StretchScreen(
     state: AppState?,
@@ -54,18 +57,21 @@ fun StretchScreen(
     onMode: (Int) -> Unit,
     onSettings: () -> Unit,
     onStartRoutine: (StretchRoutine) -> Unit,
+    onOpenRoutine: (StretchRoutine) -> Unit,
+    onNewRoutine: () -> Unit,
 ) {
     val p = LocalPalette.current
     val routines = remember(state) { StretchRoutines.all(state) }
-    // Flexibility rotates by day, so its routines share an id; the name tells them apart.
-    val defaultName = remember(state, defaultId) { StretchRoutines.of(defaultId, state).name }
-    var selectedName by remember(defaultName) { mutableStateOf(defaultName) }
-    val currentRoutine = routines.firstOrNull { it.name == selectedName } ?: routines.first()
+    val defaultKey = remember(state, defaultId) { StretchRoutines.of(defaultId, state).key }
+    var selectedKey by remember(defaultKey) { mutableStateOf(defaultKey) }
+    val currentRoutine = routines.firstOrNull { it.key == selectedKey } ?: routines.first()
 
     var selectedAreaFilter by remember { mutableStateOf<BodyArea?>(null) }
     var previewMove by remember { mutableStateOf<StretchMove?>(null) }
 
-    ScreenFrame(bottom = { BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true) } }) {
+    ScreenFrame(bottom = {
+        BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true, enabled = currentRoutine.moves.isNotEmpty()) }
+    }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
         WorkoutSwitch(2, onMode)
         Spacer(Modifier.height(Space.xxl))
@@ -76,12 +82,12 @@ fun StretchScreen(
         GroupHeader("Routines")
         Group {
             routines.forEachIndexed { i, routine ->
-                val selected = routine.name == currentRoutine.name
-                GroupRow(first = i == 0, onClick = { selectedName = routine.name }) {
+                val selected = routine.key == currentRoutine.key
+                GroupRow(first = i == 0, onClick = { selectedKey = routine.key }) {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body)
-                            if (routine.name == defaultName) {
+                            Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
+                            if (routine.key == defaultKey) {
                                 Spacer(Modifier.width(Space.xs))
                                 Txt("Default", Type.footnote, color = p.fg2)
                             }
@@ -89,8 +95,15 @@ fun StretchScreen(
                         Txt(routineMeta(routine), Type.footnote, color = p.fg2)
                     }
                     if (selected) Icon(Icons.check, p.accent, size = 18.dp)
+                    // The row picks the routine; the info button opens its page, as a Wi-Fi network's does.
+                    Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
+                        Pressable({ onOpenRoutine(routine) }, m.semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
+                            Icon(Icons.info, p.accent, 22.dp)
+                        }
+                    }
                 }
             }
+            AddRow("New routine", first = false, onClick = onNewRoutine)
         }
 
         GroupHeader("Moves")
@@ -135,9 +148,7 @@ fun StretchScreen(
         Group {
             displayedMoves.forEachIndexed { i, move ->
                 GroupRow(first = i == 0, onClick = { previewMove = move }) {
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(p.fill)) {
-                        FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus, still = 1f)
-                    }
+                    MoveThumb(move)
                     Spacer(Modifier.width(Space.sm))
                     Column(Modifier.weight(1f)) {
                         Txt(move.name, Type.body, maxLines = 1)
@@ -155,7 +166,83 @@ fun StretchScreen(
     }
 }
 
-private fun routineMeta(r: StretchRoutine) = "${r.estimatedMinutes} min · ${r.moves.size} moves"
+private fun routineMeta(r: StretchRoutine) = "${r.estimatedMinutes} min · ${r.moves.size} ${if (r.moves.size == 1) "move" else "moves"}"
+
+/** A move's form, still, in a small rounded well. */
+@Composable
+fun MoveThumb(move: StretchMove) {
+    Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(LocalPalette.current.fill)) {
+        FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus, still = 1f)
+    }
+}
+
+/**
+ * A routine's page: its moves, then Start. A custom routine is edited here: a move's hold from its row, Add move, and in
+ * edit mode its name, order, removals and deletion. A built-in routine is read-only and offers Duplicate.
+ */
+@Composable
+fun StretchRoutineScreen(
+    routine: StretchRoutine, onBack: () -> Unit, onStart: () -> Unit, onDuplicate: () -> Unit,
+    open: (SheetState) -> Unit, edit: ((AppState) -> List<Event>) -> Unit, initialEditing: Boolean = false,
+) {
+    val p = LocalPalette.current
+    var editing by rememberSaveable { mutableStateOf(initialEditing) }
+    var preview by remember { mutableStateOf<StretchMove?>(null) }
+    val moves = routine.moves
+    ScreenFrame(bottom = if (editing) null else ({
+        BottomBar { PillButton("Start routine", onStart, Modifier.weight(1f), primary = true, enabled = moves.isNotEmpty()) }
+    })) {
+        NavRow(onBack) { if (routine.custom) EditButton(editing) { editing = !editing } }
+        Txt(routine.name, Type.largeTitle, maxLines = 2)
+        Spacer(Modifier.height(Space.xs))
+        Txt(routineMeta(routine), Type.subhead, color = p.fg2)
+        Spacer(Modifier.height(Space.xxl))
+        if (editing) {
+            Group {
+                GroupRow(first = true, onClick = { open(SheetState.StretchName(routine.id, routine.name)) }) {
+                    Txt("Name", Type.body)
+                    Txt(routine.name, Type.body, Modifier.weight(1f).padding(start = Space.lg), p.fg2, maxLines = 1, align = TextAlign.End)
+                }
+            }
+            if (moves.isNotEmpty()) {
+                Spacer(Modifier.height(Space.xxl))
+                Group {
+                    // A move can appear twice, so each key counts its earlier copies.
+                    val keys = moves.mapIndexed { i, m -> "${m.id}#${moves.take(i).count { it.id == m.id }}" }
+                    EditRows(
+                        moves.map { it.name }, keys, { "${moves[it].holdSec}s" }, removable = true,
+                        onMove = { f, t -> edit { Commands.moveStretchMove(it, routine.id, f, t) } },
+                        onRemove = { i -> edit { Commands.removeStretchMove(it, routine.id, i) } },
+                    )
+                }
+            }
+            Spacer(Modifier.height(Space.xxl))
+            Group {
+                GroupRow(first = true, onClick = { open(SheetState.DeleteStretchRoutine(routine.id)) }) { Txt("Delete routine", Type.body, color = p.red) }
+            }
+        } else {
+            Group {
+                moves.forEachIndexed { i, move ->
+                    GroupRow(first = i == 0, onClick = { if (routine.custom) open(SheetState.StretchHold(routine.id, i, move.holdSec)) else preview = move }) {
+                        MoveThumb(move)
+                        Spacer(Modifier.width(Space.sm))
+                        Column(Modifier.weight(1f)) {
+                            Txt(move.name, Type.body, maxLines = 1)
+                            Txt(move.targetArea.displayName, Type.footnote, color = p.fg2)
+                        }
+                        Txt("${move.holdSec}s", Type.body.tabular(), Modifier.padding(start = Space.sm), if (routine.custom) p.accent else p.fg2)
+                    }
+                }
+                if (routine.custom) AddRow("Add move", first = moves.isEmpty()) { open(SheetState.AddStretchMove(routine.id)) }
+            }
+            if (!routine.custom) {
+                Spacer(Modifier.height(Space.xxl))
+                Group { GroupRow(first = true, onClick = onDuplicate) { Txt("Duplicate", Type.body, color = p.accent) } }
+            }
+        }
+    }
+    preview?.let { MovePreviewDialog(it) { preview = null } }
+}
 
 /**
  * Fullscreen guided stretch player with Canvas stick figure animation,

@@ -4,7 +4,7 @@ import dev.gzclp.tracker.log.AppState
 import java.time.LocalDate
 
 /**
- * A guided stretching routine comprising an ordered list of moves.
+ * A guided stretching routine comprising an ordered list of moves. A [custom] routine is the user's own, defined in the log.
  */
 data class StretchRoutine(
     val id: String,
@@ -13,9 +13,13 @@ data class StretchRoutine(
     val frequency: String,
     val moves: List<StretchMove>,
     val note: String? = null,
+    val custom: Boolean = false,
 ) {
     val totalDurationSec: Int get() = moves.sumOf { it.holdSec }
     val estimatedMinutes: Int get() = (totalDurationSec + 59) / 60
+
+    /** Tells every routine apart: the Flexibility days share an id, and a custom routine keeps its id when renamed. */
+    val key: String get() = if (custom) id else name
 }
 
 object StretchRoutines {
@@ -27,6 +31,13 @@ object StretchRoutines {
     const val ID_DANCE = "dance"
     const val ID_ATHLETICS = "athletics"
     const val ID_ATHLETICS_DYNAMIC = "athletics_dynamic"
+
+    /** Built-in routine ids, which a custom routine never takes. */
+    val IDS = setOf(ID_AFTER_WORKOUT, ID_FLEXIBILITY, ID_DANCE, ID_ATHLETICS, ID_ATHLETICS_DYNAMIC)
+
+    /** A custom routine's hold per move, in [HOLD_STEP] steps. */
+    val HOLD_SEC = 5..300
+    const val HOLD_STEP = 5
 
     /**
      * After workout (default): 8–10 minutes chosen from today's lifts.
@@ -250,7 +261,7 @@ object StretchRoutines {
     )
 
     /**
-     * Returns every preset routine, each Flexibility day included, so any of them can be started on any day.
+     * Returns every preset routine, each Flexibility day included, then the user's own, so any of them can be started on any day.
      */
     fun all(state: AppState? = null, date: LocalDate = LocalDate.now()): List<StretchRoutine> = listOf(
         afterWorkout(state, date),
@@ -260,9 +271,11 @@ object StretchRoutines {
         dance(),
         athleticsStatic(),
         athleticsDynamic(),
-    )
+    ) + state?.customStretches?.values.orEmpty()
 
+    /** The routine with [id]: a custom one, else a built-in, else After workout. */
     fun of(id: String, state: AppState? = null, date: LocalDate = LocalDate.now()): StretchRoutine {
+        state?.customStretches?.get(id)?.let { return it }
         return when (id) {
             ID_AFTER_WORKOUT -> afterWorkout(state, date)
             ID_FLEXIBILITY -> flexibility(date)

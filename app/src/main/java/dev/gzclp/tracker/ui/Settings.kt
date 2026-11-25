@@ -79,6 +79,7 @@ fun SettingsScreen(
     onWaterGoal: (Int) -> Unit = {},
     stretchRoutine: String = dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT,
     onStretchRoutine: (String) -> Unit = {},
+    customStretches: List<dev.gzclp.tracker.stretch.StretchRoutine> = emptyList(),
 ) {
     val p = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -287,12 +288,12 @@ fun SettingsScreen(
             dev.gzclp.tracker.stretch.StretchRoutines.ID_DANCE to "Dance",
             dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS to "Athletics",
             dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS_DYNAMIC to "Athletics dynamic",
-        )
+        ) + customStretches.map { it.id to it.name }
         val current = routineOptions.indexOfFirst { it.first == stretchRoutine }.coerceAtLeast(0)
         Group {
             GroupRow(first = true, onClick = { onStretchRoutine(routineOptions[(current + 1) % routineOptions.size].first) }) {
                 Txt("Default routine", Type.body, Modifier.weight(1f))
-                Txt(routineOptions[current].second, Type.body, color = p.accent)
+                Txt(routineOptions[current].second, Type.body, Modifier.padding(start = Space.lg), p.accent, maxLines = 1)
             }
         }
         GroupFooter(dev.gzclp.tracker.stretch.StretchRoutines.COACHING_DISCLAIMER)

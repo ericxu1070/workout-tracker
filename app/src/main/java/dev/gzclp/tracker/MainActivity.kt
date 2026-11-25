@@ -80,6 +80,8 @@ import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HomeScreen
 import dev.gzclp.tracker.ui.GuidedStretchPlayerScreen
 import dev.gzclp.tracker.ui.StretchScreen
+import dev.gzclp.tracker.ui.StretchRoutineScreen
+import dev.gzclp.tracker.log.StretchRoutineDefine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.LocalPlates
 import dev.gzclp.tracker.ui.SettingsScreen
@@ -123,9 +125,9 @@ class MainActivity : ComponentActivity() {
 
 /**
  * A screen pushed over the tabs; [arg] is a session or exercise id, for [Activities] "log" or "change" (blank starts a session),
- * a split id for [Split], and "split/day" for [SplitDay].
+ * a split id for [Split], "split/day" for [SplitDay], and a routine's [StretchRoutine.key] for [Stretch] and [StretchRoutine].
  */
-private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay, Stretch }
+private enum class Route { Settings, Days, Session, Exercise, BodyWeight, Activities, Split, SplitDay, Stretch, StretchRoutine }
 
 @Composable
 private fun App(model: AppModel) {
@@ -133,6 +135,8 @@ private fun App(model: AppModel) {
     var tab by rememberSaveable { mutableStateOf(Tab.Workout) }
     var route by rememberSaveable { mutableStateOf<Route?>(null) }
     var arg by rememberSaveable { mutableStateOf("") }
+    // The player was started from its routine's page, so leaving it goes back there.
+    var playerFromPage by rememberSaveable { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
@@ -316,6 +320,7 @@ private fun App(model: AppModel) {
             route == Route.Days || route == Route.Split -> route = Route.Settings
             route == Route.SplitDay -> push(Route.Split, arg.substringBefore('/'))
             route == Route.Activities -> closeActivities()
+            route == Route.Stretch && playerFromPage -> push(Route.StretchRoutine, arg)
             route != null -> route = null
             else -> tab = Tab.Workout
         }
@@ -340,7 +345,8 @@ private fun App(model: AppModel) {
             val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { shown == Route.Split || shown == Route.SplitDay }
             val splitDay = split?.day(arg.substringAfter('/', ""))
             // Held for the whole session, so a log change mid-routine cannot rebuild After workout under the player.
-            val stretch = if (shown == Route.Stretch) remember(arg) { StretchRoutines.all(state).firstOrNull { it.name == arg } } else null
+            val stretch = if (shown == Route.Stretch) remember(arg) { StretchRoutines.all(state).firstOrNull { it.key == arg } } else null
+            val routine = if (shown == Route.StretchRoutine) remember(state, arg) { StretchRoutines.all(state).firstOrNull { it.key == arg } } else null
             when {
                 !state.started && shown != Route.Settings -> SetupScreen(
                     onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
@@ -368,7 +374,7 @@ private fun App(model: AppModel) {
                     mealReminder = model.mealReminder, onMealReminder = { model.chooseMealReminder(it); if (it) requestNotifications() },
                     stretchReminder = model.stretchReminder, stretchReminderMinutes = model.stretchReminderMinutes,
                     onStretchReminder = { model.chooseStretchReminder(it); if (it) requestNotifications() }, onStretchReminderTime = model::chooseStretchReminderTime,
-                    stretchRoutine = model.stretchRoutine, onStretchRoutine = model::chooseStretchRoutine,
+                    stretchRoutine = model.stretchRoutine, onStretchRoutine = model::chooseStretchRoutine, customStretches = state.customStretches.values.toList(),
                     waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
                     saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
                     waterGoalMl = model.waterGoalMl, onWaterGoal = model::chooseWaterGoal,
@@ -394,8 +400,18 @@ private fun App(model: AppModel) {
                 shown == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } })
                 shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
-                    stretch, onBack = { route = null },
-                    onFinish = { logged -> model.dispatch { listOf(logged) }; route = null },
+                    stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
+                    onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
+                )
+                shown == Route.StretchRoutine && routine != null -> StretchRoutineScreen(
+                    routine, onBack = { route = null }, onStart = { playerFromPage = true; push(Route.Stretch, routine.key) },
+                    onDuplicate = {
+                        var id: String? = null
+                        val name = "My " + routine.name
+                        model.dispatch { s -> Commands.newStretchRoutine(s, name, routine.moves).also { e -> id = e.filterIsInstance<StretchRoutineDefine>().firstOrNull()?.routine } }
+                        id?.let { push(Route.StretchRoutine, it) }
+                    },
+                    open = ::open, edit = model::dispatch,
                 )
                 shown == Route.Activities -> ActivitiesScreen(
                     state, { closeActivities() }, ::closeActivities,
@@ -412,7 +428,8 @@ private fun App(model: AppModel) {
                                 onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
                             ) else if (state.active == null && model.workoutMode == 2) StretchScreen(
                                 state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
-                                onSettings = { push(Route.Settings) }, onStartRoutine = { push(Route.Stretch, it.name) },
+                                onSettings = { push(Route.Settings) }, onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
+                                onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
                             ) else if (state.active == null) HomeScreen(
                                 state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
                                 onEditWeight = { open(weightSheet(it)) },
@@ -536,6 +553,27 @@ private fun App(model: AppModel) {
                                 model.dispatch { Commands.removeDay(it, c.split, c.day) }
                                 push(Route.Split, c.split)
                             }
+                            close()
+                        }
+                        is SheetState.StretchName -> {
+                            if (c.routine == null) {
+                                var id: String? = null
+                                model.dispatch { s -> Commands.newStretchRoutine(s, c.name).also { e -> id = e.filterIsInstance<StretchRoutineDefine>().firstOrNull()?.routine } }
+                                id?.let { push(Route.StretchRoutine, it) }
+                            } else model.dispatch { Commands.renameStretchRoutine(it, c.routine, c.name) }
+                            close()
+                        }
+                        is SheetState.StretchHold -> {
+                            model.dispatch { Commands.setStretchHold(it, c.routine, c.index, c.sec) }
+                            close()
+                        }
+                        is SheetState.AddStretchMove -> {
+                            model.dispatch { Commands.addStretchMove(it, c.routine, c.move) }
+                            close()
+                        }
+                        is SheetState.DeleteStretchRoutine -> {
+                            model.dispatch { Commands.deleteStretchRoutine(it, c.routine) }
+                            route = null
                             close()
                         }
                         is SheetState.CardioStop -> {
