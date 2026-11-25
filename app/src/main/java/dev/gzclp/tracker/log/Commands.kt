@@ -82,7 +82,14 @@ object Commands {
             restSec = if (existing != null) existing.restSec else prev?.let { Duration.between(it.ts, now).seconds.toInt() },
             restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { p -> Tier.of(p.event.tier)?.let { restSec(it, p.event.targetReps, restTargets) } },
             rpe = rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
-        )
+        ).let { e ->
+            // Bodyweight moves snapshot the body weight in effect, so later weigh-ins never rewrite history; an assisted variant's weight is help, logged negative.
+            if (!isCalisthenics(ex.id)) e
+            else e.copy(
+                addedLb = e.weight.toDouble().let { if (ex.id.startsWith("assisted_")) -it else it },
+                bodyweightLb = existing?.bodyweightLb ?: state.snapshotBodyweight(now),
+            )
+        }
         return if (event == existing) emptyList() else listOf(event)
     }
 
@@ -153,14 +160,40 @@ object Commands {
             }
         }
 
-    fun end(state: AppState, now: OffsetDateTime, newFiveRm: Int?): List<Event> {
+    fun end(state: AppState, now: OffsetDateTime, newFiveRm: Int?, counts: Boolean? = null): List<Event> {
         val a = state.active ?: return emptyList()
-        val changes = progressions(state, a.program, a.day, a.id, newFiveRm) { reps(state, it) }
         val duration = Duration.between(a.startedAt, now).seconds.coerceAtLeast(0)
-        return changes + SessionEnd(a.id, a.program.id, a.day.id, LogCodec.TS.format(a.startedAt), duration)
+        if (counts == false) {
+            return listOf(SessionEnd(a.id, a.program.id, a.day.id, LogCodec.TS.format(a.startedAt), duration, counts = false))
+        }
+        val changes = progressions(state, a.program, a.day, a.id, newFiveRm) { reps(state, it) }
+        return changes + SessionEnd(a.id, a.program.id, a.day.id, LogCodec.TS.format(a.startedAt), duration, counts = counts)
     }
 
-    /** The next [n] workouts in rotation order, each prescribed as if every earlier one hit every target. */
+    /** Starts an open session with mode = "open". */
+    fun startOpen(state: AppState, now: OffsetDateTime, day: ProgramDay = state.nextDay): List<Event> =
+        if (state.active != null || state.cardioActive != null || !state.started) emptyList()
+        else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, day.id, mode = "open"))
+
+    /** Prefills weight for [exerciseId] at [reps] from the strength model or parent ratio. */
+    fun suggestWeight(state: AppState, exerciseId: String, reps: Int): Int {
+        val model = state.strengthModel()
+        val direct = model.suggest(exerciseId, reps, targetRir = 2.0)
+        if (direct != null && direct > 0) return direct
+        val meta = state.exerciseMeta[exerciseId]
+        if (meta?.parent != null && meta.parentRatio != null) {
+            val parentWeight = model.suggest(meta.parent, reps, targetRir = 2.0)
+            if (parentWeight != null && parentWeight > 0) {
+                return round5(parentWeight * meta.parentRatio).coerceAtLeast(0)
+            }
+        }
+        val last = state.sessions.asReversed().firstNotNullOfOrNull { s ->
+            s.sets.lastOrNull { it.exercise == exerciseId && it.weight > 0 }?.weight
+        }
+        if (last != null) return last
+        return if (exerciseId in Catalog.barbell) 45 else 20
+    }
+
     /** Sets finished session [id]'s duration; nothing for an unknown session, an unchanged duration, or one out of range. */
     fun editSession(state: AppState, id: String, durationSec: Long): List<Event> {
         val s = state.sessions.firstOrNull { it.id == id } ?: return emptyList()
@@ -168,6 +201,7 @@ object Commands {
         return listOf(SessionEdit(id, durationSec))
     }
 
+    /** The next [n] workouts in rotation order, each prescribed as if every earlier one hit every target. */
     fun upcoming(state: AppState, n: Int): List<Pair<ProgramDay, List<Exercise>>> {
         var s = state
         val program = state.active?.program ?: state.program

@@ -1,6 +1,20 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.form.Motions
+import dev.gzclp.tracker.engine.Catalog
+import dev.gzclp.tracker.stretch.StretchMoves
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -17,11 +31,10 @@ import dev.gzclp.tracker.log.ExerciseSwap
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.log.Cardio
 import dev.gzclp.tracker.log.mondayOf
 import dev.gzclp.tracker.engine.Activities
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -152,6 +165,39 @@ class ScreenShots {
             GzTheme(p) { Box(Modifier.fillMaxSize()) { content() } }
         }
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+    }
+
+    /** The 3D form viewer open, from the side and from high above, in a dark and a light theme. */
+    @Test fun formViewer() {
+        val views = listOf("squat" to 1f, "bench" to 0f, "deadlift" to 0f, "pull_up" to 1f)
+            .map { (id, t) -> Triple(id, Motions.of(id), t) } + Triple("stretch", Motions.of(StretchMoves.PIGEON_POSE), 1f)
+        for (p in listOf(Palettes.jade, Palettes.light)) for ((name, motion, t) in views) for ((view, yaw, pitch) in listOf(Triple("side", 90f, 3f), Triple("top", 35f, 70f))) {
+            val orbit = Orbit().apply { this.yaw = yaw; this.pitch = pitch }
+            shot(p, "form-$name-$view") {
+                Column(Modifier.fillMaxSize().background(p.bg).padding(horizontal = Space.lg).padding(top = 64.dp)) {
+                    Txt(name.replace('_', '-'), Type.largeTitle)
+                    Spacer(Modifier.height(Space.lg))
+                    FormView(motion, Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(Radius.lg)).background(p.fill), still = t, orbit = orbit)
+                }
+            }
+        }
+    }
+
+    /** Every exercise and stretch at its start and far end, from the side and three-quarters, one row each, to review them all at once. */
+    @Test fun formGallery() {
+        val ids = Catalog.all.map { it.id } + StretchMoves.ALL.map { it.id }
+        val p = Palettes.jade
+        RuntimeEnvironment.setQualifiers("w420dp-h120dp-420dpi")
+        for (id in ids) captureRoboImage(File(out, "gallery/$id.png").path) {
+            GzTheme(p) {
+                Row(Modifier.fillMaxSize().background(p.bg)) {
+                    for ((yaw, pitch) in listOf(90f to 4f, 35f to 15f)) for (t in listOf(0f, 1f)) {
+                        FormView(Motions.of(id), Modifier.weight(1f).fillMaxHeight(), still = t, orbit = Orbit().apply { this.yaw = yaw; this.pitch = pitch })
+                    }
+                }
+            }
+        }
+        RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
     }
 
     /** The Laptop theme for every Omarchy theme on the laptop, as the laptop hook syncs it. */
@@ -345,13 +391,19 @@ class ScreenShots {
             shot(p, "16-log-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     BodyWeightScreen(idle, today, {}, {}, {})
-                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, TextFieldValue("182.4", TextRange(5)), now, today), idle, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, weighInScale(lastWeight, today), now, today).let { it.copy(stop = it.stop - 6) }, idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "16-log-weight-sheet-first") {
+                Box(Modifier.fillMaxSize()) {
+                    BodyWeightScreen(idle.copy(bodyWeights = emptyMap()), today, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, weighInScale(null, today), now, today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "16-edit-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     BodyWeightScreen(idle, today, {}, {}, {})
-                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, TextFieldValue(Fmt.tenths(lastWeight.lb)), lastWeight.at, today), idle, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, weighInScale(lastWeight, lastWeight.at.toLocalDate()), lastWeight.at, today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}, {}) {} } }

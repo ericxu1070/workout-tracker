@@ -17,6 +17,7 @@ android {
         // The release workflow sets these from the tag and the commit count; local builds keep the defaults.
         versionCode = System.getenv("VERSION_CODE")?.toInt() ?: 2
         versionName = System.getenv("VERSION_NAME") ?: "2.0"
+        manifestPlaceholders["appLabel"] = "Plateline"
     }
     // Only when RELEASE_KEYSTORE is set (CI, or a local signed build); otherwise release builds stay unsigned.
     System.getenv("RELEASE_KEYSTORE")?.let { store ->
@@ -28,7 +29,13 @@ android {
         }
         buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
+    // Debug builds install beside the release app (which is signed with another key), with their own data and name.
+    buildTypes.getByName("debug") {
+        applicationIdSuffix = ".debug"
+        manifestPlaceholders["appLabel"] = "Plateline test"
+    }
     buildFeatures { compose = true }
+    aaptOptions { noCompress += "tflite" }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -46,6 +53,7 @@ dependencies {
     // shortcut: last release that builds with compileSdk 35; move to 1.1.0 stable once android-36 is installed and compileSdk is 36.
     implementation("androidx.health.connect:connect-client:1.1.0-beta01")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.16.1")

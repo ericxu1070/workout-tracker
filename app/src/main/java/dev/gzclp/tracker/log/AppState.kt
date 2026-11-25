@@ -23,10 +23,11 @@ data class SetKey(val exercise: String, val tier: Tier, val setIndex: Int)
 
 data class LoggedSet(val event: SetLogged, val ts: OffsetDateTime)
 
-/** [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. */
+/** [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. [open] marks a freeform open session. */
 data class ActiveSession(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val sets: Map<SetKey, LoggedSet>,
     val swaps: Map<Pair<String, Tier>, String> = emptyMap(),
+    val open: Boolean = false,
 )
 
 /** [setTimes] holds when each of [sets] was logged, in the same order. */
@@ -103,6 +104,12 @@ data class AppState(
     val cardio: Map<String, Cardio> = emptyMap(),
     /** At most one cardio session runs, independent of [active]; commands keep the two from overlapping. */
     val cardioActive: CardioRun? = null,
+    val exerciseMeta: Map<String, ExerciseMeta> = emptyMap(),
+    val stretches: Map<String, StretchLogged> = emptyMap(),
+    val water: Map<String, WaterLogged> = emptyMap(),
+    val foodEstimates: Map<String, FoodEstimate> = emptyMap(),
+    /** Estimated 1RMs from finished sessions and weight edits, in log order; see [strengthModel]. */
+    val strength: StrengthState = StrengthState(),
     val lastSeq: Long = 0,
 ) {
     val started: Boolean get() = fiveRm.isNotEmpty()
@@ -176,10 +183,10 @@ data class AppState(
                 val p = customPrograms[e.program] ?: return s
                 s.copy(customPrograms = customPrograms - p.id, programId = if (programId == p.id) p.from!! else programId)
             }
-            is ProgressionEvent -> s.progress(e)
+            is ProgressionEvent -> s.progress(e).copy(strength = strength.observeProgression(e))
             is SessionStart -> {
                 val program = programOf(e.program)
-                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap())) } ?: s
+                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap(), open = e.mode == "open")) } ?: s
             }
             is SetLogged -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
@@ -214,9 +221,17 @@ data class AppState(
                 s.copy(
                     active = null,
                     sessions = sessions + record,
-                    next = if (a.sets.isEmpty()) next else advanced(a),
+                    // An open session answered "doesn't count" leaves the rotation where it was.
+                    next = if (a.sets.isEmpty() || e.counts == false) next else advanced(a),
+                    strength = strength.observeSets(record.sets, exerciseMeta),
                 )
             }
+            is ExerciseMeta -> s.copy(exerciseMeta = exerciseMeta + (e.exercise to e))
+            is StretchLogged -> s.copy(stretches = stretches + (e.id to e))
+            is StretchCleared -> s.copy(stretches = stretches - e.id)
+            is WaterLogged -> s.copy(water = water + (e.id to e))
+            is WaterCleared -> s.copy(water = water - e.id)
+            is FoodEstimate -> s.copy(foodEstimates = foodEstimates + (e.meal to e))
         }
     }
 

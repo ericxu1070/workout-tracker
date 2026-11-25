@@ -1,5 +1,13 @@
 package dev.gzclp.tracker
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
@@ -28,9 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextRange
 import androidx.core.content.FileProvider
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.health.connect.client.PermissionController
 import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.engine.Activity
@@ -46,11 +52,14 @@ import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Entry
+import dev.gzclp.tracker.log.adaptSessionStartEvents
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.ProgramDefine
 import dev.gzclp.tracker.ui.SplitDayScreen
 import dev.gzclp.tracker.ui.SplitScreen
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.ui.BodyWeightScreen
 import dev.gzclp.tracker.ui.Fmt
@@ -202,10 +211,11 @@ private fun App(model: AppModel) {
     fun requestNotifications() {
         if (!model.notificationsAllowed && Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
-    /** Opens the weigh-in sheet: a new one prefilled with the latest weight, or [entry] to edit. */
+    /** Opens the weigh-in sheet: a new one on a slider around the latest weight, or [entry] to edit around its own. */
     fun logWeight(entry: BodyWeight? = null) {
-        val text = (entry ?: model.store.state.value.weighIns().lastOrNull())?.lb?.let(Fmt::tenths) ?: ""
-        open(SheetState.BodyWeight(entry?.id, TextFieldValue(text, TextRange(0, text.length)), entry?.at ?: model.now(), LocalDate.now()))
+        val today = LocalDate.now()
+        val scale = if (entry != null) weighInScale(entry, entry.at.toLocalDate()) else weighInScale(model.store.state.value.weighIns().lastOrNull(), today)
+        open(SheetState.BodyWeight(entry?.id, scale, entry?.at ?: model.now(), today))
     }
     LaunchedEffect(model.logWeightRequested, state.started) {
         if (model.logWeightRequested && state.started) {
@@ -276,10 +286,19 @@ private fun App(model: AppModel) {
         if (missing != null) return open(weightSheet(missing))
         close()
         requestNotifications()
-        model.dispatch { Commands.start(it, model.now()) }
+        model.dispatch { s ->
+            val adapt = if (model.prefs.autoAdaptWeights) s.adaptSessionStartEvents(s.nextDay) else emptyList()
+            adapt + Commands.start(adapt.fold(s) { st, e -> st.apply(Entry(0, model.now(), e)) }, model.now())
+        }
     }
-    fun finishWorkout(fiveRm: Int?) {
-        model.dispatch { Commands.end(it, model.now(), fiveRm) }
+    /** Open sessions pick their own weights, so nothing is missing. */
+    fun startOpenFlow() {
+        close()
+        requestNotifications()
+        model.dispatch { Commands.startOpen(it, model.now()) }
+    }
+    fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
+        model.dispatch { Commands.end(it, model.now(), fiveRm, counts) }
         model.cancelRest()
         close()
     }
@@ -300,111 +319,138 @@ private fun App(model: AppModel) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        val session = state.sessions.firstOrNull { it.id == arg }
-        val log = state.exerciseLogs().firstOrNull { it.id == arg }
-        val run = state.cardioActive
-        val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { route == Route.Split || route == Route.SplitDay }
-        val splitDay = split?.day(arg.substringAfter('/', ""))
-        when {
-            !state.started && route != Route.Settings -> SetupScreen(
-                onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
-                onRestore = ::restore, message = model.notice,
-            )
-            route == Route.Settings -> SettingsScreen(
-                started = state.started, programId = state.programId, increments = state.increments,
-                themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
-                sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
-                weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
-                onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
-                onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
-                onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
-                onDays = { if (state.program.custom) push(Route.Split, state.programId) else push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
-                onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
-                onWeighInReminder = {
-                    model.chooseWeighInReminder(it)
-                    if (it) requestNotifications()
-                },
-                onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
-                warmups = model.warmups, onWarmups = model::chooseWarmups,
-                cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
-                splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },
-                onHealthConnect = { on ->
-                    val unavailable = if (on) model.healthUnavailable() else null
-                    if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
-                },
-            )
-            route == Route.Days -> DaysScreen(
-                state, { route = Route.Settings },
-                onAdd = { open(SheetState.AddExercise(it, "")) },
-                onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
-            )
-            route == Route.Split && split != null -> SplitScreen(
-                state, split, { route = Route.Settings }, { push(Route.SplitDay, "${split.id}/$it") }, ::open, model::dispatch,
-            )
-            route == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
-                state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
-            )
-            route == Route.Session && session != null -> SessionScreen(state, session, { route = null }) {
-                open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec))
-            }
-            route == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() })
-            route == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
-            route == Route.Activities -> ActivitiesScreen(
-                state, { closeActivities() }, ::closeActivities,
-                title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
-            )
-            else -> TabFrame(tab, { tab = it }) {
-                    when (tab) {
-                        Tab.Workout -> if (run != null) CardioRunScreen(
-                            run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
-                            onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
-                        ) else if (state.active == null && model.cardioMode) CardioScreen(
-                            state, LocalDate.now(), model.cardioGoalMin, onLifting = { model.chooseCardioMode(false) },
-                            onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
-                            onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
-                        ) else if (state.active == null) HomeScreen(
-                            state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
-                            onEditWeight = { open(weightSheet(it)) },
-                            onCardio = { model.chooseCardioMode(true) },
-                        ) else WorkoutScreen(
-                            state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
-                            onLog = { ex, i, w, r, rpe ->
-                                val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
-                                model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
-                                if (!wasLogged) model.startRest(ex, i)
-                            },
-                            onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
-                            onEditWeight = { open(weightSheet(it)) },
-                            onSwap = { open(SheetState.Swap(it, "")) },
-                            onSkipRest = model::cancelRest,
-                            onSettings = { push(Route.Settings) },
-                            onEnd = {
-                                val n = unloggedSets(state)
-                                if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
-                            },
-                            warmups = model.warmups,
-                        )
-                        Tab.Upcoming -> UpcomingScreen(state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) })
-                        Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
-                        Tab.History -> HistoryScreen(
-                            state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
-                        ) {
-                            val today = LocalDate.now()
-                            val thisWeek = mondayOf(today)
-                            WeekView(
-                                state, model.meals, historyWeek ?: thisWeek, today,
-                                onWeek = { historyWeek = it.takeIf { m -> m < thisWeek } }, onExercise = { push(Route.Exercise, it) },
+        // A pushed screen slides in from the trailing edge and back out on pop, as on iOS; the tabs underneath stay put.
+        AnimatedContent(
+            route,
+            transitionSpec = {
+                val push = targetState != null
+                val ease = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
+                (if (push) slideInHorizontally(tween(300, easing = ease)) { it } togetherWith fadeOut(tween(200))
+                else fadeIn(tween(200)) togetherWith slideOutHorizontally(tween(200, easing = ease)) { it })
+                    .apply { targetContentZIndex = if (push) 1f else -1f }
+            },
+            label = "route",
+        ) { shown ->
+            val session = state.sessions.firstOrNull { it.id == arg }
+            val log = state.exerciseLogs().firstOrNull { it.id == arg }
+            val run = state.cardioActive
+            val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { shown == Route.Split || shown == Route.SplitDay }
+            val splitDay = split?.day(arg.substringAfter('/', ""))
+            when {
+                !state.started && shown != Route.Settings -> SetupScreen(
+                    onStart = { rm, program -> model.dispatch { if (it.started) emptyList() else Commands.setup(rm, program) } },
+                    onRestore = ::restore, message = model.notice,
+                )
+                shown == Route.Settings -> SettingsScreen(
+                    started = state.started, programId = state.programId, increments = state.increments,
+                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
+                    sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
+                    weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
+                    onBack = { route = null }, onTheme = model::chooseTheme, onRest = model::setRest,
+                    onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
+                    onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
+                    onDays = { if (state.program.custom) push(Route.Split, state.programId) else push(Route.Days) }, onChooseFolder = { folderPicker.launch(null) },
+                    onRestore = ::restore, onAllowNotifications = { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                    onWeighInReminder = {
+                        model.chooseWeighInReminder(it)
+                        if (it) requestNotifications()
+                    },
+                    onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
+                    warmups = model.warmups, onWarmups = model::chooseWarmups,
+                    cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
+                    splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },
+                    autoAdaptWeights = model.autoAdaptWeights, onAutoAdaptWeights = model::chooseAutoAdaptWeights,
+                    mealReminder = model.mealReminder, onMealReminder = { model.chooseMealReminder(it); if (it) requestNotifications() },
+                    stretchReminder = model.stretchReminder, stretchReminderMinutes = model.stretchReminderMinutes,
+                    onStretchReminder = { model.chooseStretchReminder(it); if (it) requestNotifications() }, onStretchReminderTime = model::chooseStretchReminderTime,
+                    waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
+                    saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
+                    waterGoalMl = model.waterGoalMl, onWaterGoal = model::chooseWaterGoal,
+                    onHealthConnect = { on ->
+                        val unavailable = if (on) model.healthUnavailable() else null
+                        if (on && unavailable == null) healthPermissions.launch(HealthRecords.PERMISSIONS) else model.setHealth(false, unavailable)
+                    },
+                )
+                shown == Route.Days -> DaysScreen(
+                    state, { route = Route.Settings },
+                    onAdd = { open(SheetState.AddExercise(it, "")) },
+                    onRemove = { day, id -> model.dispatch { s -> Commands.removeExercise(s, s.program, day, id) } },
+                )
+                shown == Route.Split && split != null -> SplitScreen(
+                    state, split, { route = Route.Settings }, { push(Route.SplitDay, "${split.id}/$it") }, ::open, model::dispatch,
+                )
+                shown == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
+                    state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
+                )
+                shown == Route.Session && session != null -> SessionScreen(state, session, { route = null }) {
+                    open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec))
+                }
+                shown == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } })
+                shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
+                shown == Route.Activities -> ActivitiesScreen(
+                    state, { closeActivities() }, ::closeActivities,
+                    title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
+                )
+                else -> TabFrame(tab, { tab = it }) {
+                        when (tab) {
+                            Tab.Workout -> if (run != null) CardioRunScreen(
+                                run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+                                onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
+                            ) else if (state.active == null && model.cardioMode) CardioScreen(
+                                state, LocalDate.now(), model.cardioGoalMin, onLifting = { model.chooseCardioMode(false) },
+                                onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
+                                onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) },
+                            ) else if (state.active == null) HomeScreen(
+                                state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
+                                onEditWeight = { open(weightSheet(it)) },
+                                onCardio = { model.chooseCardioMode(true) },
+                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
+                                onStartOpen = ::startOpenFlow,
+                            ) else WorkoutScreen(
+                                state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
+                                onLog = { ex, i, w, r, rpe ->
+                                    val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
+                                    model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
+                                    if (!wasLogged) model.startRest(ex, i)
+                                },
+                                onClear = { ex, i -> model.dispatch { Commands.clearSet(it, ex, i) } },
+                                onEditWeight = { open(weightSheet(it)) },
+                                onSwap = { open(SheetState.Swap(it, "")) },
+                                onSkipRest = model::cancelRest,
+                                onSettings = { push(Route.Settings) },
+                                onEnd = {
+                                    val n = unloggedSets(state)
+                                    if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
+                                },
+                                warmups = model.warmups,
+                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
+                                onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
                             )
-                        }
-                        Tab.Food -> {
-                            val today = LocalDate.now()
-                            FoodScreen(
-                                model.meals, foodDay ?: today, today, model.mealError,
-                                onDay = { foodDay = it.takeIf { d -> d < today } }, onSnap = ::snapMeal, onUpload = ::uploadMeal,
-                                onOpen = { open(SheetState.Meal(it, today)) },
+                            Tab.Upcoming -> UpcomingScreen(
+                                state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) },
+                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                             )
+                            Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
+                            Tab.History -> HistoryScreen(
+                                state, historyAll, { historyAll = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
+                            ) {
+                                val today = LocalDate.now()
+                                val thisWeek = mondayOf(today)
+                                WeekView(
+                                    state, model.meals, historyWeek ?: thisWeek, today,
+                                    onWeek = { historyWeek = it.takeIf { m -> m < thisWeek } }, onExercise = { push(Route.Exercise, it) },
+                                )
+                            }
+                            Tab.Food -> {
+                                val today = LocalDate.now()
+                                FoodScreen(
+                                    model.meals, foodDay ?: today, today, model.mealError,
+                                    onDay = { foodDay = it.takeIf { d -> d < today } }, onSnap = ::snapMeal, onUpload = ::uploadMeal,
+                                    onOpen = { open(SheetState.Meal(it, today)) },
+                                )
+                            }
                         }
-                    }
+                }
             }
         }
         Sheet(sheet != null, ::close) {
@@ -421,11 +467,8 @@ private fun App(model: AppModel) {
                         is SheetState.FiveRm -> finishWorkout(c.fiveRm)
                         is SheetState.EndConfirm -> endFlow()
                         is SheetState.BodyWeight -> {
-                            val lb = c.lb
-                            when {
-                                c.delete && c.id != null -> model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
-                                lb != null -> model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, lb) }
-                            }
+                            if (c.delete && c.id != null) model.dispatchWeighIn { Commands.clearBodyWeight(it, c.id) }
+                            else model.dispatchWeighIn { Commands.logBodyWeight(it, c.id, c.at, c.lb) }
                             close()
                             if (model.weighInReminder) requestNotifications()
                         }

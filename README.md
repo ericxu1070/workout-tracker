@@ -2,7 +2,28 @@
 
 Plateline is an Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
 
-The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off. A Food tab keeps a photo food log: take a photo of each meal, or upload one from the gallery, and it is saved at the time the photo was taken (you confirm or set the time when an uploaded photo has none or it is in the future or over a week old), with no macros or calories, and you can page back through past days. Meal photos never leave the phone and are never written to the synced folder. All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
+The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off.
+
+### Adaptive Strength Model & Calisthenics
+- **Adaptive Strength**: Tracks estimated 1RM (Epley with RIR) across all logged sets using an asymmetric exponential moving average (α_up = 0.4, α_down = 0.15). Manual weight edits act as strong observations (α = 0.6). When an exercise is updated in one tier (e.g. T2 OHP), suggested weights propagate to sibling tiers (e.g. T1 OHP). A workout suggestion chip ("Plan 105 · recent sets say 115 · Use") lets you accept the suggestion, or enable "Auto-adapt weights" in Settings to apply it automatically at session start (capped at a 10% maximum drop).
+- **Calisthenics & Bodyweight Progressions**: Full support for 21 catalog calisthenics exercises and variations (pull-ups, chin-ups, dips, push-ups, inverted rows, pistol squats, muscle-ups). Calculates effective load (`factor × bodyweight + addedWeight`, e.g. 1.0 for pull-ups, 0.95 for dips, 0.65 for push-ups, 0.5 for inverted rows, 0.8 for pistol squats). Progression suggests adding reps up to 3×12, then recommends adding 5 lb or moving to the next harder movement variation. Charts display absolute e1RM and relative strength (× bodyweight); muscle-ups maintain dedicated charts.
+
+### Open Sessions & Weekly Volume
+- **Open Sessions**: Tap "Open session" to train freely without advancing your program schedule. Exercises prefill weights from the adaptive strength model and recalculate target reps dynamically when weight changes. Displays live weekly volume progress bars by muscle group (Chest, Back, Quads, Hamstrings, Shoulders, Arms, Core) against weekly targets. At completion, an end-of-session prompt asks whether to count the session toward program progression.
+
+### Habits & Reminders
+- **Weekday-Aware Reminders**: Learns your daily habits using an EMA anchored to minutes since 4:00 AM (avoiding midnight wrap-around) with Bayesian shrinkage toward the all-days mean. Sends timely reminders for morning weigh-in, stretching, and meals (clustering up to 4 meal slots per weekday, nudging 20 minutes after typical meal times if no photo is logged). Falls back to fixed scheduled times until at least 3 events are recorded.
+
+### Food & Nutrition
+- **Photo Food Log**: Take a photo of each meal or pick one from your gallery, saved at the photo capture timestamp.
+- **On-Device Food Classifier & Calories**: Features an on-device TensorFlow Lite quantized classifier (Google AIY Food V1, Apache 2.0 license) paired with rough per-serving calorie ranges bucketed by food category (hand-assigned, not from a nutrient database). Runs entirely offline on your phone; photos and nutrition data never leave your device.
+- **Gallery Export**: Option to save a copy of meal photos to `Pictures/Food` in the phone gallery (MediaStore, no extra permissions needed). Deleting a meal in the app automatically removes the gallery copy. *Note: Photos saved to the gallery may be backed up by Google Photos or other cloud backup services enabled on your device.*
+
+### Water Tracker & Stretching
+- **Water Tracking**: Interactive morphing cup Canvas in the Food tab with real-time fluid wave animation, haptic drag-to-fill, preset increments, and daily goal pace reminders.
+- **Guided Stretching**: 26 keyframed stretching movements across 10 body areas with smooth procedural stick-figure Canvas animations. Follow pre-built routines (Full Body, Post-Workout, Morning Mobility, Desk Relief) or build custom sequences with automated rest intervals and coaching chimes.
+
+All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 
 The Workout tab switches between Lifting and Cardio. Start one of 59 cardio activities, or one you type in, from a searchable list, or tap one of your last three to start it at once. A big clock counts up while you go, and an ongoing notification shows the time on the lock screen; the clock runs from the start time in the log, so locking the phone, closing the app, or rebooting keeps the session. Stop opens a sheet to fix the duration (hold − or +, or tap the end time to pick it), and to add an optional distance, RPE, and notes. Lifting and cardio run one at a time. The Cardio page shows this week's total against a weekly goal (2 hr 30 min unless you change it in Settings), the last four weeks as bars, quick-start rows, time per activity, and each session with its pace or speed. Log a session you forgot to start with Log past session, and tap any session, there or in History, to edit or delete it.
 
@@ -44,6 +65,8 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew test                         # progression engine and log tests
 ./gradlew assembleDebug                # app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Debug builds install as Plateline test (`dev.gzclp.tracker.debug`) next to the release app, with their own data (`./gradlew installDebug`). To try one with your log, copy `gzclp-log.jsonl` from the sync folder into a new folder and pick that folder under Restore log. Picking the real sync folder makes the debug build write its test workouts into it.
 
 Screenshots of every screen in every theme:
 
@@ -102,12 +125,14 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 
 ## Layout
 
-- `engine/` holds the program table, the GZCLP progression, and the 3-week cycle, as pure Kotlin.
-- `log/` holds the event log, its JSON codec, the state fold, the commands that turn taps into events, the per-exercise stats, and the weekly summary.
+- `engine/` holds the program table, the GZCLP progression, the 3-week cycle, the adaptive strength model, and calisthenics catalogs as pure Kotlin.
+- `log/` holds the event log, its JSON codec, the state fold, commands that turn taps into events, calisthenics effective load scoring, per-exercise stats, and weekly volume tracking.
 - `sync/` mirrors the log into the shared folder.
 - `rest/` holds the rest alarm and its notifications.
 - `cardio/` holds the notification for the cardio session in progress.
-- `remind/` holds the daily weigh-in reminder.
-- `food/` keeps the meal photos in app-private storage, one JPEG per meal named for its time.
+- `remind/` holds weekday-aware EMA habit reminders for weigh-in, meals, stretching, and water.
+- `food/` keeps meal photos in app-private storage, gallery export via MediaStore, and on-device TFLite food classification and calorie estimation.
+- `stretch/` holds the procedural 2D stick-figure animation engine, 26 keyframed stretching moves, routines, and audio chimes.
 - `health/` turns finished workouts, cardio sessions, and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
-- `ui/` holds the Compose screens and the four color themes.
+- `ui/` holds the Compose screens (workouts, open sessions, water tracker canvas, guided stretching player, history, food log, settings) and the four color themes.
+- `desktop/` holds the standalone Qt6/QML desktop analysis app for strength, volume, stalls, sessions, cardio, rest, body weight, water, and stretching metrics.

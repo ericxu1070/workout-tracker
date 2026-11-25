@@ -61,6 +61,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import dev.gzclp.tracker.log.shouldSuggest
+import dev.gzclp.tracker.log.strengthSuggestion
 import dev.gzclp.tracker.engine.Catalog
 import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Plates
@@ -210,13 +213,26 @@ fun Exercise.detail(): String =
 fun Exercise.warmsUp(): Boolean = tier == Tier.T1 || (tier == Tier.CUSTOM && id in Catalog.barbell && scheme.reps <= 6)
 
 @Composable
-fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onEditWeight: (Exercise) -> Unit, onCardio: () -> Unit = {}) {
+fun HomeScreen(
+    state: AppState,
+    onStart: () -> Unit,
+    onSettings: () -> Unit,
+    onEditWeight: (Exercise) -> Unit,
+    onCardio: () -> Unit = {},
+    onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
+    onStartOpen: () -> Unit = {},
+) {
     val p = LocalPalette.current
     val day = state.nextDay
     val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
     val missing = exercises.count { it.weight == null }
+    var showOpenSessionSheet by remember { mutableStateOf(false) }
     ScreenFrame(bottom = {
-        BottomBar { PillButton("Start workout", onStart, Modifier.weight(1f), primary = true) }
+        BottomBar {
+            PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
+            Spacer(Modifier.width(Space.md))
+            PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
+        }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
         WorkoutSwitch(false) { if (it) onCardio() }
@@ -229,18 +245,40 @@ fun HomeScreen(state: AppState, onStart: () -> Unit, onSettings: () -> Unit, onE
             Type.subhead, color = p.fg2,
         )
         Spacer(Modifier.height(Space.xxl))
+        WeeklyVolumeSection(state)
+        Spacer(Modifier.height(Space.xxl))
         Group {
             exercises.forEachIndexed { i, ex ->
+                val plan = ex.weight
+                val suggested = if (plan != null) state.strengthSuggestion(ex) else null
                 GroupRow(first = i == 0, onClick = { onEditWeight(ex) }) {
                     Column(Modifier.weight(1f)) {
                         Txt(ex.name, Type.headline, maxLines = 1)
                         Txt(ex.detail(), Type.footnote, color = p.fg2)
+                        if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
+                            Spacer(Modifier.height(Space.xs))
+                            StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
+                        }
                     }
                     Txt(ex.weight?.let(Fmt::lb) ?: "Set weight", Type.headline.tabular(), color = p.accent)
                 }
             }
         }
         if (missing > 0) GroupFooter(if (missing == 1) "One exercise needs a starting weight." else "$missing exercises need a starting weight.")
+    }
+    Sheet(showOpenSessionSheet, { showOpenSessionSheet = false }) {
+        OpenSessionStartSheet(
+            state = state,
+            onStartFromToday = {
+                showOpenSessionSheet = false
+                OpenSessionManager.start(fromToday = true, state, onStartOpen)
+            },
+            onStartBlank = {
+                showOpenSessionSheet = false
+                OpenSessionManager.start(fromToday = false, state, onStartOpen)
+            },
+            onDismiss = { showOpenSessionSheet = false },
+        )
     }
 }
 /** What the rest card needs; null when not resting. */
@@ -259,9 +297,26 @@ fun WorkoutScreen(
     onSettings: () -> Unit,
     onEnd: () -> Unit,
     warmups: Boolean = true,
+    onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
+    onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
+    if (a.open) {
+        LaunchedEffect(a.id, OpenSessionManager.isActive) { OpenSessionManager.attach(state) }
+        OpenSessionScreen(
+            state = state,
+            now = now,
+            onLog = onLog,
+            onClear = onClear,
+            onFinish = { counts ->
+                OpenSessionManager.reset()
+                onFinishOpen(counts)
+            },
+            onSettings = onSettings,
+        )
+        return
+    }
     ScreenFrame(bottom = {
         BottomBar { PillButton("End workout", onEnd, Modifier.weight(1f), primary = true) }
     }) {
@@ -283,7 +338,7 @@ fun WorkoutScreen(
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
             Spacer(Modifier.height(Space.x3))
-            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups)
+            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups, onUseSuggestion)
         }
     }
 }
@@ -323,6 +378,7 @@ private fun ExerciseBlock(
     onEditWeight: (Exercise) -> Unit,
     onSwap: (Exercise) -> Unit,
     warmups: Boolean,
+    onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
 ) {
     val p = LocalPalette.current
     val sets = state.active?.sets.orEmpty()
@@ -338,6 +394,13 @@ private fun ExerciseBlock(
         else Pressable({ onEditWeight(ex) }, Modifier.height(44.dp), label = "Change ${ex.name} weight") {
             Txt(Fmt.lb(ex.weight ?: 0), Type.title3.tabular(), Modifier.padding(start = Space.lg), p.accent)
         }
+    }
+    FormToggle(ex.id)
+    val plan = ex.weight
+    val suggested = if (plan != null) state.strengthSuggestion(ex) else null
+    if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
+        Spacer(Modifier.height(Space.xs))
+        StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
     }
     Spacer(Modifier.height(Space.sm))
     Row(Modifier.fillMaxWidth().padding(vertical = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
@@ -367,6 +430,33 @@ private fun ExerciseBlock(
                 onLog = { w, r, rpe -> onLog(ex, i, w, r, rpe) },
                 onClear = { onClear(ex, i) },
             )
+        }
+    }
+}
+
+@Composable
+fun StrengthSuggestionChip(
+    plan: Int,
+    suggested: Int,
+    onUse: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val p = LocalPalette.current
+    Pressable(
+        onClick = onUse,
+        modifier = modifier
+            .clip(RoundedCornerShape(Radius.md))
+            .background(p.fill)
+            .padding(horizontal = Space.md, vertical = Space.xs)
+            .semantics(mergeDescendants = true) {},
+        label = "Plan $plan · recent sets say $suggested · Use",
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.xs),
+        ) {
+            Txt("Plan $plan · recent sets say $suggested ·", Type.footnote, color = p.fg2)
+            Txt("Use", Type.footnote.copy(fontWeight = FontWeight.SemiBold), color = p.accent)
         }
     }
 }

@@ -39,6 +39,8 @@ QtObject {
         return pool
     }
     readonly property var lift: ({ squat: liftHues[0], bench: liftHues[1], deadlift: liftHues[2], ohp: liftHues[3],
+                                   pull_up: liftHues[0], chin_up: liftHues[1], dip: liftHues[2], push_up: liftHues[3],
+                                   inverted_row: liftHues[1], pistol_squat: liftHues[0], muscle_up: liftHues[2],
                                    other: labelSecondary })
 
     readonly property var space: ({ xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, x3: 32, x4: 48, x5: 64 })

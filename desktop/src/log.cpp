@@ -1,5 +1,6 @@
 #include "log.h"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSet>
@@ -31,7 +32,7 @@ QString Log::name(const QString &exercise) const {
 Log parseLog(const QByteArray &bytes) {
     static const QSet<QString> known{"exercise_define", "session_start", "session_end", "session_edit", "set", "set_clear",
                                      "progression", "body_weight", "body_weight_clear", "cardio",
-                                     "cardio_clear"};
+                                     "cardio_clear", "exercise_meta", "water", "water_clear", "stretch", "stretch_clear"};
 
     QList<QByteArray> lines = bytes.split('\n');
     // The last piece is either empty (the file ends with \n) or an append in progress.
@@ -54,11 +55,21 @@ Log parseLog(const QByteArray &bytes) {
     QHash<QString, QJsonObject> weighIns;
     QHash<QString, Session> ended;
     QHash<QString, Cardio> cardio;
+    QHash<QString, WaterEntry> waterEntries;
+    QHash<QString, StretchEntry> stretchEntries;
 
     for (const QJsonObject &o : objects) {
         const QString type = o["type"].toString();
         if (type == "exercise_define") {
             log.names.insert(o["exercise"].toString(), o["name"].toString());
+        } else if (type == "exercise_meta") {
+            ExerciseMeta m;
+            m.exercise = o["exercise"].toString();
+            if (o.contains("bodyweight_factor"))
+                m.bodyweightFactor = o["bodyweight_factor"].toDouble();
+            m.parent = o["parent"].toString();
+            m.parentRatio = o["parent_ratio"].toDouble();
+            log.meta.insert(m.exercise, m);
         } else if (type == "set") {
             const QString key = setKey(o);
             LoggedSet s;
@@ -72,6 +83,14 @@ Log parseLog(const QByteArray &bytes) {
             s.rest = o["rest_sec"].toInt(-1);
             s.restTarget = o["rest_target_sec"].toInt(-1);
             s.rpe = o["rpe"].toDouble();
+            if (o.contains("added_lb")) {
+                s.addedLb = o["added_lb"].toDouble();
+                s.hasAddedLb = true;
+            }
+            if (o.contains("bodyweight_lb")) {
+                s.bodyweightLb = o["bodyweight_lb"].toDouble();
+                s.hasBodyweightLb = true;
+            }
             // A correction replaces the values but the set keeps its place in the session.
             const auto previous = sets.constFind(key);
             s.ts = previous != sets.cend() ? previous->ts : parseTime(o["ts"]);
@@ -111,6 +130,20 @@ Log parseLog(const QByteArray &bytes) {
                                o["duration_sec"].toInt(), o["distance_m"].toInt()});
         } else if (type == "cardio_clear") {
             cardio.remove(o["entry_id"].toString());
+        } else if (type == "water") {
+            const QString id = o["id"].toString();
+            waterEntries.insert(id, {id, parseTime(o["at"]), o["ml"].toInt()});
+        } else if (type == "water_clear") {
+            waterEntries.remove(o["id"].toString());
+        } else if (type == "stretch") {
+            const QString id = o["id"].toString();
+            QStringList moves;
+            const QJsonArray arr = o["moves"].toArray();
+            for (const QJsonValue &v : arr)
+                moves.append(v.toString());
+            stretchEntries.insert(id, {id, o["routine"].toString(), parseTime(o["at"]), o["duration_sec"].toInt(), moves});
+        } else if (type == "stretch_clear") {
+            stretchEntries.remove(o["id"].toString());
         }
     }
 
@@ -128,6 +161,12 @@ Log parseLog(const QByteArray &bytes) {
 
     log.cardio = cardio.values().toVector();
     std::sort(log.cardio.begin(), log.cardio.end(), [](const Cardio &a, const Cardio &b) { return a.start < b.start; });
+
+    log.water = waterEntries.values().toVector();
+    std::sort(log.water.begin(), log.water.end(), [](const WaterEntry &a, const WaterEntry &b) { return a.at < b.at; });
+
+    log.stretches = stretchEntries.values().toVector();
+    std::sort(log.stretches.begin(), log.stretches.end(), [](const StretchEntry &a, const StretchEntry &b) { return a.at < b.at; });
 
     // A day's body weight is its earliest weigh-in, on the clock it was written with.
     QHash<QDate, QDateTime> earliest;

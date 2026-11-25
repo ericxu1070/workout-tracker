@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Increments
@@ -61,8 +63,65 @@ fun SettingsScreen(
     splits: List<Program> = emptyList(),
     onOpenSplit: (String) -> Unit = {},
     onNewSplit: () -> Unit = {},
+    autoAdaptWeights: Boolean = false,
+    onAutoAdaptWeights: (Boolean) -> Unit = {},
+    mealReminder: Boolean = true,
+    onMealReminder: (Boolean) -> Unit = {},
+    stretchReminder: Boolean = false,
+    stretchReminderMinutes: Int = 20 * 60,
+    onStretchReminder: (Boolean) -> Unit = {},
+    onStretchReminderTime: (Int) -> Unit = {},
+    waterReminder: Boolean = false,
+    onWaterReminder: (Boolean) -> Unit = {},
+    saveToGallery: Boolean? = null,
+    onSaveToGallery: ((Boolean) -> Unit)? = null,
+    waterGoalMl: Int = 2500,
+    onWaterGoal: (Int) -> Unit = {},
+    defaultStretchRoutine: String? = null,
+    onStretchRoutine: ((String) -> Unit)? = null,
+    onOpenStretchPlayer: ((String) -> Unit)? = null,
+    onOpenStretchLibrary: (() -> Unit)? = null,
 ) {
     val p = LocalPalette.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
+    val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
+    val galleryEnabled = saveToGallery ?: galleryState.value
+    var currentStretchRoutineId by androidx.compose.runtime.remember(defaultStretchRoutine) {
+        androidx.compose.runtime.mutableStateOf(defaultStretchRoutine ?: prefs.stretchRoutine)
+    }
+    var activeStretchRoutine by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf<dev.gzclp.tracker.stretch.StretchRoutine?>(null)
+    }
+    var showStretchLibrary by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+
+    // System back leaves the player or library for Settings, as their own back buttons do, instead of closing Settings under them.
+    androidx.activity.compose.BackHandler(activeStretchRoutine != null || showStretchLibrary) {
+        if (activeStretchRoutine != null) activeStretchRoutine = null else showStretchLibrary = false
+    }
+    if (activeStretchRoutine != null) {
+        GuidedStretchPlayerScreen(
+            routine = activeStretchRoutine!!,
+            onBack = { activeStretchRoutine = null },
+            onFinish = { logged ->
+                activeStretchRoutine = null
+                runCatching { dev.gzclp.tracker.AppModel.get(context).dispatch { listOf(logged) } }
+            },
+        )
+        return
+    }
+    if (showStretchLibrary) {
+        StretchScreen(
+            onBack = { showStretchLibrary = false },
+            onStartRoutine = { routine ->
+                showStretchLibrary = false
+                activeStretchRoutine = routine
+            },
+        )
+        return
+    }
     ScreenFrame {
         NavRow(onBack)
         Txt("Settings", Type.largeTitle)
@@ -175,6 +234,15 @@ fun SettingsScreen(
         }
         GroupFooter("40%×5, 60%×5, and 80%×3 before each GZCLP T1 lift, and before each split barbell lift at 6 reps or fewer. Not logged.")
 
+        GroupHeader("Strength")
+        Group {
+            GroupRow(first = true) {
+                Txt("Auto-adapt weights", Type.body, Modifier.weight(1f))
+                Toggle(autoAdaptWeights, "Auto-adapt weights", onAutoAdaptWeights)
+            }
+        }
+        GroupFooter("When recent sets show you are stronger, automatically adopt the suggested weight at session start.")
+
         GroupHeader("Cardio")
         Group {
             GroupRow(first = true) {
@@ -185,7 +253,7 @@ fun SettingsScreen(
             }
         }
 
-        GroupHeader("Weigh-in")
+        GroupHeader("Reminders")
         Group {
             GroupRow(first = true) {
                 Txt("Morning reminder", Type.body, Modifier.weight(1f))
@@ -197,8 +265,101 @@ fun SettingsScreen(
                 Txt(Fmt.clockTime(weighInMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
                 MiniStep(Icons.plus, "Later reminder") { onWeighInTime((weighInMinutes + 15) % (24 * 60)) }
             }
+            GroupRow(first = false) {
+                Txt("Meals", Type.body, Modifier.weight(1f))
+                Toggle(mealReminder, "Meal reminder", onMealReminder)
+            }
+            GroupRow(first = false) {
+                Txt("Stretching", Type.body, Modifier.weight(1f))
+                Toggle(stretchReminder, "Stretch reminder", onStretchReminder)
+            }
+            if (stretchReminder) GroupRow(first = false) {
+                Txt("Stretch time", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Earlier stretch reminder") { onStretchReminderTime((stretchReminderMinutes - 15).mod(24 * 60)) }
+                Txt(Fmt.clockTime(stretchReminderMinutes), Type.body.tabular(), Modifier.width(96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "Later stretch reminder") { onStretchReminderTime((stretchReminderMinutes + 15) % (24 * 60)) }
+            }
+            GroupRow(first = false) {
+                Txt("Water", Type.body, Modifier.weight(1f))
+                Toggle(waterReminder, "Water reminder", onWaterReminder)
+            }
         }
-        if (weighInReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
+        if ((weighInReminder || mealReminder || stretchReminder || waterReminder) && !notificationsAllowed) {
+            GroupFooter("Allow notifications below to get the reminder.")
+        }
+
+        GroupHeader("Food")
+        Group {
+            GroupRow(first = true) {
+                Txt("Also save meal photos to the gallery", Type.body, Modifier.weight(1f))
+                Toggle(galleryEnabled, "Also save meal photos to the gallery") { enabled ->
+                    galleryState.value = enabled
+                    onSaveToGallery?.invoke(enabled) ?: run { prefs.saveToGallery = enabled }
+                }
+            }
+        }
+        GroupFooter("Saved to Pictures/Food.")
+
+        GroupHeader("Water")
+        Group {
+            GroupRow(first = true) {
+                Txt("Daily goal", Type.body, Modifier.weight(1f))
+                MiniStep(Icons.minus, "Less water") { onWaterGoal((waterGoalMl - 100).coerceAtLeast(500)) }
+                Txt("$waterGoalMl ml", Type.body.tabular(), Modifier.widthIn(min = 96.dp).padding(horizontal = Space.sm), align = androidx.compose.ui.text.style.TextAlign.Center)
+                MiniStep(Icons.plus, "More water") { onWaterGoal((waterGoalMl + 100).coerceAtMost(8000)) }
+            }
+            GroupRow(first = false) {
+                Txt("Pace reminder", Type.body, Modifier.weight(1f))
+                Toggle(waterReminder, "Pace reminder", onWaterReminder)
+            }
+        }
+        GroupFooter("Reminds you if water intake falls 500 ml behind pace from wake time to 14 hours later (every 90 min max).")
+        if (waterReminder && !notificationsAllowed) GroupFooter("Allow notifications below to get the reminder.")
+
+        GroupHeader("Stretching")
+        val routineOptions = listOf(
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_AFTER_WORKOUT to "After workout",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_FLEXIBILITY to "Flexibility",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_DANCE to "Dance",
+            dev.gzclp.tracker.stretch.StretchRoutines.ID_ATHLETICS to "Athletics",
+        )
+        val selectedRoutineName = routineOptions.firstOrNull { it.first == currentStretchRoutineId }?.second ?: "After workout"
+        Group {
+            GroupRow(first = true, onClick = {
+                val currentIndex = routineOptions.indexOfFirst { it.first == currentStretchRoutineId }
+                val nextIndex = (currentIndex + 1) % routineOptions.size
+                val nextId = routineOptions[nextIndex].first
+                currentStretchRoutineId = nextId
+                prefs.stretchRoutine = nextId
+                onStretchRoutine?.invoke(nextId)
+            }) {
+                Txt("Default routine", Type.body, Modifier.weight(1f))
+                Txt(selectedRoutineName, Type.body, color = p.accent)
+            }
+            GroupRow(first = false, onClick = {
+                if (onOpenStretchPlayer != null) {
+                    onOpenStretchPlayer(currentStretchRoutineId)
+                } else {
+                    // After workout picks its moves from today's lifts, so it needs the log.
+                    val state = runCatching { dev.gzclp.tracker.AppModel.get(context).store.state.value }.getOrNull()
+                    activeStretchRoutine = dev.gzclp.tracker.stretch.StretchRoutines.of(currentStretchRoutineId, state)
+                }
+            }) {
+                Txt("Start routine", Type.body, Modifier.weight(1f), color = p.accent)
+                Icon(Icons.play, p.accent, size = 18.dp)
+            }
+            GroupRow(first = false, onClick = {
+                if (onOpenStretchLibrary != null) {
+                    onOpenStretchLibrary()
+                } else {
+                    showStretchLibrary = true
+                }
+            }) {
+                Txt("Move library & routines", Type.body, Modifier.weight(1f))
+                Icon(Icons.chevronRight, p.fg2, size = 18.dp)
+            }
+        }
+        GroupFooter(dev.gzclp.tracker.stretch.StretchRoutines.COACHING_DISCLAIMER)
 
         GroupHeader("Health Connect")
         Group {

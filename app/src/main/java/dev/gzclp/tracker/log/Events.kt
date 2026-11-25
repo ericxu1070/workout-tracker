@@ -66,7 +66,13 @@ data class ProgressionEvent(
 ) : Event
 
 @Serializable @SerialName("session_start")
-data class SessionStart(val sessionId: String, val program: String, val day: String) : Event
+data class SessionStart(
+    val sessionId: String,
+    val program: String,
+    val day: String,
+    val mode: String = "program",
+    val counts: Boolean = true,
+) : Event
 
 @Serializable @SerialName("set")
 data class SetLogged(
@@ -84,6 +90,8 @@ data class SetLogged(
     val restTargetSec: Int? = null,
     /** Rate of perceived exertion, 1 to 10 in half steps; null when not given. Never affects progression. */
     val rpe: Double? = null,
+    val addedLb: Double? = null,
+    val bodyweightLb: Double? = null,
 ) : Event
 
 /** In [sessionId], the slot ([exercise], [tier]) is done as [substitute]; a null [substitute] puts the original back. */
@@ -94,7 +102,53 @@ data class ExerciseSwap(val sessionId: String, val exercise: String, val tier: S
 data class SetCleared(val sessionId: String, val exercise: String, val tier: String, val setIndex: Int) : Event
 
 @Serializable @SerialName("session_end")
-data class SessionEnd(val sessionId: String, val program: String, val day: String, val startedAt: String, val durationSec: Long) : Event
+data class SessionEnd(
+    val sessionId: String,
+    val program: String,
+    val day: String,
+    val startedAt: String,
+    val durationSec: Long,
+    val counts: Boolean? = null,
+) : Event
+
+@Serializable @SerialName("exercise_meta")
+data class ExerciseMeta(
+    val exercise: String,
+    val bodyweightFactor: Double? = null,
+    val parent: String? = null,
+    val parentRatio: Double? = null,
+) : Event
+
+@Serializable @SerialName("stretch")
+data class StretchLogged(
+    val id: String,
+    val at: String,
+    val routine: String,
+    val durationSec: Long,
+    val moves: List<String> = emptyList(),
+) : Event
+
+@Serializable @SerialName("stretch_clear")
+data class StretchCleared(val id: String) : Event
+
+@Serializable @SerialName("water")
+data class WaterLogged(
+    val id: String,
+    val at: String,
+    val ml: Int,
+) : Event
+
+@Serializable @SerialName("water_clear")
+data class WaterCleared(val id: String) : Event
+
+@Serializable @SerialName("food_estimate")
+data class FoodEstimate(
+    val meal: String,
+    val label: String,
+    val kcalLow: Int,
+    val kcalHigh: Int,
+    val confirmed: Boolean = false,
+) : Event
 
 /** Corrects a finished session's [durationSec], such as one left running; the newest line per [sessionId] wins. */
 @Serializable @SerialName("session_edit")

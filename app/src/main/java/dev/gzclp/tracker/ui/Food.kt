@@ -1,37 +1,89 @@
 package dev.gzclp.tracker.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.AppModel
+import dev.gzclp.tracker.food.Classifier
 import dev.gzclp.tracker.food.FoodLog
 import dev.gzclp.tracker.food.Meal
+import dev.gzclp.tracker.food.Nutrition
+import dev.gzclp.tracker.food.Prediction
+import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.FoodEstimate
+import dev.gzclp.tracker.log.WaterLog
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
 /** What I ate on [day]: one photo per meal, oldest first, with camera and gallery buttons for the next one. */
 @Composable
-fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: String?, onDay: (LocalDate) -> Unit, onSnap: () -> Unit, onUpload: () -> Unit, onOpen: (Meal) -> Unit) {
+fun FoodScreen(
+    meals: List<Meal>,
+    day: LocalDate,
+    today: LocalDate,
+    error: String?,
+    onDay: (LocalDate) -> Unit,
+    onSnap: () -> Unit,
+    onUpload: () -> Unit,
+    onOpen: (Meal) -> Unit,
+) {
+    val context = LocalContext.current
     val p = LocalPalette.current
+    val model = remember(context) { runCatching { AppModel.get(context) }.getOrNull() }
+    val storeState = model?.store?.state?.collectAsState()?.value
+    var showWaterTracker by rememberSaveable { mutableStateOf(false) }
+    if (showWaterTracker && model != null && storeState != null) {
+        BackHandler { showWaterTracker = false }
+        WaterScreen(
+            state = storeState,
+            day = day,
+            goalMl = model.waterGoalMl,
+            cupSizeMl = model.waterCupMl,
+            onBack = { showWaterTracker = false },
+            // A past day's drink is stamped at this time of day on that date, so it lands on the day being viewed.
+            onLogWater = { ml -> model.dispatch { WaterLog.logWater(it, ml, model.now().with(day)) } },
+            onClearWater = { id -> model.dispatch { WaterLog.clearWater(id) } },
+            onCupSizeChange = model::chooseWaterCup,
+        )
+        return
+    }
+    val currentEstimates = storeState?.confirmedEstimates().orEmpty()
+    // Only a tapped or edited estimate is logged (confirmed); the classifier's guesses stay in the meal sheet.
     val shown = meals.filter { it.at.toLocalDate() == day }
+
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("Food", Type.largeTitle)
@@ -47,6 +99,30 @@ fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: Strin
             PillButton("Upload", onUpload, Modifier.weight(1f), icon = Icons.image)
         }
         if (error != null) GroupFooter(error, color = p.red)
+
+        Spacer(Modifier.height(Space.md))
+        GroupHeader("Water")
+        Group {
+            GroupRow(first = true, onClick = { showWaterTracker = true }) {
+                val intake = storeState?.let { WaterLog.totalMlForDay(it, day) } ?: 0
+                val goal = model?.waterGoalMl ?: WaterLog.DEFAULT_GOAL_ML
+                val frac = if (goal > 0) (intake.toFloat() / goal).coerceIn(0f, 1f) else 0f
+                Canvas(Modifier.size(24.dp)) {
+                    val w = 3.dp.toPx()
+                    val inset = w / 2
+                    val arcSize = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
+                    val tl = androidx.compose.ui.geometry.Offset(inset, inset)
+                    drawArc(p.separator, 0f, 360f, false, tl, arcSize, style = Stroke(w))
+                    drawArc(p.accent, -90f, 360f * frac, false, tl, arcSize, style = Stroke(w, cap = StrokeCap.Round))
+                }
+                Spacer(Modifier.width(Space.md))
+                Column(Modifier.weight(1f)) {
+                    Txt("Water intake", Type.body)
+                    Txt("$intake / $goal ml", Type.footnote, color = p.fg2)
+                }
+                Icon(Icons.chevronRight, p.fg3, 20.dp)
+            }
+        }
         if (shown.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Txt(if (day == today) "No meals yet today" else "No meals logged", Type.headline)
@@ -57,7 +133,18 @@ fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: Strin
             shown.forEachIndexed { i, m ->
                 GroupRow(first = i == 0, onClick = { onOpen(m) }) {
                     MealPhoto(m, 240, Modifier.size(72.dp).clip(RoundedCornerShape(Radius.md)))
-                    Txt(Fmt.time(m.at), Type.body.tabular(), Modifier.weight(1f).padding(start = Space.lg), maxLines = 1)
+                    Column(Modifier.weight(1f).padding(start = Space.lg)) {
+                        Txt(Fmt.time(m.at), Type.body.tabular(), maxLines = 1)
+                        val est = currentEstimates[m.file.name]
+                        if (est != null) {
+                            Spacer(Modifier.height(4.dp))
+                            Txt(
+                                "${est.label} · ${est.kcalLow}–${est.kcalHigh} kcal",
+                                Type.caption,
+                                maxLines = 1,
+                            )
+                        }
+                    }
                     Icon(Icons.chevronRight, p.fg3, 20.dp)
                 }
             }
@@ -68,8 +155,6 @@ fun FoodScreen(meals: List<Meal>, day: LocalDate, today: LocalDate, error: Strin
 /** A meal's photo, decoded to about [maxSide] pixels and cropped to fill [modifier]; [ownShape] sizes it to the photo (portrait capped at 3:4). */
 @Composable
 fun MealPhoto(meal: Meal, maxSide: Int, modifier: Modifier, ownShape: Boolean = false) {
-    // shortcut: decodes on the main thread during composition; fine for a day's few ~150 KB photos, move to a background loader if days get long.
-    // The upload file is reused for every pick, so its modified time keys a new decode.
     val bmp = remember(meal.file, meal.file.lastModified(), maxSide) { FoodLog.downscale(meal.file, maxSide)?.asImageBitmap() }
     if (bmp == null) Box(modifier.background(LocalPalette.current.fill))
     else Image(
@@ -101,13 +186,154 @@ fun AddMealSheet(s: SheetState.AddMeal, onTime: () -> Unit, update: (SheetState)
     PillButton(if (future) "Time is in the future" else "Save meal", onSave, Modifier.fillMaxWidth(), primary = true, enabled = !future)
 }
 
-/** The meal sheet: the photo large, with Delete. */
+/** The meal sheet: the photo large, with Delete, and top 3 calorie estimates with confirmation/editing. */
 @Composable
-fun MealSheet(meal: Meal, today: LocalDate, onDelete: () -> Unit, onDone: () -> Unit) {
+fun MealSheet(
+    meal: Meal,
+    today: LocalDate,
+    onDelete: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val context = LocalContext.current
+    val p = LocalPalette.current
+    val model = remember(context) { runCatching { AppModel.get(context) }.getOrNull() }
+    val storeState = model?.store?.state?.collectAsState()?.value
+    val dispatchEstimate: (FoodEstimate) -> Unit = { est -> model?.dispatch { listOf(est) } }
+    val currentEst = storeState?.confirmedEstimates()?.get(meal.file.name)
+
+    var suggestions by remember { mutableStateOf<List<Prediction>>(emptyList()) }
+    var editing by remember { mutableStateOf(false) }
+    var editLabel by remember(currentEst) { mutableStateOf(currentEst?.label ?: "") }
+    var editLow by remember(currentEst) { mutableStateOf(currentEst?.kcalLow ?: 500) }
+    var editHigh by remember(currentEst) { mutableStateOf(currentEst?.kcalHigh ?: 700) }
+
+    LaunchedEffect(meal.file.name) { suggestions = Classifier.classify(context, meal.file, topK = 3) }
+
     Txt(Fmt.weighInTime(meal.at, today), Type.title2)
     MealPhoto(meal, FoodLog.MAX_SIDE, Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)), ownShape = true)
+
+    Spacer(Modifier.height(Space.md))
+    if (editing) {
+        Txt("Edit estimate", Type.headline)
+        Spacer(Modifier.height(Space.sm))
+        BasicTextField(
+            value = editLabel,
+            onValueChange = { editLabel = it },
+            textStyle = Type.body.copy(color = p.fg),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(p.fill, RoundedCornerShape(Radius.md))
+                .padding(Space.md),
+            singleLine = true,
+            decorationBox = { innerTextField ->
+                if (editLabel.isEmpty()) Txt("Food name", Type.body, color = p.fg3)
+                innerTextField()
+            }
+        )
+        Spacer(Modifier.height(Space.sm))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Space.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Txt("Low", Type.caption, color = p.fg2)
+                Spacer(Modifier.height(4.dp))
+                Stepper(
+                    value = editLow.toString(),
+                    onMinus = { if (editLow > 50) editLow -= 25 },
+                    onPlus = { editLow += 25; if (editHigh <= editLow) editHigh = editLow + 50 },
+                    unit = "kcal"
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Txt("High", Type.caption, color = p.fg2)
+                Spacer(Modifier.height(4.dp))
+                Stepper(
+                    value = editHigh.toString(),
+                    onMinus = { if (editHigh - 25 > editLow) editHigh -= 25 },
+                    onPlus = { editHigh += 25 },
+                    unit = "kcal"
+                )
+            }
+        }
+        Spacer(Modifier.height(Space.sm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+            PillButton("Cancel", { editing = false }, Modifier.weight(1f), onSurface = true)
+            PillButton(
+                "Save estimate",
+                {
+                    val validLabel = editLabel.trim().ifEmpty { "Meal" }
+                    val finalLow = editLow.coerceAtLeast(50)
+                    val finalHigh = maxOf(finalLow + 50, editHigh)
+                    dispatchEstimate(FoodEstimate(meal.file.name, validLabel, finalLow, finalHigh, confirmed = true))
+                    editing = false
+                },
+                Modifier.weight(1f),
+                primary = true
+            )
+        }
+    } else {
+        if (currentEst != null) {
+            GroupHeader("Confirmed estimate")
+            Group {
+                GroupRow(first = true) {
+                    Column(Modifier.weight(1f)) {
+                        Txt(currentEst.label, Type.headline)
+                        Txt("${currentEst.kcalLow}–${currentEst.kcalHigh} kcal", Type.subhead, color = p.fg2)
+                    }
+                    SmallPill("Edit", {
+                        editLabel = currentEst.label
+                        editLow = currentEst.kcalLow
+                        editHigh = currentEst.kcalHigh
+                        editing = true
+                    })
+                }
+            }
+            Spacer(Modifier.height(Space.sm))
+        }
+
+        val showSuggestions = suggestions
+        if (showSuggestions.isNotEmpty()) GroupHeader(if (currentEst != null) "Other suggestions" else "Top estimates (tap to confirm)")
+        if (showSuggestions.isNotEmpty()) Group {
+            showSuggestions.forEachIndexed { idx, pred ->
+                GroupRow(first = idx == 0, onClick = {
+                    dispatchEstimate(pred.toEstimate(meal.file.name))
+                }) {
+                    Column(Modifier.weight(1f)) {
+                        Txt(pred.label, Type.body)
+                        Txt(pred.kcalRange.formatted, Type.caption, color = p.fg2)
+                    }
+                    if (currentEst?.label == pred.label) {
+                        Txt("✓", Type.headline, color = p.accent)
+                    } else {
+                        Icon(Icons.chevronRight, p.fg3, 16.dp)
+                    }
+                }
+            }
+        }
+        if (currentEst == null) {
+            Spacer(Modifier.height(Space.xs))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                SmallPill("Custom estimate", {
+                    val initial = currentEst ?: showSuggestions.firstOrNull()?.let {
+                        FoodEstimate(meal.file.name, it.label, it.kcalRange.low, it.kcalRange.high, false)
+                    }
+                    editLabel = initial?.label ?: ""
+                    editLow = initial?.kcalLow ?: 500
+                    editHigh = initial?.kcalHigh ?: 700
+                    editing = true
+                })
+            }
+        }
+    }
+
+    Spacer(Modifier.height(Space.md))
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         PillButton("Delete", onDelete, Modifier.weight(1f), onSurface = true)
         PillButton("Done", onDone, Modifier.weight(1f), primary = true)
     }
 }
+
+/** Unconfirmed guesses an earlier build logged are not the user's answer, so they never show. */
+private fun dev.gzclp.tracker.log.AppState.confirmedEstimates(): Map<String, FoodEstimate> = foodEstimates.filterValues { it.confirmed }

@@ -4,13 +4,15 @@ A desktop dashboard for the Plateline phone app. It reads the log the phone mirr
 
 One scrolling page, top to bottom:
 
-1. Strength. Estimated 1RM per main lift (Epley), from GZCLP T1 AMRAP sets and the best set of each cycle-program or custom-split session, with the latest value and its multiple of body weight at each line's end.
+1. Strength. Estimated 1RM per main lift and calisthenics movements (Epley), using effective load (bodyweight factor × body weight + added weight) for bodyweight exercises, from GZCLP T1 AMRAP sets and the best set of each cycle-program or custom-split session, with the latest value and its multiple of body weight at each line's end.
 2. Weekly volume. Tonnage or reps per ISO week, filtered by tier (T1, T2, T3, Cycle, Custom) and lift.
 3. Stalls and resets. GZCLP stage changes and resets, and repeated cycles of cycle programs and custom splits, per lift on one timeline.
 4. Sessions. Duration per workout and workouts per week.
 5. Cardio. Cardio minutes per week, and sessions, time, and distance per activity over the last 8 weeks.
 6. Rest. Median rest taken against the timer's target, by the tier of the set before.
 7. Body weight. The day's morning weigh-in and the 7-day average.
+8. Water. Daily water intake in ml and the 7-day average.
+9. Stretching. Stretching sessions per week and total completed routines.
 
 The log format is the contract in [`../docs/log-format.md`](../docs/log-format.md). The colors follow the live Omarchy theme.
 

@@ -9,7 +9,30 @@ namespace {
 
 const QStringList kMainLifts{"squat", "bench", "deadlift", "ohp"};
 
-double epley(int weight, int reps) { return weight * (1 + reps / 30.0); }
+double epley(double weight, int reps) { return weight * (1.0 + reps / 30.0); }
+
+double bodyweightFactorFor(const QString &exercise, const QHash<QString, ExerciseMeta> &meta) {
+    if (meta.contains(exercise) && meta[exercise].bodyweightFactor >= 0)
+        return meta[exercise].bodyweightFactor;
+    if (meta.contains(exercise) && !meta[exercise].parent.isEmpty()) {
+        const QString parent = meta[exercise].parent;
+        if (meta.contains(parent) && meta[parent].bodyweightFactor >= 0)
+            return meta[parent].bodyweightFactor;
+    }
+    static const QHash<QString, double> kDefaults{
+        {"pull_up", 1.0}, {"chin_up", 1.0}, {"muscle_up", 1.0},
+        {"dip", 0.95}, {"push_up", 0.65}, {"inverted_row", 0.5}, {"pistol_squat", 0.8}
+    };
+    QString clean = exercise.toLower().trimmed();
+    clean.replace('-', '_');
+    if (kDefaults.contains(clean))
+        return kDefaults.value(clean);
+    if (clean.startsWith("weighted_"))
+        return kDefaults.value(clean.mid(9), -1.0);
+    if (clean.startsWith("assisted_"))
+        return kDefaults.value(clean.mid(9), -1.0);
+    return -1.0;
+}
 
 QDate monday(const QDate &d) { return d.addDays(1 - d.dayOfWeek()); }
 
@@ -35,22 +58,45 @@ QVariantMap strength(const Log &log) {
     for (const Session &s : log.sessions)
         sessionStart.insert(s.id, s.start);
 
-    // Best estimate per (lift, session): GZCLP counts its T1 AMRAP sets, cycle programs and custom splits any set with reps.
+    // Best estimate per (lift, session): GZCLP counts its T1 AMRAP sets, cycle programs and custom splits any set with reps,
+    // and calisthenics exercises count any set with reps using effective load.
     QMap<QString, QMap<QDateTime, double>> best;
     bool gzclp = false, cycle = false, custom = false;
     for (const LoggedSet &s : log.sets) {
-        const bool amrap = s.tier == "t1" && s.amrap, cycleSet = s.tier == "cycle", customSet = s.tier == "custom";
-        if (!kMainLifts.contains(s.exercise) || !(amrap || cycleSet || customSet) || s.reps <= 0)
+        if (s.reps <= 0)
             continue;
-        gzclp |= amrap;
-        cycle |= cycleSet;
-        custom |= customSet;
-        double &value = best[s.exercise][sessionStart.value(s.session)];
-        value = std::max(value, epley(s.weight, s.reps));
+        const double factor = bodyweightFactorFor(s.exercise, log.meta);
+        const bool isCalisthenics = factor >= 0.0;
+        const bool amrap = s.tier == "t1" && s.amrap, cycleSet = s.tier == "cycle", customSet = s.tier == "custom";
+
+        if (!isCalisthenics) {
+            if (!kMainLifts.contains(s.exercise) || !(amrap || cycleSet || customSet))
+                continue;
+            gzclp |= amrap;
+            cycle |= cycleSet;
+            custom |= customSet;
+            double &value = best[s.exercise][sessionStart.value(s.session)];
+            value = std::max(value, epley(s.weight, s.reps));
+        } else {
+            const double bw = s.hasBodyweightLb ? s.bodyweightLb : bodyWeightOn(log, sessionStart.value(s.session).date());
+            const double added = s.hasAddedLb ? s.addedLb : s.weight;
+            const double load = bw > 0 ? (factor * bw + added) : added;
+            double &value = best[s.exercise][sessionStart.value(s.session)];
+            value = std::max(value, epley(load, s.reps));
+        }
     }
 
+    QStringList liftOrder = kMainLifts;
+    QStringList calisthenicsLifts;
+    for (auto it = best.cbegin(); it != best.cend(); ++it) {
+        if (!liftOrder.contains(it.key()))
+            calisthenicsLifts.append(it.key());
+    }
+    std::sort(calisthenicsLifts.begin(), calisthenicsLifts.end());
+    liftOrder += calisthenicsLifts;
+
     QVariantList lifts;
-    for (const QString &lift : kMainLifts) {
+    for (const QString &lift : liftOrder) {
         if (!best.contains(lift))
             continue;
         QVariantList points;
@@ -86,6 +132,8 @@ QVariantMap dashboard(const Log &log) {
     for (const Session &s : workouts) extend(s.start.date());
     for (const LoggedSet &s : log.sets) extend(s.ts.date());
     for (const Cardio &c : log.cardio) extend(c.start.date());
+    for (const WaterEntry &w : log.water) extend(w.at.date());
+    for (const StretchEntry &st : log.stretches) extend(st.at.date());
     QVariantList weeks;
     QHash<QDate, int> weekIndex;
     if (first.isValid())
@@ -105,10 +153,10 @@ QVariantMap dashboard(const Log &log) {
     for (auto it = buckets.cbegin(); it != buckets.cend(); ++it) {
         const QString exercise = std::get<1>(it.key());
         volume.append(QVariantMap{{"week", std::get<0>(it.key())},
-                                  {"lift", kMainLifts.contains(exercise) ? exercise : QStringLiteral("other")},
-                                  {"tier", std::get<2>(it.key())},
-                                  {"reps", it->reps},
-                                  {"tonnage", double(it->tonnage)}});
+                                   {"lift", kMainLifts.contains(exercise) ? exercise : QStringLiteral("other")},
+                                   {"tier", std::get<2>(it.key())},
+                                   {"reps", it->reps},
+                                   {"tonnage", double(it->tonnage)}});
     }
 
     QVariantList sessions, perWeek;
@@ -210,6 +258,34 @@ QVariantMap dashboard(const Log &log) {
         body.append(QVariantMap{{"t", msecs(w.day)}, {"v", w.weight}, {"avg", sum / n}});
     }
 
+    // Water per day
+    QMap<QDate, int> dailyWater;
+    for (const WaterEntry &w : log.water)
+        dailyWater[w.at.date()] += w.ml;
+    QVariantList water;
+    for (auto it = dailyWater.cbegin(); it != dailyWater.cend(); ++it) {
+        double sum = 0;
+        int n = 0;
+        for (auto o = dailyWater.cbegin(); o != dailyWater.cend(); ++o) {
+            if (o.key() <= it.key() && o.key() > it.key().addDays(-7)) {
+                sum += o.value();
+                ++n;
+            }
+        }
+        water.append(QVariantMap{{"t", msecs(it.key())}, {"v", double(it.value())}, {"avg", sum / n}});
+    }
+
+    // Stretching sessions per week
+    QVariantList stretchPerWeek;
+    QVector<int> stretchCounts(weeks.size(), 0);
+    for (const StretchEntry &st : log.stretches) {
+        const QDate m = monday(st.at.date());
+        if (weekIndex.contains(m))
+            stretchCounts[weekIndex.value(m)]++;
+    }
+    for (int c : stretchCounts)
+        stretchPerWeek.append(c);
+
     return {{"workouts", int(workouts.size())},
             {"weeks", weeks},
             {"strength", strength(log)},
@@ -219,5 +295,8 @@ QVariantMap dashboard(const Log &log) {
             {"timeline", QVariantMap{{"rows", rows}, {"start", start}, {"end", end}}},
             {"rest", restRows},
             {"bodyWeight", body},
-            {"cardio", QVariantMap{{"minutes", cardioMinutes}, {"activities", activities}}}};
+            {"cardio", QVariantMap{{"minutes", cardioMinutes}, {"activities", activities}}},
+            {"water", water},
+            {"stretches", QVariantMap{{"perWeek", stretchPerWeek}, {"total", int(log.stretches.size())}}},
+            {"stretching", stretchPerWeek}};
 }

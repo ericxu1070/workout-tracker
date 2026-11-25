@@ -84,4 +84,38 @@ class BodyWeightTest {
         s.weigh(day(0), 181.4)
         assertEquals(2, s.state.value.bodyWeights.size)
     }
+
+    @Test fun weighInScaleIsNarrowWithinThreeDays() {
+        val last = BodyWeight("w", day(0, 6), 182.4)
+        val s = weighInScale(last, day(3).toLocalDate())
+        assertEquals(182.4, s.lb(s.start), 1e-9)
+        assertEquals(177.4, s.lb(0), 1e-9)
+        assertEquals(187.4, s.lb(s.count), 1e-9)
+        assertEquals(182.5, s.lb(s.start + 1), 1e-9)
+        assertTrue(s.centered)
+    }
+
+    @Test fun weighInScaleWidensWhenStale() {
+        val s = weighInScale(BodyWeight("w", day(0, 6), 182.4), day(4).toLocalDate())
+        assertEquals(182.4, s.lb(s.start), 1e-9)
+        assertEquals(157.4, s.lb(0), 1e-9)
+        assertEquals(207.4, s.lb(s.count), 1e-9)
+        assertEquals(182.9, s.lb(s.start + 1), 1e-9)
+    }
+
+    @Test fun weighInScaleWithoutHistoryCoversEveryAdult() {
+        val s = weighInScale(null, day(0).toLocalDate())
+        assertEquals(170.0, s.lb(s.start), 1e-9)
+        assertEquals(80.0, s.lb(0), 1e-9)
+        assertEquals(400.0, s.lb(s.count), 1e-9)
+        assertTrue(!s.centered)
+    }
+
+    @Test fun weighInScaleNeverOffersARejectedWeight() {
+        val s = weighInScale(BodyWeight("w", day(0, 6), 52.0), day(0).toLocalDate())
+        assertEquals(50.0, s.lb(0), 1e-9)
+        assertEquals(52.0, s.lb(s.start), 1e-9)
+        val state = store().state.value
+        assertTrue((0..s.count).all { Commands.logBodyWeight(state, null, day(1), s.lb(it)).isNotEmpty() })
+    }
 }

@@ -23,6 +23,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Exercise
+import dev.gzclp.tracker.log.shouldSuggest
+import dev.gzclp.tracker.log.strengthSuggestion
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.YearMonth
@@ -30,7 +33,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun UpcomingScreen(state: AppState, today: LocalDate, onOpenSession: (String) -> Unit, initialMonth: YearMonth = YearMonth.from(today)) {
+fun UpcomingScreen(
+    state: AppState,
+    today: LocalDate,
+    onOpenSession: (String) -> Unit,
+    initialMonth: YearMonth = YearMonth.from(today),
+    onUseSuggestion: (Exercise, Int) -> Unit = { _, _ -> },
+) {
     val p = LocalPalette.current
     val program = state.active?.program ?: state.program
     ScreenFrame {
@@ -47,8 +56,16 @@ fun UpcomingScreen(state: AppState, today: LocalDate, onOpenSession: (String) ->
             GroupHeader(day.title + tag)
             Group {
                 exercises.map(LocalPlates.current::prescribe).forEachIndexed { i, ex ->
+                    val plan = ex.weight
+                    val suggested = if (plan != null) state.strengthSuggestion(ex) else null
                     GroupRow(first = i == 0) {
-                        Txt(ex.name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        Column(Modifier.weight(1f)) {
+                            Txt(ex.name, Type.body, maxLines = 1)
+                            if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
+                                Spacer(Modifier.height(Space.xs))
+                                StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
+                            }
+                        }
                         Txt(ex.scheme.display, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                         Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.body.tabular(), Modifier.padding(start = Space.md).widthIn(min = 64.dp), if (ex.weight == null) p.fg3 else p.fg, align = TextAlign.End)
                     }
