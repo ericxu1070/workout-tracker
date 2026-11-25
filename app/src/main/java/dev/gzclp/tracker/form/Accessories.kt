@@ -49,14 +49,15 @@ internal val ACCESSORIES: Map<String, () -> Motion> = mapOf(
             trunk(hip, hip + V(0.0, 0.293, -0.418), waist = -8.0, chest = -6.0)
             head(nod = 10.0)
             val sh = shoulders()
-            for (s in SIDES) {
-                val top = V(s * 0.13, sh.y + 0.6, sh.z + 0.05)
-                val low = V(s * 0.3, sh.y + 0.1, sh.z + 0.08) + (hip - sh).unit() * 0.06
-                grip(s, lerp(top, low, d), V(s * 0.8, -0.6, -0.2), V(0.0, 0.6, 0.8))
-            }
-            bells(0.07)
-            for (s in SIDES) plant(s, V(s * 0.25, 0.0, 0.75), 12.0)
             val front = this[Bone.CHEST].z
+            val down = (hip - sh).unit()
+            for (s in SIDES) {
+                // The upper arm swings from straight up to out, back and toward the hips; the forearm stays upright under the dumbbell.
+                val el = shoulder(s) + lerp(V.UP, (V(s * 0.75, 0.0, 0.0) + down * 0.55 - front * 0.55).unit(), d).unit() * Build.UPPER_ARM
+                grip(s, el + V.UP * (Build.FOREARM + Build.GRIP), el - shoulder(s), V.FWD)
+                dumbbell(hand(s), V.LEFT, 0.07)
+            }
+            for (s in SIDES) plant(s, V(s * 0.25, 0.0, 0.75), 12.0)
             val up = (sh - hip).unit()
             block(Frame.along(lerp(hip, sh, 0.55) - front * 0.17, up, front), 0.29, 0.7, 0.08)
             val seat = lowest(listOf(Bone.PELVIS))
@@ -123,7 +124,7 @@ internal val ACCESSORIES: Map<String, () -> Motion> = mapOf(
             block(0.0, 0.02, 0.1, 0.4, 0.1, Tone.METAL)
             val knee = this[Bone.thigh(L)].at(0.0, Build.THIGH - 0.06, 0.0)
             rod(V(-0.2, knee.y + 0.12, knee.z), V(0.2, knee.y + 0.12, knee.z), 0.045, Tone.PAD)
-            tower(0.0, -0.45, V(0.0, 2.25, 0.12), bar)
+            tower(0.0, 0.85, V(0.0, 2.25, 0.12), bar)
         }
     },
     "seated_cable_row" to {
@@ -134,9 +135,11 @@ internal val ACCESSORIES: Map<String, () -> Motion> = mapOf(
             trunk(hip, hip + V(0.0, 0.51 * cos(lean), 0.51 * sin(lean)), waist = lerp(4.0, -4.0, d))
             head(nod = -6.0)
             rest(0.42, listOf(Bone.PELVIS))
+            // The handle runs level at the pulley's height, from straight arms in to the stomach.
             val sh = shoulders()
-            val far = V(0.0, sh.y - 0.12, sh.z + 0.56)
-            val near = this[Bone.WAIST].at(0.0, 0.12, 0.14).let { V(0.0, it.y, it.z + 0.06) }
+            val y = 0.8
+            val far = V(0.0, y, sh.z + sqrt(Build.ARM * Build.ARM - (sh.y - y) * (sh.y - y) - 0.13 * 0.13) - 0.01)
+            val near = V(0.0, y, this[Bone.WAIST].at(0.0, 0.12, 0.14).z + 0.06)
             val handle = lerp(far, near, d)
             hold(handle, 0.1, V(-1.0, 0.0, 0.0), V(0.2, -0.3, -1.0))
             for (s in SIDES) rod(handle + V(s * 0.05, 0.0, 0.0), handle + V(0.0, 0.0, 0.09), 0.012)
@@ -144,8 +147,7 @@ internal val ACCESSORIES: Map<String, () -> Motion> = mapOf(
             block(Frame.along(V(0.0, 0.3, 0.9), V.UP, V(0.0, 0.25, -1.0)), 0.5, 0.45, 0.04, Tone.METAL)
             block(Frame.WORLD.moved(V(0.0, 0.38, -0.05)), 0.3, 0.08, 0.9)
             block(0.0, -0.05, 0.12, 0.34, 0.3, Tone.METAL)
-            disc(V(0.0, 0.3, 0.96), V.LEFT, 0.05, 0.03, Tone.METAL)
-            cable(V(0.0, 0.3, 0.96), handle + V(0.0, 0.0, 0.09))
+            tower(0.0, 1.05, V(0.0, y, 0.96), handle + V(0.0, 0.0, 0.09))
         }
     },
     "chest_fly" to {

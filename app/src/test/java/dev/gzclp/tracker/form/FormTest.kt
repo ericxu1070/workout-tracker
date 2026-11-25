@@ -114,6 +114,52 @@ class FormTest {
         assertTrue(bad.joinToString("\n"), bad.isEmpty())
     }
 
+    @Test fun customIdsFindTheMotionTheySpellOrNone() {
+        assertEquals("pull_up", Motions.resolve("pull_ups"))
+        assertEquals("chin_up", Motions.resolve("Chin-Ups"))
+        assertEquals("squat", Motions.resolve("squat"))
+        assertEquals(null, Motions.resolve("incl"))
+        assertEquals(null, Motions.resolve("custom_thing_nobody_knows"))
+    }
+
+    /** The two ends of the long thin rods of radius [r] in [p]'s gear, rejoined from their pieces. */
+    private fun rods(p: Poser, r: Double) = p.gear.filter { it.mesh == Body.rod && it.sx == r }.map { it.frame.o to it.frame.at(0.0, it.sy, 0.0) }
+
+    @Test fun theInclinePressStacksEachForearmUnderALevelDumbbell() = everyPose(listOf("incline_db_press")) { _, _, p, _ ->
+        val tilt = SIDES.maxOf { Math.toDegrees(kotlin.math.acos(p[Bone.forearm(it)].y dot V.UP)) }
+        val roll = rods(p, 0.016).maxOf { (a, b) -> Math.toDegrees(kotlin.math.asin(kotlin.math.abs((b - a).unit() dot V.UP))) }
+        var inside = 0
+        val heads = p.gear.filter { it.held && it.sx == 0.07 }
+        p.skin(Bone.TRUNK) { x, y, z ->
+            val q = V(x, y, z)
+            if (heads.any { g -> val t = (q - g.frame.o) dot g.frame.y; t in 0.0..g.sy && ((q - g.frame.o) - g.frame.y * t).len < g.sx }) inside++
+        }
+        when {
+            tilt > 3 -> "forearm ${"%.1f".format(tilt)}° off vertical"
+            roll > 3 -> "dumbbell tilted ${"%.1f".format(roll)}°"
+            inside > 0 -> "a dumbbell head cuts into the body at $inside points"
+            else -> null
+        }
+    }
+
+    @Test fun theSeatedRowCableRunsLevelFromAPulleyAtTheHands() = everyPose(listOf("seated_cable_row")) { _, _, p, _ ->
+        val (a, b) = rods(p, 0.005).first()
+        val slope = Math.toDegrees(kotlin.math.asin(kotlin.math.abs((b - a).unit() dot V.UP)))
+        slope.takeIf { it > 2 }?.let { "cable ${"%.1f".format(it)}° off level" }
+    }
+
+    @Test fun theLatPulldownColumnStandsInFront() = everyPose(listOf("lat_pulldown")) { _, _, p, _ ->
+        val post = rods(p, 0.04).first().first
+        "column at z=${"%.2f".format(post.z)}, behind the hips".takeIf { post.z < p[Bone.PELVIS].o.z }
+    }
+
+    @Test fun aPullUpBarEndsAtItsPosts() = everyPose(BODYWEIGHT.keys.filter { "pull_up" in it || "chin_up" in it || "muscle_up" in it }) { _, _, p, _ ->
+        val bar = rods(p, 0.016).flatMap { it.toList() }.filter { kotlin.math.abs(it.y - 2.25) < 1e-6 }
+        val ends = listOf(bar.minBy { it.x }, bar.maxBy { it.x })
+        val posts = rods(p, 0.03).map { it.first }
+        ends.filter { e -> posts.none { V(e.x - it.x, 0.0, e.z - it.z).len < 0.03 } }.takeIf { it.isNotEmpty() }?.let { "bar end $it past the posts" }
+    }
+
     @Test fun theBarNeverPassesThroughTheLegs() = everyPose(listOf("deadlift", "romanian_deadlift", "barbell_row")) { _, _, p, _ ->
         val bar = p.gear.firstOrNull { it.mesh == Body.rod && it.sx == 0.014 }?.frame?.o ?: return@everyPose "no barbell"
         var worst = 1.0
