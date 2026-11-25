@@ -273,6 +273,10 @@ class ScreenShots {
         for (p in Palettes.all) {
             shot(p, "19-cardio") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
             shot(p, "19-cardio-full", tall = true) { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-mid-lift") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}, lifting = true) } }
+            shot(p, "03-workout-switch") {
+                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}, onMode = {}) }
+            }
             shot(p, "19-cardio-empty") { TabFrame(Tab.Workout, {}) { CardioScreen(live.copy(active = null), today, 150, {}, {}, {}, {}, {}, {}) } }
             shot(p, "20-cardio-running") { TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) } }
             shot(p, "20-cardio-stop-sheet") {
@@ -451,15 +455,16 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, weighInScale(lastWeight, lastWeight.at.toLocalDate()), lastWeight.at, today), idle, {}, {}, {}) }
                 }
             }
-            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}, {}) {} } }
+            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}) {} } }
+            shot(p, "10-history-month") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.Month, {}, {}, {}, today) {} } }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-week-full" else "10-history-week", tall) {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, false, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today), today, {}, {}) } }
+                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.Week, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today), today, {}, {}) } }
             }
             shot(p, "10-history-week-empty") {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, false, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today).minusDays(70), today, {}, {}) } }
+                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.Week, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today).minusDays(70), today, {}, {}) } }
             }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-cardio-full" else "10-history-cardio", tall) {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, true, {}, {}, {}) {} }
+                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.All, {}, {}, {}) {} }
             }
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}, {}) }
             shot(p, "11-session-time-sheet") {

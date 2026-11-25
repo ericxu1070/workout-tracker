@@ -48,9 +48,12 @@ import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
+enum class HistoryView { Week, Month, All }
+
 @Composable
 fun HistoryScreen(
-    state: AppState, all: Boolean, onAll: (Boolean) -> Unit, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit,
+    state: AppState, view: HistoryView, onView: (HistoryView) -> Unit, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit,
+    today: java.time.LocalDate = java.time.LocalDate.now(),
     week: @Composable ColumnScope.() -> Unit,
 ) {
     val p = LocalPalette.current
@@ -59,10 +62,15 @@ fun HistoryScreen(
         Spacer(Modifier.height(52.dp))
         Txt("History", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
-        Segmented(listOf("Week", "All"), if (all) 1 else 0, { onAll(it == 1) })
-        if (!all) {
-            week()
-            return@ScreenFrame
+        Segmented(HistoryView.entries.map { it.name }, view.ordinal, { onView(HistoryView.entries[it]) })
+        when (view) {
+            HistoryView.Week -> { week(); return@ScreenFrame }
+            HistoryView.Month -> {
+                Spacer(Modifier.height(Space.lg))
+                MonthGrid(state, today, java.time.YearMonth.from(today), onOpen)
+                return@ScreenFrame
+            }
+            HistoryView.All -> {}
         }
         val cardio = state.cardio.values
         if (done.isEmpty() && cardio.isEmpty()) {
@@ -286,7 +294,9 @@ fun BarChart(sessions: List<SessionRecord>) {
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
             val dim = pick.value.let { it != null && it != i }
-            drawRoundRect(if (dim) p.accent.copy(alpha = 0.35f) else p.accent, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
+            // The latest workout is the user's current one; earlier bars are context.
+            val c = if (i == mins.lastIndex) p.accent else p.fg2
+            drawRoundRect(if (dim) c.copy(alpha = 0.35f) else c, Offset(x, bottom - h), Size(barW, h), CornerRadius(3.dp.toPx()))
         }
         label(tm, Fmt.shortDate(sessions.first().startedAt), Offset(left, bottom + 6.dp.toPx()), p.fg2)
         if (sessions.size > 1) {

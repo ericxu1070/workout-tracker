@@ -127,12 +127,13 @@ fun CardioScreen(
     onQuick: (Activity) -> Unit,
     onLogPast: () -> Unit,
     onEdit: (Cardio) -> Unit,
+    lifting: Boolean = false,
 ) {
     val p = LocalPalette.current
     val week = mondayOf(today)
     val summary = state.week(week)
     val total = summary.cardioSec
-    ScreenFrame(bottom = { BottomBar { PillButton("Start cardio", onStart, Modifier.weight(1f), primary = true) } }) {
+    ScreenFrame(bottom = { BottomBar { PillButton(if (lifting) "Lift in progress" else "Start cardio", onStart, Modifier.weight(1f), primary = true, enabled = !lifting) } }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
         WorkoutSwitch(1, onMode)
         Spacer(Modifier.height(Space.xxl))
@@ -151,7 +152,8 @@ fun CardioScreen(
             Spacer(Modifier.height(Space.xl))
             WeekBars(weeks.map { if (it == week) "This week" else Fmt.shortDate(it) }, mins)
         }
-        val recent = Commands.recentActivities(state, 3)
+        // One session runs at a time: during a lift only logging a past session works.
+        val recent = if (lifting) emptyList() else Commands.recentActivities(state, 3)
         if (recent.isNotEmpty()) {
             GroupHeader("Quick start")
             Group {

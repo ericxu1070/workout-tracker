@@ -148,7 +148,7 @@ fun ExerciseScreen(
             }
             Spacer(Modifier.height(Space.md))
             LineChart(
-                listOf(bests.map { Pt(it.at, it.e1rm.toFloat()) } to p.fg2, bests.map { Pt(it.at, it.topWeight.toFloat()) } to p.accent),
+                listOf(bests.map { Pt(it.at, it.e1rm.toFloat()) } to p.accent, bests.map { Pt(it.at, it.topWeight.toFloat()) } to p.fg2),
                 listOf("1RM", "Top"),
             )
         }
@@ -200,18 +200,7 @@ fun ExerciseScreen(
         }
 
         val now = buildList {
-            state.cycle[log.id]?.let { c ->
-                val w = Cycle.weight(c, state.step(log.id))
-                add("Cycle" to "Week ${c.week + 1} of ${Cycle.weeks.size}, ${Cycle.weeks[c.week].display} at ${Fmt.lb(w)}")
-            }
-            // A split's cycle per sets × reps, labeled by its wave, e.g. "5 × 8·6·5".
-            state.custom.filterKeys { it.first == log.id }.forEach { (k, c) ->
-                val wave = Wave.of(k.second) ?: return@forEach
-                add(wave.display to "Week ${c.week + 1} of ${wave.weeks.size}, ${wave.weeks[c.week].display} at ${Fmt.lb(Cycle.weight(c, state.step(log.id)))}")
-            }
-            listOf(Tier.T1, Tier.T2, Tier.T3).forEach { t ->
-                state.gz[log.id to t]?.let { add("GZCLP ${t.label}" to "${Schemes.of(t)[it.stage].display} at ${Fmt.lb(it.weight)}") }
-            }
+            addAll(nextTime(state, log.id))
             if (isBodyweight) {
                 val prog = calisthenicsProgression(log.id, log.last.second)
                 add("Progression" to prog.suggestion)
@@ -232,6 +221,24 @@ fun ExerciseScreen(
         val (session, sets) = log.last
         GroupHeader("Last workout · ${session.day.title}, ${Fmt.date(session.startedAt)}")
         SetList(sets.sortedWith(compareBy({ it.tier }, { it.setIndex })))
+    }
+}
+
+/** What [ex] does next in the program being run: GZCLP's tiers, a split's waves, or the preset cycle; other programs' progress stays hidden. */
+fun nextTime(state: AppState, ex: String): List<Pair<String, String>> = buildList {
+    val program = state.program
+    when {
+        program.gzclp -> listOf(Tier.T1, Tier.T2, Tier.T3).forEach { t ->
+            state.gz[ex to t]?.let { add("GZCLP ${t.label}" to "${Schemes.of(t)[it.stage].display} at ${Fmt.lb(it.weight)}") }
+        }
+        // A split's cycle per sets × reps, labeled by its wave, e.g. "5 × 8·6·5".
+        program.custom -> state.custom.filterKeys { it.first == ex }.forEach { (k, c) ->
+            val wave = Wave.of(k.second) ?: return@forEach
+            add(wave.display to "Week ${c.week + 1} of ${wave.weeks.size}, ${wave.weeks[c.week].display} at ${Fmt.lb(Cycle.weight(c, state.step(ex)))}")
+        }
+        else -> state.cycle[ex]?.let { c ->
+            add("Cycle" to "Week ${c.week + 1} of ${Cycle.weeks.size}, ${Cycle.weeks[c.week].display} at ${Fmt.lb(Cycle.weight(c, state.step(ex)))}")
+        }
     }
 }
 

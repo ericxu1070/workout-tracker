@@ -49,6 +49,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
@@ -79,13 +81,30 @@ import java.time.OffsetDateTime
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
+    val title = remember { LargeTitle() }
+    var top by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val barPx = with(androidx.compose.ui.platform.LocalDensity.current) { 44.dp.toPx() }
+    val inline by remember { androidx.compose.runtime.derivedStateOf { title.bottom < top } }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
     Column(Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = Space.lg).padding(bottom = Space.x3),
-            content = content,
-        )
+        Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                        .padding(horizontal = Space.lg).padding(bottom = Space.x3),
+                    content = content,
+                )
+            }
+            // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
+            androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                Column(Modifier.fillMaxWidth().background(p.bg)) {
+                    Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = Space.x4), contentAlignment = Alignment.Center) {
+                        Txt(title.text, Type.headline, maxLines = 1)
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(p.separator))
+                }
+            }
+        }
         bottom?.invoke()
     }
 }
@@ -238,8 +257,6 @@ fun HomeScreen(
             Type.subhead, color = p.fg2,
         )
         Spacer(Modifier.height(Space.xxl))
-        WeeklyVolumeSection(state)
-        Spacer(Modifier.height(Space.xxl))
         Group {
             exercises.forEachIndexed { i, ex ->
                 val plan = ex.weight
@@ -292,6 +309,7 @@ fun WorkoutScreen(
     warmups: Boolean = true,
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
+    onMode: ((Int) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
@@ -307,6 +325,7 @@ fun WorkoutScreen(
                 onFinishOpen(counts)
             },
             onSettings = onSettings,
+            onMode = onMode,
         )
         return
     }
@@ -318,6 +337,8 @@ fun WorkoutScreen(
         }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
+        // Lifting shows the session; Cardio and Stretching stay a tap away mid-lift.
+        onMode?.let { WorkoutSwitch(0, it); Spacer(Modifier.height(Space.xxl)) }
         Txt(a.day.title, Type.largeTitle, maxLines = 1)
         Spacer(Modifier.height(Space.xs))
         Txt("${a.program.name} · ${Fmt.minutes(Duration.between(a.startedAt, now).seconds)}", Type.subhead.tabular(), color = p.fg2)

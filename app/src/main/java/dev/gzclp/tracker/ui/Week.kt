@@ -1,6 +1,7 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,13 +74,17 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Txt(day.dayOfWeek.name.take(1), Type.caption, color = p.fg2)
                     Spacer(Modifier.height(Space.xs))
-                    Box(Modifier.size(36.dp).clip(CircleShape).background(if (active) p.accent else Color.Transparent), contentAlignment = Alignment.Center) {
+                    // A workout day is a filled dot and today a ring; the accent stays for what can be tapped.
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape).background(if (active) p.fg else Color.Transparent)
+                            .then(if (day == today && !active) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Txt(
                             "${day.dayOfMonth}", Type.subhead.tabular().copy(fontWeight = if (active || day == today) FontWeight.SemiBold else FontWeight.Normal),
                             color = when {
-                                active -> p.onAccent
-                                day == today -> p.accent
-                                day > today -> p.fg3
+                                active -> p.bg
+                                day > today -> p.fg2
                                 else -> p.fg
                             },
                         )
@@ -88,6 +93,7 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
             }
         }
     }
+    WeeklyVolumeSection(state, date = monday)
     if (w.byActivity.isNotEmpty()) {
         GroupHeader("Cardio")
         ActivityTotals(w.byActivity)

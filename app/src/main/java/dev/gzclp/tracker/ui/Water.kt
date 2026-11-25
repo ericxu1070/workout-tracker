@@ -564,12 +564,7 @@ fun WaterDailyRing(
                 deficitMl > 0 -> "$deficitMl ml behind pace"
                 else -> "On pace"
             }
-            val paceColor = when {
-                totalMl >= goalMl -> p.accent
-                deficitMl > 500 -> p.red
-                deficitMl > 0 -> p.fg2
-                else -> p.accent
-            }
+            val paceColor = if (totalMl < goalMl && deficitMl > 500) p.red else p.fg2
             Txt(paceText, Type.footnote, color = paceColor)
         }
     }
