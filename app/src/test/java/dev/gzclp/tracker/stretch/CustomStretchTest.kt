@@ -90,7 +90,7 @@ class CustomStretchTest {
         val s = Store(file).state.value
         assertEquals(setOf("mine"), s.customStretches.keys)
         assertEquals(listOf(StretchMoves.COBRA_POSE.id to 45), s.customStretches.getValue("mine").moves.map { it.id to it.holdSec })
-        assertEquals("Dance Mobility", StretchRoutines.of("dance", s).name)
+        assertEquals("Dance mobility", StretchRoutines.of("dance", s).name)
     }
 
     @Test fun duplicateCopiesABuiltInsMovesAndHolds() {
