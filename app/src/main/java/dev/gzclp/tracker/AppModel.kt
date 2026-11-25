@@ -98,7 +98,9 @@ class AppModel private constructor(private val context: Context) {
     var logWeightRequested by mutableStateOf(false)
     /** Set when the cardio notification's Stop is tapped; the UI opens the stop sheet and clears it. */
     var stopCardioRequested by mutableStateOf(false)
-    var cardioMode by mutableStateOf(prefs.cardioMode)
+    var workoutMode by mutableStateOf(prefs.workoutMode)
+        private set
+    var stretchRoutine by mutableStateOf(prefs.stretchRoutine)
         private set
     var cardioGoalMin by mutableStateOf(prefs.cardioGoalMin)
         private set
@@ -220,9 +222,14 @@ class AppModel private constructor(private val context: Context) {
         restTargets = prefs.restTargets()
     }
 
-    fun chooseCardioMode(on: Boolean) {
-        prefs.cardioMode = on
-        cardioMode = on
+    fun chooseWorkoutMode(mode: Int) {
+        prefs.workoutMode = mode
+        workoutMode = mode
+    }
+
+    fun chooseStretchRoutine(id: String) {
+        prefs.stretchRoutine = id
+        stretchRoutine = id
     }
 
     fun chooseCardioGoal(minutes: Int) {

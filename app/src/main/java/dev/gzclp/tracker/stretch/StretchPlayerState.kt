@@ -1,11 +1,17 @@
 package dev.gzclp.tracker.stretch
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import dev.gzclp.tracker.log.LogCodec
 import dev.gzclp.tracker.log.StretchLogged
 import java.time.OffsetDateTime
 
 /**
- * State machine managing the guided stretch player session.
+ * State machine managing the guided stretch player session. Each move opens with a [READY_SEC] get-ready countdown, then
+ * its hold. Its fields are snapshot state, so a screen reading them recomposes on every tick.
  */
 class StretchPlayerState(
     val routine: StretchRoutine,
@@ -13,22 +19,28 @@ class StretchPlayerState(
 ) {
     val moves: List<StretchMove> = routine.moves
 
-    var moveIndex: Int = initialMoveIndex.coerceIn(0, (moves.size - 1).coerceAtLeast(0))
+    var moveIndex: Int by mutableIntStateOf(initialMoveIndex.coerceIn(0, (moves.size - 1).coerceAtLeast(0)))
         private set
 
     val currentMove: StretchMove? get() = moves.getOrNull(moveIndex)
     val nextMove: StretchMove? get() = moves.getOrNull(moveIndex + 1)
 
-    var secondsRemaining: Int = currentMove?.holdSec ?: 0
+    /** Seconds left to get into position before the hold starts; 0 while holding. */
+    var readyRemaining: Int by mutableIntStateOf(if (moves.isEmpty()) 0 else READY_SEC)
         private set
 
-    var elapsedTotalSec: Long = 0L
+    val isGettingReady: Boolean get() = readyRemaining > 0
+
+    var secondsRemaining: Int by mutableIntStateOf(currentMove?.holdSec ?: 0)
         private set
 
-    var isPaused: Boolean = false
+    var elapsedTotalSec: Long by mutableLongStateOf(0L)
         private set
 
-    var isFinished: Boolean = moves.isEmpty()
+    var isPaused: Boolean by mutableStateOf(false)
+        private set
+
+    var isFinished: Boolean by mutableStateOf(moves.isEmpty())
         private set
 
     private val completedMoveList = mutableListOf<String>()
@@ -45,18 +57,10 @@ class StretchPlayerState(
     fun tick() {
         if (isPaused || isFinished) return
         elapsedTotalSec++
-        if (secondsRemaining > 1) {
-            secondsRemaining--
-        } else {
-            // Move complete!
-            currentMove?.let { completedMoveList.add(it.id) }
-            if (moveIndex + 1 < moves.size) {
-                moveIndex++
-                secondsRemaining = moves[moveIndex].holdSec
-            } else {
-                secondsRemaining = 0
-                isFinished = true
-            }
+        when {
+            readyRemaining > 0 -> readyRemaining--
+            secondsRemaining > 1 -> secondsRemaining--
+            else -> advance()
         }
     }
 
@@ -73,25 +77,30 @@ class StretchPlayerState(
     }
 
     fun skipNext() {
-        if (isFinished) return
+        if (!isFinished) advance()
+    }
+
+    fun skipPrev() {
+        if (moves.isEmpty()) return
+        begin((moveIndex - 1).coerceAtLeast(0))
+        isFinished = false
+    }
+
+    private fun advance() {
         currentMove?.let { completedMoveList.add(it.id) }
         if (moveIndex + 1 < moves.size) {
-            moveIndex++
-            secondsRemaining = moves[moveIndex].holdSec
+            begin(moveIndex + 1)
         } else {
             secondsRemaining = 0
+            readyRemaining = 0
             isFinished = true
         }
     }
 
-    fun skipPrev() {
-        if (moveIndex > 0) {
-            moveIndex--
-            secondsRemaining = moves[moveIndex].holdSec
-            isFinished = false
-        } else {
-            secondsRemaining = currentMove?.holdSec ?: 0
-        }
+    private fun begin(i: Int) {
+        moveIndex = i
+        secondsRemaining = moves[i].holdSec
+        readyRemaining = READY_SEC
     }
 
     /**
@@ -110,5 +119,10 @@ class StretchPlayerState(
             durationSec = elapsedTotalSec.coerceAtLeast(1L),
             moves = finalMoves,
         )
+    }
+
+    companion object {
+        /** Long enough to get down to the floor or switch sides. */
+        const val READY_SEC = 8
     }
 }

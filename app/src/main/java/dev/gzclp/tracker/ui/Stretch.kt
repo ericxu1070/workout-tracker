@@ -26,8 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,87 +46,54 @@ import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
 import kotlinx.coroutines.delay
 
-/**
- * Main Stretching Screen: shows routine picker with coaching defaults disclaimer,
- * routine preview details, and interactive move library browser.
- */
+/** The Workout tab's Stretching page: every routine to pick and start, then the move library. */
 @Composable
 fun StretchScreen(
-    state: AppState? = null,
-    onBack: () -> Unit,
+    state: AppState?,
+    defaultId: String,
+    onMode: (Int) -> Unit,
+    onSettings: () -> Unit,
     onStartRoutine: (StretchRoutine) -> Unit,
 ) {
     val p = LocalPalette.current
     val routines = remember(state) { StretchRoutines.all(state) }
-    var selectedRoutineId by remember { mutableStateOf(StretchRoutines.ID_AFTER_WORKOUT) }
-    val currentRoutine = routines.firstOrNull { it.id == selectedRoutineId } ?: routines.first()
+    // Flexibility rotates by day, so its routines share an id; the name tells them apart.
+    val defaultName = remember(state, defaultId) { StretchRoutines.of(defaultId, state).name }
+    var selectedName by remember(defaultName) { mutableStateOf(defaultName) }
+    val currentRoutine = routines.firstOrNull { it.name == selectedName } ?: routines.first()
 
     var selectedAreaFilter by remember { mutableStateOf<BodyArea?>(null) }
     var previewMove by remember { mutableStateOf<StretchMove?>(null) }
 
-    ScreenFrame {
-        NavRow(onBack)
-        Txt("Stretching", Type.largeTitle)
+    ScreenFrame(bottom = { BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true) } }) {
+        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
+        WorkoutSwitch(2, onMode)
+        Spacer(Modifier.height(Space.xxl))
+        Txt(currentRoutine.name, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
-        Txt("Guided recovery & mobility sessions", Type.subhead, color = p.fg2)
+        Txt(routineMeta(currentRoutine), Type.subhead, color = p.fg2)
 
-        Spacer(Modifier.height(Space.md))
         GroupHeader("Routines")
         Group {
             routines.forEachIndexed { i, routine ->
-                val selected = routine.id == selectedRoutineId
-                GroupRow(first = i == 0, onClick = { selectedRoutineId = routine.id }) {
+                val selected = routine.name == currentRoutine.name
+                GroupRow(first = i == 0, onClick = { selectedName = routine.name }) {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body)
-                            if (routine.id == StretchRoutines.ID_AFTER_WORKOUT) {
+                            if (routine.name == defaultName) {
                                 Spacer(Modifier.width(Space.xs))
-                                Box(
-                                    Modifier.clip(RoundedCornerShape(4.dp)).background(p.fill).padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Txt("Default", Type.caption, color = p.accent)
-                                }
+                                Txt("Default", Type.footnote, color = p.fg2)
                             }
                         }
-                        Txt("${routine.estimatedMinutes} min · ${routine.moves.size} moves · ${routine.frequency}", Type.footnote, color = p.fg2)
+                        Txt(routineMeta(routine), Type.footnote, color = p.fg2)
                     }
-                    if (selected) {
-                        Icon(Icons.check, p.accent, size = 18.dp)
-                    }
+                    if (selected) Icon(Icons.check, p.accent, size = 18.dp)
                 }
             }
         }
-        GroupFooter(StretchRoutines.COACHING_DISCLAIMER)
 
-        // Selected Routine Card
-        Spacer(Modifier.height(Space.sm))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(p.elevated)
-                .padding(Space.md),
-        ) {
-            Column {
-                Txt(currentRoutine.name, Type.title3)
-                Spacer(Modifier.height(Space.xs))
-                Txt(currentRoutine.description, Type.subhead, color = p.fg2)
-                currentRoutine.note?.let {
-                    Spacer(Modifier.height(Space.xs))
-                    Txt(it, Type.footnote, color = p.accent)
-                }
-                Spacer(Modifier.height(Space.md))
-                PillButton(
-                    text = "Start ${currentRoutine.name} (${currentRoutine.estimatedMinutes}m)",
-                    onClick = { onStartRoutine(currentRoutine) },
-                    primary = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
-        Spacer(Modifier.height(Space.lg))
-        GroupHeader("Move Library (${StretchMoves.ALL.size} moves)")
+        GroupHeader("Moves")
 
         // Area Filter Chips
         Row(
@@ -185,6 +155,8 @@ fun StretchScreen(
     }
 }
 
+private fun routineMeta(r: StretchRoutine) = "${r.estimatedMinutes} min · ${r.moves.size} moves"
+
 /**
  * Fullscreen guided stretch player with Canvas stick figure animation,
  * hold countdown timer, next-move preview, controls, and completion logging.
@@ -197,26 +169,19 @@ fun GuidedStretchPlayerScreen(
 ) {
     val p = LocalPalette.current
     val player = remember(routine) { StretchPlayerState(routine) }
-    var secondsLeft by remember { mutableStateOf(player.secondsRemaining) }
-    var moveIndex by remember { mutableStateOf(player.moveIndex) }
-    var isPaused by remember { mutableStateOf(player.isPaused) }
-    var isFinished by remember { mutableStateOf(player.isFinished) }
-
-    // Tick loop
-    LaunchedEffect(isPaused, isFinished) {
-        while (!isPaused && !isFinished) {
+    val isPaused = player.isPaused
+    LaunchedEffect(player, isPaused, player.isFinished) {
+        while (!player.isPaused && !player.isFinished) {
             delay(1000L)
             player.tick()
-            secondsLeft = player.secondsRemaining
-            moveIndex = player.moveIndex
-            isFinished = player.isFinished
         }
     }
 
+    val moveIndex = player.moveIndex
     val currentMove = player.currentMove
     val nextMove = player.nextMove
 
-    if (isFinished || currentMove == null) {
+    if (player.isFinished || currentMove == null) {
         // Routine Complete View
         RoutineCompleteView(
             player = player,
@@ -248,30 +213,16 @@ fun GuidedStretchPlayerScreen(
                         label = "Previous move",
                         onClick = {
                             player.skipPrev()
-                            secondsLeft = player.secondsRemaining
-                            moveIndex = player.moveIndex
-                            isFinished = player.isFinished
                         },
                         tint = if (moveIndex > 0) p.fg else p.fg2.copy(alpha = 0.3f),
                     )
 
-                    // Big Play/Pause Button
-                    Box(
-                        Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(p.accent)
-                            .clickable {
-                                player.togglePause()
-                                isPaused = player.isPaused
-                            },
-                        contentAlignment = Alignment.Center,
+                    val pauseLabel = if (isPaused) "Resume" else "Pause"
+                    Pressable(
+                        player::togglePause, Modifier.size(56.dp).semantics { contentDescription = pauseLabel }, CircleShape, p.accent,
+                        pressedFill = Color.Black.copy(alpha = 0.14f), label = pauseLabel,
                     ) {
-                        Txt(
-                            if (isPaused) "Resume" else "Pause",
-                            Type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                            color = p.onAccent,
-                        )
+                        Icon(if (isPaused) Icons.play else Icons.pause, p.onAccent, 24.dp)
                     }
 
                     IconButton(
@@ -279,9 +230,6 @@ fun GuidedStretchPlayerScreen(
                         label = "Next move",
                         onClick = {
                             player.skipNext()
-                            secondsLeft = player.secondsRemaining
-                            moveIndex = player.moveIndex
-                            isFinished = player.isFinished
                         },
                         tint = p.fg,
                     )
@@ -331,7 +279,7 @@ fun GuidedStretchPlayerScreen(
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
         ) {
-            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), hold = !isPaused, area = currentMove.targetArea)
+            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), area = currentMove.targetArea)
         }
 
         Spacer(Modifier.height(Space.md))
@@ -375,8 +323,10 @@ fun GuidedStretchPlayerScreen(
                 .padding(vertical = Space.sm),
             contentAlignment = Alignment.Center,
         ) {
-            val holdTotal = currentMove.holdSec.toFloat().coerceAtLeast(1f)
-            val ringProgress = (secondsLeft.toFloat() / holdTotal).coerceIn(0f, 1f)
+            val ready = player.isGettingReady
+            val secondsLeft = if (ready) player.readyRemaining else player.secondsRemaining
+            val total = if (ready) StretchPlayerState.READY_SEC else currentMove.holdSec
+            val ringProgress = (secondsLeft.toFloat() / total.coerceAtLeast(1)).coerceIn(0f, 1f)
 
             Box(
                 Modifier.size(130.dp),
@@ -390,7 +340,7 @@ fun GuidedStretchPlayerScreen(
                     )
                     // Active countdown arc
                     drawArc(
-                        color = p.accent,
+                        color = if (ready) p.fg2 else p.accent,
                         startAngle = -90f,
                         sweepAngle = 360f * ringProgress,
                         useCenter = false,
@@ -403,7 +353,7 @@ fun GuidedStretchPlayerScreen(
                         style = Type.largeTitle.tabular(),
                         color = p.fg,
                     )
-                    Txt("seconds", Type.caption, color = p.fg2)
+                    Txt(if (ready) "Get ready" else "seconds", Type.caption, color = p.fg2)
                 }
             }
         }
@@ -556,7 +506,7 @@ fun MovePreviewDialog(
                         .padding(Space.sm),
                     contentAlignment = Alignment.Center,
                 ) {
-                    FormView(Motions.of(move), Modifier.fillMaxSize(), hold = false, area = move.targetArea)
+                    FormView(Motions.of(move), Modifier.fillMaxSize(), area = move.targetArea)
                 }
 
                 Spacer(Modifier.height(Space.md))

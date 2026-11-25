@@ -364,6 +364,8 @@ class ScreenShots {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }
             shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
+            shot(p, "02-stretching") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
+            shot(p, "02-stretching-full", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
             shot(p, "03-workout-rest") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
             }

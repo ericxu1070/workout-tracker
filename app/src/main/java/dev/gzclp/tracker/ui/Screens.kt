@@ -218,7 +218,7 @@ fun HomeScreen(
     onStart: () -> Unit,
     onSettings: () -> Unit,
     onEditWeight: (Exercise) -> Unit,
-    onCardio: () -> Unit = {},
+    onMode: (Int) -> Unit = {},
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onStartOpen: () -> Unit = {},
 ) {
@@ -235,7 +235,7 @@ fun HomeScreen(
         }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        WorkoutSwitch(false) { if (it) onCardio() }
+        WorkoutSwitch(0, onMode)
         Spacer(Modifier.height(Space.xxl))
         Txt(day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
