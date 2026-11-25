@@ -77,7 +77,11 @@ fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () 
             Txt("No exercises yet", Type.headline)
             return@ScreenFrame
         }
-        GroupHeader("Lifts")
+        // "est. 1RM" once, its right edge on the values' right edge (row padding plus the chevron).
+        Row(Modifier.fillMaxWidth().padding(start = Space.lg, end = Space.lg + Space.xs + 20.dp, top = Space.xxl, bottom = Space.sm)) {
+            Txt("Lifts", Type.footnote, Modifier.weight(1f), p.fg2)
+            Txt("est. 1RM", Type.footnote, color = p.fg2)
+        }
         Group {
             logs.forEachIndexed { i, log ->
                 val best = (if (isCalisthenics(log.id)) calisthenicsBests(state, log) else log.bests).lastOrNull()
@@ -89,10 +93,7 @@ fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () 
                             Type.footnote, color = p.fg2, maxLines = 1,
                         )
                     }
-                    if (best != null) Column(Modifier.padding(start = Space.sm), horizontalAlignment = Alignment.End) {
-                        Txt(Fmt.lb(best.e1rm), Type.subhead.tabular())
-                        Txt("est. 1RM", Type.caption, color = p.fg2)
-                    }
+                    if (best != null) Txt(Fmt.lb(best.e1rm), Type.subhead.tabular(), Modifier.padding(start = Space.sm))
                     Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
                 }
             }
@@ -159,7 +160,7 @@ fun ExerciseScreen(
                     GroupRow(first = true) {
                         Column(Modifier.weight(1f)) {
                             Txt("Factor (%)", Type.headline)
-                            Txt("Default ${(defaultFactor * 100).roundToInt()}% · Approximations are editable per exercise", Type.footnote, color = p.fg2)
+                            Txt("Default ${(defaultFactor * 100).roundToInt()}%", Type.footnote, color = p.fg2)
                         }
                         BasicTextField(
                             value = factorInput,
@@ -190,16 +191,12 @@ fun ExerciseScreen(
                     }
                 } else {
                     GroupRow(first = true, onClick = { editingFactor = true }) {
-                        Column(Modifier.weight(1f)) {
-                            Txt("Bodyweight factor", Type.headline)
-                            Txt("Approximations are editable per exercise", Type.footnote, color = p.fg2)
-                        }
+                        Txt("Bodyweight factor", Type.headline, Modifier.weight(1f))
                         Txt("${(factor * 100).roundToInt()}%", Type.subhead.tabular(), color = p.fg2)
                         Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
                     }
                 }
             }
-            GroupFooter("Approximations are editable per exercise (exercise_meta event).")
         }
 
         val now = buildList {

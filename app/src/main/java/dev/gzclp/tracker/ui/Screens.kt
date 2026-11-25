@@ -150,7 +150,6 @@ fun SetupScreen(onStart: (Map<Lift, Int>, String) -> Unit, onRestore: () -> Unit
         if (message != null) GroupFooter(message, color = p.red)
         GroupHeader("Program")
         ProgramPicker(program) { program = it }
-        GroupFooter("Switch any time in Settings.")
     }
 }
 
@@ -382,11 +381,13 @@ private fun ExerciseBlock(
 ) {
     val p = LocalPalette.current
     val sets = state.active?.sets.orEmpty()
+    val plates = LocalPlates.current.takeIf { ex.id in Catalog.barbell }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Txt(ex.name, Type.title3, maxLines = 1)
             Txt(ex.detail(), Type.footnote, color = p.fg2)
             ex.swappedFrom?.let { Txt("In place of ${state.name(it)}", Type.footnote, color = p.fg2, maxLines = 1) }
+            if (plates != null && ex.weight != null) PlateLine(plates, ex.weight)
         }
         if ((1..ex.scheme.sets).none { SetKey(ex.id, ex.tier, it) in sets }) SmallPill("Swap", { onSwap(ex) }, Modifier.padding(start = Space.sm))
         // A substitute has no prescription to edit: its weight is only a suggestion from last time.
@@ -411,10 +412,10 @@ private fun ExerciseBlock(
         Txt("RPE", Type.caption, Modifier.width(RPE_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
     }
     Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-        val plates = LocalPlates.current
+        val allPlates = LocalPlates.current
         // A substitute never logged before has no weight to warm up to.
-        if (warmups && ex.warmsUp() && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> plates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
-            WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, plates)
+        if (warmups && ex.warmsUp() && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> allPlates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
+            WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, allPlates)
         }
         for (i in 1..ex.scheme.sets) {
             val key = SetKey(ex.id, ex.tier, i)
@@ -426,7 +427,8 @@ private fun ExerciseBlock(
                 logged = sets[key]?.event,
                 current = next == key,
                 exName = ex.name,
-                plates = plates.takeIf { ex.id in Catalog.barbell },
+                plates = plates,
+                plateWeight = ex.weight,
                 onLog = { w, r, rpe -> onLog(ex, i, w, r, rpe) },
                 onClear = { onClear(ex, i) },
             )
@@ -470,7 +472,15 @@ private val RPE_COL = 56.dp
 /** What the RPE field accepts while typing: empty, 1 to 9 with an optional .5, or 10. */
 private val RPE_INPUT = Regex("(10|[1-9](\\.5?)?)?")
 
-/** One set: its own weight and reps, prefilled from the prescription, an optional RPE, and a check that logs or clears it. */
+/** Plates per side for [weight], or that the plates can't make it. */
+@Composable
+fun PlateLine(plates: Plates, weight: Int, modifier: Modifier = Modifier) =
+    Txt(plates.perSideLabel(weight) ?: "Not loadable with your plates", Type.footnote.tabular(), modifier, LocalPalette.current.fg2, maxLines = 1)
+
+/**
+ * One set: its own weight and reps, prefilled from the prescription, an optional RPE, and a check that logs or clears it.
+ * Its plate line shows only when its weight differs from [plateWeight], the one the exercise header already loads.
+ */
 @Composable
 fun SetRow(
     index: Int,
@@ -481,6 +491,7 @@ fun SetRow(
     current: Boolean,
     exName: String,
     plates: Plates?,
+    plateWeight: Int?,
     onLog: (weight: Int, reps: Int, rpe: Double?) -> Unit,
     onClear: () -> Unit,
 ) {
@@ -536,7 +547,7 @@ fun SetRow(
         }
     }
     val wt = weight()
-    if (plates != null && wt != null) Txt(plates.perSideLabel(wt) ?: "Not loadable with your plates", Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1)
+    if (plates != null && wt != null && wt != plateWeight) PlateLine(plates, wt, Modifier.padding(start = SET_COL + Space.md))
 }
 
 /** A warm-up: fixed weight and reps, and a check that only lives on screen (never logged). */

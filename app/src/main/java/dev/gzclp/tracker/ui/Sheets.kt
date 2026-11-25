@@ -171,7 +171,7 @@ fun ColumnScope.SheetContent(
         is SheetState.EndConfirm -> {
             SheetTitle(
                 "End workout?",
-                "${s.unlogged} ${if (s.unlogged == 1) "set is" else "sets are"} not logged. An exercise with some sets logged counts the rest as missed; one with none stays where it is.",
+                "${s.unlogged} ${if (s.unlogged == 1) "set" else "sets"} not logged",
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 PillButton("Keep going", onDismiss, Modifier.weight(1f), onSurface = true)
@@ -228,7 +228,7 @@ fun ColumnScope.SheetContent(
             CardioStopSheet(s, state, update, { onPickEnd(s) }, { onPickStart(s) }, { onActivity(s) }) { onConfirm(s) }
         }
         is SheetState.SessionTime -> {
-            SheetTitle("Edit duration", "Type how long it ran, or tap the end time.")
+            SheetTitle("Edit duration", null)
             val p = LocalPalette.current
             val end = s.startedAt.plusSeconds(s.durationSec)
             Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {

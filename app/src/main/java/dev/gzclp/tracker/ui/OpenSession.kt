@@ -667,6 +667,7 @@ fun OpenExerciseCard(
             }
         }
 
+        if (ex.id in Catalog.barbell) PlateLine(plates, openEx.targetWeight, Modifier.padding(top = Space.sm))
         Spacer(Modifier.height(Space.md))
 
         // Sets column
@@ -683,6 +684,7 @@ fun OpenExerciseCard(
                     current = logged == null,
                     exName = ex.name,
                     plates = plates.takeIf { ex.id in Catalog.barbell },
+                    plateWeight = openEx.targetWeight,
                     onLog = { w, r, rpe -> onLog(ex, i, w, r, rpe) },
                     onClear = { onClear(ex, i) },
                 )

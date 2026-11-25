@@ -14,7 +14,7 @@ object StretchMoves {
     // 1. HIPS
     val PIGEON_POSE = StretchMove(
         id = "hips_pigeon",
-        name = "Pigeon Pose",
+        name = "Pigeon pose",
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Square your hips to the mat and sink gently into the stretch.",
@@ -24,7 +24,7 @@ object StretchMoves {
 
     val BUTTERFLY_STRETCH = StretchMove(
         id = "hips_butterfly",
-        name = "Butterfly Stretch",
+        name = "Butterfly stretch",
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Press your soles together and hinge gently forward from your hips.",
@@ -33,7 +33,7 @@ object StretchMoves {
 
     val LIZARD_LUNGE = StretchMove(
         id = "hips_lizard",
-        name = "Lizard Lunge",
+        name = "Lizard lunge",
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Sink your pelvis low while keeping your front knee stacked over your heel.",
@@ -44,7 +44,7 @@ object StretchMoves {
     // 2. HAMSTRINGS
     val STANDING_FORWARD_FOLD = StretchMove(
         id = "hamstrings_standing_fold",
-        name = "Standing Forward Fold",
+        name = "Standing forward fold",
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 35,
         cue = "Hinge from the hips with soft knees and let your torso hang heavy.",
@@ -53,7 +53,7 @@ object StretchMoves {
 
     val SEATED_SINGLE_LEG = StretchMove(
         id = "hamstrings_seated_single",
-        name = "Seated Single-Leg Stretch",
+        name = "Seated single-leg stretch",
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 30,
         cue = "Hinge forward from the hip crease toward your flexed front foot.",
@@ -63,7 +63,7 @@ object StretchMoves {
 
     val DOWNWARD_DOG = StretchMove(
         id = "hamstrings_downward_dog",
-        name = "Downward-Facing Dog",
+        name = "Downward-facing dog",
         targetArea = BodyArea.HAMSTRINGS,
         holdSec = 30,
         cue = "Drive your hips up and back while pressing your heels toward the mat.",
@@ -73,7 +73,7 @@ object StretchMoves {
     // 3. QUADS
     val STANDING_QUAD_STRETCH = StretchMove(
         id = "quads_standing",
-        name = "Standing Quad Stretch",
+        name = "Standing quad stretch",
         targetArea = BodyArea.QUADS,
         holdSec = 30,
         cue = "Keep your knees together and tuck your tailbone slightly.",
@@ -83,7 +83,7 @@ object StretchMoves {
 
     val COUCH_STRETCH = StretchMove(
         id = "quads_couch",
-        name = "Kneeling Couch Stretch",
+        name = "Kneeling couch stretch",
         targetArea = BodyArea.QUADS,
         holdSec = 35,
         cue = "Squeeze your glute on the rear leg and gently press your hip forward.",
@@ -93,7 +93,7 @@ object StretchMoves {
 
     val KNEELING_QUAD_LEAN = StretchMove(
         id = "quads_kneeling_lean",
-        name = "Kneeling Quad Lean",
+        name = "Kneeling quad lean",
         targetArea = BodyArea.QUADS,
         holdSec = 30,
         cue = "Brace your core and lean your torso back in one straight line.",
@@ -103,7 +103,7 @@ object StretchMoves {
     // 4. CALVES
     val WALL_CALF_STRETCH = StretchMove(
         id = "calves_wall_drive",
-        name = "Wall Calf Stretch",
+        name = "Wall calf stretch",
         targetArea = BodyArea.CALVES,
         holdSec = 30,
         cue = "Drive your back heel firmly into the ground with a straight rear knee.",
@@ -113,7 +113,7 @@ object StretchMoves {
 
     val HEEL_DROP_STRETCH = StretchMove(
         id = "calves_heel_drop",
-        name = "Stair Heel Drop",
+        name = "Stair heel drop",
         targetArea = BodyArea.CALVES,
         holdSec = 25,
         cue = "Lower your heel below the step level for a deep, steady calf stretch.",
@@ -124,7 +124,7 @@ object StretchMoves {
     // 5. ANKLES
     val KNEELING_ANKLE_DORSI = StretchMove(
         id = "ankles_kneeling_dorsi",
-        name = "Kneeling Ankle Dorsiflexion",
+        name = "Kneeling ankle dorsiflexion",
         targetArea = BodyArea.ANKLES,
         holdSec = 25,
         cue = "Drive your front knee over your toes while keeping your heel grounded.",
@@ -134,7 +134,7 @@ object StretchMoves {
 
     val PLANTAR_ANKLE_SIT = StretchMove(
         id = "ankles_plantar_sit",
-        name = "Plantar Ankle Sit",
+        name = "Plantar ankle sit",
         targetArea = BodyArea.ANKLES,
         holdSec = 25,
         cue = "Sit gently back on your shins with feet flat to stretch the top of ankles.",
@@ -144,7 +144,7 @@ object StretchMoves {
     // 6. UPPER BACK
     val THREAD_THE_NEEDLE = StretchMove(
         id = "upper_back_thread_needle",
-        name = "Thread the Needle",
+        name = "Thread the needle",
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 30,
         cue = "Slide one arm under your torso and rest your shoulder gently on the mat.",
@@ -154,7 +154,7 @@ object StretchMoves {
 
     val CAT_COW_STRETCH = StretchMove(
         id = "upper_back_cat",
-        name = "Cat Pose Stretch",
+        name = "Cat pose stretch",
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 30,
         cue = "Round your upper back toward the ceiling and tuck your chin.",
@@ -163,7 +163,7 @@ object StretchMoves {
 
     val EAGLE_ARMS = StretchMove(
         id = "upper_back_eagle",
-        name = "Eagle Arms Stretch",
+        name = "Eagle arms stretch",
         targetArea = BodyArea.UPPER_BACK,
         holdSec = 25,
         cue = "Cross your elbows and lift your forearms to open across the shoulder blades.",
@@ -174,7 +174,7 @@ object StretchMoves {
     // 7. CHEST
     val DOORWAY_PEC_STRETCH = StretchMove(
         id = "chest_doorway",
-        name = "Doorway Chest Stretch",
+        name = "Doorway chest stretch",
         targetArea = BodyArea.CHEST,
         holdSec = 30,
         cue = "Rest your forearm on the frame at 90 degrees and step your chest forward.",
@@ -184,7 +184,7 @@ object StretchMoves {
 
     val BEHIND_BACK_CLASP = StretchMove(
         id = "chest_behind_back_clasp",
-        name = "Behind-Back Chest Opener",
+        name = "Behind-back chest opener",
         targetArea = BodyArea.CHEST,
         holdSec = 30,
         cue = "Interlace your fingers behind your back and gently lift your chest.",
@@ -194,7 +194,7 @@ object StretchMoves {
     // 8. SHOULDERS
     val CROSS_BODY_SHOULDER = StretchMove(
         id = "shoulders_cross_body",
-        name = "Cross-Body Shoulder Stretch",
+        name = "Cross-body shoulder stretch",
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Gently draw your arm across your chest without hiking your shoulder.",
@@ -204,7 +204,7 @@ object StretchMoves {
 
     val OVERHEAD_TRICEPS = StretchMove(
         id = "shoulders_overhead_triceps",
-        name = "Overhead Triceps & Shoulder",
+        name = "Overhead triceps & shoulder",
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Reach down the center of your back and guide your elbow with the other hand.",
@@ -214,7 +214,7 @@ object StretchMoves {
 
     val SLEEPER_STRETCH = StretchMove(
         id = "shoulders_sleeper",
-        name = "Sleeper Shoulder Stretch",
+        name = "Sleeper shoulder stretch",
         targetArea = BodyArea.SHOULDERS,
         holdSec = 25,
         cue = "Lie on your side and gently guide your forearm down toward the mat.",
@@ -225,7 +225,7 @@ object StretchMoves {
     // 9. LATS
     val CHILDS_POSE_LAT = StretchMove(
         id = "lats_childs_pose",
-        name = "Child's Pose Lat Reach",
+        name = "Child's pose lat reach",
         targetArea = BodyArea.LATS,
         holdSec = 30,
         cue = "Walk your hands to one side and sink your hips deeply back onto your heels.",
@@ -235,7 +235,7 @@ object StretchMoves {
 
     val OVERHEAD_SIDE_BEND = StretchMove(
         id = "lats_side_bend",
-        name = "Standing Side Bend",
+        name = "Standing side bend",
         targetArea = BodyArea.LATS,
         holdSec = 25,
         cue = "Clasp hands overhead and gently arc your ribcage to the side.",
@@ -246,7 +246,7 @@ object StretchMoves {
     // 10. SPINE
     val SUPINE_SPINAL_TWIST = StretchMove(
         id = "spine_supine_twist",
-        name = "Supine Spinal Twist",
+        name = "Supine spinal twist",
         targetArea = BodyArea.SPINE,
         holdSec = 30,
         cue = "Drop your knees to the side while keeping both shoulders flat on the floor.",
@@ -256,7 +256,7 @@ object StretchMoves {
 
     val COBRA_POSE = StretchMove(
         id = "spine_cobra",
-        name = "Cobra Pose",
+        name = "Cobra pose",
         targetArea = BodyArea.SPINE,
         holdSec = 30,
         cue = "Press the floor away to extend your thoracic spine without pinching your low back.",
@@ -265,7 +265,7 @@ object StretchMoves {
 
     val SEATED_SPINAL_TWIST = StretchMove(
         id = "spine_seated_twist",
-        name = "Seated Spinal Twist",
+        name = "Seated spinal twist",
         targetArea = BodyArea.SPINE,
         holdSec = 25,
         cue = "Sit tall, elongate your spine, and rotate gently from your ribcage.",

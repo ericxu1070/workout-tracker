@@ -60,8 +60,9 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
     }
     Spacer(Modifier.height(Space.lg))
     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        Tile("Gym", w.gymSec, count(w.workouts, "workout"), w.gymSec - w.prevGymSec, Modifier.weight(1f))
-        Tile("Cardio", w.cardioSec, count(w.cardioSessions, "session"), w.cardioSec - w.prevCardioSec, Modifier.weight(1f))
+        val before = if (monday == thisWeek) "last week" else "the week before"
+        Tile("Gym", w.gymSec, count(w.workouts, "workout"), minutesVs(w.gymSec - w.prevGymSec, before), Modifier.weight(1f))
+        Tile("Cardio", w.cardioSec, count(w.cardioSessions, "session"), minutesVs(w.cardioSec - w.prevCardioSec, before), Modifier.weight(1f))
     }
     Spacer(Modifier.height(Space.md))
     Group {
@@ -102,14 +103,7 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
                         Txt(top(l.now) + (l.prev?.let { " vs ${top(it)}, ${Fmt.shortDate(it.at)}" } ?: ""), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
                     }
                     val d = l.prev?.let { l.now.e1rm - it.e1rm }
-                    Txt(
-                        if (d == null) "First time" else signed(d.toLong()) + " lb", Type.subhead.tabular(), Modifier.padding(start = Space.sm),
-                        when {
-                            d == null || d == 0 -> p.fg2
-                            d > 0 -> p.accent
-                            else -> p.red
-                        },
-                    )
+                    Txt(if (d == null) "First time" else signed(d.toLong()) + " lb", Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                     Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
                 }
             }
@@ -126,7 +120,7 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
 }
 
 @Composable
-private fun Tile(title: String, sec: Long, count: String, change: Long, modifier: Modifier) {
+private fun Tile(title: String, sec: Long, count: String, change: String, modifier: Modifier) {
     val p = LocalPalette.current
     Column(modifier.fillMaxHeight().clip(RoundedCornerShape(Radius.lg)).background(p.elevated).padding(Space.lg)) {
         Txt(title, Type.footnote, color = p.fg2)
@@ -134,7 +128,7 @@ private fun Tile(title: String, sec: Long, count: String, change: Long, modifier
         Txt(Fmt.minutes(sec), Type.title2.tabular(), maxLines = 1)
         Spacer(Modifier.height(Space.xs))
         Txt(count, Type.footnote, color = p.fg2)
-        Txt(signedMinutes(change), Type.footnote.tabular(), color = p.fg2)
+        Txt(change, Type.footnote.tabular(), color = p.fg2)
     }
 }
 
@@ -181,10 +175,10 @@ private fun signed(lb: Double): String {
     }
 }
 
-/** +25 min, −1 hr 5 min, ±0 min. */
-private fun signedMinutes(sec: Long): String {
+/** "25 min more" over "than last week", one fact per line so the tile never breaks mid-phrase; or "Same as last week". */
+internal fun minutesVs(sec: Long, before: String): String {
     val m = (sec / 60.0).roundToLong()
-    return if (m == 0L) "±0 min" else (if (m > 0) "+" else "−") + Fmt.minutes(abs(m) * 60)
+    return if (m == 0L) "Same as $before" else Fmt.minutes(abs(m) * 60) + (if (m > 0) " more" else " less") + "\nthan $before"
 }
 
 /** A week's cardio per activity: sessions, distance, and time. Shared with the Cardio page. */
