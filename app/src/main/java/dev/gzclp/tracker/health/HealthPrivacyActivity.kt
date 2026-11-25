@@ -20,7 +20,7 @@ class HealthPrivacyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            GzTheme(AppModel.get(this).palette) {
+            GzTheme(AppModel.get(this).palette(androidx.compose.foundation.isSystemInDarkTheme())) {
                 ScreenFrame {
                     NavRow(::finish)
                     Txt("Health Connect", Type.largeTitle)

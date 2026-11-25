@@ -72,7 +72,7 @@ class AppModel private constructor(private val context: Context) {
     /** Null until a laptop theme file has been read once. */
     var laptop by mutableStateOf(prefs.laptopTheme?.let(LaptopTheme::parse))
         private set
-    val palette: Palette get() = if (theme == LaptopTheme.ID) laptop ?: Palettes.tokyo else Palettes.of(theme)
+    fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop)
     var restTargets by mutableStateOf(prefs.restTargets())
         private set
     var plates by mutableStateOf(prefs.plates)

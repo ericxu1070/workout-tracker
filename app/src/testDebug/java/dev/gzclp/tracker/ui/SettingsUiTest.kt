@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import dev.gzclp.tracker.engine.Increments
 import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Plates
@@ -42,6 +43,32 @@ class SettingsUiTest {
         rule.onNodeWithText("Tokyo Night").assertExists()
         rule.onNodeWithText("Lifting").performClick()
         assertEquals(SettingsPage.Lifting, opened)
+    }
+
+    private fun appearance(themeId: String, onTheme: (String) -> Unit = {}) = rule.setContent {
+        SettingsScreen(
+            true, Programs.GZCLP, Increments(), themeId, null, Tier.entries.associateWith { it.defaultRestSec },
+            SyncUi(null, null, null), true, true, 7 * 60, HealthUi(false, null), Plates(),
+            {}, onTheme, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance,
+        )
+    }
+
+    @Test fun showMoreRevealsEveryCustomTheme() {
+        var chosen: String? = null
+        appearance("light") { chosen = it }
+        rule.onNodeWithText("System").assertExists()
+        rule.onNodeWithText("Laptop").assertExists()
+        rule.onAllNodesWithText("Gruvbox").assertCountEquals(0)
+        rule.onNodeWithText("Show more").performClick()
+        rule.onNodeWithText("Gruvbox").performScrollTo().performClick()
+        assertEquals("gruvbox", chosen)
+        rule.onNodeWithText("Show less").assertExists()
+    }
+
+    @Test fun aCustomThemeOpensExpanded() {
+        appearance("tokyo")
+        rule.onNodeWithText("Show less").assertExists()
+        rule.onNodeWithText("Jade").assertExists()
     }
 
     @Test fun presetExercisesRemoveOnlyInEditModeAfterDelete() {

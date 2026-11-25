@@ -254,10 +254,11 @@ fun GroupFooter(text: String, modifier: Modifier = Modifier, color: Color = Loca
 fun GroupRow(
     first: Boolean,
     onClick: (() -> Unit)? = null,
+    inset: Dp = Space.lg,
     content: @Composable RowScope.() -> Unit,
 ) {
     Column {
-        if (!first) Hairline(start = Space.lg)
+        if (!first) Hairline(start = inset)
         val inner: @Composable () -> Unit = {
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = Space.lg, vertical = Space.sm),
