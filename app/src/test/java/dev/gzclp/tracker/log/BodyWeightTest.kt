@@ -118,4 +118,18 @@ class BodyWeightTest {
         val state = store().state.value
         assertTrue((0..s.count).all { Commands.logBodyWeight(state, null, day(1), s.lb(it)).isNotEmpty() })
     }
+
+    @Test fun undoTakesBackANewWeighInOrRestoresAnEdit() {
+        val s = store()
+        s.weigh(day(0), 181.2)
+        val before = s.state.value.bodyWeights
+        val logged = s.weigh(day(1), 183.3).single().event as BodyWeightLogged
+        s.dispatch(day(1)) { Commands.undoBodyWeight(it, logged.entryId, null) }
+        assertEquals(before, s.state.value.bodyWeights)
+
+        val old = before.values.single()
+        s.weigh(day(0, 9), 179.0, id = old.id)
+        s.dispatch(day(1)) { Commands.undoBodyWeight(it, old.id, old) }
+        assertEquals(before, s.state.value.bodyWeights)
+    }
 }
