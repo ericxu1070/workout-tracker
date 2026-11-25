@@ -31,11 +31,10 @@ import dev.gzclp.tracker.log.ExerciseSwap
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.log.Cardio
 import dev.gzclp.tracker.log.mondayOf
 import dev.gzclp.tracker.engine.Activities
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -392,13 +391,19 @@ class ScreenShots {
             shot(p, "16-log-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     BodyWeightScreen(idle, today, {}, {}, {})
-                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, TextFieldValue("182.4", TextRange(5)), now, today), idle, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, weighInScale(lastWeight, today), now, today).let { it.copy(stop = it.stop - 6) }, idle, {}, {}, {}) }
+                }
+            }
+            shot(p, "16-log-weight-sheet-first") {
+                Box(Modifier.fillMaxSize()) {
+                    BodyWeightScreen(idle.copy(bodyWeights = emptyMap()), today, {}, {}, {})
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(null, weighInScale(null, today), now, today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "16-edit-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     BodyWeightScreen(idle, today, {}, {}, {})
-                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, TextFieldValue(Fmt.tenths(lastWeight.lb)), lastWeight.at, today), idle, {}, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.BodyWeight(lastWeight.id, weighInScale(lastWeight, lastWeight.at.toLocalDate()), lastWeight.at, today), idle, {}, {}, {}) }
                 }
             }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, true, {}, {}, {}) {} } }

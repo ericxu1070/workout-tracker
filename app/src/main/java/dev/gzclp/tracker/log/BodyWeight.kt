@@ -28,3 +28,25 @@ fun ratios(bests: List<SessionBest>, daily: TreeMap<LocalDate, Double>): List<Ra
     bests.mapNotNull { b -> daily.inEffect(b.at.toLocalDate())?.let { Ratio(b.at, b.e1rm, it, b.e1rm / it) } }
 
 fun AppState.hasWeighIn(day: LocalDate): Boolean = bodyWeights.values.any { it.at.toLocalDate() == day }
+
+/**
+ * The weigh-in slider's stops: [count] + 1 weights from [min] in [step] lb, starting at stop [start], the reference
+ * weight when there is one ([centered]).
+ */
+data class WeighInScale(val min: Double, val step: Double, val count: Int, val start: Int, val centered: Boolean) {
+    fun lb(stop: Int): Double = Math.round((min + stop.coerceIn(0, count) * step) * 10) / 10.0
+}
+
+/**
+ * Stops around [last]: ±5 lb in tenths when it was weighed within 3 days of [today], ±25 lb in halves when older,
+ * and 80 to 400 lb in whole pounds from 170 with no weigh-in at all.
+ */
+fun weighInScale(last: BodyWeight?, today: LocalDate): WeighInScale {
+    if (last == null) return WeighInScale(80.0, 1.0, 320, 90, centered = false)
+    val recent = !last.at.toLocalDate().isBefore(today.minusDays(3))
+    val (span, step) = if (recent) 5.0 to 0.1 else 25.0 to 0.5
+    val half = (span / step).toInt()
+    // Near the bottom of the valid range the low side shrinks so every stop is a weight the log accepts.
+    val below = minOf(half, ((last.lb - Commands.BODY_WEIGHT_RANGE.start) / step).toInt())
+    return WeighInScale(last.lb - below * step, step, below + half, below, centered = true)
+}

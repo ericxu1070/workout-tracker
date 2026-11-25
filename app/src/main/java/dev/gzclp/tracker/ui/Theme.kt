@@ -36,10 +36,10 @@ object Palettes {
     val dark = Palette("dark", "Dark", true, Color(0xFF000000), Color(0xFF1C1C1E), Color(0xFFF5F5F7), Color(0xFFA1A1A6), Color(0xFF0A84FF), Color(0xFFFFFFFF), Color(0xFFFF453A))
     val light = Palette("light", "Light", false, Color(0xFFF2F2F7), Color(0xFFFFFFFF), Color(0xFF1C1C1E), Color(0xFF6E6E73), Color(0xFF007AFF), Color(0xFFFFFFFF), Color(0xFFD70015))
     val all = listOf(jade, tokyo, dark, light)
-    fun of(id: String) = all.firstOrNull { it.id == id } ?: jade
+    fun of(id: String) = all.firstOrNull { it.id == id } ?: tokyo
 }
 
-val LocalPalette = staticCompositionLocalOf { Palettes.jade }
+val LocalPalette = staticCompositionLocalOf { Palettes.tokyo }
 
 @Composable
 fun GzTheme(palette: Palette, content: @Composable () -> Unit) =

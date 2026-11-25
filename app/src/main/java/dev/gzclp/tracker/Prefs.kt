@@ -9,7 +9,7 @@ class Prefs(context: Context) {
     private val p = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE)
 
     var theme: String
-        get() = p.getString("theme", "jade")!!
+        get() = p.getString("theme", "tokyo")!!
         set(v) = p.edit().putString("theme", v).apply()
 
     /** The last good laptop theme, in omarchy-theme.toml's format. */

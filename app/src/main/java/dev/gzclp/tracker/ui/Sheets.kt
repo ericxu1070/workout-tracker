@@ -13,19 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.WeighInScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -67,9 +61,11 @@ sealed interface SheetState {
     data class Meal(val meal: dev.gzclp.tracker.food.Meal, val today: LocalDate, val delete: Boolean = false) : SheetState
     /** A gallery [photo] about to be saved as a meal at [at]; [note] says why its own time was not usable. */
     data class AddMeal(val photo: java.io.File, val at: OffsetDateTime, val now: OffsetDateTime, val note: String?) : SheetState
-    /** A new weigh-in when [id] is null, else an edit of that one; [delete] marks the Delete button. */
-    data class BodyWeight(val id: String?, val text: TextFieldValue, val at: OffsetDateTime, val today: LocalDate, val delete: Boolean = false) : SheetState {
-        val lb: Double? get() = text.text.toDoubleOrNull()?.takeIf { it in Commands.BODY_WEIGHT_RANGE && text.text.substringAfter('.', "").length <= 1 }
+    /** A new weigh-in when [id] is null, else an edit of that one, at stop [stop] of [scale]; [delete] marks the Delete button. */
+    data class BodyWeight(
+        val id: String?, val scale: WeighInScale, val at: OffsetDateTime, val today: LocalDate, val stop: Int = scale.start, val delete: Boolean = false,
+    ) : SheetState {
+        val lb: Double get() = scale.lb(stop)
     }
     /**
      * Stopping [run]; [maxSec] is its elapsed time when Stop was tapped. [distance] is in the activity's unit and [rpe] is a
@@ -184,37 +180,31 @@ fun ColumnScope.SheetContent(
         }
         is SheetState.BodyWeight -> {
             val p = LocalPalette.current
-            val lb = s.lb
-            val focus = remember { FocusRequester() }
-            LaunchedEffect(Unit) { focus.requestFocus() }
+            val haptic = LocalHapticFeedback.current
             SheetTitle(if (s.id == null) "Log weight" else "Edit weigh-in", null)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
-                BasicTextField(
-                    s.text, { v -> update(s.copy(text = v.copy(text = v.text.filter { it.isDigit() || it == '.' }.take(5)))) },
-                    Modifier.width(IntrinsicSize.Min).focusRequester(focus),
-                    textStyle = Type.display.copy(color = p.fg), singleLine = true, cursorBrush = SolidColor(p.accent),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { if (lb != null) onConfirm(s) }),
-                    decorationBox = { inner ->
-                        Box {
-                            if (s.text.text.isEmpty()) Txt("0.0", Type.display, color = p.fg3)
-                            inner()
-                        }
-                    },
-                )
+                Txt(Fmt.tenths(s.lb), Type.display)
                 Txt(" lb", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
+            }
+            StepSlider(
+                s.stop, s.scale.count,
+                onStop = {
+                    if (it != s.stop) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    update(s.copy(stop = it))
+                },
+                description = "Weight",
+                from = s.scale.start.takeIf { s.scale.centered },
+                releaseLabel = "Save ${Fmt.lb(s.lb)}",
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onConfirm(s)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MiniStep(Icons.chevronLeft, "Day before") { update(s.copy(at = s.at.minusDays(1))) }
                 Txt(Fmt.weighInTime(s.at, s.today), Type.body.tabular(), Modifier.weight(1f), align = TextAlign.Center)
                 MiniStep(Icons.chevronRight, "Day after", enabled = s.at.toLocalDate() < s.today) { update(s.copy(at = s.at.plusDays(1))) }
             }
-            val save = if (lb == null) "Save weight" else "Save ${Fmt.lb(lb)}"
-            if (s.id == null) PillButton(save, { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = lb != null)
-            else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                PillButton("Delete", { onConfirm(s.copy(delete = true)) }, Modifier.weight(1f), onSurface = true)
-                PillButton(save, { onConfirm(s) }, Modifier.weight(1f), primary = true, enabled = lb != null)
-            }
+            if (s.id != null) PillButton("Delete", { onConfirm(s.copy(delete = true)) }, Modifier.fillMaxWidth(), onSurface = true)
         }
         is SheetState.Meal -> if (!s.delete) MealSheet(s.meal, s.today, { update(s.copy(delete = true)) }, onDismiss) else {
             SheetTitle("Delete this meal?", "Its photo is deleted from this phone and can't be recovered.")
