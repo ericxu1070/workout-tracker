@@ -87,7 +87,6 @@ fun StretchScreen(
     onStartRoutine: (StretchRoutine) -> Unit,
     onOpenRoutine: (StretchRoutine) -> Unit,
     onNewRoutine: () -> Unit,
-    initialAbout: String? = null,
 ) {
     val p = LocalPalette.current
     val routines = remember(state) { StretchRoutines.all(state) }
@@ -95,7 +94,6 @@ fun StretchScreen(
     var selectedKey by remember(defaultKey) { mutableStateOf(defaultKey) }
     val currentRoutine = routines.firstOrNull { it.key == selectedKey } ?: routines.first()
     var moreShown by rememberSaveable(defaultKey) { mutableStateOf(StretchRoutines.more.any { it.key == defaultKey }) }
-    var aboutKey by rememberSaveable { mutableStateOf(initialAbout) }
 
     var selectedAreaFilter by remember { mutableStateOf<BodyArea?>(null) }
     var previewMove by remember { mutableStateOf<StretchMove?>(null) }
@@ -117,45 +115,40 @@ fun StretchScreen(
     }) {
         item { Column {
             Spacer(Modifier.height(Space.xxl))
-            Txt(currentRoutine.name, Type.largeTitle)
-            Spacer(Modifier.height(Space.xs))
-            Txt(routineMeta(currentRoutine), Type.subhead, color = p.fg2)
-
+            // A row selects its routine, marked by the check alone; its chevron opens the routine's page.
+            @Composable
+            fun RoutineRow(routine: StretchRoutine, first: Boolean) {
+                val selected = routine.key == currentRoutine.key
+                GroupRow(first = first, onClick = { selectedKey = routine.key }) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
+                            if (routine.key == defaultKey) {
+                                Spacer(Modifier.width(Space.xs))
+                                Txt("Default", Type.footnote, color = p.fg2)
+                            }
+                        }
+                        Txt(routineMeta(routine), Type.footnote, color = p.fg2)
+                    }
+                    if (selected) Icon(Icons.check, p.accent, size = 18.dp)
+                    val label = "Open ${routine.name}"
+                    Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
+                        Pressable({ onOpenRoutine(routine) }, m.semantics { contentDescription = label }, CircleShape, label = label, scale = SMALL_PRESS) { Icon(Icons.chevronRight, p.fg3, 20.dp) }
+                    }
+                }
+            }
+            Txt("Your routines", Type.footnote, Modifier.padding(start = Space.lg, bottom = Space.sm), p.fg2)
+            Group {
+                val custom = state?.customStretches?.values.orEmpty()
+                custom.forEachIndexed { i, r -> RoutineRow(r, first = i == 0) }
+                AddRow("New routine", first = custom.isEmpty(), onClick = onNewRoutine)
+            }
             GroupHeader("Routines")
             Group {
-                @Composable
-                fun RoutineRow(routine: StretchRoutine, first: Boolean) {
-                    val selected = routine.key == currentRoutine.key
-                    val about = aboutKey == routine.key
-                    GroupRow(first = first, onClick = { selectedKey = routine.key }) {
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
-                                if (routine.key == defaultKey) {
-                                    Spacer(Modifier.width(Space.xs))
-                                    Txt("Default", Type.footnote, color = p.fg2)
-                                }
-                            }
-                            Txt(routineMeta(routine), Type.footnote, color = p.fg2)
-                        }
-                        if (selected) Icon(Icons.check, p.accent, size = 18.dp)
-                        // A built-in routine's eye button opens what it is for in place; a custom one's opens its page to edit, as a Wi-Fi network's does.
-                        val label = if (routine.custom) "${routine.name} moves" else "About ${routine.name}"
-                        Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
-                            Pressable(
-                                { if (routine.custom) onOpenRoutine(routine) else aboutKey = if (about) null else routine.key },
-                                m.semantics { contentDescription = label }, CircleShape, label = label,
-                            ) { Icon(if (routine.custom) Icons.info else Icons.eye, p.accent, 22.dp) }
-                        }
-                    }
-                    if (!routine.custom) Disclosed(about) { RoutineAbout(routine) { onOpenRoutine(routine) } }
-                }
                 RoutineRow(routines.first(), first = true)
                 StretchRoutines.popular.forEach { RoutineRow(it, first = false) }
-                ShowMoreRow(moreShown, { moreShown = !moreShown })
                 Disclosed(moreShown) { StretchRoutines.more.forEach { RoutineRow(it, first = false) } }
-                state?.customStretches?.values?.forEach { RoutineRow(it, first = false) }
-                AddRow("New routine", first = false, onClick = onNewRoutine)
+                ShowMoreRow(moreShown, { moreShown = !moreShown })
             }
 
             GroupHeader("Moves")
@@ -204,7 +197,7 @@ fun StretchScreen(
                     Spacer(Modifier.width(Space.sm))
                     Column(Modifier.weight(1f)) {
                         Txt(move.name, Type.body, maxLines = 1)
-                        Txt("${move.targetArea.displayName} · ${move.holdSec}s", Type.footnote, color = p.fg2)
+                        Txt("${move.targetArea.displayName} · ${move.holdSec} sec", Type.footnote, color = p.fg2)
                     }
                     Icon(Icons.chevronRight, p.fg2, size = 16.dp)
                 }
@@ -218,21 +211,15 @@ fun StretchScreen(
     }
 }
 
-/** What a built-in routine is, its goal, and when to pick it, then a way to its moves. */
+/** What a built-in routine is, its goal, and when to pick it. */
 @Composable
-private fun RoutineAbout(routine: StretchRoutine, onMoves: () -> Unit) {
+private fun RoutineAbout(routine: StretchRoutine) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxWidth().padding(start = Space.lg, end = Space.lg, bottom = Space.xs), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         Txt(routine.description, Type.subhead)
         for ((label, text) in listOf("Goal" to routine.goal, "When" to routine.pick)) Row {
             Txt(label, Type.subhead.copy(fontWeight = FontWeight.SemiBold), Modifier.width(56.dp), p.fg2)
             Txt(text, Type.subhead, Modifier.weight(1f))
-        }
-        Pressable(onMoves, Modifier.heightIn(min = 44.dp).semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
-            Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
-                Txt("See moves", Type.subhead, color = p.accent)
-                Icon(Icons.chevronRight, p.accent, 16.dp)
-            }
         }
     }
 }
@@ -242,7 +229,7 @@ private fun routineMeta(r: StretchRoutine) = "${r.estimatedMinutes} min · ${r.m
 /** A move's form, still, in a small rounded well. */
 @Composable
 fun MoveThumb(move: StretchMove) {
-    Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(LocalPalette.current.fill)) {
+    Box(Modifier.size(44.dp).clip(RoundedCornerShape(Radius.sm)).background(LocalPalette.current.fill)) {
         FormView(Motions.of(move), Modifier.fillMaxSize(), focus = move.focus, still = 1f)
     }
 }
@@ -267,6 +254,10 @@ fun StretchRoutineScreen(
         Txt(routine.name, Type.largeTitle, maxLines = 2)
         Spacer(Modifier.height(Space.xs))
         Txt(routineMeta(routine), Type.subhead, color = p.fg2)
+        if (!routine.custom) {
+            Spacer(Modifier.height(Space.lg))
+            RoutineAbout(routine)
+        }
         Spacer(Modifier.height(Space.xxl))
         if (editing) {
             Group {
@@ -281,7 +272,7 @@ fun StretchRoutineScreen(
                     // A move can appear twice, so each key counts its earlier copies.
                     val keys = moves.mapIndexed { i, m -> "${m.id}#${moves.take(i).count { it.id == m.id }}" }
                     EditRows(
-                        moves.map { it.name }, keys, { "${moves[it].holdSec}s" }, removable = true,
+                        moves.map { it.name }, keys, { "${moves[it].holdSec} sec" }, removable = true,
                         onMove = { f, t -> edit { Commands.moveStretchMove(it, routine.id, f, t) } },
                         onRemove = { i -> edit { Commands.removeStretchMove(it, routine.id, i) } },
                     )
@@ -301,7 +292,7 @@ fun StretchRoutineScreen(
                             Txt(move.name, Type.body, maxLines = 1)
                             Txt(move.targetArea.displayName, Type.footnote, color = p.fg2)
                         }
-                        Txt("${move.holdSec}s", Type.body.tabular(), Modifier.padding(start = Space.sm), if (routine.custom) p.accent else p.fg2)
+                        Txt("${move.holdSec} sec", Type.body.tabular(), Modifier.padding(start = Space.sm), if (routine.custom) p.accent else p.fg2)
                     }
                 }
                 if (routine.custom) AddRow("Add move", first = moves.isEmpty()) { open(SheetState.AddStretchMove(routine.id)) }
@@ -386,7 +377,7 @@ fun GuidedStretchPlayerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
-                        icon = Icons.chevronLeft,
+                        icon = Icons.skipBack,
                         label = "Previous move",
                         onClick = {
                             coach.hush()
@@ -404,7 +395,7 @@ fun GuidedStretchPlayerScreen(
                     }
 
                     IconButton(
-                        icon = Icons.chevronRight,
+                        icon = Icons.skipForward,
                         label = "Next move",
                         onClick = {
                             coach.hush()
@@ -447,7 +438,7 @@ fun GuidedStretchPlayerScreen(
             Modifier
                 .fillMaxWidth()
                 .height(240.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(Radius.lg))
                 .background(p.card)
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
@@ -463,7 +454,7 @@ fun GuidedStretchPlayerScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(Radius.sm))
                     .background(p.fill)
                     .padding(horizontal = Space.xs, vertical = 4.dp),
             ) {
@@ -473,7 +464,7 @@ fun GuidedStretchPlayerScreen(
                 Spacer(Modifier.width(Space.xs))
                 Box(
                     Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(Radius.sm))
                         .background(p.fill)
                         .padding(horizontal = Space.xs, vertical = 4.dp),
                 ) {
@@ -499,18 +490,18 @@ fun GuidedStretchPlayerScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Radius.md))
                 .background(p.fill)
                 .padding(Space.sm),
         ) {
             if (nextMove != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Txt("UP NEXT", Type.caption.copy(fontWeight = FontWeight.Bold), color = p.accent)
+                        Txt("Next", Type.footnote, color = p.fg2)
                         Txt("${nextMove.name} (${nextMove.holdSec}s)", Type.subhead.copy(fontWeight = FontWeight.SemiBold))
                         Txt(nextMove.targetArea.displayName, Type.footnote, color = p.fg2)
                     }
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)).background(p.elevated)) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(Radius.sm)).background(p.elevated)) {
                         FormView(Motions.of(nextMove), Modifier.fillMaxSize(), focus = nextMove.focus, still = 1f)
                     }
                 }
@@ -568,7 +559,7 @@ private fun CountdownRing(player: StretchPlayerState) {
                 when {
                     ready -> Txt(if (player.isSecondSide) "Switch" else "Get ready", Type.caption, color = p.fg2)
                     phase != null -> Txt(phase, Type.headline)
-                    else -> Txt("seconds", Type.caption, color = p.fg2)
+                    else -> Txt("sec", Type.caption, color = p.fg2)
                 }
             }
         }
@@ -618,7 +609,7 @@ private fun RoutineCompleteView(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(Radius.lg))
                 .background(p.card)
                 .padding(Space.lg),
             contentAlignment = Alignment.Center,
@@ -635,7 +626,7 @@ private fun RoutineCompleteView(
                 }
 
                 Spacer(Modifier.height(Space.md))
-                Txt("Routine Complete!", Type.title1)
+                Txt("Routine done", Type.title1)
                 Spacer(Modifier.height(Space.xs))
                 Txt(player.routine.name, Type.subhead, color = p.fg2)
 
@@ -655,12 +646,9 @@ private fun RoutineCompleteView(
                 }
 
                 Spacer(Modifier.height(Space.xxl))
-                PillButton(
-                    text = "Log & Finish",
-                    onClick = onFinish,
-                    primary = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // Nothing held, nothing to log: every move was skipped before its hold.
+                if (player.completedMoves.isEmpty()) PillButton("Close", onBack, Modifier.fillMaxWidth(), onSurface = true)
+                else PillButton("Log routine", onFinish, Modifier.fillMaxWidth(), primary = true)
             }
         }
     }
@@ -686,7 +674,7 @@ fun MovePreviewDialog(
         Box(
             Modifier
                 .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(Radius.lg))
                 .background(p.card)
                 .clickable(enabled = false) {}
                 .padding(Space.lg),
@@ -699,7 +687,7 @@ fun MovePreviewDialog(
                 ) {
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Radius.sm))
                             .background(p.fill)
                             .padding(horizontal = Space.xs, vertical = 4.dp),
                     ) {
@@ -710,14 +698,14 @@ fun MovePreviewDialog(
 
                 Spacer(Modifier.height(Space.xs))
                 Txt(move.name, Type.title2)
-                Txt("Hold: ${move.holdSec} seconds", Type.footnote, color = p.fg2)
+                Txt("Hold ${move.holdSec} sec", Type.footnote, color = p.fg2)
 
                 Spacer(Modifier.height(Space.md))
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Radius.md))
                         .background(p.bg)
                         .padding(Space.sm),
                     contentAlignment = Alignment.Center,

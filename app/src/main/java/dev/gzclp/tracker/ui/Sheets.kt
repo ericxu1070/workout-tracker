@@ -236,7 +236,7 @@ fun ColumnScope.SheetContent(
             val save = "Save ${Fmt.lb(s.lb)}"
             if (s.id == null) PillButton(save, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
             else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                PillButton("Delete", { onConfirm(s.copy(delete = true)) }, Modifier.weight(1f), onSurface = true, danger = true)
+                PillButton("Delete weigh-in", { onConfirm(s.copy(delete = true)) }, Modifier.weight(1f), onSurface = true, danger = true)
                 PillButton(save, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onConfirm(s) }, Modifier.weight(1f), primary = true)
             }
         }
@@ -283,7 +283,7 @@ fun ColumnScope.SheetContent(
                 }
             }
             Txt("Started ${Fmt.time(s.startedAt)}. ${if (s.ok) "" else "Between 1 minute and 24 hours."}".trim(), Type.footnote, color = if (s.ok) p.fg2 else p.red)
-            PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
+            PillButton("Save duration", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
         }
         is SheetState.CardioDiscard -> {
             val finished = s.run.id in state.cardio
@@ -334,7 +334,7 @@ fun ColumnScope.SheetContent(
         is SheetState.SplitName -> {
             SheetTitle(if (s.add) "Add day" else if (s.day != null) "Rename day" else "Rename split", null)
             NameField(s.name, if (s.day == null && !s.add) "Name, e.g. My PPL" else "Name, e.g. Push A", Commands.SPLIT_NAME_MAX) { update(s.copy(name = it)) }
-            PillButton(if (s.add) "Add day" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
+            PillButton(if (s.add) "Add day" else "Save name", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
         }
         is SheetState.SplitWave -> {
             val p = LocalPalette.current
@@ -359,7 +359,7 @@ fun ColumnScope.SheetContent(
                     }
                 }
             }
-            PillButton(if (s.ex == null) "Set all" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
+            PillButton(if (s.ex == null) "Set all" else "Save reps", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
         }
         is SheetState.DeleteSplit -> {
             val split = state.customPrograms[s.split]
@@ -374,7 +374,7 @@ fun ColumnScope.SheetContent(
         is SheetState.StretchName -> {
             SheetTitle(if (s.routine == null) "New routine" else "Rename routine", null)
             NameField(s.name, "Name, e.g. Morning", Commands.SPLIT_NAME_MAX) { update(s.copy(name = it)) }
-            PillButton(if (s.routine == null) "Create routine" else "Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
+            PillButton(if (s.routine == null) "Create routine" else "Save name", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.name.isNotBlank())
         }
         is SheetState.StretchHold -> {
             val move = state.customStretches[s.routine]?.moves?.getOrNull(s.index) ?: return
@@ -390,7 +390,7 @@ fun ColumnScope.SheetContent(
                 { update(s.copy(sec = (s.sec + StretchRoutines.HOLD_STEP).coerceAtMost(hold.last))) },
                 unit = "sec", repeat = true,
             )
-            PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
+            PillButton("Save hold", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
         }
         is SheetState.AddStretchMove -> {
             val p = LocalPalette.current
@@ -404,7 +404,7 @@ fun ColumnScope.SheetContent(
                             Txt(move.name, Type.body, maxLines = 1)
                             Txt(move.targetArea.displayName, Type.footnote, color = p.fg2)
                         }
-                        Txt("${move.holdSec}s", Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                        Txt("${move.holdSec} sec", Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                     }
                 }
             }

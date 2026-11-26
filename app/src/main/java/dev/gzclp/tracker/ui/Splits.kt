@@ -98,7 +98,7 @@ fun EditRows(
                     Snug(22.dp) { m ->
                         Pressable(
                             { armed = if (armed == k) null else k }, m.semantics { contentDescription = "Remove $name" }, CircleShape,
-                            enabled = removable, label = "Remove $name",
+                            enabled = removable, label = "Remove $name", scale = SMALL_PRESS,
                         ) {
                             Box(Modifier.size(22.dp).clip(CircleShape).background(p.red), contentAlignment = Alignment.Center) { Icon(Icons.minus, p.onRed, 16.dp) }
                         }

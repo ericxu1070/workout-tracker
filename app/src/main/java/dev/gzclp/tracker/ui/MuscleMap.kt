@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +43,7 @@ import dev.gzclp.tracker.log.MuscleWork
 import dev.gzclp.tracker.log.Muscles
 import dev.gzclp.tracker.ui.Type.tabular
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** One drawn side of the body: its view box, each region's muscle (null for skin the map never shades) and path, and the silhouette. */
 private class BodyView(val x: Float, val y: Float, val w: Float, val h: Float, val parts: List<Pair<Muscle?, Path>>, val outline: Path)
@@ -151,6 +156,17 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
     }
 }
 
+/** The map's key in one line: a swatch from untrained to fully shaded, and the sets the full shade stands for. */
+@Composable
+fun MuscleScale(work: Map<Muscle, MuscleWork>, days: Long, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    val full = Muscles.full(work, days).roundToInt().coerceAtLeast(1)
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+        Box(Modifier.size(48.dp, 8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(muscleBase(p), muscleFill(p, 1f)))))
+        Txt("0 to $full sets", Type.footnote.tabular(), color = p.fg2)
+    }
+}
+
 private fun sets(n: Int) = when (n) { 0 -> "No sets"; 1 -> "1 set"; else -> "$n sets" }
 
 /** Side [i] of the chart (0 front, 1 rear) fitted into its half of a [w] by [h] canvas: its scale and offset. */
@@ -170,16 +186,16 @@ private fun Path.contains(x: Float, y: Float): Boolean {
     return Region().apply { setPath(asAndroidPath(), clip) }.contains(x.toInt(), y.toInt())
 }
 
-/** Places [content] centred a little above [at], kept inside the chart; below [at] when there is no room above. */
+/** Places [content] beside [at], level with it: to its right, or to its left when there is no room; kept inside the chart. */
 @Composable
 private fun Callout(at: Offset, content: @Composable () -> Unit) {
     Layout(content, Modifier.fillMaxSize()) { measurables, constraints ->
         val c = measurables.single().measure(Constraints())
-        val lift = Space.md.roundToPx()
+        val gap = Space.md.roundToPx()
         layout(constraints.maxWidth, constraints.maxHeight) {
-            val x = (at.x.toInt() - c.width / 2).coerceIn(0, (constraints.maxWidth - c.width).coerceAtLeast(0))
-            val above = at.y.toInt() - lift - c.height
-            c.place(x, if (above >= 0) above else (at.y.toInt() + lift).coerceAtMost(constraints.maxHeight - c.height))
+            val right = at.x.toInt() + gap
+            val x = if (right + c.width <= constraints.maxWidth) right else (at.x.toInt() - gap - c.width).coerceAtLeast(0)
+            c.place(x, (at.y.toInt() - c.height / 2).coerceIn(0, (constraints.maxHeight - c.height).coerceAtLeast(0)))
         }
     }
 }

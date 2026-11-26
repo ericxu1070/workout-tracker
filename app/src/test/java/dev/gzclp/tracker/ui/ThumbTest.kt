@@ -1,7 +1,6 @@
 package dev.gzclp.tracker.ui
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,15 +71,6 @@ class ThumbTest {
         // Grown mostly taller: the selector contrasts with the bar instead of looking like a bigger copy of it.
         assertTrue("taller than wider", pill.height / 36f - 1f > 4 * (pill.width / 120f - 1f))
         assertEquals(18f, (pill.top + pill.bottom) / 2, 1e-4f)
-    }
-
-    /** The page being left stays sharp to halfway; past it, it eases into the blur. Two pages' distances sum to 1, so one at most blurs. */
-    @Test fun onlyThePagePastHalfwayBlurs() {
-        for (away in listOf(0f, 0.2f, 0.4f, 0.5f)) assertNull("$away", pageBlur(away, 60f))
-        assertEquals(androidx.compose.ui.graphics.BlurEffect(30f, 30f), pageBlur(0.625f, 60f))
-        assertEquals(androidx.compose.ui.graphics.BlurEffect(60f, 60f), pageBlur(0.75f, 60f))
-        assertEquals(androidx.compose.ui.graphics.BlurEffect(60f, 60f), pageBlur(1f, 60f))
-        for (k in 0..20) { val a = k / 20f; assertTrue("$a", pageBlur(a, 60f) == null || pageBlur(1 - a, 60f) == null) }
     }
 
     /** Close behind a finger moving 4 segments a second: under 0.25 segment of lag once it has caught up. */

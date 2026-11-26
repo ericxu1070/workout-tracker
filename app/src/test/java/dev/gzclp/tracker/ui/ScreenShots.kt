@@ -413,8 +413,7 @@ class ScreenShots {
             }
             shot(p, "02-stretching") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
             shot(p, "02-stretching-full", tall = true) { workoutTab(2) { StretchScreen(stretchy, evening.id, {}, {}, {}) } }
-            shot(p, "02-stretching-about") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}, initialAbout = StretchRoutines.popular.first().key) } }
-            shot(p, "02-stretching-library", tall = true) { workoutTab(2) { StretchScreen(stretchy, "throwers-shoulder", {}, {}, {}, initialAbout = "Thrower's shoulder") } }
+            shot(p, "02-stretching-library", tall = true) { workoutTab(2) { StretchScreen(stretchy, "throwers-shoulder", {}, {}, {}) } }
             shot(p, "28-stretch-routine") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}) }
             shot(p, "28-stretch-routine-edit") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}, initialEditing = true) }
             shot(p, "28-stretch-routine-builtin") { StretchRoutineScreen(StretchRoutines.flexibilityRest(), {}, {}, {}, {}, {}) }

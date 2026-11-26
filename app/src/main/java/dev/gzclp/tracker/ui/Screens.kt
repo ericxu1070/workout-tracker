@@ -580,6 +580,7 @@ fun SetRow(
             pressedFill = if (hit) Color.Black.copy(alpha = 0.14f) else p.fillPressed,
             border = if (current) p.accent else null,
             label = if (logged != null) "Clear $name" else "Log $name",
+            scale = SMALL_PRESS,
         ) {
             Icon(Icons.check, if (hit) p.onAccent else if (short) p.red else p.fg3, 20.dp)
         }
@@ -593,20 +594,26 @@ fun SetRow(
 private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, plates: Plates) {
     val p = LocalPalette.current
     var done by rememberSaveable(sessionId) { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        Txt("W", Type.headline, Modifier.width(SET_COL), p.fg2)
-        Txt("$weight", Type.body.tabular(), Modifier.width(WEIGHT_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
-        Txt("$reps", Type.body.tabular(), Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
-        Spacer(Modifier.weight(1f))
+    // The plate line sits inside its own row, under the numbers, so it never reads as the next row's.
+    val plateLine = if (LocalShowPlates.current) plates.perSideLabel(weight) else null
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                Txt("W", Type.headline, Modifier.width(SET_COL), p.fg2)
+                Txt("$weight", Type.body.tabular(), Modifier.width(WEIGHT_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
+                Txt("$reps", Type.body.tabular(), Modifier.width(REPS_COL).padding(end = Space.md), p.fg2, align = TextAlign.End)
+            }
+            plateLine?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
+        }
         Pressable(
             { done = !done }, Modifier.size(44.dp), CircleShape,
             fill = if (done) p.accent.copy(alpha = 0.18f) else p.fill,
             label = if (done) "Undo $name" else "Done $name",
+            scale = SMALL_PRESS,
         ) {
             Icon(Icons.check, if (done) p.accent else p.fg3, 20.dp)
         }
     }
-    if (LocalShowPlates.current) plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
 }
 
 fun restLabel(ex: Exercise, setIndex: Int): String =

@@ -168,6 +168,7 @@ fun Pressable(
     label: String? = null,
     repeat: Boolean = false,
     role: Role = Role.Button,
+    scale: Float = 0.97f,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = LocalPalette.current
@@ -184,14 +185,14 @@ fun Pressable(
             delay(70)
         }
     }
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(if (pressed) 80 else 200), label = "press")
+    val pressScale by animateFloatAsState(if (pressed) scale else 1f, tween(if (pressed) 80 else 200), label = "press")
     val ring = when {
         focused -> p.accent
         else -> border
     }
     Box(
         modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
             .clip(shape)
             .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
             // In Liquid Glass every filled control is a lit pane, but on a glass sheet, where it would be glass on glass.
@@ -265,7 +266,10 @@ fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
 
 @Composable
 fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = LocalPalette.current.fg) =
-    Pressable(onClick, modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, label = label) { Icon(icon, tint, 22.dp) }
+    Pressable(onClick, modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, label = label, scale = SMALL_PRESS) { Icon(icon, tint, 22.dp) }
+
+/** How far a control under 48 dp gives when pressed: 3 percent of 44 dp is a pixel, too little to see. */
+const val SMALL_PRESS = 0.92f
 
 @Composable
 fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
@@ -313,7 +317,8 @@ fun GroupRow(
                 verticalAlignment = Alignment.CenterVertically, content = content,
             )
         }
-        if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape) { inner() } else inner()
+        // A full-width row takes the pressed fill only: shrunk, its highlight would stop short of the card.
+        if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape, scale = 1f) { inner() } else inner()
     }
 }
 
@@ -537,7 +542,7 @@ fun thumbRinged(p: Palette) = contrast(Color.White, p.elevated) < 3f || contrast
 @Composable
 fun MiniStep(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Pressable(onClick, Modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, p.fill, enabled = enabled, label = label) { Icon(icon, p.fg, 18.dp) }
+    Pressable(onClick, Modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, p.fill, enabled = enabled, label = label, scale = SMALL_PRESS) { Icon(icon, p.fg, 18.dp) }
 }
 
 /** An on/off switch: accent track when on, the knob slides across. */

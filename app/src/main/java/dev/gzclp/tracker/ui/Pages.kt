@@ -36,8 +36,6 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import androidx.compose.ui.draw.drawWithContent
@@ -129,13 +127,9 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
                 pager, m, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
                 flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
             ) { i ->
-                // Only the page past halfway blurs: the one being left stays sharp until the middle, then the arriving one is.
-                // Clipped: a blur spreads past its layer, and would paint the page's background over the header.
-                // A page wholly out of view, kept composed for a tap, isn't drawn: kept pages would otherwise cost every frame of the screen.
-                Box(
-                    Modifier.drawWithContent { if (abs(pager.position - i) < 1f) drawContent() }
-                        .graphicsLayer { renderEffect = pageBlur(abs(pager.position - i), PageBlur.toPx()); clip = true },
-                ) {
+                // Pages slide sharp: a blur animated across a whole page each frame hid it for half a swipe and cost frames.
+                // A page wholly out of view, kept composed for a tap, isn't drawn: it would cost every frame and paint over the page in view.
+                Box(Modifier.drawWithContent { if (abs(pager.position - i) < 1f) drawContent() }) {
                     CompositionLocalProvider(LocalPage provides i) { page(i) }
                 }
             }
@@ -158,19 +152,6 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
             heads.forEach { it.place(0, 0) }
         }
     }
-}
-
-/** The most a page blurs, a whole page away from resting. */
-val PageBlur = 24.dp
-
-/**
- * The blur for a page [away] pages from resting, at most [max] px: none up to halfway, so of two pages at most one is blurred and the
- * middle of a swipe stays readable, then easing in (smoothstep) to [max] by three quarters of the way.
- */
-fun pageBlur(away: Float, max: Float): RenderEffect? {
-    val t = ((away - 0.5f) / 0.25f).coerceIn(0f, 1f)
-    val r = max * t * t * (3 - 2 * t)
-    return if (r < 0.5f) null else BlurEffect(r, r)
 }
 
 /** How many overlays are open over the [Pages] around them; while any is, the pages don't swipe. */

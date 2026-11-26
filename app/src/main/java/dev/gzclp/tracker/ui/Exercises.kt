@@ -72,17 +72,21 @@ fun ExercisesScreen(
         Spacer(Modifier.height(52.dp))
         Txt("Exercises", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
-        Segmented(MuscleSpan.entries.map { it.name }, span.ordinal, { span = MuscleSpan.entries[it] })
-        Spacer(Modifier.height(Space.lg))
         // A new span fades in through a short blur in place; the map never slides.
         AnimatedContent(span, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) }, label = "span") { s ->
             val blur by transition.animateDp({ tween(200) }, label = "blur") { if (it == EnterExitState.Visible) 0.dp else 8.dp }
             val window = muscleWindow(today, s)
-            MuscleChart(
-                state.muscleWork(window.first, window.second), baselineDays(s, window), female,
-                Modifier.fillMaxWidth().height(340.dp).blur(blur, BlurredEdgeTreatment.Unbounded),
-            )
+            val work = state.muscleWork(window.first, window.second)
+            val days = baselineDays(s, window)
+            Column(Modifier.blur(blur, BlurredEdgeTreatment.Unbounded)) {
+                MuscleChart(work, days, female, Modifier.fillMaxWidth().height(340.dp))
+                Spacer(Modifier.height(Space.sm))
+                MuscleScale(work, days, Modifier.align(Alignment.CenterHorizontally))
+            }
         }
+        // The span switch sits with the map it changes, under its scale.
+        Spacer(Modifier.height(Space.md))
+        Segmented(MuscleSpan.entries.map { it.name }, span.ordinal, { span = MuscleSpan.entries[it] })
         Spacer(Modifier.height(Space.xxl))
         Group {
             GroupRow(first = true, onClick = onBodyWeight) {

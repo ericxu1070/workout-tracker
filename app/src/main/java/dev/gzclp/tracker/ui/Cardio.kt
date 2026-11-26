@@ -165,7 +165,7 @@ fun CardioScreen(
             Group {
                 recent.forEachIndexed { i, a ->
                     GroupRow(first = i == 0, onClick = { onQuick(a) }) {
-                        Box(Modifier.size(32.dp).clip(CircleShape).background(p.accent), contentAlignment = Alignment.Center) { Icon(Icons.play, p.onAccent, 14.dp) }
+                        Box(Modifier.size(32.dp).clip(CircleShape).background(p.fill), contentAlignment = Alignment.Center) { Icon(Icons.play, p.fg, 14.dp) }
                         Txt(a.name, Type.body, Modifier.weight(1f).padding(start = Space.md), maxLines = 1)
                     }
                 }
@@ -176,8 +176,6 @@ fun CardioScreen(
             Group { AddRow("Log past session", first = true, onClick = onLogPast) }
             return@ScreenFrame
         }
-        GroupHeader("This week")
-        ActivityTotals(summary.byActivity)
         GroupHeader("Sessions")
         Group {
             state.cardioWeek(week).forEachIndexed { i, c ->
@@ -247,8 +245,8 @@ fun CardioRunScreen(run: CardioRun, now: OffsetDateTime, onSettings: () -> Unit,
     val sec = Duration.between(run.startedAt, now).seconds
     ScreenFrame(bottom = {
         BottomBar {
-            PillButton("Discard", onDiscard, Modifier.weight(1f))
-            PillButton("Stop", onStop, Modifier.weight(1f), primary = true)
+            PillButton("Discard cardio", onDiscard, Modifier.weight(1f))
+            PillButton("Stop cardio", onStop, Modifier.weight(1f), primary = true)
         }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
@@ -383,10 +381,10 @@ fun CardioStopSheet(
         }
         NameField(s.notes, "Notes (optional)", Commands.CARDIO_NOTES_MAX) { update(s.copy(notes = it)) }
         val ok = s.durationSec in Commands.CARDIO_DURATION_SEC && (now == null || !s.run.startedAt.isAfter(now))
-        if (now == null || s.run.id.isEmpty()) PillButton("Save", onSave, Modifier.fillMaxWidth(), primary = true, enabled = ok)
+        if (now == null || s.run.id.isEmpty()) PillButton("Save cardio", onSave, Modifier.fillMaxWidth(), primary = true, enabled = ok)
         else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-            PillButton("Delete", { update(SheetState.CardioDiscard(s.run)) }, Modifier.weight(1f), onSurface = true, danger = true)
-            PillButton("Save", onSave, Modifier.weight(1f), primary = true, enabled = ok)
+            PillButton("Delete cardio", { update(SheetState.CardioDiscard(s.run)) }, Modifier.weight(1f), onSurface = true, danger = true)
+            PillButton("Save cardio", onSave, Modifier.weight(1f), primary = true, enabled = ok)
         }
     }
 }

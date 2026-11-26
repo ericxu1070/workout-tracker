@@ -88,9 +88,12 @@ object Muscles {
      * muscle's, or against ten sets a week scaled to the window when nothing reached that, so a heavy window still shows which muscles got the most.
      */
     fun levels(work: Map<Muscle, MuscleWork>, days: Long): Map<Muscle, Float> {
-        val full = maxOf(work.values.maxOfOrNull { it.load } ?: 0.0, FULL_SETS_PER_WEEK * days / 7)
+        val full = full(work, days)
         return work.mapValues { (it.value.load / full).toFloat() }
     }
+
+    /** The load that shades a muscle fully over [days], in sets: the scale [levels] measures against. */
+    fun full(work: Map<Muscle, MuscleWork>, days: Long): Double = maxOf(work.values.maxOfOrNull { it.load } ?: 0.0, FULL_SETS_PER_WEEK * days / 7)
 }
 
 /**
