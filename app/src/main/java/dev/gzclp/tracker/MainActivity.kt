@@ -83,6 +83,21 @@ import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.BackStack
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.tabBarHeight
+import dev.gzclp.tracker.ui.Effect
+import dev.gzclp.tracker.ui.Feel
+import dev.gzclp.tracker.ui.LocalMotion
+import dev.gzclp.tracker.ui.Motion
+import dev.gzclp.tracker.ui.RippleClock
+import dev.gzclp.tracker.ui.RippleField
+import dev.gzclp.tracker.ui.effectsFor
+import dev.gzclp.tracker.ui.ripples
+import dev.gzclp.tracker.ui.watchTaps
+import dev.gzclp.tracker.ui.PaletteWipe
+import dev.gzclp.tracker.ui.LoadedEffects
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
+import dev.gzclp.tracker.ui.touchdown
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -122,7 +137,20 @@ class MainActivity : ComponentActivity() {
                 val style = if (palette.dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(style, style)
             }
-            GzTheme(palette) { CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates) { App(model) } }
+            val view = androidx.compose.ui.platform.LocalView.current
+            // A new mode keeps the last tap and the window size, which only a new tap or a resize would set again.
+            val last = remember { arrayOf(Motion.Off) }
+            val motion = remember(model.loaded, model.animatorsOn) {
+                val fx = effectsFor(model.loaded, model.animatorsOn)
+                Motion(fx, RippleField().takeIf { fx.isNotEmpty() }, Feel(this, view).takeIf { Effect.Feel in fx }).apply {
+                    tap = last[0].tap
+                    window = last[0].window
+                    last[0] = this
+                }
+            }
+            GzTheme(palette) {
+                CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates, LocalMotion provides motion) { App(model) }
+            }
         }
         if (savedInstanceState == null) onNewIntent(intent)
     }
@@ -187,6 +215,7 @@ private fun App(model: AppModel) {
     var historyWeek by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows this week across Sunday midnight
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val motion = LocalMotion.current
 
     LaunchedEffect(state.active != null || state.cardioActive != null) {
         while (state.active != null || state.cardioActive != null) {
@@ -351,6 +380,7 @@ private fun App(model: AppModel) {
         model.dispatch { Commands.startOpen(it, model.now()) }
     }
     fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
+        motion.touchdown(motion.tap)
         model.dispatch { Commands.end(it, model.now(), fiveRm, counts) }
         model.cancelRest()
         close()
@@ -377,7 +407,16 @@ private fun App(model: AppModel) {
     // A pushed screen's pop is the [BackStack]'s, which shows it under the finger.
     LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
-    Box(Modifier.fillMaxSize()) {
+    motion.ripples?.let { RippleClock(it) }
+    // Above [motion], which a change of mode replaces, so a wipe started in one mode finishes in the other.
+    val wipe = remember { PaletteWipe() }
+    val scope = rememberCoroutineScope()
+    val latestMotion by rememberUpdatedState(motion)
+    fun wiped(on: Boolean, change: () -> Unit) {
+        val window = (context as? android.app.Activity)?.window ?: return change()
+        scope.launch { wipe.run(window, motion.tap, on, { latestMotion.ripples }, change) }
+    }
+    Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples).then(with(wipe) { Modifier.wipe(LocalPalette.current.fg) })) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
         BackStack(
@@ -399,10 +438,10 @@ private fun App(model: AppModel) {
                 )
                 shown == Route.Settings || shown == Route.SettingsPage -> SettingsScreen(
                     started = state.started, programId = state.programId, increments = state.increments,
-                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, glass = model.glass, onGlass = model::chooseGlass,
+                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, loaded = model.loaded, onLoaded = { on -> if (on != model.loaded) wiped(model.animatorsOn && Effect.PaletteWipe in LoadedEffects) { model.chooseLoaded(on) } },
                     sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                     weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
-                    onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = model::chooseTheme, onRest = model::setRest,
+                    onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = { id -> if (id != model.theme) wiped(Effect.PaletteWipe in motion) { model.chooseTheme(id) } }, onRest = model::setRest,
                     onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                     onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
                     onDays = { if (state.program.custom) push(Route.Split, state.programId) else route = Route.Days }, onChooseFolder = { folderPicker.launch(null) },

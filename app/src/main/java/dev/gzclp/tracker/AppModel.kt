@@ -35,6 +35,7 @@ import dev.gzclp.tracker.remind.HabitKind
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
+import dev.gzclp.tracker.ui.animatorsEnabled
 import dev.gzclp.tracker.ui.Fmt
 import dev.gzclp.tracker.ui.HealthUi
 import dev.gzclp.tracker.ui.LaptopTheme
@@ -75,9 +76,13 @@ class AppModel private constructor(private val context: Context) {
     /** Null until a laptop theme file has been read once. */
     var laptop by mutableStateOf(prefs.laptopTheme?.let(LaptopTheme::parse))
         private set
-    var glass by mutableStateOf(prefs.glass)
+    /** Loaded or Performance; Loaded wears Liquid Glass. */
+    var loaded by mutableStateOf(prefs.loaded)
         private set
-    fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop).withGlass(glass)
+    /** False while the system's Remove animations is on, which turns every Loaded effect off; read again on each resume. */
+    var animatorsOn by mutableStateOf(animatorsEnabled(context.contentResolver))
+        private set
+    fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop).withGlass(loaded)
     var restTargets by mutableStateOf(prefs.restTargets())
         private set
     var plates by mutableStateOf(prefs.plates)
@@ -210,6 +215,7 @@ class AppModel private constructor(private val context: Context) {
     }
 
     fun refresh() {
+        animatorsOn = animatorsEnabled(context.contentResolver)
         notificationsAllowed = context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
         sync = syncUi()
         syncLater()
@@ -237,9 +243,9 @@ class AppModel private constructor(private val context: Context) {
         theme = id
     }
 
-    fun chooseGlass(on: Boolean) {
-        prefs.glass = on
-        glass = on
+    fun chooseLoaded(on: Boolean) {
+        prefs.loaded = on
+        loaded = on
     }
 
     fun setRest(tier: Tier, sec: Int) {

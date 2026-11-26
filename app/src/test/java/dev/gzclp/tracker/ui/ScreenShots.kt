@@ -415,7 +415,7 @@ class ScreenShots {
         for (p in listOf(Palettes.light, Palettes.tokyo, Palettes.glass, Palettes.light.glassed)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
             SettingsScreen(
                 true, mine.programId, mine.increments, p.id.removeSuffix("-glass"), Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
-                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, glass = p.glass, page = SettingsPage.Appearance, initialShowMore = more,
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, loaded = p.glass, page = SettingsPage.Appearance, initialShowMore = more,
             )
         }
         for (p in Palettes.all + glassThemes) {

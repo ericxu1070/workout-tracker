@@ -6,6 +6,14 @@ import dev.gzclp.tracker.engine.Tier
 
 /** Device-local settings. Program data never lives here; it lives in the log. */
 class Prefs(context: Context) {
+    companion object {
+        /**
+         * What a fresh install starts in. Performance: on a Galaxy S21, Loaded's glass added about 160 ms to a cold launch and 2 ms
+         * to the median frame, so it is opt-in.
+         */
+        const val LOADED_BY_DEFAULT = false
+    }
+
     private val p = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE).also {
         // Liquid Glass was a theme before it was a switch: its colors are Midnight now.
         if (it.getString("theme", null) == "glass") it.edit().putString("theme", "midnight").putBoolean("glass", true).apply()
@@ -15,10 +23,13 @@ class Prefs(context: Context) {
         get() = p.getString("theme", "tokyo")!!
         set(v) = p.edit().putString("theme", v).apply()
 
-    /** Liquid Glass over whichever theme is chosen. */
-    var glass: Boolean
-        get() = p.getBoolean("glass", false)
-        set(v) = p.edit().putBoolean("glass", v).apply()
+    /**
+     * Loaded (Liquid Glass and every Loaded effect) or Performance. Before Motion was a choice, the Liquid Glass switch stood for it:
+     * a glass setting someone chose carries over, and only an untouched one takes the default.
+     */
+    var loaded: Boolean
+        get() = p.getBoolean("loaded", if (p.contains("glass")) p.getBoolean("glass", false) else LOADED_BY_DEFAULT)
+        set(v) = p.edit().putBoolean("loaded", v).apply()
 
     /** The last good laptop theme, in omarchy-theme.toml's format. */
     var laptopTheme: String?

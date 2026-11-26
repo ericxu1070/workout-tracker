@@ -80,8 +80,8 @@ fun SettingsScreen(
     onShowPlates: (Boolean) -> Unit = {},
     bodyFemale: Boolean = false,
     onBodyFemale: (Boolean) -> Unit = {},
-    glass: Boolean = false,
-    onGlass: (Boolean) -> Unit = {},
+    loaded: Boolean = false,
+    onLoaded: (Boolean) -> Unit = {},
     bodyBuild: String = "athletic",
     onBodyBuild: (String) -> Unit = {},
     warmups: Boolean = true,
@@ -371,9 +371,14 @@ fun SettingsScreen(
             }
 
             SettingsPage.Appearance -> {
-                Spacer(Modifier.height(Space.xxl))
-                Group { ToggleRow("Liquid Glass", glass, true, onChange = onGlass) }
-                Spacer(Modifier.height(Space.xxl))
+                GroupHeader("Motion")
+                Group {
+                    for ((on, name) in listOf(true to "Loaded", false to "Performance")) GroupRow(first = on, onClick = { onLoaded(on) }) {
+                        Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        if (on == loaded) Icon(Icons.check, p.accent, 20.dp)
+                    }
+                }
+                GroupHeader("Theme")
                 Group {
                     @Composable
                     fun ThemeRow(id: String, name: String, first: Boolean, detail: String? = null, swatch: @Composable () -> Unit) =

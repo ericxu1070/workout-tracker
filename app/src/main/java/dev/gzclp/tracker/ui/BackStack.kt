@@ -4,6 +4,12 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.toSize
+import kotlinx.coroutines.delay
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.rememberTransition
@@ -42,7 +48,16 @@ fun <T> BackStack(
     val routes = remember { SeekableTransitionState(route) }
     // Set before a swipe's first frame, so its pop is linear in the finger's progress rather than eased in time.
     var swiping by remember { mutableStateOf(false) }
+    val motion = LocalMotion.current
+    val whoosh = Effect.Whoosh in motion
     LaunchedEffect(route) {
+        // Loaded: a screen popped by a tap or Back lands on the one under it, and the landing ripples out from the middle.
+        if (whoosh && !swiping && depth(route) < depth(routes.currentState)) launch {
+            delay(DROP_LAND_MS)
+            val w = motion.window
+            motion.ripples?.drop(Offset(w.width / 2f, w.height / 2f), 0.5f)
+            motion.feel?.land(0.4f)
+        } else if (whoosh && depth(route) > depth(routes.currentState)) motion.feel?.lift()
         routes.animateTo(route)
         swiping = false
     }
@@ -54,6 +69,9 @@ fun <T> BackStack(
             val ease = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
             when {
                 swiping -> EnterTransition.None togetherWith slideOutHorizontally(tween(300, easing = LinearEasing)) { it }
+                // Loaded: the pushed screen whooshes up from the tap toward the viewer, and drops back onto the screen under it.
+                whoosh && push -> scaleIn(riseSpring(), 0.4f, Motion.pivot(motion.tap, Offset.Zero, motion.window.toSize())) + fadeIn(tween(150)) togetherWith fadeOut(tween(200))
+                whoosh -> fadeIn(tween(200)) togetherWith scaleOut(DropScale, 0.86f) + fadeOut(tween(220, easing = EaseIn))
                 push -> slideInHorizontally(tween(300, easing = ease)) { it } togetherWith fadeOut(tween(200))
                 else -> fadeIn(tween(200)) togetherWith slideOutHorizontally(tween(200, easing = ease)) { it }
             }.apply { targetContentZIndex = if (push) 1f else -1f }

@@ -27,3 +27,14 @@ fun AppState.exerciseLogs(): List<ExerciseLog> =
     sessions.flatMap { s -> s.sets.map { it.exercise } }.distinct()
         .map { id -> ExerciseLog(id, sessions.mapNotNull { s -> s.sets.filter { it.exercise == id }.takeIf { it.isNotEmpty() }?.let { s to it } }) }
         .sortedByDescending { it.last.first.startedAt }
+
+/** The best estimated 1RM of [exercise] over finished sessions; null if it was never done. */
+fun AppState.pastBest(exercise: String): Int? =
+    sessions.asSequence().flatMap { it.sets }.filter { it.exercise == exercise && it.actualReps > 0 }.maxOfOrNull { epley(it.weight, it.actualReps) }
+
+/** [past] raised by this workout's logged [sets] of [exercise] but [except], the set being logged. */
+fun bestSoFar(past: Int?, sets: Map<SetKey, LoggedSet>, exercise: String, except: SetKey): Int? =
+    (sets.filterKeys { it != except }.values.map { it.event }.filter { it.exercise == exercise && it.actualReps > 0 }.map { epley(it.weight, it.actualReps) } + listOfNotNull(past)).maxOrNull()
+
+/** Whether [weight] for [reps] beats [best], the lift's best estimated 1RM so far. A lift with no best yet sets no record. */
+fun isRecord(best: Int?, weight: Int, reps: Int): Boolean = best != null && reps > 0 && epley(weight, reps) > best

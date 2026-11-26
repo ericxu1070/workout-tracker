@@ -191,7 +191,12 @@ fun Pressable(
             delay(70)
         }
     }
-    val pressScale by animateFloatAsState(if (pressed) scale else 1f, tween(if (pressed) 80 else 200), label = "press")
+    // Loaded sinks a control a little deeper and lets it rise back on a spring that never overshoots: crisp, no bounce.
+    val sink = loaded(Effect.Sink) && scale < 1f
+    val pressScale by animateFloatAsState(
+        if (!pressed) 1f else if (sink) scale - SINK else scale,
+        if (pressed) tween(80) else if (sink) androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 900f) else tween(200), label = "press",
+    )
     val ring = when {
         focused -> p.accent
         else -> border
@@ -214,6 +219,9 @@ fun Pressable(
         content = content,
     )
 }
+
+/** How much deeper Loaded's [Effect.Sink] presses a control. */
+private const val SINK = 0.025f
 
 private fun Color.compositeOver(under: Color): Color {
     if (under.alpha == 0f) return this
@@ -330,10 +338,18 @@ fun GroupRow(
 
 /** [content] opening and closing in place, the rows below it moving with it. */
 @Composable
-fun Disclosed(open: Boolean, content: @Composable ColumnScope.() -> Unit) = AnimatedVisibility(
-    open, enter = expandVertically(tween(260, easing = EaseOutQuart)) + fadeIn(tween(260)),
-    exit = shrinkVertically(tween(180, easing = EaseOutQuart)) + fadeOut(tween(120)),
-) { Column(content = content) }
+fun Disclosed(open: Boolean, content: @Composable ColumnScope.() -> Unit) {
+    // Loaded: the rows rise into place from just under full size, and settle back down as they close.
+    val whoosh = loaded(Effect.Whoosh)
+    val top = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+    AnimatedVisibility(
+        open,
+        enter = expandVertically(tween(260, easing = EaseOutQuart)) + fadeIn(tween(260)) +
+            (if (whoosh) androidx.compose.animation.scaleIn(riseSpring(), 0.9f, top) else EnterTransition.None),
+        exit = shrinkVertically(tween(180, easing = EaseOutQuart)) + fadeOut(tween(120)) +
+            (if (whoosh) androidx.compose.animation.scaleOut(tween(180, easing = androidx.compose.animation.core.EaseIn), 0.92f, top) else androidx.compose.animation.ExitTransition.None),
+    ) { Column(content = content) }
+}
 
 /** A Show more row in a [Group] whose chevron turns down while [open]; [lead] lines its label up with rows that start with a mark. */
 @Composable
@@ -589,6 +605,11 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
     // Back closes the sheet, never the screen or the app beneath it.
     androidx.activity.compose.BackHandler(visible, onDismiss)
     HoldPages(visible)
+    val motion = LocalMotion.current
+    // Loaded: the sheet whooshes up toward the viewer from the tap, and a tap or Back drops it back onto the screen with a ripple.
+    // One flung away keeps the slide its finger started.
+    val whoosh = Effect.Whoosh in motion
+    var flung by remember { androidx.compose.runtime.mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
             Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
@@ -596,7 +617,9 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
         AnimatedVisibility(
             visible, Modifier.align(Alignment.BottomCenter),
             // Coming in, the sheet's own [down] carries it, so a finger can catch it on the way; leaving takes about two thirds as long.
-            enter = EnterTransition.None, exit = slideOutVertically(tween(200, easing = SheetEase)) { it },
+            enter = EnterTransition.None,
+            exit = if (whoosh && !flung) androidx.compose.animation.scaleOut(DropScale, 0.86f) + fadeOut(tween(220, easing = androidx.compose.animation.core.EaseIn))
+            else slideOutVertically(tween(200, easing = SheetEase)) { it },
         ) {
             // How far down the sheet sits, in sheet heights: 1 is out of sight, 0 open. One value the finger, the entrance and the
             // settle all drive, so each picks up from where and how fast the last left it.
@@ -604,10 +627,42 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
             val height = remember { androidx.compose.runtime.mutableIntStateOf(1) }
             // While a finger holds it, where the finger has pulled it (null otherwise), drawn on the same frame it moves.
             var pulled by remember { androidx.compose.runtime.mutableStateOf<Float?>(null) }
+            // How far a whoosh has risen, 0 to 1 (just past 1 at its height); 1 without one. The tap it rises from, and where it lands.
+            val rise = remember { Animatable(1f) }
+            val from = remember { arrayOf(Offset.Unspecified) }
+            val center = remember { arrayOf(Offset.Zero) }
             // Apple's sheet curve: fast out of the gate, long settle. Keyed on [visible] so a sheet reopened as it leaves comes back.
-            LaunchedEffect(visible) { if (visible) down.animateTo(0f, tween(300, easing = SheetEase)) }
+            LaunchedEffect(visible) {
+                if (visible && whoosh) {
+                    flung = false
+                    from[0] = motion.tap
+                    down.snapTo(0f)
+                    if (rise.value >= 1f) rise.snapTo(0f)
+                    motion.feel?.lift()
+                    rise.animateTo(1f, riseSpring())
+                } else if (visible) down.animateTo(0f, tween(300, easing = SheetEase))
+                else if (whoosh && !flung) {
+                    delay(DROP_LAND_MS)
+                    motion.ripples?.drop(center[0], 0.7f)
+                    motion.feel?.land(0.5f)
+                }
+            }
             Box(
                 Modifier.fillMaxWidth()
+                    .onGloballyPositioned { center[0] = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f) }
+                    .then(
+                        if (!whoosh) Modifier else Modifier.graphicsLayer {
+                            val r = rise.value
+                            val s = 0.4f + 0.6f * r
+                            scaleX = s
+                            scaleY = s
+                            alpha = (r * 3f).coerceAtMost(1f)
+                            transformOrigin = Motion.pivot(from[0], Offset(0f, motion.window.height - size.height), size)
+                            // Lifted, it throws a shadow, gone again once it settles.
+                            shadowElevation = 28.dp.toPx() * kotlin.math.sin(Math.PI.toFloat() * r.coerceIn(0f, 1f))
+                            shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl)
+                        },
+                    )
                     .layout { m, c ->
                         val pl = m.measure(c)
                         height.intValue = pl.height.coerceAtLeast(1)
@@ -623,6 +678,7 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
                             // Where the release would carry it, as a flick's momentum projects; past halfway it closes.
                             val speed = v / height.intValue
                             if (sheetCloses(down.value, speed)) {
+                                flung = true
                                 down.animateTo(1f, SheetSpring, speed)
                                 onDismiss()
                             } else down.animateTo(0f, SheetSpring, speed)

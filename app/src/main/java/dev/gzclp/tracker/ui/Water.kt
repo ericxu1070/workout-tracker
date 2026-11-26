@@ -1,5 +1,15 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.runtime.LaunchedEffect
+
+import kotlinx.coroutines.delay
+
+import androidx.compose.ui.draw.drawWithContent
+
+import androidx.compose.ui.layout.positionInRoot
+
+import androidx.compose.ui.layout.onGloballyPositioned
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.LinearEasing
@@ -391,6 +401,7 @@ fun InteractiveCup(
     cupSizeMl: Int,
     onLogWater: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    pour: Pour? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     var isDragging by remember { mutableStateOf(false) }
@@ -448,6 +459,8 @@ fun InteractiveCup(
         Box(
             modifier = Modifier
                 .size(240.dp)
+                // Loaded: the logged water leaves from the cup's base.
+                .then(if (pour == null) Modifier else Modifier.onGloballyPositioned { pour.from = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height * 0.9f) })
                 .semantics {
                     contentDescription = "Water cup"
                     customActions = listOf(CustomAccessibilityAction("Log $cupSizeMl ml") { onLogWater(cupSizeMl); true })
@@ -523,10 +536,20 @@ fun WaterDailyRing(
     deficitMl: Int? = 0,
     dayLabel: String = "Today",
     modifier: Modifier = Modifier,
+    pour: Pour? = null,
 ) {
     val p = LocalPalette.current
     val target = if (goalMl > 0) (totalMl.toFloat() / goalMl).coerceIn(0f, 1f) else 0f
-    val frac by animateFloatAsState(target, tween(300, easing = EaseOutQuart), label = "ring")
+    val eased by animateFloatAsState(target, tween(300, easing = EaseOutQuart), label = "ring")
+    // Loaded: the arc waits for the poured water to arrive, then surges to its new length just past it; reaching the goal rings out.
+    val surge = remember { Animatable(target) }
+    if (pour != null) LaunchedEffect(target) {
+        if (pour.flow.isRunning) delay(POUR_LAND_MS)
+        val reached = target >= 1f && surge.value < 1f
+        if (reached) launch { pour.goal.snapTo(0f); pour.goal.animateTo(1f, tween(700, easing = EaseOutQuart)) }
+        surge.animateTo(target, landSpring())
+    }
+    val frac = if (pour != null) surge.value else eased
     val pct = if (goalMl > 0) (totalMl * 100 / goalMl) else 0
 
     Row(
@@ -538,7 +561,7 @@ fun WaterDailyRing(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier.size(68.dp),
+            modifier = Modifier.size(68.dp).then(if (pour == null) Modifier else Modifier.onGloballyPositioned { pour.to = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f) }),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.fillMaxSize()) {
@@ -624,9 +647,17 @@ fun WaterScreen(
         Spacer(Modifier.height(Space.md))
 
         // 2 & 3. Interactive morphing cup with drag-to-fill
+        val pour = if (loaded(Effect.WaterPour)) remember { Pour() } else null
+        val scope = rememberCoroutineScope()
+        // Loaded: the stream from cup to ring is drawn over both, outside the ring's card, which would clip it.
+        Column(if (pour == null) Modifier else Modifier.pourStream(pour, p.accent)) {
         InteractiveCup(
             cupSizeMl = currentCupSize,
-            onLogWater = onLogWater,
+            onLogWater = { ml ->
+                pour?.let { scope.launch { it.play() } }
+                onLogWater(ml)
+            },
+            pour = pour,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -638,7 +669,9 @@ fun WaterScreen(
             goalMl = goalMl,
             deficitMl = deficit,
             dayLabel = Fmt.day(day, LocalDate.now()),
+            pour = pour,
         )
+        }
 
         Spacer(Modifier.height(Space.lg))
 
@@ -661,6 +694,47 @@ fun WaterScreen(
                 val newest = todayEntries.last()
                 GroupRow(first = false, onClick = { onClearWater(newest.id) }) { Txt("Undo ${newest.ml} ml", Type.body, color = p.accent) }
             }
+        }
+    }
+}
+
+/** Loaded's pour: water logged at the cup's base ([from]) arcs down into the day's ring ([to]), both in the root. */
+class Pour {
+    var from = Offset.Zero
+    var to = Offset.Zero
+    internal val flow = Animatable(1f)
+    internal val goal = Animatable(1f)
+
+    suspend fun play() {
+        flow.snapTo(0f)
+        flow.animateTo(1f, tween(POUR_MS, easing = LinearEasing))
+    }
+}
+
+private const val POUR_MS = 620
+/** When the head of the stream reaches the ring. */
+private const val POUR_LAND_MS = 330L
+private const val POUR_DROPS = 10
+
+/** Over the cup and ring: the stream from the cup's base into the ring while [pour] runs, and the ring a reached goal sends out. */
+private fun Modifier.pourStream(pour: Pour, color: Color): Modifier {
+    var origin = Offset.Zero
+    return onGloballyPositioned { origin = it.positionInRoot() }.drawWithContent {
+        drawContent()
+        val c = pour.to - origin
+        val g = pour.goal.value
+        if (g < 1f) drawCircle(color.copy(alpha = 0.45f * (1f - g)), 34.dp.toPx() + 72.dp.toPx() * g, c, style = Stroke(2.dp.toPx()))
+        val f = pour.flow.value
+        if (f >= 1f) return@drawWithContent
+        // Out of the cup's base, falling and bending over to land in the ring from above.
+        val a = pour.from - origin
+        val ctrl = Offset(a.x, c.y - 48.dp.toPx())
+        for (i in 0 until POUR_DROPS) {
+            val t = (f * 1.8f - i * 0.08f).coerceIn(0f, 1f)
+            if (t <= 0f || t >= 1f) continue
+            val u = t * t
+            val pt = a * ((1 - u) * (1 - u)) + ctrl * (2 * u * (1 - u)) + c * (u * u)
+            drawCircle(color.copy(alpha = 0.9f), (6f - i * 0.35f).dp.toPx(), pt)
         }
     }
 }
