@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -149,11 +150,11 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
     },
     "shoulders_foam_roll_rear" to {
         // On the left side with the roller in the armpit and the body turned back a little, the bottom arm long overhead:
-        // the chest rocks back and forth so the roller works across the back of the shoulder.
+        // the top hand and foot push the body in short passes along the back of the shoulder.
         Motion(ROLLING, yaw = 20f) { d ->
-            fun trunk(roll: Double, twist: Double) {
-                pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).tilt(roll).twist(-20.0))
-                spine(side = -6.0, twist = twist)
+            fun trunk(roll: Double, slide: Double) {
+                pelvis(Frame.WORLD.moved(V(slide, 0.3, 0.0)).tilt(roll).twist(-20.0))
+                spine(side = -6.0)
                 head(tilt = 20.0)
             }
             // The trunk tips up from the floor just enough that the hips stay down while the armpit rides on the roller.
@@ -168,14 +169,15 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
             val roll = (lo + hi) / 2
             trunk(roll, 0.0)
             val lift = 2 * ROLLER - lowest(listOf(Bone.CHEST))
-            trunk(roll, lerp(-12.0, 12.0, d))
+            val pit = shoulder(L) + V(-0.07, 0.0, 0.0)
+            trunk(roll, lerp(-0.045, 0.045, d))
             nudge(V(0.0, lift, 0.0))
             val bottom = shoulder(L)
             grip(L, bottom + V(sqrt(sq(Build.ARM - 0.01) - sq(bottom.y - 0.05)), 0.05 - bottom.y, 0.0), V.UP, V.FWD)
             leg(L, raise = 8.0, knee = 8.0)
             palm(R, V(0.42, 0.0, 0.2), V(1.0, 0.0, 0.3), V(0.3, 1.0, 0.3))
             plant(R, V(-0.36, 0.0, 0.3), 30.0, knee = V(0.0, 0.6, 1.0))
-            roller(V(0.46, ROLLER, 0.06), V.FWD)
+            roller(V(pit.x, ROLLER, pit.z), V.FWD)
         }
     },
     "shoulders_capsule" to {
@@ -237,6 +239,212 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
         }
     },
 )
+
+/** Limber 11 (Joe DeFranco), in its order. */
+internal val LIMBER: Map<String, () -> Motion> = mapOf(
+    "hips_foam_roll_it_band" to {
+        // On the left side propped on the left hand, the outside of the left thigh on the roller and the right foot planted in
+        // front: hand and foot slide the body so the roller travels from the hip toward the knee.
+        Motion(ROLLING, yaw = 20f) { d ->
+            // The bottom leg runs from the floor over the roller, so the hip slides up and down that line.
+            val top = V(-0.06, 2 * ROLLER + 0.065, 0.0)
+            val line = V(cos(10 * DEG), sin(10 * DEG), 0.0)
+            fun trunk(along: Double) {
+                pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).tilt(66.0))
+                spine(side = 8.0)
+                head(tilt = -12.0)
+                nudge(top + line * along - hip(L))
+            }
+            trunk(0.21)
+            val hand = shoulder(L) + V(0.02, 0.0, 0.08)
+            val foot = hip(R) + V(-0.2, 0.0, 0.34)
+            trunk(lerp(0.34, 0.08, d))
+            legToward(L, -line, knee = 4.0, ankle = -20.0)
+            plant(R, V(foot.x, 0.0, foot.z), 20.0, knee = V(0.0, 1.0, 0.4))
+            palm(L, V(hand.x, 0.0, hand.z), V(1.0, 0.0, 0.3), V(0.0, 0.2, -1.0))
+            arm(R, raise = 12.0, elbow = 25.0)
+            roller(V(top.x, ROLLER, 0.0), V.FWD)
+        }
+    },
+    "hips_foam_roll_adductors" to {
+        // Face down on the forearms and the right toes, the left knee bent and out to the side with the inside of the thigh on a
+        // roller: the hips shift sideways so the roller travels from the groin toward the knee.
+        Motion(ROLLING, yaw = 150f) { d ->
+            val elbow = Build.UPPER_ARM + 0.04
+            val reach = sqrt(sq(trunkLength()) - sq(elbow - 0.2))
+            fun lie(slide: Double) = trunk(V(slide, 0.2, 0.0), V(slide, elbow, reach))
+            lie(0.0)
+            val roller = V(hip(L).x + 0.2, ROLLER, hip(L).z - 0.1)
+            val hands = SIDES.map { s -> shoulder(s).let { V(it.x - s * 0.03, 0.0, it.z + Build.FOREARM + 0.07) } }
+            lie(lerp(0.12, -0.1, d))
+            head(nod = -6.0)
+            legTo(L, hip(L) + V(0.45, -0.08, -0.4), V(1.0, 0.3, 0.0), foot = -60.0)
+            plant(R, V(-0.12, 0.0, -0.84), rise = 70.0, knee = V.UP)
+            for ((s, at) in SIDES.zip(hands)) palm(s, at, V.FWD, V(s * 0.2, -1.0, -0.3))
+            roller(roller, V.FWD)
+        }
+    },
+    "hips_glute_ball" to {
+        // Sitting back on the hands with the left ankle across the right knee and a ball under the left glute: small circles roll it.
+        Motion(ROLLING) { d ->
+            fun sit(q: Double, r: Double) {
+                pelvis(V(r * cos(q), 0.3, r * sin(q)), pitch = -52.0, roll = -6.0)
+                spine(waist = 8.0, chest = 4.0)
+                head(nod = 20.0)
+                rest(0.0, listOf(Bone.PELVIS))
+            }
+            // Straight arms prop the body: the hands land under and behind the shoulders of the centred pose.
+            sit(0.0, 0.0)
+            val hands = SIDES.map { s -> shoulder(s).let { V(it.x + s * 0.06, 0.0, it.z - sqrt(sq(Build.ARM - 0.05) - sq(it.y) - sq(0.06))) } }
+            sit(2 * PI * d, 0.03)
+            plant(R, V(-0.12, 0.0, 0.46), 6.0, knee = V(0.0, 1.0, 0.3))
+            legTo(L, this[Bone.SHIN_R].o + V(0.05, 0.07, -0.03), V(1.0, 0.5, 0.2), foot = 50.0)
+            for ((s, at) in SIDES.zip(hands)) palm(s, at, V.BACK, V(s * 0.3, 0.0, -1.0))
+            ball(V(0.1, 0.032, -0.06), 0.032, Tone.RUBBER)
+        }
+    },
+    "spine_iron_cross" to {
+        // On the back with the arms wide and the hips and knees at 90 degrees, the knees lower to one side, then to the other.
+        Motion(Tempo(6.0, 0.0, 0.0, 0.0, from = 0.25)) { d ->
+            val a = cos(2 * PI * d)
+            supineTwist(62 * a, a)
+        }
+    },
+    "hamstrings_rollover_v_sit" to {
+        // From a wide-legged seat the body rolls back until the legs pass overhead, then rolls forward into a V-sit and reaches between the legs.
+        Motion(Tempo(1.8, 0.6, 1.8, 0.4)) { d ->
+            val pitch = lerp(-120.0, 26.0, d)
+            val waist = lerp(26.0, 18.0, d)
+            val chest = lerp(24.0, 12.0, d)
+            fun pose(y: Double, raise: Double) {
+                // The rounded back rolls along the floor: about 0.2 m of travel a radian.
+                pelvis(V(0.0, y, 0.2 * (pitch - 26.0) * DEG), pitch)
+                spine(waist, chest)
+                head(nod = 20.0)
+                for (s in SIDES) leg(s, raise, plane = 50.0, knee = 4.0, ankle = -20.0)
+                val w = phase(d, 0.55, 1.0)
+                for (s in SIDES) arm(s, raise = lerp(25.0, 120.0, w), plane = lerp(70.0, 80.0, w), elbow = 8.0, pronate = lerp(0.0, 60.0, w))
+            }
+            // Seated, the straight legs lie on the floor; rolled back they keep the hips' pike and swing overhead.
+            var raise = 90.0 + pitch
+            if (d > 0.5) repeat(3) {
+                pose(0.5, raise)
+                raise -= asin(((lowest(listOf(Bone.SHIN_L, Bone.FOOT_L)) - lowest(listOf(Bone.PELVIS))) / 0.9).coerceIn(-1.0, 1.0)) / DEG
+            }
+            raise = lerp(115.0, raise, phase(d, 0.5, 0.85))
+            pose(0.5, raise)
+            pose(0.5 - lowest(), raise)
+        }
+    },
+    "hips_rocking_frog" to {
+        // On the hands and wide knees, the feet in line behind the knees: the hips rock back toward the heels, then forward.
+        Motion(Tempo(2.0, 0.6, 2.0, 0.4)) { d ->
+            bridge(kneeling(0.7, 0.0, lerp(-5.0, 55.0, d)), V(0.0, 0.022, 0.5), 0.54, waist = 6 * d, chest = 4.0)
+            head(nod = 10.0)
+            for (s in SIDES) {
+                kneel(s, V(s * 0.35, KNEE, 0.0))
+                palm(s, V(s * 0.19, 0.0, 0.575), V.FWD, V(s * 0.4, 0.2, -1.0))
+            }
+        }
+    },
+    "hips_fire_hydrant_circles" to {
+        // On all fours, the left knee lifts out to the side and draws circles, forward and then back.
+        Motion(Tempo(2.5, 0.25, 2.5, 0.25)) { d ->
+            bridge(kneeling(0.2, 0.0, 0.0), V(0.0, 0.022, 0.5), 0.54)
+            head(nod = -5.0)
+            val q = 2 * PI * d
+            kneel(R, V(-0.1, KNEE, 0.0))
+            leg(L, raise = 90.0 + 20 * sin(q), plane = 30.0 + 18 * (1 - cos(q)), knee = 90.0, ankle = -60.0)
+            for (s in SIDES) palm(s, V(s * 0.19, 0.0, 0.575), V.FWD, V(s * 0.4, 0.2, -1.0))
+        }
+    },
+    "hips_mountain_climber" to {
+        // From the top of a push-up one foot steps up outside its hand and the hips sink, then it steps back and the other foot goes.
+        Motion(Tempo(6.0, 0.0, 0.0, 0.0, from = 0.25)) { d ->
+            val u = cos(2 * PI * d)
+            val w = SIDES.map { s -> jerk(max(0.0, s * u)) }
+            val sh = V(0.0, 0.56, 0.45)
+            trunk(lerp(V(0.0, 0.386, -0.02), V(0.0, 0.3, -0.03), w.max()), sh)
+            head(nod = -10.0)
+            for ((s, t) in SIDES.zip(w)) {
+                palm(s, V(s * 0.18, 0.0, 0.525), V.FWD, V(s * 0.3, 0.2, -1.0))
+                val back = V(s * 0.1, 0.0, -0.78)
+                val front = V(s * 0.38, 0.0, 0.42)
+                plant(s, lerp(back, front, t) + V.UP * (0.12 * sin(PI * t)), 10 * t, rise = 70 * (1 - t), knee = V(s * 1.0, 0.4, 0.4))
+            }
+        }
+    },
+    "hips_cossack_squat" to {
+        // Feet wide and turned out: the hips sink over one bent leg while the other straightens with its toes up, then cross over.
+        Motion(Tempo(6.0, 0.0, 0.0, 0.0, from = 0.25)) { d ->
+            val u = cos(2 * PI * d)
+            val side = if (u >= 0) L else R
+            val deep = jerk(kotlin.math.abs(u))
+            pelvis(V(side * 0.3 * deep, STAND - 0.07 - 0.4 * deep, -0.06 * deep), pitch = 8 + 30 * deep)
+            spine(waist = 4.0, chest = 4 * deep)
+            head(nod = -6 * deep)
+            for (s in SIDES) {
+                val toes = V.FWD.turn(V.UP, s * 25.0)
+                val ball = V(s * 0.4, 0.0, 0.08)
+                // The straight leg's foot pivots up on its heel.
+                val up = if (s == side) 0.0 else 40 * deep
+                val heel = ball - toes * 0.2
+                plant(s, heel + toes * (0.2 * cos(up * DEG)) + V.UP * (0.2 * sin(up * DEG)), 25.0, rise = -up)
+                arm(s, raise = 20 + 65 * deep, plane = 90.0, elbow = 15.0)
+            }
+        }
+    },
+    "hips_seated_piriformis" to {
+        // Sitting tall, the left foot crosses over the straight right leg and both arms hug the left knee in toward the right shoulder.
+        stretch { d ->
+            val pitch = lerp(6.0, 12.0, d)
+            sit(pitch, chest = -2.0, twist = 10 * d)
+            head(turn = 10 * d)
+            outstretched(R, pitch, -25.0)
+            plant(L, V(-0.2, 0.0, 0.5), knee = lerp(V(-0.1, 0.8, 0.5), V(-0.5, 0.8, 0.3), d))
+            val shin = this[Bone.SHIN_L]
+            for (s in SIDES) grip(s, shin.at(s * 0.035, 0.08, 0.07), V(s * 1.0, -0.4, -0.3), -shin.z)
+        }
+    },
+    "hips_rfe_hip_flexor" to {
+        // Standing in a split stance with the left foot laces-down on a bench behind: the back knee sinks and the hips press
+        // forward under a tall chest.
+        stretch(yaw = 65f) { d ->
+            pelvis(V(0.0, lerp(0.65, 0.58, d), lerp(0.0, 0.04, d)), pitch = lerp(4.0, -4.0, d))
+            spine(waist = 2.0, chest = 2.0)
+            head(nod = 4.0)
+            plant(R, V(-0.12, 0.0, 0.5), 5.0)
+            legTo(L, V(0.1, 0.5, -0.62), V(0.0, -1.0, 0.4), foot = -60.0)
+            val t = this[Bone.THIGH_R]
+            palm(R, t.at(0.0, 0.32, 0.062), t.y, V(-0.6, 0.0, -1.0), t.z)
+            palm(L, t.at(0.0, 0.14, 0.088), t.y, V(0.6, 0.0, -1.0), t.z)
+            block(0.1, -0.8, 0.4, lowest(listOf(Bone.FOOT_L, Bone.TOES_L)), 0.45)
+        }
+    },
+)
+
+/** Bends the [s] leg so its ankle lands on [ankle], the knee toward [pole] and the foot [foot] degrees up from square. */
+internal fun Poser.legTo(s: Int, ankle: V, pole: V, foot: Double = -20.0) {
+    val h = hip(s)
+    val k = reach(h, ankle, Build.THIGH, Build.SHIN, pole)
+    val bend = kotlin.math.acos(((k - h).unit() dot (ankle - k).unit()).coerceIn(-1.0, 1.0)) / DEG
+    // The thigh's turn decides where the bent knee sends the shin: search it for the one that lands the ankle.
+    fun miss(t: Double): Double {
+        legToward(s, k - h, knee = bend, ankle = foot, twist = t)
+        return (this[Bone.foot(s)].o - ankle).len
+    }
+    var best = (-180..180 step 10).minBy { miss(it.toDouble()) }.toDouble()
+    var step = 5.0
+    repeat(8) { best = listOf(best - step, best, best + step).minBy { miss(it) }; step /= 2 }
+    miss(best)
+}
+
+/** Points the [s] leg along [dir], bent as given. */
+internal fun Poser.legToward(s: Int, dir: V, knee: Double = 0.0, ankle: Double = 0.0, twist: Double = 0.0) {
+    val p = this[Bone.PELVIS]
+    val b = V(dir dot p.x, dir dot p.y, dir dot p.z).unit()
+    leg(s, kotlin.math.acos(-b.y) / DEG, atan2(b.z, s * b.x) / DEG, twist, knee, ankle)
+}
 
 /** A foam roller's radius. */
 private const val ROLLER = 0.075

@@ -24,8 +24,9 @@ class StretchTest {
 
     @Test
     fun namesUseSentenceCase() {
-        // A capital only opens the name or the part after a colon, as in "Flexibility: Legs & splits"; famous routines keep their published titles.
-        val published = setOf("Starting to Stretch", "Sun salutation A")
+        // A capital only opens the name or the part after a colon, as in "Flexibility: Legs & splits"; famous routines and moves keep
+        // their published titles, and names keep their proper nouns and abbreviations.
+        val published = setOf("Starting to Stretch", "Sun salutation A", "IT band foam roll", "Roll-over into V-sit", "Cossack squats")
         val names = (StretchMoves.ALL.map { it.name } + StretchRoutines.all().map { it.name }).filter { it !in published }
         names.forEach { n -> n.split(": ").forEach { assertEquals(n, it.take(1) + it.drop(1).lowercase(), it) } }
     }
@@ -202,7 +203,7 @@ class StretchTest {
     @Test
     fun everyRoutineIsListedOnceByName() {
         val names = StretchRoutines.all().map { it.name }
-        assertEquals(23, names.size)
+        assertEquals(24, names.size)
         assertEquals(names.size, names.toSet().size)
         // The default routine resolves to a listed one on every day of the Flexibility rotation.
         val d0 = LocalDate.of(2026, 11, 24)
@@ -338,6 +339,8 @@ class StretchTest {
             "spine_supine_twist", "spine_seated_twist",
             "shoulders_rear_hand_clasp", "shoulders_wall_wrist_biceps", "hamstrings_one_leg_pike", "hips_kneeling_lunge",
             "shoulders_foam_roll_rear", "shoulders_capsule", "chest_band_pec", "lats_rack_lean",
+            "hips_foam_roll_it_band", "hips_foam_roll_adductors", "hips_glute_ball", "hips_fire_hydrant_circles", "hips_seated_piriformis",
+            "hips_rfe_hip_flexor",
         )
         assertEquals(oneSided, StretchMoves.ALL.filter { it.isUnilateral }.map { it.id }.toSet())
     }

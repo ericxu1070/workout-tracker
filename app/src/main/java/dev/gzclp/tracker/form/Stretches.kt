@@ -412,28 +412,7 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
     },
     "spine_supine_twist" to {
         // On the back with the knees bent, the pelvis rolls them down to the right while the chest stays flat, the arms wide and the head turned left.
-        stretch { d ->
-            val fall = lerp(8.0, 62.0, d)
-            // The rolled pelvis reaches deeper than the flat upper back, so the body tips head down about the hips until both
-            // rest on the floor (the chest drops about 6.5 mm a degree).
-            var tip = 0.0
-            fun lie() {
-                pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).bend(-90.0 - tip).twist(-fall))
-                spine(twist = fall)
-            }
-            repeat(2) { lie(); tip += (lowest(listOf(Bone.CHEST)) - lowest(listOf(Bone.PELVIS))) / 0.0065 }
-            lie()
-            head(turn = 40 * d)
-            rest(0.0)
-            for (s in SIDES) {
-                // The top knee crosses further to rest on the bottom one; each thigh turns back as it swings so the shins stay level.
-                val k = (if (s == L) 36.0 else 26.0) * d
-                leg(s, raise = 92.0, plane = 90.0 + s * k, twist = -s * k, knee = 95.0, ankle = -20.0)
-                val sh = shoulder(s)
-                val wrist = V(sh.x + s * sqrt(sq(0.545) - sq(sh.y - 0.022)), 0.022, sh.z)
-                palm(s, wrist + V(s * 0.075, -0.022, 0.0), V(s * 1.0, 0.0, 0.0), V(0.0, -0.2, 1.0))
-            }
-        }
+        stretch { d -> supineTwist(lerp(8.0, 62.0, d), d) }
     },
     "spine_cobra" to {
         // Face down, the hands press the floor away and the chest rises on bent elbows while the hips stay down.
@@ -453,6 +432,33 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
         stretch { d -> sleeper(lerp(10.0, 58.0, d), 90.0) }
     },
 )
+
+/**
+ * On the back with the arms wide and the hips and knees bent, the pelvis rolls the knees [fall] degrees down to the right
+ * (negative: the left) while the chest stays flat; [a] (0 to 1, signed the same way) crosses the top knee over and turns the head away.
+ */
+internal fun Poser.supineTwist(fall: Double, a: Double) {
+    // The rolled pelvis reaches deeper than the flat upper back, so the body tips head down about the hips until both
+    // rest on the floor (the chest drops about 6.5 mm a degree).
+    var tip = 0.0
+    fun lie() {
+        pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).bend(-90.0 - tip).twist(-fall))
+        spine(twist = fall)
+    }
+    repeat(2) { lie(); tip += (lowest(listOf(Bone.CHEST)) - lowest(listOf(Bone.PELVIS))) / 0.0065 }
+    lie()
+    head(turn = 40 * a)
+    rest(0.0)
+    val top = if (a >= 0) L else R
+    for (s in SIDES) {
+        // The top knee crosses further to rest on the bottom one; each thigh turns back as it swings so the shins stay level.
+        val k = (if (s == top) 36.0 else 26.0) * a
+        leg(s, raise = 92.0, plane = 90.0 + s * k, twist = -s * k, knee = 95.0, ankle = -20.0)
+        val sh = shoulder(s)
+        val wrist = V(sh.x + s * sqrt(sq(0.545) - sq(sh.y - 0.022)), 0.022, sh.z)
+        palm(s, wrist + V(s * 0.075, -0.022, 0.0), V(s * 1.0, 0.0, 0.0), V(0.0, -0.2, 1.0))
+    }
+}
 
 /**
  * On the left side with the bottom upper arm [arm] degrees from the body along the floor and the elbow bent, the forearm turned
@@ -480,4 +486,4 @@ internal fun Poser.sleeper(turn: Double, arm: Double) {
     block(head.x, head.z, 0.3, lowest(listOf(Bone.HEAD)), 0.4)
 }
 
-internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR + MOBILITY
+internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR + MOBILITY + LIMBER

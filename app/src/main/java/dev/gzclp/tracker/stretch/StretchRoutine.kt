@@ -317,9 +317,22 @@ object StretchRoutines {
         move(StretchMoves.CAT_COW_STRETCH, 30), move(StretchMoves.CHILDS_POSE_LAT, 60), move(StretchMoves.SEATED_SINGLE_LEG, 60),
         move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60), move(StretchMoves.LEGS_UP_THE_WALL, 120),
     )
+    // Joe DeFranco's Limber 11: roll 10–15 passes a leg, 30–60 s on the ball, then 5–10 reps a side of each drill, 10 circles each way
+    // for the hydrants and 20–30 s a side for the two stretches.
+    private val limber = preset(
+        "limber-11", "Limber 11", "Joe DeFranco's lower-body warm-up: three foam-roll drills, then eight mobility moves.",
+        "Loosen the hips and legs before squats, deadlifts or sprints.",
+        "Before a lower-body day, about 11 minutes; a foam roller, a lacrosse ball and a bench.",
+        move(StretchMoves.FOAM_ROLL_IT_BAND, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_ADDUCTORS, 60, dynamic = true),
+        move(StretchMoves.GLUTE_BALL, 60, dynamic = true), move(StretchMoves.IRON_CROSS, 60, dynamic = true),
+        move(StretchMoves.ROLLOVER_V_SIT, 50, dynamic = true), move(StretchMoves.ROCKING_FROG, 50, dynamic = true),
+        move(StretchMoves.FIRE_HYDRANT_CIRCLES, 120, dynamic = true), move(StretchMoves.MOUNTAIN_CLIMBERS, 40, dynamic = true),
+        move(StretchMoves.COSSACK_SQUAT, 60, dynamic = true), move(StretchMoves.SEATED_PIRIFORMIS, 60),
+        move(StretchMoves.RFE_HIP_FLEXOR, 60),
+    )
 
     /** The few routines listed right under After workout. */
-    val popular: List<StretchRoutine> by lazy { listOf(desk, runners, morning, bedtime) }
+    val popular: List<StretchRoutine> by lazy { listOf(desk, runners, morning, bedtime, limber) }
 
     /** The rest of the built-in library, behind Show more. */
     val more: List<StretchRoutine> by lazy {

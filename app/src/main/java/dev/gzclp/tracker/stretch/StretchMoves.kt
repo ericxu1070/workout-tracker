@@ -419,6 +419,112 @@ object StretchMoves {
         focus = Focus.both(0.26, Spot(Bone.ARM_L, V(0.0, 0.05, 0.0))),
     )
 
+    // Limber 11 (Joe DeFranco).
+    val FOAM_ROLL_IT_BAND = StretchMove(
+        id = "hips_foam_roll_it_band",
+        name = "IT band foam roll",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "On your side, propped on a hand: roll the outside of the thigh from hip to knee.",
+        focus = Focus(0.3, Spot(Bone.THIGH_L, V(0.07, 0.2, 0.0))),
+        isUnilateral = true,
+    )
+
+    val FOAM_ROLL_ADDUCTORS = StretchMove(
+        id = "hips_foam_roll_adductors",
+        name = "Adductor foam roll",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Face down on your forearms, knee out to the side: roll the inner thigh from groin to knee.",
+        focus = Focus(0.3, Spot(Bone.THIGH_L, V(-0.06, 0.18, 0.0))),
+        isUnilateral = true,
+    )
+
+    val GLUTE_BALL = StretchMove(
+        id = "hips_glute_ball",
+        name = "Glute ball roll",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Ankle across the other knee, a lacrosse ball under that glute: roll small circles.",
+        focus = Focus(0.3, Spot(Bone.PELVIS, V(0.08, -0.03, -0.11))),
+        isUnilateral = true,
+    )
+
+    val IRON_CROSS = StretchMove(
+        id = "spine_iron_cross",
+        name = "Bent-knee iron cross",
+        targetArea = BodyArea.SPINE,
+        holdSec = 30,
+        cue = "Arms wide, knees bent and up: lower them to one side, then the other, shoulders down.",
+        focus = Focus.both(0.34, Spot(Bone.WAIST, V(0.1, 0.05, 0.0))),
+    )
+
+    val ROLLOVER_V_SIT = StretchMove(
+        id = "hamstrings_rollover_v_sit",
+        name = "Roll-over into V-sit",
+        targetArea = BodyArea.HAMSTRINGS,
+        holdSec = 30,
+        cue = "Roll back with your legs overhead, then forward into a wide seat and reach between your legs.",
+        focus = Focus.both(0.4, Spot(Bone.THIGH_L, V(0.0, 0.22, -0.07))),
+    )
+
+    val ROCKING_FROG = StretchMove(
+        id = "hips_rocking_frog",
+        name = "Rocking frog",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "On your hands, knees wide and feet behind them: rock your hips back toward your heels.",
+        focus = Focus.both(0.32, Spot(Bone.THIGH_L, V(-0.06, 0.1, 0.0))),
+    )
+
+    val FIRE_HYDRANT_CIRCLES = StretchMove(
+        id = "hips_fire_hydrant_circles",
+        name = "Fire hydrant circles",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "On all fours, lift the knee out to the side and draw big circles, forward then back.",
+        focus = Focus(0.3, Spot(Bone.PELVIS, V(0.1, 0.0, -0.05))),
+        isUnilateral = true,
+    )
+
+    val MOUNTAIN_CLIMBERS = StretchMove(
+        id = "hips_mountain_climber",
+        name = "Mountain climbers",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "From a push-up, step one foot outside its hand and sink your hips, then switch.",
+        focus = Focus.both(0.34, Spot(Bone.THIGH_L, V(0.0, 0.1, 0.06))),
+    )
+
+    val COSSACK_SQUAT = StretchMove(
+        id = "hips_cossack_squat",
+        name = "Cossack squats",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Feet wide: sit down over one leg as the other straightens, toes up, then cross over.",
+        focus = Focus.both(0.34, Spot(Bone.THIGH_L, V(-0.06, 0.18, 0.0))),
+    )
+
+    val SEATED_PIRIFORMIS = StretchMove(
+        id = "hips_seated_piriformis",
+        name = "Seated piriformis stretch",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Cross one foot over the straight leg and hug that knee toward the opposite shoulder.",
+        focus = Focus(0.3, Spot(Bone.PELVIS, V(0.08, -0.03, -0.11))),
+        isUnilateral = true,
+    )
+
+    val RFE_HIP_FLEXOR = StretchMove(
+        id = "hips_rfe_hip_flexor",
+        name = "Rear-foot-elevated hip flexor stretch",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Back foot on a bench, squeeze that glute and sink the back knee until the front of the hip stretches.",
+        focus = Focus(0.3, Spot(Bone.THIGH_L, V(0.0, 0.08, 0.06))),
+        isUnilateral = true,
+    )
+
     /** Every move, by body area within the first 26 and the ones the famous routines added after them. */
     val ALL: List<StretchMove> = listOf(
         PIGEON_POSE, BUTTERFLY_STRETCH, LIZARD_LUNGE,
@@ -435,6 +541,8 @@ object StretchMoves {
         SHOULDER_BACKBEND, STANDING_BACKBEND, REAR_HAND_CLASP, WRIST_BICEPS, ONE_LEG_PIKE, KNEELING_LUNGE, PANCAKE,
         SUN_SALUTATION_A,
         FOAM_ROLL_UPPER_BACK, FOAM_ROLL_REAR_SHOULDER, SHOULDER_CAPSULE, BAND_PEC, RACK_LAT, BAND_DISLOCATES,
+        FOAM_ROLL_IT_BAND, FOAM_ROLL_ADDUCTORS, GLUTE_BALL, IRON_CROSS, ROLLOVER_V_SIT, ROCKING_FROG, FIRE_HYDRANT_CIRCLES,
+        MOUNTAIN_CLIMBERS, COSSACK_SQUAT, SEATED_PIRIFORMIS, RFE_HIP_FLEXOR,
     )
 
     fun of(id: String): StretchMove? = ALL.firstOrNull { it.id == id }
