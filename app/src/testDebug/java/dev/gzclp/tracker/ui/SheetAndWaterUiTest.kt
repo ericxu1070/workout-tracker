@@ -13,9 +13,16 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.WaterLogged
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +44,7 @@ class SheetAndWaterUiTest {
         var closed = 0
         sheet { closed++ }
         rule.onNodeWithText("Log weight").performTouchInput { swipeDown(startY = top, endY = top + 600f) }
+        rule.waitForIdle()
         assertEquals(1, closed)
     }
 
@@ -45,7 +53,38 @@ class SheetAndWaterUiTest {
         sheet { closed++ }
         // Past the touch slop, short of a quarter of the sheet, and slow.
         rule.onNodeWithText("Log weight").performTouchInput { swipeDown(startY = top, endY = top + 60f, durationMillis = 800) }
+        rule.waitForIdle()
         assertEquals(0, closed)
+    }
+
+    /** A tall sheet, so a third of it is a long pull. */
+    private fun tallSheet(onDismiss: () -> Unit) = rule.setContent {
+        Box(Modifier.fillMaxSize()) { Sheet(true, onDismiss) { Txt("Log weight", Type.title3); Spacer(Modifier.height(400.dp)) } }
+    }
+
+    /** A slow pull a third of the way down, let go without a flick, springs back: only where the release would carry it counts. */
+    @Test fun aSlowThirdPullLeavesTheSheetOpen() {
+        var closed = 0
+        tallSheet { closed++ }
+        val title = rule.onNodeWithText("Log weight")
+        val third = (rule.onRoot().getBoundsInRoot().bottom - title.getBoundsInRoot().top).value * rule.density.density / 3
+        title.performTouchInput { swipeDown(startY = top, endY = top + third, durationMillis = 1500) }
+        rule.waitForIdle()
+        assertEquals(0, closed)
+    }
+
+    /** Pulled up, the sheet moves against resistance instead of standing still, and comes back down when let go. */
+    @Test fun aSheetPulledUpMovesAThirdAsFar() {
+        tallSheet {}
+        val title = rule.onNodeWithText("Log weight")
+        val before = title.getBoundsInRoot().top
+        title.performTouchInput { down(center); moveBy(Offset(0f, -60f), 100); moveBy(Offset(0f, -300f), 100) }
+        val moved = (before - title.getBoundsInRoot().top).value * rule.density.density
+        // 360 px of finger, less the touch slop, at a third.
+        assertTrue("moved $moved", moved in 90f..125f)
+        title.performTouchInput { up() }
+        rule.waitForIdle()
+        assertEquals(before.value, title.getBoundsInRoot().top.value, 0.5f)
     }
 
     @Test fun theNewestDrinkHasAVisibleUndo() {
