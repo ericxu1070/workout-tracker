@@ -16,7 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -24,6 +26,8 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** The spring every segment change rides, tapped, swiped or dragged: damped so it settles with at most a slight overshoot. */
 val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
@@ -52,17 +56,26 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
     return pager
 }
 
-/** Swipeable pages that settle on [SegmentSpring]; a [Segmented] given the same [pager] follows the swipe. [beyond] pages on each side stay composed. */
+/**
+ * Swipeable pages that settle on [SegmentSpring]; a [Segmented] given the same [pager] follows the swipe.
+ * [beyond] pages on each side stay composed, added one a frame once the pages have opened, so opening costs only the page shown.
+ */
 @Composable
-fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, page: @Composable (Int) -> Unit) =
-    remember { mutableIntStateOf(0) }.let { holds ->
-        CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
-            HorizontalPager(
-                pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = beyond,
-                flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
-            ) { CompositionLocalProvider(LocalPage provides it) { page(it) } }
-        }
+fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, page: @Composable (Int) -> Unit) {
+    val holds = remember { mutableIntStateOf(0) }
+    var near by remember { mutableIntStateOf(0) }
+    // 400 ms clears the 300 ms screen transition, so the neighbors' first frames don't land on it; a swipe or drag before then can't wait.
+    if (beyond > 0) LaunchedEffect(beyond) {
+        withTimeoutOrNull(400) { snapshotFlow { pager.isScrollInProgress }.first { it } }
+        for (n in 1..beyond) withFrameNanos { near = n }
     }
+    CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
+        HorizontalPager(
+            pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
+            flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
+        ) { CompositionLocalProvider(LocalPage provides it) { page(it) } }
+    }
+}
 
 /**
  * Holds [page]'s copy of a control still while the page slides. Each page draws only the part over itself,
