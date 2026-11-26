@@ -1,10 +1,13 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -74,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -266,6 +270,25 @@ fun GroupRow(
             )
         }
         if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape) { inner() } else inner()
+    }
+}
+
+/** [content] opening and closing in place, the rows below it moving with it. */
+@Composable
+fun Disclosed(open: Boolean, content: @Composable ColumnScope.() -> Unit) = AnimatedVisibility(
+    open, enter = expandVertically(tween(260, easing = EaseOutQuart)) + fadeIn(tween(260)),
+    exit = shrinkVertically(tween(180, easing = EaseOutQuart)) + fadeOut(tween(120)),
+) { Column(content = content) }
+
+/** A Show more row in a [Group] whose chevron turns down while [open]; [lead] lines its label up with rows that start with a mark. */
+@Composable
+fun ShowMoreRow(open: Boolean, onClick: () -> Unit, lead: Dp = 0.dp) {
+    val p = LocalPalette.current
+    GroupRow(first = false, onClick = onClick, inset = Space.lg + lead) {
+        Spacer(Modifier.width(lead))
+        Txt(if (open) "Show less" else "Show more", Type.body, Modifier.weight(1f), p.accent)
+        val turn by animateFloatAsState(if (open) 90f else 0f, tween(220, easing = EaseOutQuart), label = "more")
+        Icon(Icons.chevronRight, p.accent, 20.dp, Modifier.rotate(turn))
     }
 }
 
