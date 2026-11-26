@@ -17,14 +17,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -32,9 +37,13 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
 
 /** What Liquid Glass bars and sheets blur: the content beside them, recorded each time it draws, and where it sits in the window. */
 class Backdrop(val layer: GraphicsLayer) {
@@ -65,35 +74,37 @@ fun Modifier.page(): Modifier {
     return onGloballyPositioned { at = it.positionInRoot() }.drawBehind { wallpaper(p, at, window) }
 }
 
-/** Records this content over the wallpaper into [b], for the glass floating over it to blur; a no-op without [b]. */
-@Composable
-fun Modifier.backdropSource(b: Backdrop?): Modifier {
-    if (b == null) return this
-    val p = LocalPalette.current
-    val window = LocalWindowInfo.current.containerSize
-    return onGloballyPositioned { b.origin = it.positionInRoot() }.drawWithContent {
-        b.layer.record {
-            wallpaper(p, b.origin, window)
-            this@drawWithContent.drawContent()
-        }
-        drawLayer(b.layer)
-    }
+/** Records this content into [b], for the glass floating over it to blur; a no-op without [b]. */
+fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else onGloballyPositioned { b.origin = it.positionInRoot() }.drawWithContent {
+    // The wallpaper stays out: it is drawn once, behind the page, and each pane paints its own patch of it.
+    b.layer.record { this@drawWithContent.drawContent() }
+    drawLayer(b.layer)
 }
 
 /**
- * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: the backdrop behind it blurred and tinted with
- * [Palette.chrome], lit by a sheen and a rim. Where no backdrop is recorded it is solid, so text never sits on sharp content.
+ * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: its patch of wallpaper and the backdrop over it,
+ * blurred and tinted with [Palette.chrome], lit by a sheen and a rim. Where no backdrop is recorded it is solid, so text never sits on sharp content.
  */
 @Composable
 fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modifier {
     val p = LocalPalette.current
+    val window = LocalWindowInfo.current.containerSize
     val blur = rememberGraphicsLayer()
     var at by remember { mutableStateOf(Offset.Zero) }
     return onGloballyPositioned { at = it.positionInRoot() }.clip(shape).drawWithContent {
         if (b != null) {
-            val r = BlurRadius.toPx()
-            blur.renderEffect = BlurEffect(r, r, TileMode.Clamp)
-            blur.record { translate(b.origin.x - at.x, b.origin.y - at.y) { drawLayer(b.layer) } }
+            // The wallpaper is smooth, so it needs no blur; only the content over it does.
+            wallpaper(p, at, window)
+            // Blurred at a quarter of its size and scaled back up: a blur this wide looks the same and costs a sixteenth.
+            if (blur.renderEffect == null) (BlurRadius.toPx() * BlurScale).let {
+                blur.renderEffect = BlurEffect(it, it, TileMode.Clamp)
+                blur.pivotOffset = Offset.Zero
+                blur.scaleX = 1 / BlurScale
+                blur.scaleY = 1 / BlurScale
+            }
+            blur.record(IntSize(ceil(size.width * BlurScale).toInt(), ceil(size.height * BlurScale).toInt())) {
+                scale(BlurScale, Offset.Zero) { translate(b.origin.x - at.x, b.origin.y - at.y) { drawLayer(b.layer) } }
+            }
             drawLayer(blur)
             drawRect(p.chrome)
         } else drawRect(p.chrome.copy(alpha = 1f))
@@ -138,15 +149,30 @@ fun Modifier.cardRim(p: Palette, radius: Dp, top: Boolean = true, bottom: Boolea
 }
 
 private val BlurRadius = 24.dp
+private const val BlurScale = 0.25f
 
-/** Three soft glows over the page color, laid out on the window: blue high on the left, violet midway on the right, teal low on the left. */
+/** The wallpaper spread over the window, drawn from [wall] with the window's top left at -[at]. */
 private fun DrawScope.wallpaper(p: Palette, at: Offset, window: IntSize) {
-    drawRect(p.bg)
-    val w = window.width.toFloat().takeIf { it > 0f } ?: size.width
-    val h = window.height.toFloat().takeIf { it > 0f } ?: size.height
-    val spots = listOf(Offset(0.1f * w, 0.12f * h) to 0.95f * w, Offset(0.95f * w, 0.5f * h) to 0.85f * w, Offset(0.15f * w, 0.92f * h) to 0.85f * w)
-    for ((glow, spot) in p.glows.zip(spots)) {
-        val (c, r) = spot
-        drawRect(Brush.radialGradient(listOf(glow, glow.copy(alpha = 0f)), c - at, r))
+    val w = if (window.width > 0) window else IntSize(size.width.toInt(), size.height.toInt())
+    drawImage(wall(p, w), dstOffset = IntOffset(-at.x.toInt(), -at.y.toInt()), dstSize = w, filterQuality = FilterQuality.Low)
+}
+
+private var wallCache: Triple<Palette, IntSize, ImageBitmap>? = null
+
+/**
+ * Three soft glows over the page color, laid out on the window: blue high on the left, violet midway on the right, teal low on the left.
+ * Painted once at an eighth of the window's size, since filling three screen-sized gradients each frame cost the GPU 2 ms on a Galaxy S21.
+ */
+private fun wall(p: Palette, window: IntSize): ImageBitmap {
+    wallCache?.let { (cp, cw, img) -> if (cp === p && cw == window) return img }
+    val img = ImageBitmap(maxOf(1, window.width / 8), maxOf(1, window.height / 8))
+    val w = img.width.toFloat()
+    val h = img.height.toFloat()
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(img), Size(w, h)) {
+        drawRect(p.bg)
+        val spots = listOf(Offset(0.1f * w, 0.12f * h) to 0.95f * w, Offset(0.95f * w, 0.5f * h) to 0.85f * w, Offset(0.15f * w, 0.92f * h) to 0.85f * w)
+        for ((glow, spot) in p.glows.zip(spots)) drawRect(Brush.radialGradient(listOf(glow, glow.copy(alpha = 0f)), spot.first, spot.second))
     }
+    wallCache = Triple(p, window, img)
+    return img
 }
