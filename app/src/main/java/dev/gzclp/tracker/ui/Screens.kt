@@ -507,8 +507,9 @@ private val RPE_INPUT = Regex("(10|[1-9](\\.5?)?)?")
 
 /** Plates per side for [weight], or that the plates can't make it. */
 @Composable
-fun PlateLine(plates: Plates, weight: Int, modifier: Modifier = Modifier) =
-    Txt(plates.perSideLabel(weight) ?: "Not loadable with your plates", Type.footnote.tabular(), modifier, LocalPalette.current.fg2, maxLines = 1)
+fun PlateLine(plates: Plates, weight: Int, modifier: Modifier = Modifier) {
+    if (LocalShowPlates.current) Txt(plates.perSideLabel(weight) ?: "Not loadable with your plates", Type.footnote.tabular(), modifier, LocalPalette.current.fg2, maxLines = 1)
+}
 
 /**
  * One set: its own weight and reps, prefilled from the prescription, an optional RPE, and a check that logs or clears it.
@@ -608,7 +609,7 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, p
             Icon(Icons.check, if (done) p.accent else p.fg3, 20.dp)
         }
     }
-    plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
+    if (LocalShowPlates.current) plates.perSideLabel(weight)?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
 }
 
 fun restLabel(ex: Exercise, setIndex: Int): String =

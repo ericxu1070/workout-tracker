@@ -75,6 +75,8 @@ fun SettingsScreen(
     onWeighInTime: (Int) -> Unit,
     onHealthConnect: (Boolean) -> Unit,
     onPlates: (Plates) -> Unit,
+    showPlates: Boolean = true,
+    onShowPlates: (Boolean) -> Unit = {},
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
     cardioGoalMin: Int = 150,
@@ -241,7 +243,8 @@ fun SettingsScreen(
             SettingsPage.Lifting -> {
                 GroupHeader("Bar and plates")
                 Group {
-                    StepRow("Bar", Fmt.lb(plates.bar), true, 96.dp, "Lighter bar", "Heavier bar",
+                    ToggleRow("Show plates", showPlates, true, onChange = onShowPlates)
+                    StepRow("Bar", Fmt.lb(plates.bar), false, 96.dp, "Lighter bar", "Heavier bar",
                         { onPlates(plates.copy(bar = (plates.bar - 5).coerceAtLeast(5))) }, { onPlates(plates.copy(bar = (plates.bar + 5).coerceAtMost(100))) })
                     Plates.SIZES.forEach { size ->
                         val n = plates.pairs[size] ?: 0
