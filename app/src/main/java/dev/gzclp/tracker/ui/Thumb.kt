@@ -24,33 +24,33 @@ import kotlin.math.tanh
 
 /**
  * How a theme paints the segmented control's thumb, a pill [lift] of the way (0 to 1) from resting in the bar to held up
- * under the finger.
+ * under the finger; a held glass thumb glows in [glow].
  */
 fun interface ThumbPainter {
-    fun DrawScope.paint(pill: RoundRect, color: Color, lift: Float)
+    fun DrawScope.paint(pill: RoundRect, color: Color, glow: Color, lift: Float)
 }
 
 /** A solid pill whether resting or lifted. */
-val SolidThumb = ThumbPainter { pill, color, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
+val SolidThumb = ThumbPainter { pill, color, _, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
 
 /**
- * Liquid Glass: at rest a solid pill of [color]; lifted, it turns to clear glass as a held iOS 26 thumb does, a faint frost lit by
- * Liquid Glass's sheen and rim ([glassSheen], [glassRim]), the labels under it bent by [glassLens], a glow of [color] around it.
+ * Liquid Glass: at rest a pill of [color]; lifted, it turns to clear glass as a held iOS 26 thumb does, a faint frost lit by
+ * Liquid Glass's sheen and rim ([glassSheen], [glassRim]), the labels under it bent by [glassLens], a glow of [glow] around it.
  */
-val GlassThumb = ThumbPainter { pill, color, lift ->
+val GlassThumb = ThumbPainter { pill, color, glow, lift ->
     val outline = Outline.Rounded(pill)
     if (lift > 0f) {
         // A circle stretched to the pill's proportions, so the glow hugs it evenly all round.
         val c = Offset(pill.left + pill.width / 2, pill.top + pill.height / 2)
         val r = pill.height / 2 * GLOW_REACH
-        scale(pill.width / pill.height, 1f, c) { drawCircle(Brush.radialGradient(listOf(color.copy(alpha = GLOW * lift), Color.Transparent), c, r), r, c) }
+        scale(pill.width / pill.height, 1f, c) { drawCircle(Brush.radialGradient(listOf(glow.copy(alpha = GLOW * lift), Color.Transparent), c, r), r, c) }
     }
     drawOutline(outline, lerp(color, GlassFill, lift))
     glassSheen(outline, lift)
     glassRim(outline, lift)
 }
 
-/** A held glass thumb's glow: [color] at this alpha at its center, fading out to [GLOW_REACH] times its own size. */
+/** A held glass thumb's glow: its glow color at this alpha at its center, fading out to [GLOW_REACH] times its own size. */
 private const val GLOW = 0.35f
 private const val GLOW_REACH = 2f
 

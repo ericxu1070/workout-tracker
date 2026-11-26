@@ -448,7 +448,7 @@ fun GuidedStretchPlayerScreen(
                 .fillMaxWidth()
                 .height(240.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(p.card).cardRim(p, 16.dp)
+                .background(p.card)
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
         ) {
@@ -619,7 +619,7 @@ private fun RoutineCompleteView(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(p.card).cardRim(p, 16.dp)
+                .background(p.card)
                 .padding(Space.lg),
             contentAlignment = Alignment.Center,
         ) {
@@ -687,7 +687,7 @@ fun MovePreviewDialog(
             Modifier
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(p.card).cardRim(p, 16.dp)
+                .background(p.card)
                 .clickable(enabled = false) {}
                 .padding(Space.lg),
         ) {

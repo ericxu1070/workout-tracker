@@ -119,6 +119,9 @@ class SwipeShots {
 
     @Test fun lightGlassScrolled() = scrolled(Palettes.light.glassed)
 
+    /** A theme with a colored page: its bars are glass tinted that color. */
+    @Test fun tokyoGlassScrolled() = scrolled(Palettes.tokyo.glassed)
+
     /**
      * Swipes the row showing [rowText] open and shoots it, then taps its trash and shoots the question over it, as the
      * app does: the row held open under a sheet that blurs the screen.

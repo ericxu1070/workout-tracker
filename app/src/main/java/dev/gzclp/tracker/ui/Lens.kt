@@ -50,7 +50,7 @@ fun Modifier.glassLens(pill: () -> RoundRect?, amount: () -> Float): Modifier =
 const val LENS_MAGNIFY = 0.08f
 
 /** How far in from the rim the bending reaches. */
-private val LensRim = 10.dp
+val LensRim = 10.dp
 
 /** The signed distance from p to the edge of the rounded rect [box] with corners of [radius] (negative inside), and its outward normal. */
 private const val EDGE = """
@@ -70,7 +70,7 @@ float2 normal(float2 p) {
  * Samples the content nearer the pill's center than each pixel (the magnify), and within [rim] of the edge, the more the nearer it,
  * out past the edge along the rim's normal: so the rim gathers in what lies just outside the pill, squeezed, as a glass edge bends it.
  */
-private const val LENS = """
+const val LENS = """
 uniform shader content;
 uniform float4 box;
 uniform float radius;

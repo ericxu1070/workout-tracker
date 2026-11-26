@@ -1,5 +1,9 @@
 package dev.gzclp.tracker.ui
 
+import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
+import android.graphics.Shader
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -21,6 +24,8 @@ import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
@@ -94,32 +99,46 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 
 /**
  * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: its patch of wallpaper and the backdrop over it,
- * blurred and frosted with [Palette.chrome], lit by a sheen and a rim. Only a held thumb refracts ([glassLens]): a pane at rest is frosted.
- * Where no backdrop is recorded it is solid, so text never sits on sharp content.
+ * blurred and frosted with [Palette.chrome], lit by a sheen and a rim. Where no backdrop is recorded it is solid, so text never sits on sharp content.
+ * A [bar] (a capsule: the tab bar, a switch floating over pages) is see-through: tinted only by [Palette.bar], blurred lightly, and on
+ * API 33 and up its rim bends what passes under it at rest too ([LENS]), as an iOS 26 tab bar's does; below, it is only blurred.
  */
 @Composable
-fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modifier {
+fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: Boolean = false): Modifier {
     val p = LocalPalette.current
     val window = LocalWindowInfo.current.containerSize
     val blur = rememberGraphicsLayer()
+    val lens = if (bar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) remember { RuntimeShader(LENS) } else null
     var at by remember { mutableStateOf(Offset.Zero) }
+    val tint = if (bar) p.bar else p.chrome
     return onGloballyPositioned { at = it.positionInRoot() }.clip(shape).drawWithContent {
         if (b != null) {
             // The wallpaper is smooth, so it needs no blur; only the content over it does.
             wallpaper(p, at, window)
             // Blurred at a quarter of its size and scaled back up: a blur this wide looks the same and costs a sixteenth.
-            if (blur.renderEffect == null) (BlurRadius.toPx() * BlurScale).let {
-                blur.renderEffect = BlurEffect(it, it, TileMode.Clamp)
-                blur.pivotOffset = Offset.Zero
-                blur.scaleX = 1 / BlurScale
-                blur.scaleY = 1 / BlurScale
+            val s = BlurScale
+            val radius = (if (bar) BarBlurRadius else BlurRadius).toPx() * s
+            // A lens records a rim's width more all round, so its edge gathers in what lies just outside the pane.
+            val m = if (lens != null) LensRim.toPx() else 0f
+            blur.pivotOffset = Offset.Zero
+            blur.scaleX = 1 / s
+            blur.scaleY = 1 / s
+            blur.renderEffect = if (lens == null) BlurEffect(radius, radius, TileMode.Clamp) else lens.run {
+                setFloatUniform("box", m * s, m * s, (m + size.width) * s, (m + size.height) * s)
+                setFloatUniform("radius", minOf(size.width, size.height) / 2 * s)
+                setFloatUniform("amount", 1f)
+                setFloatUniform("rim", LensRim.toPx() * s)
+                RenderEffect.createChainEffect(
+                    RenderEffect.createRuntimeShaderEffect(this, "content"),
+                    RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP),
+                ).asComposeRenderEffect()
             }
-            blur.record(IntSize(ceil(size.width * BlurScale).toInt(), ceil(size.height * BlurScale).toInt())) {
-                scale(BlurScale, Offset.Zero) { translate(b.origin.x - at.x, b.origin.y - at.y) { drawLayer(b.layer) } }
+            blur.record(IntSize(ceil((size.width + 2 * m) * s).toInt(), ceil((size.height + 2 * m) * s).toInt())) {
+                scale(s, Offset.Zero) { translate(b.origin.x - at.x + m, b.origin.y - at.y + m) { drawLayer(b.layer) } }
             }
-            drawLayer(blur)
-            drawRect(p.chrome)
-        } else drawRect(p.chrome.copy(alpha = 1f))
+            translate(-m, -m) { drawLayer(blur) }
+            drawRect(tint)
+        } else drawRect(tint.copy(alpha = 1f))
         drawContent()
     }.then(if (shape == RectangleShape) Modifier else Modifier.glassEdge(shape))
 }
@@ -175,17 +194,35 @@ fun DrawScope.glassRim(o: Outline, alpha: Float = 1f) = drawOutline(
     style = Stroke(2.dp.toPx()),
 )
 
-/** A glass card's hairline edge inside its clip; a slice of a card split across lazy items draws only its own [top] and [bottom]. */
-fun Modifier.cardRim(p: Palette, radius: Dp, top: Boolean = true, bottom: Boolean = true) = if (!p.glass) this else drawWithContent {
-    drawContent()
-    val w = 1.dp.toPx()
-    val r = radius.toPx()
-    val t = if (top) w / 2 else -r
-    val b = if (bottom) size.height - w / 2 else size.height + r
-    drawRoundRect(Color.White.copy(alpha = 0.10f), Offset(w / 2, t), Size(size.width - w, b - t), CornerRadius(r - w / 2), style = Stroke(w))
+private val BlurRadius = 24.dp
+
+/** A see-through bar's blur: light enough that what passes under it keeps its shapes. */
+private val BarBlurRadius = 12.dp
+
+/**
+ * Apple's vibrancy, roughly, for labels on a see-through glass bar: a soft glow of [Palette.bg] under them, so they hold while
+ * something brighter than the wallpaper and cards [Palette.bar] is fitted to (an accent button, a red pill) passes under. Only where
+ * glass floats over a backdrop.
+ */
+@Composable
+fun Modifier.halo(): Modifier {
+    val p = LocalPalette.current
+    if (!p.glass || LocalBackdrop.current == null) return this
+    val layer = rememberGraphicsLayer()
+    return drawWithContent {
+        val r = HaloRadius.toPx()
+        layer.renderEffect = BlurEffect(r, r, TileMode.Decal)
+        layer.colorFilter = ColorFilter.tint(p.bg.copy(alpha = HALO), BlendMode.SrcIn)
+        // Recorded with room all round, so the glow is not cut off at the label's edges.
+        val m = 2 * r
+        layer.record(IntSize(ceil(size.width + 2 * m).toInt(), ceil(size.height + 2 * m).toInt())) { translate(m, m) { this@drawWithContent.drawContent() } }
+        translate(-m, -m) { drawLayer(layer) }
+        drawContent()
+    }
 }
 
-private val BlurRadius = 24.dp
+private val HaloRadius = 4.dp
+private const val HALO = 0.8f
 private const val BlurScale = 0.25f
 
 /** The wallpaper spread over the window, drawn from [wall] with the window's top left at -[at]. */

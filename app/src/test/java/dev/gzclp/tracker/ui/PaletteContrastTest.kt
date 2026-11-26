@@ -91,9 +91,32 @@ class PaletteContrastTest {
             p.check("onAccent on stained glass over surface $i", p.onAccent, sheen.compositeOver(p.stain.compositeOver(s)), 4.5f)
             p.check("onRed on red stained glass over surface $i", p.onRed, sheen.compositeOver(p.redStain.compositeOver(s)), 4.5f)
         }
-        // The switch's and tab bar's resting pill: a solid accent, its label in onAccent.
-        assertEquals(1f, p.accent.alpha)
-        p.check("onAccent on the resting pill", p.onAccent, p.accent, 4.5f)
+    }
+
+    @Test fun barsAreSeeThroughAndTheirLabelsReadOverWhatScrollsUnder() = glass.forEach { p ->
+        // The tab bar and the floating switch are clearer than sheets, tinted the theme's own color; the Liquid Glass theme's at most 45% opaque.
+        assertTrue("${p.id} bar alpha ${p.bar.alpha} vs chrome ${p.chrome.alpha}", p.bar.alpha < p.chrome.alpha && p.bar.alpha >= CLEAREST_BAR / 100f)
+        assertEquals(p.bg.copy(alpha = p.bar.alpha), p.bar)
+        // The narrowed set: what scrolls under a bar is the wallpaper (plainest, each glow, all glows at once) and cards over it.
+        // Brighter blocks (accent and red pills, white knobs) are left to the labels' halo, a judgment made on the phone, not here.
+        val walls = listOf(p.bg) + p.glows.map { it.compositeOver(p.bg) } + p.glows.fold(p.bg) { u, g -> g.compositeOver(u) }
+        val sheen = Color.White.copy(alpha = SHEEN)
+        for (u in walls + walls.map { p.card.compositeOver(it) }) for (s in p.bar.compositeOver(u).let { listOf(it, sheen.compositeOver(it)) }) {
+            p.check("tab label on the bar", p.fg2, s, 4.5f)
+            p.check("current tab on its pill", p.fg, p.pill.compositeOver(s), 4.5f)
+            p.check("segment label on the track", p.fg, p.fill.compositeOver(s), 4.5f)
+            p.check("current segment on its pill", p.fg, p.pill.compositeOver(p.fill.compositeOver(s)), 4.5f)
+        }
+    }
+
+    @Test fun theLiquidGlassThemesBarsAreSeeThrough() = assertTrue(Palettes.glass.bar.alpha <= 0.45f)
+
+    @Test fun restingPillIsNeutralAndTheCurrentSegmentReadsOnIt() = themes.forEach { p ->
+        // One shade off the bar, never the accent: fg's own hue, so lighter on a dark bar and grayer on a light one.
+        assertEquals(p.fg.copy(alpha = p.pill.alpha), p.pill)
+        assertTrue("${p.id} pill alpha ${p.pill.alpha}", p.pill.alpha in 0.055f..0.125f)
+        // Surfaces include the fill-tinted track the pill slides on.
+        for ((i, s) in p.surfaces.withIndex()) p.check("fg on the resting pill over surface $i", p.fg, p.pill.compositeOver(s), 4.5f)
     }
 
     @Test fun flatControlsKeepTheirSolidFills() = flat.forEach { p ->
