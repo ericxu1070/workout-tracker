@@ -159,7 +159,7 @@ class Projector {
 }
 
 /** Shadow-to-light colour ramps for the body, the highlighted target area and each material, and the floor and shadow paints, for one palette. */
-private class Tones(p: Palette) {
+private class Tones(p: Palette, skin: Color? = null) {
     val body: IntArray
     val accent: IntArray
     private val metal: IntArray
@@ -171,7 +171,11 @@ private class Tones(p: Palette) {
     init {
         fun ramp(lo: Color, hi: Color) = IntArray(64) { lerp(lo, hi, it / 63f).toArgb() }
         val bg = p.bg; val fg = p.fg; val g = p.fg2; val a = p.accent
-        if (p.dark) {
+        if (skin != null) {
+            body = ramp(lerp(skin, bg, 0.55f), lerp(skin, fg, 0.3f))
+            accent = ramp(lerp(a, bg, 0.5f), lerp(a, Color.White, 0.15f))
+            metal = body; rubber = body; pad = body
+        } else if (p.dark) {
             body = ramp(lerp(fg, bg, 0.66f), fg)
             accent = ramp(lerp(a, bg, 0.62f), lerp(a, Color.White, 0.2f))
             metal = ramp(lerp(g, bg, 0.72f), lerp(g, Color.White, 0.15f))
@@ -186,6 +190,8 @@ private class Tones(p: Palette) {
         }
         val f = fg.copy(alpha = if (p.dark) 0.07f else 0.05f).toArgb()
         floor.shader = RadialGradient(0f, 0f, 1f, intArrayOf(f, f, f and 0xFFFFFF), floatArrayOf(0f, 0.7f, 1f), Shader.TileMode.CLAMP)
+        // The muscle map is zoomed past its floor, whose edge the view would cut off.
+        if (skin != null) floor.alpha = 0
         val s = if (p.dark) 0x70000000 else 0x48000000
         shadow.shader = RadialGradient(0f, 0f, 1f, intArrayOf(s, s / 2 and 0x7F000000, 0), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
     }
@@ -250,10 +256,10 @@ private class Scene {
     private val poly = IntArray(4)
     private var gearAt = IntArray(64)
 
-    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, focus: Focus?) {
+    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, focus: Focus?, zoom: Float = 1f) {
         val r = motion.radius
         val dist = r * 3.5f
-        pr.set(orbit.yaw, orbit.pitch, motion.center, dist, min(w, h) * 0.46f * sqrt(dist * dist - r * r) / r, w / 2, h / 2)
+        pr.set(orbit.yaw, orbit.pitch, motion.center, dist, zoom * min(w, h) * 0.46f * sqrt(dist * dist - r * r) / r, w / 2, h / 2)
         motion.pose(pose, d, breath)
 
         val ring = max(r, 1f)
@@ -550,7 +556,8 @@ private fun mix(a: Int, b: Int, t: Float): Int {
  * camera circles it again. It loops one rep at the lift's real tempo; [still] freezes it at one point of the rep and stops
  * the frame clock and the circling (thumbnails, tests). [time], read every frame, sets the seconds into the rep instead of
  * the frame clock, for a player that keeps the figure in step with its own timer. [focus] lights where a stretch is felt;
- * [mirror] shows the move done on the other side.
+ * [mirror] shows the move done on the other side. [zoom] scales the figure past fitting its whole motion, and [skin] colors
+ * the body (the muscle map's untrained shade) in place of the theme's.
  */
 @Composable
 fun FormView(
@@ -561,10 +568,12 @@ fun FormView(
     still: Float? = null,
     time: (() -> Double)? = null,
     orbit: Orbit = remember(motion) { Orbit(motion.yaw ?: DEFAULT_YAW) },
+    zoom: Float = 1f,
+    skin: Color? = null,
 ) {
     val p = LocalPalette.current
     val scene = remember { Scene() }
-    val tones = remember(p) { Tones(p) }
+    val tones = remember(p, skin) { Tones(p, skin) }
     var clock by remember { mutableLongStateOf(0L) }
     if (still == null) LaunchedEffect(motion, orbit) {
         val start = withFrameNanos { it }
@@ -590,7 +599,7 @@ fun FormView(
         val sec = clock / 1e9
         val d = still?.toDouble() ?: motion.tempo.at(time?.invoke() ?: sec)
         val breath = if (still != null) 0.0 else 0.5 - 0.5 * cos(2 * PI * sec / BREATH_SEC)
-        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus) }
+        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus, zoom) }
     }
 }
 
