@@ -1,6 +1,6 @@
-# Plateline
+# Repsilon
 
-Plateline is an Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
+Repsilon is an Android workout tracker with six programs: GZCLP (4 days, A1, B1, A2, B2), Bro split (5 days), Push, pull, legs (6 days), Upper, lower (4 days), Full body (3 days), and Chest, back, legs (3 days). GZCLP runs its T1, T2, and T3 progression with stage changes and resets. Every other program runs a 3-week cycle per exercise: 3×12, then 3×10 one step heavier, then 3×8 two steps heavier, then back to 3×12 at 5 lb over the last cycle's base if every heavy set reached 8.
 
 The app logs a weight and reps for every set, shows the next eight workouts and a month of past ones, charts each exercise's top set and estimated 1RM, tracks body weight (each morning's first weigh-in, a 7-day average, and a daily reminder set in Settings) so each lift can also chart its estimated 1RM as a multiple of body weight, and runs a rest timer that vibrates with the screen off.
 
@@ -66,7 +66,7 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew assembleDebug                # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug builds install as Plateline test (`dev.gzclp.tracker.debug`) next to the release app, with their own data (`./gradlew installDebug`). To try one with your log, copy `gzclp-log.jsonl` from the sync folder into a new folder and pick that folder under Restore log. Picking the real sync folder makes the debug build write its test workouts into it.
+Debug builds install as Repsilon test (`dev.gzclp.tracker.debug`) next to the release app, with their own data (`./gradlew installDebug`). To try one with your log, copy `gzclp-log.jsonl` from the sync folder into a new folder and pick that folder under Restore log. Picking the real sync folder makes the debug build write its test workouts into it.
 
 Screenshots of every screen in every theme:
 
@@ -82,7 +82,7 @@ No cable or computer needed. The app needs Android 12 or later.
 2. In Obtainium, tap Add App, paste `https://github.com/ericxu1070/workout-tracker`, and tap Add. Then tap Install.
 3. Obtainium checks for new versions and offers each update; tap Update to install it.
 
-The app was called GZCLP before v2.2. If you installed it then, keep your setup: the next update installs over it under the new name, Plateline, with your log intact.
+The app was called GZCLP before v2.2, then Plateline. If you installed it under either name, keep your setup: the next update installs over it under the new name, Repsilon, with your log intact.
 
 Without Obtainium, download the APK from [Releases](https://github.com/ericxu1070/workout-tracker/releases) and open it; you then install updates by hand the same way.
 

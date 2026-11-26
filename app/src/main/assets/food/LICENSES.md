@@ -1,6 +1,6 @@
 # Food Classifier and Nutrition Data Licenses
 
-This directory contains on-device machine learning models, label mappings, and nutritional data tables for the Plateline food recognition and calorie estimation feature.
+This directory contains on-device machine learning models, label mappings, and nutritional data tables for the Repsilon food recognition and calorie estimation feature.
 
 ---
 
