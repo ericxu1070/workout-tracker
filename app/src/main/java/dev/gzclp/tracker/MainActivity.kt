@@ -83,6 +83,15 @@ import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.BackStack
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.tabBarHeight
+import dev.gzclp.tracker.ui.Effect
+import dev.gzclp.tracker.ui.Feel
+import dev.gzclp.tracker.ui.LocalMotion
+import dev.gzclp.tracker.ui.Motion
+import dev.gzclp.tracker.ui.RippleClock
+import dev.gzclp.tracker.ui.RippleField
+import dev.gzclp.tracker.ui.effectsFor
+import dev.gzclp.tracker.ui.ripples
+import dev.gzclp.tracker.ui.watchTaps
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -122,7 +131,14 @@ class MainActivity : ComponentActivity() {
                 val style = if (palette.dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(style, style)
             }
-            GzTheme(palette) { CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates) { App(model) } }
+            val view = androidx.compose.ui.platform.LocalView.current
+            val motion = remember(model.loaded, model.animatorsOn) {
+                val fx = effectsFor(model.loaded, model.animatorsOn)
+                Motion(fx, RippleField().takeIf { fx.isNotEmpty() }, Feel(this, view).takeIf { Effect.Feel in fx })
+            }
+            GzTheme(palette) {
+                CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates, LocalMotion provides motion) { App(model) }
+            }
         }
         if (savedInstanceState == null) onNewIntent(intent)
     }
@@ -377,7 +393,9 @@ private fun App(model: AppModel) {
     // A pushed screen's pop is the [BackStack]'s, which shows it under the finger.
     LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
-    Box(Modifier.fillMaxSize()) {
+    val motion = LocalMotion.current
+    motion.ripples?.let { RippleClock(it) }
+    Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples)) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
         BackStack(
@@ -399,7 +417,7 @@ private fun App(model: AppModel) {
                 )
                 shown == Route.Settings || shown == Route.SettingsPage -> SettingsScreen(
                     started = state.started, programId = state.programId, increments = state.increments,
-                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, glass = model.glass, onGlass = model::chooseGlass,
+                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, loaded = model.loaded, onLoaded = model::chooseLoaded,
                     sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                     weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
                     onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = model::chooseTheme, onRest = model::setRest,

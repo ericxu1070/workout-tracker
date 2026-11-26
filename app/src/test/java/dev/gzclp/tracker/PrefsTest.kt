@@ -17,19 +17,28 @@ class PrefsTest {
         assertEquals("jade", Prefs(ApplicationProvider.getApplicationContext()).theme)
     }
 
-    @Test fun theOldLiquidGlassThemeLoadsAsMidnightWithGlassOn() {
+    @Test fun theOldLiquidGlassThemeLoadsAsMidnightInLoaded() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        assertEquals(false, Prefs(context).glass)
         context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE).edit().putString("theme", "glass").commit()
         val prefs = Prefs(context)
         assertEquals("midnight", prefs.theme)
-        assertEquals(true, prefs.glass)
-        // Glass stays on after choosing another theme, and off once switched off.
+        assertEquals(true, prefs.loaded)
+        // Loaded stays on after choosing another theme, and off once Performance is chosen.
         prefs.theme = "light"
-        assertEquals(true, Prefs(context).glass)
-        prefs.glass = false
-        assertEquals(false, Prefs(context).glass)
+        assertEquals(true, Prefs(context).loaded)
+        prefs.loaded = false
+        assertEquals(false, Prefs(context).loaded)
         assertEquals("light", Prefs(context).theme)
+    }
+
+    @Test fun theLiquidGlassSwitchCarriesOverToMotionAndAnUntouchedOneTakesTheDefault() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val raw = context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE)
+        assertEquals(Prefs.LOADED_BY_DEFAULT, Prefs(context).loaded)
+        raw.edit().putBoolean("glass", false).commit()
+        assertEquals(false, Prefs(context).loaded)
+        raw.edit().putBoolean("glass", true).commit()
+        assertEquals(true, Prefs(context).loaded)
     }
 
     @Test fun theBuildDefaultsToAthleticAndKeepsAChosenOne() {
