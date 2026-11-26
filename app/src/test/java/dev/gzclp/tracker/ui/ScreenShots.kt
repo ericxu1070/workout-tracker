@@ -207,13 +207,17 @@ class ScreenShots {
         }
     }
 
-    /** Each body through the lifts and some stretches (three of them lying on the back), from the side and three-quarters. */
+    /**
+     * Each body through the lifts and some stretches (three of them lying on the back, and the two seated ones it sinks into
+     * the floor furthest, at their deepest), from the side and three-quarters.
+     */
     @Test fun formBodyPoses() {
         val poses = listOf(
             "squat" to 1f, "deadlift" to 0f, "bench" to 0f, "ohp" to 1f, "pull_up" to 0f, "push_up" to 1f, "hips_pigeon" to 1f, "upper_back_foam_roll" to 0.5f,
             "spine_supine_twist" to 0.5f, "spine_iron_cross" to 0.5f, "hamstrings_legs_up_wall" to 0.5f,
+            "spine_seated_twist" to 0f, "hamstrings_pancake" to 0f,
         )
-        RuntimeEnvironment.setQualifiers("w450dp-h1850dp-420dpi")
+        RuntimeEnvironment.setQualifiers("w450dp-h2190dp-420dpi")
         try {
             dev.gzclp.tracker.form.Figure.on = true
             for (body in dev.gzclp.tracker.form.Figure.bodies) {
