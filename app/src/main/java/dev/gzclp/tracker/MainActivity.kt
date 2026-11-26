@@ -84,6 +84,7 @@ import dev.gzclp.tracker.ui.SessionScreen
 import dev.gzclp.tracker.ui.Tab
 import dev.gzclp.tracker.ui.homeTab
 import dev.gzclp.tracker.ui.TabFrame
+import dev.gzclp.tracker.ui.TabScreens
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.GlassTabBar
@@ -460,8 +461,8 @@ private fun App(model: AppModel) {
                     state, { closeActivities() }, ::closeActivities,
                     title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
                 )
-                else -> TabFrame(tab, { tab = it }) {
-                        when (tab) {
+                else -> TabFrame(tab, { tab = it }) { TabScreens(tab) { t ->
+                        when (t) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
@@ -530,7 +531,7 @@ private fun App(model: AppModel) {
                                     onOpen = { open(SheetState.Meal(it, today)) },
                                 )
                             }
-                        }
+                        } }
                 }
             }
         }

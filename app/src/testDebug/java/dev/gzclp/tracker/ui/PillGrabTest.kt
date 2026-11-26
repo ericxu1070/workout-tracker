@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Debug-only (ui-test-manifest): the pill on the tab bar and on a segmented control moves only for a finger that lands on it.
- * A drag that starts elsewhere on the bar leaves the selection and the pill (the selected semantics follow the pill) where they were.
+ * On a segmented control a drag that starts elsewhere leaves the selection and the pill (the selected semantics follow the pill) where they were.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
@@ -48,13 +48,24 @@ class PillGrabTest {
         rule.waitForIdle()
     }
 
-    @Test fun tabBarDragOffPillMovesNothing() {
+    /** A tab is chosen as the finger lands on it; the drag that follows moves the pill no further. */
+    @Test fun tabBarDragOffPillSelectsOnlyTheTouchedTab() {
         tabBar()
         drag("Exercises", 1.6f)
-        rule.onNodeWithText("Workout").assertIsSelected()
+        assertEquals(Tab.Exercises, tab)
         release()
-        assertEquals(Tab.Workout, tab)
-        rule.onNodeWithText("Workout").assertIsSelected()
+        assertEquals(Tab.Exercises, tab)
+        rule.onNodeWithText("Exercises").assertIsSelected()
+    }
+
+    @Test fun tabBarSelectsOnTouchDown() {
+        tabBar()
+        val b = rule.onNodeWithText("Food").fetchSemanticsNode().boundsInRoot
+        rule.onRoot().performTouchInput { down(b.center) }
+        rule.waitForIdle()
+        assertEquals(Tab.Food, tab)
+        release()
+        assertEquals(Tab.Food, tab)
     }
 
     @Test fun tabBarDragOnPillSelectsOnRelease() {
