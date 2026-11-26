@@ -19,3 +19,11 @@ fun SplashScreenView.leave(exit: SplashExit) {
     iconView?.animate()?.scaleX(exit.iconScale)?.scaleY(exit.iconScale)?.setDuration(exit.millis)?.setInterpolator(ease)
     animate().alpha(0f).setDuration(exit.millis).setInterpolator(ease).withEndAction { remove() }
 }
+
+/** Whether this process has shown a screen yet, so only a cold start plays the launch animation. */
+object Launch {
+    internal var shown = false
+
+    /** True for the first activity of this process, false for every warm start after it. */
+    fun cold(): Boolean = !shown.also { shown = true }
+}

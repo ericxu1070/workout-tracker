@@ -4,6 +4,7 @@ import android.graphics.drawable.AnimatedVectorDrawable
 import android.view.ContextThemeWrapper
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,5 +23,12 @@ class SplashTest {
         } finally {
             a.recycle()
         }
+    }
+
+    @Test fun onlyTheFirstScreenOfAProcessIsCold() {
+        Launch.shown = false
+        assertTrue(Launch.cold())
+        assertFalse(Launch.cold())
+        assertFalse(Launch.cold())
     }
 }

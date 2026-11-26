@@ -113,7 +113,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        splashScreen.setOnExitAnimationListener { it.leave(SplashExit.Fade) }
+        val cold = Launch.cold()
+        splashScreen.setOnExitAnimationListener { if (cold) it.leave(SplashExit.Fade) else it.remove() }
         setContent {
             val palette = model.palette(androidx.compose.foundation.isSystemInDarkTheme())
             LaunchedEffect(palette.dark) {
