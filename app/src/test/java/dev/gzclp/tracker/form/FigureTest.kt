@@ -80,6 +80,47 @@ class FigureTest {
         assertTrue("the crotch comes within ${"%.4f".format(least)} m of the back of the glutes", least > 0.03)
     }
 
+    /** Linear blending collapses a joint twisted far: the upper arm turns about half a turn over the top of a band pass. */
+    @Test fun theShouldersKeepTheirGirthHoweverTheArmsTurn() {
+        val ids = Catalog.all.map { it.id } + StretchMoves.ALL.map { it.id }
+        val p = Poser()
+        var least = Double.MAX_VALUE; var where = ""
+        for (s in SIDES) {
+            val arm = Bone.arm(s)
+            val joint = Figure.REST[arm].o
+            // The flesh around the shoulder, 5 to 10 cm from the joint, held by the chest or the upper arm.
+            val ring = (0 until mesh.verts).filter { Figure.lead[it] in listOf(Bone.CHEST.ordinal, arm.ordinal) && V(mesh.pos[it * 3] - joint.x, mesh.pos[it * 3 + 1] - joint.y, mesh.pos[it * 3 + 2] - joint.z).len in 0.05..0.10 }
+            for (id in ids) for (k in 0..20) {
+                Motions.of(id).pose(p, k / 20.0)
+                Figure.pose(p, pos)
+                val now = p[arm].o
+                for (i in ring) {
+                    val r = (at(i) - now).len / V(mesh.pos[i * 3] - joint.x, mesh.pos[i * 3 + 1] - joint.y, mesh.pos[i * 3 + 2] - joint.z).len
+                    if (r < least) { least = r; where = "$id d=${k / 20.0} $arm" }
+                }
+            }
+        }
+        println("FIGURE shoulder flesh keeps at least ${"%.2f".format(least)} of its reach from the joint, at $where")
+        // A twist collapsed through the joint kept a thirtieth. Linear blending still pinches a shoulder swung far overhead
+        // (the triceps stretch keeps a fifth), as it did before the twist was taken out of it.
+        assertTrue("the shoulder flesh falls to ${"%.2f".format(least)} of its reach from the joint at $where", least > 0.15)
+    }
+
+    /** The pieces are drawn unless the mesh is asked for, so opening a move must not wait on reading and fitting it. */
+    @Test fun thePiecesNeverReadTheMesh() {
+        val read = mutableListOf<String>()
+        val urls = System.getProperty("java.class.path").split(java.io.File.pathSeparator).map { java.io.File(it).toURI().toURL() }
+        // A fresh copy of the app's classes (over the JDK's alone), so what earlier tests loaded does not count.
+        val fresh = object : java.net.URLClassLoader(urls.toTypedArray(), null) {
+            override fun getResourceAsStream(name: String): java.io.InputStream? = super.getResourceAsStream(name).also { read += name }
+        }
+        val motions = fresh.loadClass(Motions::class.java.name)
+        val poser = fresh.loadClass(Poser::class.java.name)
+        val motion = motions.getMethod("of", String::class.java).invoke(motions.getField("INSTANCE").get(null), "squat")
+        motion.javaClass.getMethod("pose", poser, Double::class.java, Double::class.java).invoke(motion, poser.getConstructor().newInstance(), 0.5, 0.0)
+        assertTrue("opening the squat as the pieces read $read", read.none { it.endsWith(".bin") })
+    }
+
     @Test fun theWallCalfStretchLightsTheLeftCalfAlone() {
         val share = StretchMoves.WALL_CALF_STRETCH.focus!!.figure
         val lit = (0 until mesh.verts).filter { share[it] > 0.5f }.map { Bone.entries[Figure.lead[it]] }.toSet()

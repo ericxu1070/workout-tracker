@@ -157,6 +157,12 @@ class Poser {
     /** 0..1, how far into a breath: lifts the chest and shoulders a little. */
     var breath = 0.0
 
+    /** The twist in degrees each of the [Figure]'s twisting joints takes nearest: a move's own path, so a limb turned about half a turn never flips between frames. */
+    internal val twist = DoubleArray(2)
+
+    /** [Figure.pose]'s scratch: each bone's map from the rest mesh to this pose. */
+    internal val blend by lazy { FloatArray(Figure.blends * 12) }
+
     /** Extra mass carried (as a share of body weight) and where it sits, for balance. */
     internal var load = 0.0
     internal var loadAt = V.ZERO
@@ -368,11 +374,13 @@ class Poser {
     internal val bent = FloatArray(maxOf(Body.torso.mesh.verts, Body.leg.mesh.verts, Body.fist.mesh.verts, Body.flat.mesh.verts) * 3)
 
     /** Every point of the skin of [bones] in world space; a bone in a [Skin] gives the part of it that follows that bone most. */
-    internal inline fun skin(bones: List<Bone>, block: (Double, Double, Double) -> Unit) {
+    internal inline fun skin(bones: List<Bone>, height: Boolean = false, block: (Double, Double, Double) -> Unit) {
         if (Figure.on) {
             val p = posed
-            Figure.pose(this, p, only = bones)
-            for (i in 0 until Figure.mesh.verts) if (!p[i * 3].isNaN() && Bone.entries[Figure.lead[i]] in bones) block(p[i * 3].toDouble(), p[i * 3 + 1].toDouble(), p[i * 3 + 2].toDouble())
+            Figure.pose(this, p, only = bones, height = height)
+            val wanted = BooleanArray(Bone.entries.size).also { w -> for (b in bones) w[b.ordinal] = true }
+            val lead = Figure.lead
+            for (i in 0 until Figure.mesh.verts) if (wanted[lead[i]] && !p[i * 3].isNaN()) block(p[i * 3].toDouble(), p[i * 3 + 1].toDouble(), p[i * 3 + 2].toDouble())
             return
         }
         for (b in bones) if (has(b)) Body.of(b)?.each(this[b], block = block)
@@ -386,7 +394,7 @@ class Poser {
     /** The lowest point of the skin of [bones]. */
     fun lowest(bones: List<Bone> = Bone.entries): Double {
         var lo = Double.MAX_VALUE
-        skin(bones) { _, y, _ -> lo = min(lo, y) }
+        skin(bones, height = true) { _, y, _ -> lo = min(lo, y) }
         return lo
     }
 }

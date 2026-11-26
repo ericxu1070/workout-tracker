@@ -75,6 +75,9 @@ import dev.gzclp.tracker.stretch.StretchPlayerState
 import dev.gzclp.tracker.stretch.StretchRoutine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 
 /** The Workout tab's Stretching page: every routine to pick and start, each with its own page, then the move library. */
 @Composable
@@ -101,10 +104,12 @@ fun StretchScreen(
         selectedAreaFilter?.let { StretchMoves.forArea(it) } ?: StretchMoves.ALL
     }
 
-    // Each move's figure solves its balance once per launch: one a frame now, not mid-scroll on the first fling into the library.
-    // Only once Stretching is the page shown: as a neighbor page it stays composed, and the work would land on Lifting's frames.
+    // Each move's figure solves its balance once per launch: now and off the main thread, not mid-scroll on the first fling
+    // into the library. Only once Stretching is the page shown: as a neighbor page it stays composed, and Lifting needs the cores.
     val shown = settledHere()
-    LaunchedEffect(shown) { if (shown) for (move in StretchMoves.ALL) withFrameNanos { Motions.of(move) } }
+    LaunchedEffect(shown) {
+        if (shown) withContext(Dispatchers.Default) { for (move in StretchMoves.ALL) { ensureActive(); Motions.of(move) } }
+    }
 
     // Lazy, so the move library below the fold, a 3D figure per row, composes only as it scrolls in.
     LazyScreenFrame(bottom = {

@@ -1,10 +1,11 @@
-"""Builds the form viewer's full-body mesh, app/src/main/resources/dev/gzclp/tracker/form/body.bin.
+"""Builds the form viewer's full-body mesh, app/src/test/resources/dev/gzclp/tracker/form/body.bin.
 
 The source is MakeHuman's hm08 base mesh and default rig, both CC0 1.0 (see NOTICE), fetched at a pinned commit. The script
 keeps the body (no eyes, teeth or helpers), folds the rig's 163 bones into the figure's 19 (`Bone` in Rig.kt), bakes a
 closed-fist variant of each hand with the rig's own finger bones, decimates to the vertex count asked for (keeping a
 subset of the original vertices, so weights and fist positions carry over exactly), and writes each of the 19 bones'
-frame in the mesh's space. Figure.kt fits the mesh onto the Poser's skeleton when it loads.
+frame in the mesh's space. FigureBake (a unit test) fits the mesh onto the Poser's skeleton and writes the app's
+figure.bin from it: rebake after running this (BAKE=1 ./gradlew testDebugUnitTest --tests 'dev.gzclp.tracker.form.FigureBake').
 
 Run: uv run --python 3.12 --with numpy --with scipy --with pymeshlab python tools/body-mesh.py [verts]
 """
@@ -23,7 +24,7 @@ SHA = "a8bc2d54ff0ac92e78ff71431b1023eda42bf482"
 URL = f"https://raw.githubusercontent.com/makehumancommunity/makehuman/{SHA}/makehuman/data/"
 FILES = {"base.obj": "3dobjs/base.obj", "default.mhskel": "rigs/default.mhskel", "default_weights.mhw": "rigs/default_weights.mhw"}
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = ROOT / "app/src/main/resources/dev/gzclp/tracker/form/body.bin"
+OUT = ROOT / "app/src/test/resources/dev/gzclp/tracker/form/body.bin"
 CACHE = pathlib.Path.home() / ".cache/plateline-body" / SHA
 
 # MakeHuman's figure is 1.67 m in decimetres; this makes it the 1.75 m of Build.

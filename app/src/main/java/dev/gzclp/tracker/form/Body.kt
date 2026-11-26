@@ -12,7 +12,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** A closed mesh in its part's frame: positions and unit normals (x, y, z per vertex) and triangles wound counter-clockwise seen from outside. */
-class Mesh(val pos: FloatArray, val norm: FloatArray, val tri: ShortArray) {
+class Mesh(val pos: FloatArray, val norm: FloatArray, val tri: ShortArray, edges: IntArray? = null) {
     val verts: Int get() = pos.size / 3
     val tris: Int get() = tri.size / 3
 
@@ -21,11 +21,11 @@ class Mesh(val pos: FloatArray, val norm: FloatArray, val tri: ShortArray) {
 
     /**
      * Each edge once as six ints: one side's two vertices and triangle, then the other side's (-1 for an open edge).
-     * Faces that only share a corner's position (a crisp crease) still share the edge.
+     * Faces that only share a corner's position (a crisp crease) still share the edge. Given when already known (the [Figure]'s, baked).
      */
-    val edges: IntArray
+    val edges: IntArray = edges ?: welded()
 
-    init {
+    private fun welded(): IntArray {
         val weld = HashMap<Long, Int>()
         val id = IntArray(verts) { i ->
             val k = (pos[i * 3] * 1e4).roundToLong() * 4_000_003L * 4_000_003L + (pos[i * 3 + 1] * 1e4).roundToLong() * 4_000_003L + (pos[i * 3 + 2] * 1e4).roundToLong()
@@ -45,7 +45,7 @@ class Mesh(val pos: FloatArray, val norm: FloatArray, val tri: ShortArray) {
                 out[s + 3] = b; out[s + 4] = a; out[s + 5] = t
             }
         }
-        edges = out.toIntArray()
+        return out.toIntArray()
     }
 }
 

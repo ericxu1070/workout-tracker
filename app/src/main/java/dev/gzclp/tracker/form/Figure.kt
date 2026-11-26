@@ -2,36 +2,33 @@ package dev.gzclp.tracker.form
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 /**
  * The figure as one continuous mesh skinned to the 19 bones, drawn in place of [Body]'s pieces while [on]: MakeHuman's CC0
- * base mesh, made by tools/body-mesh.py (see NOTICE). It comes in the rig's own space and is fitted once onto [REST], a pose
- * close to the rig's own: each bone's part of it moves onto that bone and stretches to its length. Each frame every vertex
- * follows its bones (up to four) by linear blend skinning, and a closed hand swaps in a fist.
+ * base mesh, made by tools/body-mesh.py (see NOTICE). It comes in the rig's own space and is fitted onto [REST], a pose close
+ * to the rig's own, when it is baked into figure.bin (FigureBake): each bone's part of it moves onto that bone and stretches to
+ * its length. Each frame every vertex follows its bones (up to four) by linear blend skinning, and a closed hand swaps in a fist.
  */
 object Figure {
     /** Draws and solves the figure as this mesh rather than the pieces; off by default while it is on trial. */
     var on = false
 
-    val mesh: Mesh
+    /** figure.bin's layout, which FigureBake writes. */
+    internal const val FIGURE_VERSION = 1
+
+    /** How finely a twist runs down a twisting joint's child: in this many steps, each a bone of its own to the vertices at it. */
+    internal const val TWIST_STEPS = 64
+
+    val mesh: Mesh get() = Data.mesh
 
     /** Each vertex's bone it follows most, for [Poser.skin]. */
-    val lead: IntArray
+    val lead: IntArray get() = Data.lead
 
-    private val bones: ByteArray
-    private val weights: FloatArray
-    private val bind: Array<Frame>
-
-    /** Per vertex, its place among the hand vertices (-1 off the hands), and per hand vertex, which side it is on and its fist position and normal. */
-    private val slot: IntArray
-    private val left: BooleanArray
-    private val fist: FloatArray
-    private val fistNorm: FloatArray
+    /**
+     * The joints whose child's twist runs down it rather than blending linearly, parent then child: the shoulders, which twist
+     * furthest. (Not the elbows: their swing-twist split breaks down as they fold flat.)
+     */
+    internal val JOINTS = SIDES.map { Bone.CHEST to Bone.arm(it) }
 
     /** The rig's bind pose as Poser angles: arms 40° out, elbows bent 47°, palms toward the thighs, legs a little apart. */
     val REST = Poser().apply {
@@ -43,7 +40,7 @@ object Figure {
     }
 
     /** How long each bone is in Poser, from its joint to the next; 0 for an end bone, which keeps its size. */
-    private fun length(b: Bone) = when (b) {
+    internal fun length(b: Bone) = when (b) {
         Bone.PELVIS -> Build.PELVIS
         Bone.WAIST -> Build.WAIST
         Bone.CHEST -> Build.CHEST
@@ -55,120 +52,31 @@ object Figure {
         else -> 0.0
     }
 
-    init {
-        val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream("body.bin")!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
-        check(buf.int == 1) { "body.bin version" }
-        val nv = buf.int; val nt = buf.int; val nh = buf.int
-        fun v() = V(buf.float.toDouble(), buf.float.toDouble(), buf.float.toDouble())
-        val src = Array(Bone.entries.size) { Frame(v(), v(), v(), v()) to buf.float.toDouble() }
-        val raw = FloatArray(nv * 3) { buf.float }
-        bones = ByteArray(nv * 4).also { buf.get(it) }
-        weights = FloatArray(nv * 4) { (buf.get().toInt() and 0xFF) / 255f }
-        val tri = ShortArray(nt * 3) { buf.short }
-        val hand = IntArray(nh) { buf.short.toInt() and 0xFFFF }
-        val rawFist = FloatArray(nh * 3) { buf.float }
-        bind = Array(Bone.entries.size) { REST.f[it]!! }
-
-        /** Where the rig's point [i] of [from] lands once each of its bones' parts sits on that bone of [REST]. */
-        fun fit(from: FloatArray, at: Int, i: Int, out: FloatArray) {
-            val p = V(from[at * 3].toDouble(), from[at * 3 + 1].toDouble(), from[at * 3 + 2].toDouble())
-            var q = V.ZERO
-            for (k in 0..3) {
-                val w = weights[i * 4 + k]
-                if (w == 0f) continue
-                val b = bones[i * 4 + k].toInt()
-                val (s, len) = src[b]
-                val d = p - s.o
-                val y = d dot s.y
-                // The stretch runs from the joint to the next one, so what lies past either end keeps its shape.
-                val r = if (len > 0) length(Bone.entries[b]) / len else 1.0
-                q += bind[b].at(d dot s.x, y + (r - 1) * y.coerceIn(0.0, len), d dot s.z) * w.toDouble()
-            }
-            out[at * 3] = q.x.toFloat(); out[at * 3 + 1] = q.y.toFloat(); out[at * 3 + 2] = q.z.toFloat()
-        }
-
-        val pos = FloatArray(nv * 3)
-        for (i in 0 until nv) fit(raw, i, i, pos)
-        lead = IntArray(nv) { i -> bones[i * 4 + (0..3).maxBy { weights[i * 4 + it] }].toInt() }
-        wear(pos, Bone.TRUNK.take(3), Bone.PELVIS, Body.torso.mesh.profile, -0.03, 0.53)
-        for (s in SIDES) {
-            // Twice for the thigh: the second pass pulls its front back onto the loft's, which a deadlift's bar clears by a hair.
-            wear(pos, listOf(Bone.thigh(s)), Bone.thigh(s), Body.leg.mesh.profile, 0.04, 0.5)
-            wear(pos, listOf(Bone.thigh(s)), Bone.thigh(s), Body.leg.mesh.profile, 0.04, 0.5, Onto.FRONT)
-            wear(pos, listOf(Bone.shin(s)), Bone.shin(s), Body.leg.mesh.profile, 0.04, 0.4, Onto.SIDES, along = Build.THIGH)
-        }
-        mesh = Mesh(pos, normals(pos, tri), tri)
-        slot = IntArray(nv) { -1 }
-        for ((k, i) in hand.withIndex()) slot[i] = k
-        left = BooleanArray(nh) { pos[hand[it] * 3] > 0 }
-        fist = FloatArray(nh * 3)
-        for ((k, i) in hand.withIndex()) fit(rawFist, k, i, fist)
-        val closed = pos.copyOf()
-        for ((k, i) in hand.withIndex()) for (c in 0..2) closed[i * 3 + c] = fist[k * 3 + c]
-        val n = normals(closed, tri)
-        fistNorm = FloatArray(nh * 3) { n[hand[it / 3] * 3 + it % 3] }
-    }
-
-    /** Which of a loft's surfaces [wear] moves a part's flesh onto. */
-    private enum class Onto {
-        FRONT_AND_BACK,
-        /** The front only, where the back is flesh of its own (the glutes over the top of a thigh). */
-        FRONT,
-        SIDES,
-    }
-
     /**
-     * Moves the flesh of [group] in [pos] [onto] those surfaces of [loft] (the pieces' part in [frame]'s rest coordinates),
-     * level by level from [from] to [to] up it ([along] further up [loft]), fading in and out over [FADE] at the ends.
-     * The motions were tuned on the pieces, so a bar across the back or a bench under it has to find the mesh where it found them.
+     * How far (degrees) the child of [JOINTS]' joint [j] has twisted about its own length [a] since rest, apart from how it
+     * swings out from its parent; [at] is the joint at rest. Null until both are placed.
      */
-    private fun wear(pos: FloatArray, group: List<Bone>, frame: Bone, loft: Profile, from: Double, to: Double, onto: Onto = Onto.FRONT_AND_BACK, along: Double = 0.0) {
-        val f = REST[frame]
-        val ids = group.map { it.ordinal }
-        val sides = onto == Onto.SIDES
-        val local = Array(pos.size / 3) { val d = V(pos[it * 3].toDouble(), pos[it * 3 + 1].toDouble(), pos[it * 3 + 2].toDouble()) - f.o; V(d dot f.x, d dot f.y, d dot f.z) }
-        fun across(p: V) = if (sides) p.x else p.z
-        // The mesh's own two extremes at each level, from the vertices that follow the group most.
-        val n = ((to - from) / STEP).roundToInt() + 1
-        val low = DoubleArray(n) { Double.MAX_VALUE }
-        val high = DoubleArray(n) { -Double.MAX_VALUE }
-        for ((i, p) in local.withIndex()) if (lead[i] in ids) for (k in 0 until n) if (abs(p.y - from - k * STEP) < STEP) {
-            low[k] = min(low[k], across(p)); high[k] = max(high[k], across(p))
-        }
-        for ((i, p) in local.withIndex()) {
-            val share = (0..3).sumOf { if (bones[i * 4 + it].toInt() in ids) weights[i * 4 + it].toDouble() else 0.0 } *
-                ((p.y - from) / FADE).coerceIn(0.0, 1.0) * ((to - p.y) / FADE).coerceIn(0.0, 1.0)
-            if (share == 0.0) continue
-            val u = (p.y - from) / STEP
-            val k = u.toInt().coerceIn(0, n - 2)
-            if (low[k] > high[k] || low[k + 1] > high[k + 1]) continue // a level past the group's own flesh
-            val lo = lerp(low[k], low[k + 1], u - k); val hi = lerp(high[k], high[k + 1], u - k)
-            val (a, b, cz) = loft.ellipse(p.y + along)
-            val t = (across(p) - lo) / (hi - lo)
-            val c = when (onto) { Onto.FRONT_AND_BACK -> lerp(cz - b, cz + b, t); Onto.FRONT -> lerp(lo, cz + b, t); Onto.SIDES -> lerp(-a, a, t) }
-            val q = if (sides) f.at(p.x + share * (c - p.x), p.y, p.z) else f.at(p.x, p.y, p.z + share * (c - p.z))
-            pos[i * 3] = q.x.toFloat(); pos[i * 3 + 1] = q.y.toFloat(); pos[i * 3 + 2] = q.z.toFloat()
-        }
+    internal class Twist(val a: V, val twist: Double, val at: V)
+
+    internal fun twist(p: Poser, j: Int): Twist? = Data.twist(p, j)
+
+    /** How far the skin that follows [b] most reaches from it at rest: from the line between its joint and the next. */
+    internal fun reach(b: Bone) = Data.reach[b.ordinal]
+
+    /** How many bones the mesh's vertices follow: the 19, then each step down a twisting joint's child. */
+    internal val blends get() = Bone.entries.size + Data.stepJoint.size
+
+    /** Writes the 3×3 turn by [deg] degrees about the unit axis [k] into [out]. */
+    private fun turn(k: V, deg: Double, out: FloatArray) {
+        val c = kotlin.math.cos(deg * DEG); val sn = kotlin.math.sin(deg * DEG); val t = 1 - c
+        out[0] = (c + t * k.x * k.x).toFloat(); out[1] = (t * k.x * k.y - sn * k.z).toFloat(); out[2] = (t * k.x * k.z + sn * k.y).toFloat()
+        out[3] = (t * k.x * k.y + sn * k.z).toFloat(); out[4] = (c + t * k.y * k.y).toFloat(); out[5] = (t * k.y * k.z - sn * k.x).toFloat()
+        out[6] = (t * k.x * k.z - sn * k.y).toFloat(); out[7] = (t * k.y * k.z + sn * k.x).toFloat(); out[8] = (c + t * k.z * k.z).toFloat()
     }
 
-    private const val STEP = 0.02
-    private const val FADE = 0.06
-
-    /** Each vertex's normal from the faces around it, weighted by their area. */
-    private fun normals(pos: FloatArray, tri: ShortArray): FloatArray {
-        val n = FloatArray(pos.size)
-        for (t in tri.indices step 3) {
-            val a = tri[t] * 3; val b = tri[t + 1] * 3; val c = tri[t + 2] * 3
-            val ux = pos[b] - pos[a]; val uy = pos[b + 1] - pos[a + 1]; val uz = pos[b + 2] - pos[a + 2]
-            val vx = pos[c] - pos[a]; val vy = pos[c + 1] - pos[a + 1]; val vz = pos[c + 2] - pos[a + 2]
-            val nx = uy * vz - uz * vy; val ny = uz * vx - ux * vz; val nz = ux * vy - uy * vx
-            for (k in intArrayOf(a, b, c)) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz }
-        }
-        for (i in 0 until n.size / 3) {
-            val l = sqrt(n[i * 3] * n[i * 3] + n[i * 3 + 1] * n[i * 3 + 1] + n[i * 3 + 2] * n[i * 3 + 2]).coerceAtLeast(1e-12f)
-            for (k in 0..2) n[i * 3 + k] /= l
-        }
-        return n
+    /** [out] = [x] × [y], 3×3 matrices in rows, [x] read from [xo] with a row stride of [xs]. */
+    private fun times(x: FloatArray, xo: Int, xs: Int, y: FloatArray, out: FloatArray) {
+        for (i in 0..2) for (j in 0..2) out[i * 3 + j] = x[xo + i * xs] * y[j] + x[xo + i * xs + 1] * y[3 + j] + x[xo + i * xs + 2] * y[6 + j]
     }
 
     /**
@@ -176,54 +84,145 @@ object Figure {
      * way through a pose, a vertex follows only the bones [p] has placed so far, and gets NaN when it has none of them. Only
      * the vertices that follow [only] most are written; the rest keep what they had.
      */
-    fun pose(p: Poser, pos: FloatArray, norm: FloatArray? = null, only: List<Bone> = Bone.entries) {
-        // Per bone, the map from the rest mesh to this pose: its frame now after the inverse of its frame at rest, as a 3×4 matrix.
-        val m = FloatArray(Bone.entries.size * 12)
-        val placed = BooleanArray(Bone.entries.size) { p.has(Bone.entries[it]) }
-        for (b in Bone.entries) if (placed[b.ordinal]) {
-            val f = p[b]; val r = bind[b.ordinal]; val o = b.ordinal * 12
-            val fx = doubleArrayOf(f.x.x, f.x.y, f.x.z); val fy = doubleArrayOf(f.y.x, f.y.y, f.y.z); val fz = doubleArrayOf(f.z.x, f.z.y, f.z.z)
-            val rx = doubleArrayOf(r.x.x, r.x.y, r.x.z); val ry = doubleArrayOf(r.y.x, r.y.y, r.y.z); val rz = doubleArrayOf(r.z.x, r.z.y, r.z.z)
-            val ro = doubleArrayOf(r.o.x, r.o.y, r.o.z); val fo = doubleArrayOf(f.o.x, f.o.y, f.o.z)
-            for (i in 0..2) {
-                var t = fo[i]
-                for (j in 0..2) {
-                    val e = fx[i] * rx[j] + fy[i] * ry[j] + fz[i] * rz[j]
-                    m[o + i * 4 + j] = e.toFloat()
-                    t -= e * ro[j]
-                }
-                m[o + i * 4 + 3] = t.toFloat()
-            }
+    fun pose(p: Poser, pos: FloatArray, norm: FloatArray? = null, only: List<Bone> = Bone.entries, height: Boolean = false) = Data.pose(p, pos, norm, only, height)
+
+    /** The mesh and how it bends, read the first time it is drawn or solved, so the pieces never wait on it. */
+    private object Data {
+        val mesh: Mesh
+        val lead: IntArray
+        val reach = DoubleArray(Bone.entries.size)
+        private val bones: ByteArray
+        private val weights: FloatArray
+        private val bind = Array(Bone.entries.size) { REST.f[it]!! }
+
+        /**
+         * Past the 19 bones, the steps down the children of [JOINTS] that vertices sit at: which joint each is on, and how far
+         * down its child at rest, from the joint (0) to the far end (1). A vertex follows its step in place of the child.
+         */
+        val stepJoint: ByteArray
+        private val stepAlong: FloatArray
+
+        /** Per vertex, its place among the hand vertices (-1 off the hands), and per hand vertex, which side it is on and its fist position and normal. */
+        private val slot: IntArray
+        private val left: ByteArray
+        private val fist: FloatArray
+        private val fistNorm: FloatArray
+
+        init {
+            // Already fitted (FigureBake), so all there is to do is copy it out.
+            val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream("figure.bin")!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+            check(buf.int == FIGURE_VERSION) { "figure.bin version" }
+            val nv = buf.int; val nt = buf.int; val nh = buf.int; val ne = buf.int; val ns = buf.int
+            fun floats(n: Int) = FloatArray(n).also { buf.asFloatBuffer().get(it); buf.position(buf.position() + 4 * n) }
+            fun bytes(n: Int) = ByteArray(n).also { buf.get(it) }
+            val pos = floats(nv * 3); val norm = floats(nv * 3)
+            val tri = ShortArray(nt * 3).also { buf.asShortBuffer().get(it); buf.position(buf.position() + 2 * it.size) }
+            val edges = ShortArray(ne).also { buf.asShortBuffer().get(it); buf.position(buf.position() + 2 * ne) }
+            mesh = Mesh(pos, norm, tri, IntArray(ne) { edges[it].toInt() })
+            val leads = bytes(nv)
+            lead = IntArray(nv) { leads[it].toInt() }
+            bones = bytes(nv * 4)
+            stepJoint = bytes(ns)
+            stepAlong = floats(ns)
+            weights = bytes(nv * 4).let { w -> FloatArray(w.size) { (w[it].toInt() and 0xFF) / 255f } }
+            buf.asDoubleBuffer().get(reach); buf.position(buf.position() + 8 * reach.size)
+            val hand = ShortArray(nh).also { buf.asShortBuffer().get(it); buf.position(buf.position() + 2 * nh) }
+            slot = IntArray(nv) { -1 }
+            for (k in 0 until nh) slot[hand[k].toInt() and 0xFFFF] = k
+            left = bytes(nh)
+            fist = floats(nh * 3)
+            fistNorm = floats(nh * 3)
         }
-        val closedL = p.closed(L); val closedR = p.closed(R)
-        val rest = mesh.pos; val restNorm = mesh.norm
-        val a = FloatArray(12)
-        val wanted = BooleanArray(Bone.entries.size) { Bone.entries[it] in only }
-        for (i in 0 until mesh.verts) {
-            if (!wanted[lead[i]]) continue
-            a.fill(0f)
-            var sum = 0f
-            for (k in 0..3) {
-                val w = weights[i * 4 + k]
-                val b = bones[i * 4 + k].toInt()
-                if (w == 0f || !placed[b]) continue
-                sum += w
-                for (e in 0..11) a[e] += m[b * 12 + e] * w
+
+        internal fun twist(p: Poser, j: Int): Twist? {
+            val (parent, child) = JOINTS[j]
+            if (!p.has(child) || !p.has(parent)) return null
+            val c = p[parent]; val cb = bind[parent.ordinal]; val f = p[child]; val fb = bind[child.ordinal]
+            // Rest child space, to the child now, into parent space, back to rest.
+            fun q(v: V): V { val w = f.dir(v dot fb.x, v dot fb.y, v dot fb.z); return cb.dir(w dot c.x, w dot c.y, w dot c.z) }
+            val a = fb.y
+            val b = q(a)
+            val swing = kotlin.math.acos((a dot b).coerceIn(-1.0, 1.0)) / DEG
+            val k = (a cross b).unit(fb.x)
+            val u = fb.x
+            val tu = q(u).turn(k, -swing)
+            val turn = kotlin.math.atan2(a dot (u cross tu), u dot tu) / DEG
+            // A turn and that turn less a whole one bend the joint the same, but not the flesh along the bone: take the one nearest the move's own.
+            val twist = turn + 360 * kotlin.math.round((p.twist[j] - turn) / 360)
+            return Twist(a, twist, fb.o)
+        }
+
+        fun pose(p: Poser, pos: FloatArray, norm: FloatArray?, only: List<Bone>, height: Boolean) {
+            // Per bone, the map from the rest mesh to this pose: its frame now after the inverse of its frame at rest, as a 3×4 matrix.
+            val m = p.blend
+            val placed = BooleanArray(m.size / 12) { it < Bone.entries.size && p.has(Bone.entries[it]) }
+            for (b in Bone.entries) if (placed[b.ordinal]) {
+                val f = p[b]; val r = bind[b.ordinal]; val o = b.ordinal * 12
+                val fx = doubleArrayOf(f.x.x, f.x.y, f.x.z); val fy = doubleArrayOf(f.y.x, f.y.y, f.y.z); val fz = doubleArrayOf(f.z.x, f.z.y, f.z.z)
+                val rx = doubleArrayOf(r.x.x, r.x.y, r.x.z); val ry = doubleArrayOf(r.y.x, r.y.y, r.y.z); val rz = doubleArrayOf(r.z.x, r.z.y, r.z.z)
+                val ro = doubleArrayOf(r.o.x, r.o.y, r.o.z); val fo = doubleArrayOf(f.o.x, f.o.y, f.o.z)
+                for (i in 0..2) {
+                    var t = fo[i]
+                    for (j in 0..2) {
+                        val e = fx[i] * rx[j] + fy[i] * ry[j] + fz[i] * rz[j]
+                        m[o + i * 4 + j] = e.toFloat()
+                        t -= e * ro[j]
+                    }
+                    m[o + i * 4 + 3] = t.toFloat()
+                }
             }
-            if (sum < 0.999f) for (e in 0..11) a[e] /= sum
-            val h = slot[i]
-            val fisted = h >= 0 && (if (left[h]) closedL else closedR)
-            val vs = if (fisted) fist else rest; val ns = if (fisted) fistNorm else restNorm
-            val at = if (fisted) h * 3 else i * 3
-            val x = vs[at]; val y = vs[at + 1]; val z = vs[at + 2]
-            pos[i * 3] = a[0] * x + a[1] * y + a[2] * z + a[3]
-            pos[i * 3 + 1] = a[4] * x + a[5] * y + a[6] * z + a[7]
-            pos[i * 3 + 2] = a[8] * x + a[9] * y + a[10] * z + a[11]
-            if (norm == null) continue
-            val nx = ns[at]; val ny = ns[at + 1]; val nz = ns[at + 2]
-            norm[i * 3] = a[0] * nx + a[1] * ny + a[2] * nz
-            norm[i * 3 + 1] = a[4] * nx + a[5] * ny + a[6] * nz
-            norm[i * 3 + 2] = a[8] * nx + a[9] * ny + a[10] * nz
+            // Linear blending collapses a joint twisted far. The child's twist runs down it as it does in flesh instead: none at the
+            // joint, where it blends with the parent as only swung, and all at the far end, a step at a time.
+            val twists = Array(JOINTS.size) { twist(p, it) }
+            val r1 = FloatArray(9); val r = FloatArray(9)
+            for (s in stepJoint.indices) {
+                val j = stepJoint[s].toInt(); val c = JOINTS[j].second.ordinal * 12; val o = (Bone.entries.size + s) * 12
+                placed[Bone.entries.size + s] = placed[c / 12]
+                if (!placed[c / 12]) continue
+                val tw = twists[j]
+                if (tw == null) { m.copyInto(m, o, c, c + 12); continue }
+                turn(tw.a, -tw.twist * (1 - stepAlong[s]), r1)
+                times(m, c, 4, r1, r)
+                val qx = tw.at.x.toFloat() - (r1[0] * tw.at.x + r1[1] * tw.at.y + r1[2] * tw.at.z).toFloat()
+                val qy = tw.at.y.toFloat() - (r1[3] * tw.at.x + r1[4] * tw.at.y + r1[5] * tw.at.z).toFloat()
+                val qz = tw.at.z.toFloat() - (r1[6] * tw.at.x + r1[7] * tw.at.y + r1[8] * tw.at.z).toFloat()
+                for (row in 0..2) {
+                    m[o + row * 4] = r[row * 3]; m[o + row * 4 + 1] = r[row * 3 + 1]; m[o + row * 4 + 2] = r[row * 3 + 2]
+                    m[o + row * 4 + 3] = m[c + row * 4] * qx + m[c + row * 4 + 1] * qy + m[c + row * 4 + 2] * qz + m[c + row * 4 + 3]
+                }
+            }
+            val closedL = p.closed(L); val closedR = p.closed(R)
+            val rest = mesh.pos; val restNorm = mesh.norm
+            val a = FloatArray(12)
+            val wanted = BooleanArray(Bone.entries.size) { Bone.entries[it] in only }
+            for (i in 0 until mesh.verts) {
+                if (!wanted[lead[i]]) continue
+                a.fill(0f)
+                var sum = 0f
+                for (k in 0..3) {
+                    val w = weights[i * 4 + k]
+                    val b = bones[i * 4 + k].toInt() and 0xFF
+                    if (w == 0f || !placed[b]) continue
+                    sum += w
+                    // Only the height row of each vertex's blend, when that is all that is asked for.
+                    if (height) for (e in 4..7) a[e] += m[b * 12 + e] * w else for (e in 0..11) a[e] += m[b * 12 + e] * w
+                }
+                if (sum < 0.999f) for (e in 0..11) a[e] /= sum
+                val h = slot[i]
+                val fisted = h >= 0 && (if (left[h].toInt() != 0) closedL else closedR)
+                val vs = if (fisted) fist else rest; val ns = if (fisted) fistNorm else restNorm
+                val at = if (fisted) h * 3 else i * 3
+                val x = vs[at]; val y = vs[at + 1]; val z = vs[at + 2]
+                if (height) { pos[i * 3 + 1] = a[4] * x + a[5] * y + a[6] * z + a[7]; pos[i * 3] = if (sum == 0f) Float.NaN else 0f; continue }
+                pos[i * 3] = a[0] * x + a[1] * y + a[2] * z + a[3]
+                pos[i * 3 + 1] = a[4] * x + a[5] * y + a[6] * z + a[7]
+                pos[i * 3 + 2] = a[8] * x + a[9] * y + a[10] * z + a[11]
+                if (norm == null) continue
+                val nx = ns[at]; val ny = ns[at + 1]; val nz = ns[at + 2]
+                norm[i * 3] = a[0] * nx + a[1] * ny + a[2] * nz
+                norm[i * 3 + 1] = a[4] * nx + a[5] * ny + a[6] * nz
+                norm[i * 3 + 2] = a[8] * nx + a[9] * ny + a[10] * nz
+            }
         }
     }
 }
