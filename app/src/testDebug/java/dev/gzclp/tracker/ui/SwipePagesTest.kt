@@ -7,17 +7,21 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.engine.Activities
 import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
@@ -77,6 +81,28 @@ class SwipePagesTest {
         selected("Cardio")
     }
 
+    @Test fun draggingTheThumbAcrossTwoSegments() {
+        workout()
+        rule.onNodeWithText("Lifting").performTouchInput { swipe(center, center + Offset(width * 2f, 0f)) }
+        rule.waitForIdle()
+        assertEquals(2, mode)
+        rule.onNodeWithText("Stretching page").assertIsDisplayed()
+    }
+
+    @Test fun scrubbingAChartStaysOnItsPage() {
+        val now = OffsetDateTime.parse("2026-11-25T18:00:00-08:00")
+        val state = demo(now)
+        mode = 1
+        rule.setContent {
+            WorkoutPages(mode, { mode = it }) { page ->
+                if (page == 1) CardioScreen(state, now.toLocalDate(), 150, { mode = it }, {}, {}, {}, {}, {}) else ScreenFrame { WorkoutSwitch(page) { mode = it } }
+            }
+        }
+        rule.onNodeWithContentDescription("This week", substring = true).performTouchInput { swipeLeft() }
+        rule.waitForIdle()
+        assertEquals(1, mode)
+    }
+
     @Test fun anOpenSheetHoldsThePage() {
         workout(sheet = true)
         rule.onRoot().performTouchInput { swipeLeft() }
@@ -84,13 +110,16 @@ class SwipePagesTest {
         assertEquals(0, mode)
     }
 
+    private fun demo(now: OffsetDateTime) = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() }).run {
+        dispatch(now) { Commands.setup(Lift.entries.associateWith { 100 }, Programs.GZCLP) }
+        for (d in 1..2L) dispatch(now) { Commands.logCardio(it, null, Activities.all.first(), now.minusDays(d), 1800, null, null, null, now) }
+        state.value
+    }
+
     @Test fun swipingHistoryChangesTheView() {
-        val state = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() }).run {
-            dispatch(OffsetDateTime.parse("2026-11-25T18:00:00-08:00")) { Commands.setup(Lift.entries.associateWith { 100 }, Programs.GZCLP) }
-            state.value
-        }
+        val state = demo(OffsetDateTime.parse("2026-11-25T18:00:00-08:00"))
         var view by mutableStateOf(HistoryView.Week)
-        rule.setContent { HistoryScreen(state, view, { view = it }, {}, {}, LocalDate.of(2026, 11, 25)) { Txt("Week page", Type.body); Spacer(Modifier.height(600.dp)) } }
+        rule.setContent { HistoryScreen(state, view, { view = it }, {}, {}, LocalDate.of(2026, 11, 25)) { Txt("Week page", Type.body) } }
         rule.onRoot().performTouchInput { swipeLeft() }
         rule.waitForIdle()
         assertEquals(HistoryView.Month, view)

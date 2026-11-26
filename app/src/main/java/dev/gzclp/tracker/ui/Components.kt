@@ -357,9 +357,12 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                         if (pager != null) pager.animateScrollToPage(to, animationSpec = SegmentSpring)
                         else { select(to); own.animateTo(to.toFloat(), SegmentSpring) }
                     }
-                    moves.trySend((slop.position.x - down.position.x) / segment)
-                    horizontalDrag(slop.id) { moves.trySend((it.position.x - it.previousPosition.x) / segment); it.consume() }
-                    moves.close()
+                    try {
+                        moves.trySend((slop.position.x - down.position.x) / segment)
+                        horizontalDrag(slop.id) { moves.trySend((it.position.x - it.previousPosition.x) / segment); it.consume() }
+                    } finally {
+                        moves.close()
+                    }
                 }
             },
     ) {

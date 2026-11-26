@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -60,13 +61,16 @@ import kotlin.math.roundToLong
 @Composable
 fun WorkoutSwitch(mode: Int, onSelect: (Int) -> Unit) {
     val pager = LocalPages.current
-    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) }, pager?.let { Modifier.pinned(it, mode) } ?: Modifier, pager)
+    // Pinned, every page's copy sits in the same spot; only the current page's is read out.
+    val here = pager?.let { Modifier.pinned(it, mode).then(if (it.currentPage == mode) Modifier else Modifier.clearAndSetSemantics {}) } ?: Modifier
+    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) }, here, pager)
 }
 
 /** The Workout tab's Lifting, Cardio and Stretching screens as pages: swipe between them, or tap or drag their switch. */
 @Composable
 fun WorkoutPages(mode: Int, onMode: (Int) -> Unit, page: @Composable (Int) -> Unit) =
-    Pages(rememberPages(mode, 3, onMode), Modifier.fillMaxSize(), page)
+    // All three stay composed: a thumb dragged from Lifting to Stretching outlives its page sliding off screen.
+    Pages(rememberPages(mode, 3, onMode), Modifier.fillMaxSize(), beyond = 2, page = page)
 
 /** Finished sessions whose own local start date falls in the week from [monday], newest first. */
 fun AppState.cardioWeek(monday: LocalDate): List<Cardio> =

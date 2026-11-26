@@ -45,13 +45,13 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
     return pager
 }
 
-/** Swipeable pages that settle on [SegmentSpring]; a [Segmented] given the same [pager] follows the swipe. */
+/** Swipeable pages that settle on [SegmentSpring]; a [Segmented] given the same [pager] follows the swipe. [beyond] pages on each side stay composed. */
 @Composable
-fun Pages(pager: PagerState, modifier: Modifier = Modifier, page: @Composable (Int) -> Unit) =
+fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, page: @Composable (Int) -> Unit) =
     remember { mutableIntStateOf(0) }.let { holds ->
         CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
             HorizontalPager(
-                pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0,
+                pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = beyond,
                 flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
             ) { page(it) }
         }
