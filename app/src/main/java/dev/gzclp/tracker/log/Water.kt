@@ -7,7 +7,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
 /**
  * Water tracking logic, commands, and pace reminder evaluation.
@@ -19,7 +18,6 @@ object WaterLog {
     const val MIN_REMINDER_INTERVAL_MINUTES = 90L
     const val ACTIVE_HOURS = 14
     val DEFAULT_WAKE_TIME: LocalTime = LocalTime.of(7, 0)
-    const val ML_PER_OZ = 29.5735
 
     const val ML_PER_KG = 30
     const val LIFT_ML_PER_HOUR = 500
@@ -51,7 +49,7 @@ object WaterLog {
     fun goalMl(state: AppState, day: LocalDate, override: Int?): Int = override ?: recommendedMl(state, day)
 
     /** A volume as "250 ml · 8.5 oz". */
-    fun formatVolume(ml: Int): String = "$ml ml · %.1f oz".format(Locale.US, ml / ML_PER_OZ)
+    fun formatVolume(ml: Int): String = "$ml ml"
 
     /** Returns all water entries for [day] (or all if null), chronologically ordered. */
     fun entriesForDay(state: AppState, day: LocalDate? = null): List<WaterLogged> {

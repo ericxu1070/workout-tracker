@@ -14,7 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.awaitVerticalDragOrCancellation
+import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,7 +72,6 @@ import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
-import java.util.Locale
 import kotlin.math.roundToInt
 
 data class Point(val x: Float, val y: Float)
@@ -219,9 +219,9 @@ fun interpolatePoints(cupSizeMl: Int): List<Point> {
 }
 
 fun vesselName(cupSizeMl: Int): String = when {
-    cupSizeMl <= 175 -> "Espresso Cup"
+    cupSizeMl <= 175 -> "Espresso cup"
     cupSizeMl <= 425 -> "Tumbler"
-    cupSizeMl <= 650 -> "Tall Glass"
+    cupSizeMl <= 650 -> "Tall glass"
     cupSizeMl <= 875 -> "Bottle"
     else -> "Jug"
 }
@@ -327,8 +327,7 @@ fun CupSizeSlider(
 
 /**
  * A slider of [count] + 1 stops. The fill runs from the start, or from stop [from] with a tick there for a value that
- * goes both ways. A press on the track jumps there; a drag that starts on the thumb keeps its grab offset. [onRelease]
- * runs when a drag ends with the finger lifted, and as the accessibility action named [releaseLabel].
+ * goes both ways. A press on the track jumps there; a drag that starts on the thumb keeps its grab offset.
  */
 @Composable
 fun StepSlider(
@@ -338,14 +337,11 @@ fun StepSlider(
     description: String,
     modifier: Modifier = Modifier,
     from: Int? = null,
-    releaseLabel: String? = null,
-    onRelease: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val frac = (stop.toFloat() / count.coerceAtLeast(1)).coerceIn(0f, 1f)
     val current by rememberUpdatedState(stop)
     val change by rememberUpdatedState(onStop)
-    val release by rememberUpdatedState(onRelease)
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -354,7 +350,6 @@ fun StepSlider(
                 contentDescription = description
                 progressBarRangeInfo = ProgressBarRangeInfo(stop.toFloat(), 0f..count.toFloat(), count - 1)
                 setProgress { change(it.roundToInt().coerceIn(0, count)); true }
-                if (releaseLabel != null) customActions = listOf(CustomAccessibilityAction(releaseLabel) { release(); true })
             }
             .pointerInput(count) {
                 val thumb = 28.dp.toPx()
@@ -367,11 +362,10 @@ fun StepSlider(
                     change(stopAt(down.position.x + grab))
                     val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
                     change(stopAt(slop.position.x + grab))
-                    val lifted = horizontalDrag(slop.id) {
+                    horizontalDrag(slop.id) {
                         change(stopAt(it.position.x + grab))
                         it.consume()
                     }
-                    if (lifted) release()
                 }
             },
         contentAlignment = Alignment.CenterStart,
@@ -419,6 +413,15 @@ fun InteractiveCup(
             label = "phase",
         ).value
     } else 0f
+    // The whole cup, from a tap on it or on its pill: it fills and drains as the amount logs.
+    fun logFull() {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onLogWater(cupSizeMl)
+        scope.launch {
+            settle.snapTo(1f)
+            settle.animateTo(0f, tween(420, easing = EaseOutQuart))
+        }
+    }
 
     Column(
         modifier = modifier,
@@ -452,8 +455,6 @@ fun InteractiveCup(
                 .pointerInput(cupSizeMl) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        scope.launch { settle.snapTo(0f) }
-                        isDragging = true
                         val h = size.height.toFloat()
                         val bottomY = h * 0.92f
                         val topY = h * 0.15f
@@ -470,18 +471,22 @@ fun InteractiveCup(
                             }
                         }
 
-                        updateFraction(down.position.y)
-
-                        var change = awaitVerticalDragOrCancellation(down.id)
-                        // A tap lands at some height too; only a drag logs.
-                        val dragged = change != null
-                        while (change != null && change.pressed) {
-                            updateFraction(change.position.y)
-                            change.consume()
-                            change = awaitVerticalDragOrCancellation(change.id)
+                        // A tap logs the whole cup; only a drag past the touch slop pours a partial amount.
+                        val slop = awaitVerticalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() }
+                        if (slop == null) {
+                            val up = currentEvent.changes.firstOrNull { it.id == down.id }
+                            if (up != null && !up.pressed && !up.isConsumed) logFull()
+                            return@awaitEachGesture
+                        }
+                        scope.launch { settle.snapTo(0f) }
+                        isDragging = true
+                        updateFraction(slop.position.y)
+                        verticalDrag(slop.id) {
+                            updateFraction(it.position.y)
+                            it.consume()
                         }
 
-                        val logged = dragged && fillFraction >= 0.10f
+                        val logged = fillFraction >= 0.10f
                         if (logged) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onLogWater((fillFraction * cupSizeMl).roundToInt())
@@ -506,6 +511,8 @@ fun InteractiveCup(
                 isDragging = isDragging,
             )
         }
+        Spacer(Modifier.height(Space.md))
+        PillButton("Log ${WaterLog.formatVolume(cupSizeMl)}", ::logFull, primary = true)
     }
 }
 
@@ -553,14 +560,9 @@ fun WaterDailyRing(
                 "${totalMl} / ${goalMl} ml",
                 Type.title2.tabular(),
             )
-            Txt(
-                "%.1f / %.1f oz".format(Locale.US, totalMl / WaterLog.ML_PER_OZ, goalMl / WaterLog.ML_PER_OZ),
-                Type.footnote.tabular(),
-                color = p.fg2,
-            )
-            // Pace is a status, not a control: fg2, red only when far behind. Null [deficitMl] means no pace to show.
+            // Pace is a status, not a control: fg2, red only when far behind. Null [deficitMl] means no pace to show; a full ring says the goal is reached.
             val paceText = when {
-                totalMl >= goalMl -> "Goal reached"
+                totalMl >= goalMl -> null
                 deficitMl == null -> null
                 deficitMl > 0 -> "$deficitMl ml behind pace"
                 else -> "On pace"

@@ -48,8 +48,9 @@ class DeclutterTest {
     }
 
     @Test fun countSheetIsJustTheQuestionAndItsAnswers() {
-        rule.setContent { OpenSessionCountSheet({}, {}, {}) }
-        rule.onNodeWithText("Yes, count toward program").assertExists()
+        rule.setContent { OpenSessionCountSheet({}, {}) }
+        rule.onNodeWithText("Count it").assertExists()
+        rule.onNodeWithText("Keep it off plan").assertExists()
         rule.onAllNodesWithText("strength model", substring = true).assertCountEquals(0)
     }
 }

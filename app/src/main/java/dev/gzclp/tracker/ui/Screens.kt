@@ -610,7 +610,8 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, p
 }
 
 fun restLabel(ex: Exercise, setIndex: Int): String =
-    "Rest after ${ex.name.lowercase()} " + if (setIndex == ex.scheme.sets) "last set" else "set $setIndex"
+    "Rest after ${ex.name.lowercase()} " + // A no-break space keeps "set 3" whole when the label wraps.
+        if (setIndex == ex.scheme.sets) "last\u00A0set" else "set\u00A0$setIndex"
 
 fun unloggedSets(state: AppState): Int {
     if (state.active == null) return 0

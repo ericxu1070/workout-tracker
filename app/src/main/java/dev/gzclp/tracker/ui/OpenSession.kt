@@ -305,63 +305,22 @@ fun OpenSessionStartSheet(
     onStartBlank: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Txt("Open session", Type.title2)
-        Spacer(Modifier.height(Space.xl))
-
-        PillButton(
-            "Start ${state.nextDay.title}",
-            onClick = onStartFromToday,
-            modifier = Modifier.fillMaxWidth(),
-            primary = true,
-            icon = Icons.dumbbell,
-        )
-        Spacer(Modifier.height(Space.md))
-        PillButton(
-            "Start blank",
-            onClick = onStartBlank,
-            modifier = Modifier.fillMaxWidth(),
-            icon = Icons.plus,
-        )
-
-        Spacer(Modifier.height(Space.xl))
-        SmallPill("Cancel", onDismiss)
-    }
+    SheetTitle("Open session", null)
+    PillButton("Start ${state.nextDay.title}", onStartFromToday, Modifier.fillMaxWidth(), primary = true, icon = Icons.dumbbell)
+    PillButton("Start blank", onStartBlank, Modifier.fillMaxWidth(), onSurface = true, icon = Icons.plus)
+    PillButton("Cancel", onDismiss, Modifier.fillMaxWidth(), onSurface = true)
 }
 
-/** Sheet shown at finish: "Count toward your program?" */
+/** Sheet shown when a session with logged sets finishes: "Count toward your program?" */
 @Composable
 fun OpenSessionCountSheet(
     onYes: () -> Unit,
     onNo: () -> Unit,
-    onDismiss: () -> Unit,
 ) {
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Txt("Count toward your program?", Type.title2)
-        Spacer(Modifier.height(Space.xxl))
-
-        PillButton(
-            "Yes, count toward program",
-            onClick = onYes,
-            modifier = Modifier.fillMaxWidth(),
-            primary = true,
-        )
-        Spacer(Modifier.height(Space.md))
-
-        PillButton(
-            "No, off-plan session",
-            onClick = onNo,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(Space.lg))
-
-        SmallPill("Cancel", onDismiss)
+    SheetTitle("Count toward your program?", null)
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+        PillButton("Keep it off plan", onNo, Modifier.weight(1f), onSurface = true)
+        PillButton("Count it", onYes, Modifier.weight(1f), primary = true)
     }
 }
 
@@ -397,7 +356,7 @@ fun AddExerciseSheet(
                 .background(p.fill).padding(horizontal = Space.md),
             contentAlignment = Alignment.CenterStart,
         ) {
-            if (query.isEmpty()) Txt("Search exercises…", Type.body, color = p.fg3)
+            if (query.isEmpty()) Txt("Search exercises", Type.body, color = p.fg3)
             BasicTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -461,27 +420,23 @@ fun OpenSessionScreen(
     val p = LocalPalette.current
     val a = state.active
     var showAddExercise by remember { mutableStateOf(false) }
+    // Finish stays quiet until a set is logged; a session with nothing logged ends without asking whether it counts.
+    val anyLogged = a?.sets.orEmpty().isNotEmpty()
 
     ScreenFrame(bottom = {
         BottomBar {
             PillButton(
                 "Finish session",
-                onClick = { OpenSessionManager.showCountSheet = true },
+                onClick = { if (anyLogged) OpenSessionManager.showCountSheet = true else onFinish(false) },
                 modifier = Modifier.weight(1f),
-                primary = true,
+                primary = anyLogged,
             )
         }
     }) {
         Spacer(Modifier.height(Space.xxl))
-        // The gear and the switch sit in the Workout header above, so adding an exercise sits with the title.
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Txt("Open session", Type.largeTitle)
-                val elapsed = if (a != null) Duration.between(a.startedAt, now).seconds else 0L
-                Txt(Fmt.clock(elapsed) + " elapsed", Type.subhead.tabular(), color = p.fg2)
-            }
-            SmallPill("Add exercise", { showAddExercise = true })
-        }
+        Txt("Open session", Type.largeTitle)
+        val elapsed = if (a != null) Duration.between(a.startedAt, now).seconds else 0L
+        Txt(Fmt.clock(elapsed) + " elapsed", Type.subhead.tabular(), color = p.fg2)
 
         if (OpenSessionManager.exercises.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
@@ -513,10 +468,11 @@ fun OpenSessionScreen(
                     onRemoveExercise = { OpenSessionManager.removeExercise(openEx.exercise.id) },
                 )
             }
+            Spacer(Modifier.height(Space.x3))
+            PillButton("Add exercise", { showAddExercise = true }, Modifier.fillMaxWidth(), icon = Icons.plus)
         }
 
         Spacer(Modifier.height(Space.xxl))
-        SmallPill("+ Add another exercise", { showAddExercise = true }, Modifier.align(Alignment.CenterHorizontally))
         WeeklyVolumeSection(state)
     }
 
@@ -541,7 +497,6 @@ fun OpenSessionScreen(
                 OpenSessionManager.showCountSheet = false
                 onFinish(false)
             },
-            onDismiss = { OpenSessionManager.showCountSheet = false },
         )
     }
 }
@@ -679,7 +634,7 @@ fun OpenExerciseCard(
 
         Spacer(Modifier.height(Space.sm))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            SmallPill("+ Add set", onAddSet)
+            SmallPill("Add set", onAddSet)
             if (openEx.setsCount > 1) {
                 SmallPill("- Remove set", onRemoveSet)
             }

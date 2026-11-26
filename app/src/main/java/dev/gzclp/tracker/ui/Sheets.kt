@@ -139,7 +139,7 @@ sealed interface SheetState {
 }
 
 @Composable
-private fun SheetTitle(title: String, body: String?) {
+fun SheetTitle(title: String, body: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
         Txt(title, Type.title2)
         if (body != null) Txt(body, Type.subhead, color = LocalPalette.current.fg2)
@@ -175,7 +175,7 @@ private fun Suggestions(items: List<Pair<String, String>>, onPick: (String) -> U
 
 /** Cancel beside a primary [action], for a sheet's confirm step; red when [destructive]. */
 @Composable
-private fun CancelOr(action: String, onCancel: () -> Unit, destructive: Boolean = false, onAction: () -> Unit) {
+fun CancelOr(action: String, onCancel: () -> Unit, destructive: Boolean = false, onAction: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         PillButton("Cancel", onCancel, Modifier.weight(1f), onSurface = true)
         PillButton(action, onAction, Modifier.weight(1f), primary = true, destructive = destructive)
@@ -218,10 +218,7 @@ fun ColumnScope.SheetContent(
             val p = LocalPalette.current
             val haptic = LocalHapticFeedback.current
             SheetTitle(if (s.id == null) "Log weight" else "Edit weigh-in", null)
-            WeighInNumber(s.lb) { lb ->
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onConfirm(s.copy(typed = lb))
-            }
+            WeighInNumber(s.lb) { lb -> update(s.copy(typed = lb)) }
             StepSlider(
                 s.stop, s.scale.count,
                 onStop = {
@@ -230,21 +227,22 @@ fun ColumnScope.SheetContent(
                 },
                 description = "Weight",
                 from = s.scale.start.takeIf { s.scale.centered },
-                releaseLabel = "Save ${Fmt.lb(s.lb)}",
-            ) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onConfirm(s)
-            }
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MiniStep(Icons.chevronLeft, "Day before") { update(s.copy(at = s.at.minusDays(1))) }
                 Txt(Fmt.weighInTime(s.at, s.today), Type.body.tabular(), Modifier.weight(1f), align = TextAlign.Center)
                 MiniStep(Icons.chevronRight, "Day after", enabled = s.at.toLocalDate() < s.today) { update(s.copy(at = s.at.plusDays(1))) }
             }
-            if (s.id != null) PillButton("Delete", { onConfirm(s.copy(delete = true)) }, Modifier.fillMaxWidth(), onSurface = true)
+            val save = "Save ${Fmt.lb(s.lb)}"
+            if (s.id == null) PillButton(save, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
+            else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                PillButton("Delete", { onConfirm(s.copy(delete = true)) }, Modifier.weight(1f), onSurface = true, danger = true)
+                PillButton(save, { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onConfirm(s) }, Modifier.weight(1f), primary = true)
+            }
         }
         is SheetState.Meal -> if (!s.delete) MealSheet(s.meal, s.today, { update(s.copy(delete = true)) }, onDismiss) else {
             SheetTitle("Delete this meal?", "Its photo is deleted from this phone and can't be recovered.")
-            CancelOr("Delete", { update(s.copy(delete = false)) }) { onConfirm(s) }
+            CancelOr("Delete meal", { update(s.copy(delete = false)) }, destructive = true) { onConfirm(s) }
         }
         is SheetState.AddMeal -> {
             SheetTitle("Add meal", s.note)
@@ -290,7 +288,7 @@ fun ColumnScope.SheetContent(
         is SheetState.CardioDiscard -> {
             val finished = s.run.id in state.cardio
             SheetTitle(if (finished) "Delete this session?" else "Discard this session?", null)
-            CancelOr(if (finished) "Delete" else "Discard", onDismiss) { onConfirm(s) }
+            CancelOr(if (finished) "Delete session" else "Discard session", onDismiss, destructive = true) { onConfirm(s) }
         }
         is SheetState.Delete -> {
             SheetTitle(
@@ -302,7 +300,15 @@ fun ColumnScope.SheetContent(
                 },
                 null,
             )
-            CancelOr("Delete", onDismiss, destructive = true) { onConfirm(s) }
+            CancelOr(
+                when (s.target) {
+                    is Deletion.Workout -> "Delete workout"
+                    is Deletion.Exercise -> "Delete exercise"
+                    is Deletion.Cardio -> "Delete session"
+                    is Deletion.WeighIn -> "Delete weigh-in"
+                },
+                onDismiss, destructive = true,
+            ) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)
@@ -363,7 +369,7 @@ fun ColumnScope.SheetContent(
                 // Deleting the split in use hands the workout to its preset; say which.
                 if (s.day == null && state.programId == s.split) split?.from?.let { "${Programs.of(it).name} takes over." } else null,
             )
-            CancelOr("Delete", onDismiss) { onConfirm(s) }
+            CancelOr(if (s.day == null) "Delete split" else "Delete day", onDismiss, destructive = true) { onConfirm(s) }
         }
         is SheetState.StretchName -> {
             SheetTitle(if (s.routine == null) "New routine" else "Rename routine", null)
@@ -406,7 +412,7 @@ fun ColumnScope.SheetContent(
         }
         is SheetState.DeleteStretchRoutine -> {
             SheetTitle("Delete ${state.customStretches[s.routine]?.name}?", null)
-            CancelOr("Delete", onDismiss) { onConfirm(s) }
+            CancelOr("Delete routine", onDismiss, destructive = true) { onConfirm(s) }
         }
         is SheetState.Swap -> if (s.create) {
             val q = s.name.trim()
@@ -432,11 +438,11 @@ fun ColumnScope.SheetContent(
 }
 
 /**
- * The weigh-in readout. A tap selects it for typing and Done saves the typed weight, so the same weight as last time
- * saves without a drag; a slider move resets it to the slider's weight.
+ * The weigh-in readout. A tap selects it for typing and Done sets the typed weight; a slider move resets it to the
+ * slider's weight.
  */
 @Composable
-private fun WeighInNumber(lb: Double, onSave: (Double) -> Unit) {
+private fun WeighInNumber(lb: Double, onSet: (Double) -> Unit) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
     val shown = Fmt.tenths(lb)
@@ -466,7 +472,7 @@ private fun WeighInNumber(lb: Double, onSave: (Double) -> Unit) {
                 val typed = (edit?.text ?: shown).replace(',', '.').toDoubleOrNull()?.let { Math.round(it * 10) / 10.0 }
                 if (typed == null || typed !in Commands.BODY_WEIGHT_RANGE) bad = true else {
                     focus.clearFocus()
-                    onSave(typed)
+                    onSet(typed)
                 }
             }),
         )

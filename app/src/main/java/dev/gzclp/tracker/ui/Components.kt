@@ -225,6 +225,7 @@ fun PillButton(
     icon: ImageVector? = null,
     onSurface: Boolean = false,
     destructive: Boolean = false,
+    danger: Boolean = false,
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
@@ -237,7 +238,8 @@ fun PillButton(
         p.glass -> p.thumb
         else -> p.card
     }
-    val fg = if (destructive) p.onRed else if (primary) p.onAccent else p.fg
+    // [danger]: a neutral pill with a red label, for a Delete that asks before it deletes.
+    val fg = if (destructive) p.onRed else if (primary) p.onAccent else if (danger) p.red else p.fg
     Pressable(
         onClick, modifier.heightIn(min = 52.dp), CircleShape, fill,
         pressedFill = if (primary || destructive) Color.Black.copy(alpha = 0.14f) else p.fillPressed, enabled = enabled,
@@ -516,40 +518,6 @@ fun ThumbRow(
                 }
             }
         }
-    }
-}
-
-/**
- * A slider from 0 to [max] that snaps to multiples of [step]: thin track, accent fill up to a white thumb.
- * Touching the track jumps the thumb there, then it follows the finger.
- */
-@Composable
-fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, label: String, modifier: Modifier = Modifier) {
-    val p = LocalPalette.current
-    val change by rememberUpdatedState(onChange)
-    fun snap(v: Float) = (Math.round(v.coerceIn(0f, max) / step) * step).coerceAtMost(max)
-    val frac = if (max > 0f) (value / max).coerceIn(0f, 1f) else 0f
-    BoxWithConstraints(
-        modifier.fillMaxWidth().height(44.dp)
-            .semantics {
-                contentDescription = label
-                progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..max)
-                setProgress { change(snap(it)); true }
-            }
-            .pointerInput(max, step) {
-                val thumb = 28.dp.toPx()
-                fun at(x: Float) = change(snap((x - thumb / 2) / (size.width - thumb) * max))
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    at(down.position.x)
-                    horizontalDrag(down.id) { at(it.position.x); it.consume() }
-                }
-            },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
-        Box(Modifier.width(14.dp + (maxWidth - 28.dp) * frac).height(4.dp).clip(CircleShape).background(p.accent))
-        SliderThumb(Modifier.padding(start = (maxWidth - 28.dp) * frac))
     }
 }
 

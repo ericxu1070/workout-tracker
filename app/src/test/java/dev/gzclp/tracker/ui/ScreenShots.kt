@@ -222,7 +222,7 @@ class ScreenShots {
                     GroupRow(false) { Txt("Secondary", Type.body, Modifier.weight(1f), p.fg2); Toggle(false, "Off") {} }
                     GroupRow(false) { Txt("Tertiary", Type.body, Modifier.weight(1f), p.fg3); Icon(Icons.chevronRight, p.fg3, 20.dp) }
                     GroupRow(false) { Txt("Accent", Type.body, Modifier.weight(1f), p.accent); Txt("Delete", Type.body, color = p.red) }
-                    GroupRow(false) { Slider(60f, {}, 100f, 1f, "Slider") }
+                    GroupRow(false) { StepSlider(60, 100, {}, "Slider") }
                 }
                 Spacer(Modifier.height(Space.md))
                 LineChart(listOf(pts.mapIndexed { i, t -> Pt(t, 150f + i * 4) } to p.fg2, pts.mapIndexed { i, t -> Pt(t, 120f + i * 5) } to p.accent), listOf("1RM", "Top"))
@@ -237,7 +237,7 @@ class ScreenShots {
                 Spacer(Modifier.height(Space.md))
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.xl)).background(p.elevated).padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
                     Segmented(listOf("Week", "All"), 1, {})
-                    Slider(25f, {}, 100f, 1f, "Sheet slider")
+                    StepSlider(25, 100, {}, "Sheet slider")
                 }
             }
         }
@@ -408,7 +408,7 @@ class ScreenShots {
             shot(p, "02-open-session-count-sheet") {
                 Box(Modifier.fillMaxSize()) {
                     workoutTab(0) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}) }
-                    Sheet(true, {}) { OpenSessionCountSheet({}, {}, {}) }
+                    Sheet(true, {}) { OpenSessionCountSheet({}, {}) }
                 }
             }
             shot(p, "02-stretching") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}) } }

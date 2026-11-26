@@ -328,7 +328,7 @@ fun MealSheet(
 
     Spacer(Modifier.height(Space.md))
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        PillButton("Delete", onDelete, Modifier.weight(1f), onSurface = true)
+        PillButton("Delete", onDelete, Modifier.weight(1f), onSurface = true, danger = true)
         PillButton("Done", onDone, Modifier.weight(1f), primary = true)
     }
 }
