@@ -1,4 +1,4 @@
-// gzclp-desk: the desktop dashboard for the GZCLP phone app's synced log.
+// gzclp-desk: Repsilon's desktop dashboard for the phone app's synced log.
 
 #include <QDir>
 #include <QFileInfo>
@@ -14,8 +14,9 @@
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
+    app.setOrganizationName("Repsilon");  // where the window keeps its tab and Liquid Glass choice
     app.setApplicationName("gzclp-desk");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion("0.2.0");
     // Matches the window to gzclp-desk.desktop for the compositor and the launcher.
     app.setDesktopFileName("gzclp-desk");
     app.setWindowIcon(QIcon::fromTheme("gzclp-desk"));

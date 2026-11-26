@@ -16,13 +16,13 @@ Item {
     function describe(row, e) {
         const tier = win.tierName(e.tier)
         if (e.kind === "cycle_repeat")
-            return qsTr("%1 %2 week 3 short, repeats at %3 lb · %4").arg(row.name).arg(tier).arg(e.toWeight).arg(C.day(e.t))
+            return qsTr("%1 %2 week 3 short, repeats at %3 lb").arg(row.name).arg(tier).arg(e.toWeight)
         if (e.kind === "reset")
-            return qsTr("%1 %2 reset to %3 at %4 lb · %5").arg(row.name).arg(tier).arg(e.toStage).arg(e.toWeight).arg(C.day(e.t))
-        return qsTr("%1 %2 %3 to %4 at %5 lb · %6").arg(row.name).arg(tier).arg(e.fromStage).arg(e.toStage).arg(e.toWeight).arg(C.day(e.t))
+            return qsTr("%1 %2 reset to %3 at %4 lb").arg(row.name).arg(tier).arg(e.toStage).arg(e.toWeight)
+        return qsTr("%1 %2 %3 to %4 at %5 lb").arg(row.name).arg(tier).arg(e.fromStage).arg(e.toStage).arg(e.toWeight)
     }
-    property string tip: ""
-    property point tipAt
+    // The mark under the pointer: {row, e, x, y}.
+    property var tip: null
 
     Repeater {
         model: tl.rows
@@ -55,8 +55,8 @@ Item {
                     HoverHandler {
                         id: hover
                         onHoveredChanged: {
-                            if (hovered) { tl.tip = tl.describe(row.modelData, mark.modelData); tl.tipAt = Qt.point(mark.x + 8, row.y + 6) }
-                            else tl.tip = ""
+                            if (hovered) tl.tip = { row: row.modelData, e: mark.modelData, x: mark.x + 8, y: row.y }
+                            else if (tl.tip && tl.tip.e === mark.modelData) tl.tip = null
                         }
                     }
                 }
@@ -73,5 +73,11 @@ Item {
             y: tl.rows.length * tl.rowH + 8
         }
     }
-    Tip { text: tl.tip; px: tl.tipAt.x; py: tl.tipAt.y }
+    Callout {
+        title: tl.tip ? C.day(tl.tip.e.t) : ""
+        rows: tl.tip ? [{ text: tl.describe(tl.tip.row, tl.tip.e) }] : []
+        markX: tl.tip ? tl.tip.x : 0
+        half: 8
+        y: tl.tip ? Math.max(0, tl.tip.y - height / 2 + tl.rowH / 2) : 0
+    }
 }

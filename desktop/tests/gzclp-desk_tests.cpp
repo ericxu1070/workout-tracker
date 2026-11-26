@@ -6,6 +6,7 @@
 #include "backend.h"
 #include "log.h"
 #include "theme.h"
+#include "palette.h"
 
 namespace {
 
@@ -254,6 +255,72 @@ private slots:
         QCOMPARE(theme.colors()["background"].toString(), QString("#FFFCF0"));
         QVERIFY(theme.light());
         QCOMPARE(theme.accentForeground(), QString("white"));
+    }
+
+    // The phone's Omarchy themes (Palettes.omarchy in Theme.kt): every text token reads on every surface, flat and in glass.
+    void paletteTextReadsInEveryTheme_data() {
+        QTest::addColumn<QVariantMap>("colors");
+        const QList<QStringList> themes{
+            {"catppuccin-latte", "light", "#eff1f5", "#dce0e8", "#4c4f69", "#9ca0b0", "#1e66f5", "#d20f39"},
+            {"catppuccin", "dark", "#1e1e2e", "#313244", "#cdd6f4", "#6c7086", "#89b4fa", "#f38ba8"},
+            {"city-783", "dark", "#181a1f", "#20232a", "#b9bec6", "#6a707a", "#ff5c5c", "#e53939"},
+            {"deep-ocean", "dark", "#0a1a1f", "#12282f", "#c8e6e3", "#6a8f93", "#3ee6d6", "#ff6b6b"},
+            {"desert-dusk", "dark", "#1f1a24", "#2c2532", "#e8d9c8", "#8a7a80", "#e8925a", "#e06c6c"},
+            {"ethereal", "dark", "#060b1e", "#131a3a", "#ffcead", "#6d7db6", "#7d82d9", "#ed5b5a"},
+            {"everforest", "dark", "#2d353b", "#343f44", "#d3c6aa", "#4f585e", "#7fbbb3", "#e67e80"},
+            {"flexoki-light", "light", "#fffcf0", "#e6e4d9", "#100f0f", "#878580", "#205ea6", "#d14d41"},
+            {"gruvbox", "dark", "#282828", "#3c3836", "#d4be98", "#7c6f64", "#7daea3", "#ea6962"},
+            {"hackerman", "dark", "#0b0c16", "#151828", "#ddf7ff", "#6a6e95", "#82fb9c", "#50f872"},
+            {"kanagawa", "dark", "#1f1f28", "#223249", "#dcd7ba", "#727169", "#dcd7ba", "#c34043"},
+            {"last-horizon", "dark", "#0c0b0c", "", "#fafcfb", "#584e51", "#b59790", "#c38b7b"},
+            {"lumon", "dark", "#16242d", "#1b2d40", "#d6e2ee", "#4d86b0", "#8bc9eb", "#4d86b0"},
+            {"lupine", "light", "#fafafa", "#f5f5f5", "#212121", "#757575", "#3264eb", "#c900c4"},
+            {"matte-black", "dark", "#121212", "#1e1e1e", "#bebebe", "#555555", "#e68e0d", "#d35f5f"},
+            {"miasma", "dark", "#222222", "#2c2c2c", "#c2c2b0", "#555555", "#78824b", "#685742"},
+            {"nord", "dark", "#2e3440", "#3b4252", "#d8dee9", "#667080", "#81a1c1", "#bf616a"},
+            {"retro-82", "dark", "#05182e", "#0a2540", "#f6dcac", "#3f8f8a", "#faa968", "#f85525"},
+            {"ristretto", "dark", "#2c2525", "#3d2f2a", "#e6d9db", "#72696a", "#f38d70", "#fd6883"},
+            {"rose-pine", "light", "#faf4ed", "#f2e9e1", "#575279", "#9893a5", "#56949f", "#b4637a"},
+            {"solitude", "dark", "#101315", "", "#cacccc", "#4b4e55", "#798186", "#565d60"},
+            {"starship", "dark", "#1c1c1e", "#2c2c2e", "#f5f5f7", "#98989d", "#ff9f0a", "#ff5f4a"},
+            {"vantablack", "dark", "#000000", "#1a1a1a", "#ffffff", "#505050", "#8d8d8d", "#a4a4a4"},
+            {"white", "light", "#ffffff", "#c0c0c0", "#000000", "#c0c0c0", "#6e6e6e", "#2a2a2a"},
+            {"tokyo-night", "", "#1a1b26", "#24283b", "#c0caf5", "#a9b1d6", "#7aa2f7", "#f7768e"}};
+        for (const QStringList &t : themes) {
+            QVariantMap colors{{"background", t[2]}, {"foreground", t[4]}, {"dark_foreground", t[5]}, {"accent", t[6]}, {"red", t[7]}};
+            if (!t[1].isEmpty()) colors["mode"] = t[1];
+            if (!t[3].isEmpty()) colors["lighter_background"] = t[3];
+            QTest::newRow(qPrintable(t[0])) << colors;
+        }
+    }
+    void paletteTextReadsInEveryTheme() {
+        QFETCH(QVariantMap, colors);
+        const Palette flat = Palette::parse(colors);
+        QVERIFY(flat.bg.isValid() && !flat.glass());
+        QVERIFY(flat.textReads());
+        const Palette glass = flat.glassed();
+        QVERIFY(glass.glass());
+        QVERIFY(glass.textReads());
+        QVERIFY(glass.bar().alphaF() >= 0.3f - 1e-3);
+        QVERIFY(glass.chromeAlpha >= 0.82 - 1e-9);
+        QCOMPARE(flat.dark, colors.value("mode") != "light");
+    }
+
+    void paletteMatchesThePhone() {
+        // Tokyo Night as the phone's Laptop theme reads it: its own colors already read, so they pass through.
+        const Palette p = Palette::parse({{"background", "#1a1b26"}, {"lighter_background", "#24283b"}, {"foreground", "#c0caf5"},
+                                          {"dark_foreground", "#a9b1d6"}, {"accent", "#7aa2f7"}, {"red", "#f7768e"}});
+        QCOMPARE(p.accent.name(), QString("#7aa2f7"));
+        QCOMPARE(p.fg2.name(), QString("#a9b1d6"));
+        QCOMPARE(p.onAccent.name(), QString("#000000"));
+        QCOMPARE(p.separator().alpha(), 26);  // fg at 10%
+        // A dim secondary is lifted toward fg until it reads; a missing lighter background is a step toward fg.
+        const Palette e = Palette::parse({{"background", "#2d353b"}, {"foreground", "#d3c6aa"}, {"dark_foreground", "#4f585e"},
+                                          {"accent", "#7fbbb3"}});
+        QVERIFY(contrast(e.fg2, e.elevated) >= 4.5 && e.fg2 != QColor("#4f585e"));
+        QCOMPARE(e.elevated.name(), QString("#3a4144"));
+        QVERIFY(contrast(e.red, e.elevated) >= 4.5 && e.red.red() > e.red.green());  // no red key: the phone's danger red, lifted until it reads
+        QCOMPARE(Palette::parse({{"background", "#000000"}}).bg.isValid(), false);
     }
 
     void themeFallsBack() {

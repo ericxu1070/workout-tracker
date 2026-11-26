@@ -15,6 +15,9 @@ class Theme : public QObject {
     Q_PROPERTY(QVariantMap colors READ colors NOTIFY changed)
     Q_PROPERTY(bool light READ light NOTIFY changed)
     Q_PROPERTY(int radius READ radius NOTIFY changed)
+    // The phone's palette for this theme, flat and in Liquid Glass (see palette.h).
+    Q_PROPERTY(QVariantMap flat READ flat NOTIFY changed)
+    Q_PROPERTY(QVariantMap glass READ glass NOTIFY changed)
 
 public:
     explicit Theme(const QString &currentDirectory = {}, QObject *parent = nullptr, const QString &hyprctl = {});
@@ -25,6 +28,8 @@ public:
     QVariantMap colors() const { return m_colors; }
     bool light() const { return m_light; }
     int radius() const { return m_radius; }
+    QVariantMap flat() const { return m_flat; }
+    QVariantMap glass() const { return m_glass; }
 
     static QVariantMap readColors(const QString &path);
 
@@ -38,6 +43,7 @@ private:
     QString m_directory;
     QVariantMap m_colors;
     bool m_light = false;
+    QVariantMap m_flat, m_glass;
     QFileSystemWatcher m_watcher;
     QTimer m_debounce;
     QString m_hyprctl;

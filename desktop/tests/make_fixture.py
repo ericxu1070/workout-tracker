@@ -222,10 +222,9 @@ emit(ride + timedelta(minutes=1), "cardio_clear", entry_id=epoch_id("c", ride))
 # Water most days, and stretching three or four times a week: built-in routines and a custom one.
 for d in range(55):
     day = datetime(2026, 9, 28, 8, 0, tzinfo=TZ) + timedelta(days=d)
-    for k, ml in enumerate([500, 750, 500, 250 * (d % 4)][: 3 + d % 2]):
+    for k in range(3 + (d * 5) % 3):
         at = day + timedelta(hours=3 * k)
-        if ml:
-            emit(at, "water", id=epoch_id("wt", at), at=at.isoformat(timespec="seconds"), ml=ml)
+        emit(at, "water", id=epoch_id("wt", at), at=at.isoformat(timespec="seconds"), ml=[250, 500, 330, 750, 500][(d * 3 + k * 2) % 5])
 emit(datetime(2026, 10, 1, 21, 0, tzinfo=TZ), "stretch_routine_define", routine="evening", name="Evening",
      moves=[{"move": "lats_childs_pose", "hold_sec": 60}, {"move": "hips_pigeon", "hold_sec": 120}])
 routines = ["after_workout", "evening", "limber-11", "after_workout", "desk-reset"]

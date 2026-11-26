@@ -4,7 +4,12 @@
         <file>Roles.qml</file>
         <file>Txt.qml</file>
         <file>Module.qml</file>
-        <file>Tip.qml</file>
+        <file>Callout.qml</file>
+        <file>ListCard.qml</file>
+        <file>TabPage.qml</file>
+        <file>GlassPane.qml</file>
+        <file>GlassRim.qml</file>
+        <file>Wallpaper.qml</file>
         <file>Segmented.qml</file>
         <file>LineChart.qml</file>
         <file>BarChart.qml</file>

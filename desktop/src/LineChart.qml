@@ -3,7 +3,8 @@ import QtQuick.Shapes
 import "chart.js" as C
 
 // Measured points joined by straight segments, a dot on each, the last one
-// filled and labeled at the line's end. Hover reads any point.
+// filled and labeled at the line's end. Hovering picks the nearest day with a line
+// through it and every value on it; a click pins that day, a second click unpins it.
 Item {
     id: chart
     // [{name, color, points: [{t, v}], end: "label at the last point", width, dots, line}]
@@ -25,7 +26,10 @@ Item {
     readonly property real yLo: yAxis[0]
     readonly property real yHi: yAxis[yAxis.length - 1]
 
-    readonly property real x0: 40
+    readonly property real x0: unitTick.advanceWidth + pal.space.sm
+    TextMetrics { id: unitTick; font.family: pal.family; font.pixelSize: 11; text: chart.tick(chart.yHi) }
+    // The top tick carries the unit, as on the phone.
+    function tick(v) { return fmt(v) + (v === yHi ? unit : "") }
     readonly property real y0: 8
     readonly property real plotW: width - x0 - rightMargin
     readonly property real plotH: height - y0 - 28
@@ -47,8 +51,8 @@ Item {
             required property real modelData
             y: chart.py(modelData)
             Rectangle { x: chart.x0; width: chart.plotW; height: 1; color: pal.separator }
-            Txt { role: "caption"; tabular: true; color: pal.labelSecondary; text: chart.fmt(modelData)
-                  width: chart.x0 - 8; horizontalAlignment: Text.AlignRight; y: -height / 2 }
+            Txt { role: "caption"; tabular: true; color: pal.labelSecondary; text: chart.tick(modelData); elide: Text.ElideNone
+                  width: chart.x0 - pal.space.sm; horizontalAlignment: Text.AlignRight; y: -height / 2 }
         }
     }
     Repeater {
@@ -106,24 +110,38 @@ Item {
         }
     }
 
+    // Every measured day, and the day shown: hovered, else pinned.
+    readonly property var times: [...new Set(all.map(p => p.t))].sort((a, b) => a - b)
+    property real pinned: -1
+    readonly property real hovered: hover.hovered ? nearest(hover.point.position.x) : -1
+    readonly property real shown: hovered >= 0 ? hovered : times.indexOf(pinned) >= 0 ? pinned : -1
+    function nearest(x) {
+        let best = -1, bestD = 1e9
+        for (const t of times) { const d = Math.abs(px(t) - x); if (d < bestD) { bestD = d; best = t } }
+        return best
+    }
+    readonly property var picked: shown < 0 ? [] : drawn.map(s => ({ s: s, p: s.points.find(p => p.t === shown) })).filter(x => x.p)
     HoverHandler { id: hover }
-    readonly property var near: {
-        if (!hover.hovered || !all.length) return null
-        let best = null, bestD = 1e9
-        for (const s of drawn) for (const p of s.points) {
-            const d = Math.hypot(px(p.t) - hover.point.position.x, py(p.v) - hover.point.position.y)
-            if (d < bestD) { bestD = d; best = { s: s, p: p } }
-        }
-        return bestD < 40 ? best : null
-    }
+    TapHandler { onTapped: ev => { const t = chart.nearest(ev.position.x); chart.pinned = chart.pinned === t ? -1 : t } }
+
     Rectangle {
-        visible: chart.near !== null
-        width: 10; height: 10; radius: 5; color: "transparent"; border.width: 2; border.color: pal.label
-        x: chart.near ? chart.px(chart.near.p.t) - 5 : 0; y: chart.near ? chart.py(chart.near.p.v) - 5 : 0
+        visible: chart.shown >= 0
+        x: chart.px(chart.shown); y: chart.y0
+        width: 1; height: chart.plotH
+        color: pal.labelTertiary
     }
-    Tip {
-        text: chart.near ? qsTr("%1 %2%3 · %4").arg(chart.near.s.name).arg(chart.fmt(chart.near.p.v)).arg(chart.unit).arg(C.day(chart.near.p.t)) : ""
-        px: chart.near ? chart.px(chart.near.p.t) : 0
-        py: chart.near ? chart.py(chart.near.p.v) : 0
+    Repeater {
+        model: chart.picked
+        Rectangle {
+            required property var modelData
+            width: 12; height: 12; radius: 6; color: pal.bg
+            x: chart.px(modelData.p.t) - 6; y: chart.py(modelData.p.v) - 6
+            Rectangle { anchors.centerIn: parent; width: 8; height: 8; radius: 4; color: modelData.s.color }
+        }
+    }
+    Callout {
+        title: chart.shown >= 0 ? C.day(chart.shown) : ""
+        rows: chart.picked.map(x => ({ text: x.s.name + " " + chart.fmt(x.p.v) + chart.unit, color: x.s.color }))
+        markX: chart.shown >= 0 ? chart.px(chart.shown) : 0
     }
 }
