@@ -84,11 +84,11 @@ object Muscles {
     const val FULL_SETS_PER_WEEK = 10.0
 
     /**
-     * How dark each muscle shades over a window of [days] days, 0..1: its load against the most-worked muscle's, or against
-     * ten sets a week when nothing reached that, so a heavy week still shows which muscles got the most. A window under a week counts as one.
+     * How dark each muscle shades over a window of [days] days (see [baselineDays]), 0..1: its load against the most-worked
+     * muscle's, or against ten sets a week scaled to the window when nothing reached that, so a heavy window still shows which muscles got the most.
      */
     fun levels(work: Map<Muscle, MuscleWork>, days: Long): Map<Muscle, Float> {
-        val full = maxOf(work.values.maxOfOrNull { it.load } ?: 0.0, FULL_SETS_PER_WEEK * maxOf(days, 7) / 7)
+        val full = maxOf(work.values.maxOfOrNull { it.load } ?: 0.0, FULL_SETS_PER_WEEK * days / 7)
         return work.mapValues { (it.value.load / full).toFloat() }
     }
 }
@@ -110,9 +110,18 @@ fun AppState.muscleWork(from: LocalDate, to: LocalDate): Map<Muscle, MuscleWork>
     return sets.mapValues { (m, n) -> MuscleWork(n, load.getValue(m)) }
 }
 
-/** The muscle map's window: this Monday-to-Sunday week, or this calendar month, as History's Week and Month mean them; both end [today]. */
-fun muscleWindow(today: LocalDate, month: Boolean): Pair<LocalDate, LocalDate> =
-    (if (month) today.withDayOfMonth(1) else mondayOf(today)) to today
+/** The muscle map's span: today, this Monday-to-Sunday week, or this calendar month, as History's Week and Month mean them. */
+enum class MuscleSpan { Day, Week, Month }
+
+/** The muscle map's window over [span]; it ends [today]. */
+fun muscleWindow(today: LocalDate, span: MuscleSpan): Pair<LocalDate, LocalDate> = when (span) {
+    MuscleSpan.Day -> today
+    MuscleSpan.Week -> mondayOf(today)
+    MuscleSpan.Month -> today.withDayOfMonth(1)
+} to today
+
+/** The days [Muscles.levels] scales its baseline to: one for a day; a week or month so far, but at least a full week. */
+fun baselineDays(span: MuscleSpan, window: Pair<LocalDate, LocalDate>): Long = if (span == MuscleSpan.Day) 1 else maxOf(days(window), 7)
 
 /** Days in a window, both ends counted. */
 fun days(window: Pair<LocalDate, LocalDate>): Long = ChronoUnit.DAYS.between(window.first, window.second) + 1

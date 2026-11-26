@@ -1,5 +1,14 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,7 +46,8 @@ import dev.gzclp.tracker.log.isCalisthenics
 import dev.gzclp.tracker.log.ratios
 import dev.gzclp.tracker.log.sevenDayAverage
 import dev.gzclp.tracker.log.weighIns
-import dev.gzclp.tracker.log.days
+import dev.gzclp.tracker.log.MuscleSpan
+import dev.gzclp.tracker.log.baselineDays
 import dev.gzclp.tracker.log.muscleWindow
 import dev.gzclp.tracker.log.muscleWork
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,15 +67,22 @@ fun ExercisesScreen(
     val p = LocalPalette.current
     val logs = state.exerciseLogs()
     val daily = state.dailyBodyWeight()
-    var month by rememberSaveable { mutableStateOf(false) }
+    var span by rememberSaveable { mutableStateOf(MuscleSpan.Week) }
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("Exercises", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
-        Segmented(listOf("Week", "Month"), if (month) 1 else 0, { month = it == 1 })
+        Segmented(MuscleSpan.entries.map { it.name }, span.ordinal, { span = MuscleSpan.entries[it] })
         Spacer(Modifier.height(Space.lg))
-        val window = muscleWindow(today, month)
-        MuscleChart(state.muscleWork(window.first, window.second), days(window), female, Modifier.fillMaxWidth().height(340.dp))
+        // A new span fades in through a short blur in place; the map never slides.
+        AnimatedContent(span, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) }, label = "span") { s ->
+            val blur by transition.animateDp({ tween(200) }, label = "blur") { if (it == EnterExitState.Visible) 0.dp else 8.dp }
+            val window = muscleWindow(today, s)
+            MuscleChart(
+                state.muscleWork(window.first, window.second), baselineDays(s, window), female,
+                Modifier.fillMaxWidth().height(340.dp).blur(blur, BlurredEdgeTreatment.Unbounded),
+            )
+        }
         Spacer(Modifier.height(Space.xxl))
         Group {
             GroupRow(first = true, onClick = onBodyWeight) {
