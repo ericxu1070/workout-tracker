@@ -1,6 +1,5 @@
 package dev.gzclp.tracker
 
-import android.animation.ValueAnimator
 import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
@@ -36,6 +35,7 @@ import dev.gzclp.tracker.remind.HabitKind
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.rest.RestAlarm
 import dev.gzclp.tracker.sync.Mirror
+import dev.gzclp.tracker.ui.animatorsEnabled
 import dev.gzclp.tracker.ui.Fmt
 import dev.gzclp.tracker.ui.HealthUi
 import dev.gzclp.tracker.ui.LaptopTheme
@@ -80,7 +80,7 @@ class AppModel private constructor(private val context: Context) {
     var loaded by mutableStateOf(prefs.loaded)
         private set
     /** False while the system's Remove animations is on, which turns every Loaded effect off; read again on each resume. */
-    var animatorsOn by mutableStateOf(ValueAnimator.areAnimatorsEnabled())
+    var animatorsOn by mutableStateOf(animatorsEnabled(context.contentResolver))
         private set
     fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop).withGlass(loaded)
     var restTargets by mutableStateOf(prefs.restTargets())
@@ -215,7 +215,7 @@ class AppModel private constructor(private val context: Context) {
     }
 
     fun refresh() {
-        animatorsOn = ValueAnimator.areAnimatorsEnabled()
+        animatorsOn = animatorsEnabled(context.contentResolver)
         notificationsAllowed = context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
         sync = syncUi()
         syncLater()

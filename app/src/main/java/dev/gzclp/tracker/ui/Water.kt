@@ -561,7 +561,7 @@ fun WaterDailyRing(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier.size(68.dp).then(if (pour == null) Modifier else Modifier.pourInto(pour, p.accent)),
+            modifier = Modifier.size(68.dp).then(if (pour == null) Modifier else Modifier.onGloballyPositioned { pour.to = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f) }),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.fillMaxSize()) {
@@ -649,6 +649,8 @@ fun WaterScreen(
         // 2 & 3. Interactive morphing cup with drag-to-fill
         val pour = if (loaded(Effect.WaterPour)) remember { Pour() } else null
         val scope = rememberCoroutineScope()
+        // Loaded: the stream from cup to ring is drawn over both, outside the ring's card, which would clip it.
+        Column(if (pour == null) Modifier else Modifier.pourStream(pour, p.accent)) {
         InteractiveCup(
             cupSizeMl = currentCupSize,
             onLogWater = { ml ->
@@ -669,6 +671,7 @@ fun WaterScreen(
             dayLabel = Fmt.day(day, LocalDate.now()),
             pour = pour,
         )
+        }
 
         Spacer(Modifier.height(Space.lg))
 
@@ -711,26 +714,27 @@ class Pour {
 private const val POUR_MS = 620
 /** When the head of the stream reaches the ring. */
 private const val POUR_LAND_MS = 330L
-private const val POUR_DROPS = 9
+private const val POUR_DROPS = 10
 
-/** The stream into this ring while [pour] runs, drawn over everything above it on the way; and the ring a reached goal sends out. */
-private fun Modifier.pourInto(pour: Pour, color: Color) = onGloballyPositioned { pour.to = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f) }
-    .drawWithContent {
+/** Over the cup and ring: the stream from the cup's base into the ring while [pour] runs, and the ring a reached goal sends out. */
+private fun Modifier.pourStream(pour: Pour, color: Color): Modifier {
+    var origin = Offset.Zero
+    return onGloballyPositioned { origin = it.positionInRoot() }.drawWithContent {
         drawContent()
-        val c = Offset(size.width / 2, size.height / 2)
+        val c = pour.to - origin
         val g = pour.goal.value
-        if (g < 1f) drawCircle(color.copy(alpha = 0.4f * (1f - g)), size.width / 2 + 60.dp.toPx() * g, c, style = Stroke(2.dp.toPx()))
+        if (g < 1f) drawCircle(color.copy(alpha = 0.45f * (1f - g)), 34.dp.toPx() + 72.dp.toPx() * g, c, style = Stroke(2.dp.toPx()))
         val f = pour.flow.value
         if (f >= 1f) return@drawWithContent
-        // From the cup's base, falling in a curve that bends over to land on the ring from above.
-        val a = pour.from - pour.to + c
-        val ctrl = Offset(a.x, c.y - size.height)
+        // Out of the cup's base, falling and bending over to land in the ring from above.
+        val a = pour.from - origin
+        val ctrl = Offset(a.x, c.y - 48.dp.toPx())
         for (i in 0 until POUR_DROPS) {
-            val t = (f * 1.9f - i * 0.1f).coerceIn(0f, 1f)
+            val t = (f * 1.8f - i * 0.08f).coerceIn(0f, 1f)
             if (t <= 0f || t >= 1f) continue
             val u = t * t
             val pt = a * ((1 - u) * (1 - u)) + ctrl * (2 * u * (1 - u)) + c * (u * u)
-            drawCircle(color.copy(alpha = 0.9f), (4.5f - i * 0.3f).dp.toPx(), pt)
+            drawCircle(color.copy(alpha = 0.9f), (6f - i * 0.35f).dp.toPx(), pt)
         }
     }
-
+}

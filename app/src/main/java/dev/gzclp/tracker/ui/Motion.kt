@@ -66,6 +66,13 @@ enum class Effect {
 val LoadedEffects: Set<Effect> = Effect.entries.toSet()
 
 /** The effects on: [LoadedEffects] in Loaded, none in Performance or while the system's Remove animations is on. */
+/**
+ * Whether Remove animations is off, read as Compose reads it (an unset scale is 1). ValueAnimator's own scale can sit at 0 after
+ * the setting is deleted while Compose still animates, which turned Loaded off on a Galaxy S21 for no reason.
+ */
+fun animatorsEnabled(resolver: android.content.ContentResolver): Boolean =
+    android.provider.Settings.Global.getFloat(resolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+
 fun effectsFor(loaded: Boolean, animatorsOn: Boolean): Set<Effect> = if (loaded && animatorsOn) LoadedEffects else emptySet()
 
 /** The app's motion: which [Effect]s are on, the [ripples] they drop into, the last [tap], and [feel] for their haptics. */

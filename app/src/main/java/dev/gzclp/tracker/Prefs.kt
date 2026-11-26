@@ -7,8 +7,11 @@ import dev.gzclp.tracker.engine.Tier
 /** Device-local settings. Program data never lives here; it lives in the log. */
 class Prefs(context: Context) {
     companion object {
-        /** What a fresh install starts in; set from frame times measured on a Galaxy S21 in both modes. */
-        const val LOADED_BY_DEFAULT = true
+        /**
+         * What a fresh install starts in. Performance: on a Galaxy S21, Loaded's glass added about 160 ms to a cold launch and 2 ms
+         * to the median frame, so it is opt-in.
+         */
+        const val LOADED_BY_DEFAULT = false
     }
 
     private val p = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE).also {
