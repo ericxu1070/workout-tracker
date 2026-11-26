@@ -15,7 +15,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Lift
@@ -26,6 +30,7 @@ import dev.gzclp.tracker.log.Entry
 import dev.gzclp.tracker.log.weighInScale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -82,5 +87,15 @@ class DesignReviewTest {
         rule.setContent { Column(Modifier.padding(24.dp)) { IconButton(Icons.plus, "Add", { taps++ }) } }
         rule.onNodeWithContentDescription("Add").performTouchInput { click(Offset(-1.5.dp.toPx(), centerY)) }
         assertEquals(1, taps)
+    }
+
+    /** A finished workout's Rest header sits above its sets, not stacked under their group inside the swipe to delete. */
+    @Test fun aFinishedWorkoutShowsItsRestHeaderAboveTheSets() {
+        val state = Demo.state.copy(active = null)
+        rule.setContent { SessionScreen(state, state.sessions.last(), {}, {}) }
+        val rest = rule.onAllNodesWithText("Rest", useUnmergedTree = true)[0].getUnclippedBoundsInRoot()
+        val swipe = SemanticsMatcher("swipes to delete") { n -> n.config.getOrNull(SemanticsActions.CustomActions).orEmpty().any { it.label.startsWith("Delete") } }
+        val group = rule.onAllNodes(swipe)[0].getUnclippedBoundsInRoot()
+        assertTrue("Rest ends at ${rest.bottom}, its group starts at ${group.top}", rest.bottom <= group.top)
     }
 }
