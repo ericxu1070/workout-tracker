@@ -324,6 +324,16 @@ object StretchRoutines {
     /** The rest of the built-in library, behind Show more. */
     val more: List<StretchRoutine> by lazy {
         listOf(
+            // r/flexibility's Starting to Stretch: per stretch 10 bumps, hold 10 s, 10 bumps, hold 20 s, 10 bumps, hold 30 s, so 90 s a side.
+            preset(
+                "starting-to-stretch", "Starting to Stretch", "r/flexibility's beginner routine: five upper-body and five lower-body stretches.",
+                "Whole-body flexibility for beginners: 10 bumps, hold 10 s; 10 bumps, hold 20 s; 10 bumps, hold 30 s.",
+                "2–3 times a week, about 30 minutes; a chair, a wall and a towel.",
+                move(StretchMoves.SHOULDER_BACKBEND, 90), move(StretchMoves.STANDING_BACKBEND, 90), move(StretchMoves.REAR_HAND_CLASP, 180),
+                move(StretchMoves.THREAD_THE_NEEDLE, 180), move(StretchMoves.WRIST_BICEPS, 180), move(StretchMoves.ONE_LEG_PIKE, 180),
+                move(StretchMoves.KNEELING_LUNGE, 180), move(StretchMoves.PANCAKE, 90), move(StretchMoves.BUTTERFLY_STRETCH, 90),
+                move(StretchMoves.WALL_CALF_STRETCH, 180),
+            ),
             preset(
                 "low-back-relief", "Low back relief", "Cat, child's pose, a knees-to-side twist and cobra.",
                 "Ease a stiff low back with gentle bending, turning and arching.", "Back feels tight after sitting or lifting. Stop if pain runs down a leg.",

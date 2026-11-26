@@ -283,6 +283,74 @@ object StretchMoves {
         focus = Focus.both(0.32, Spot(Bone.THIGH_L, V(0.0, 0.24, -0.07))),
     )
 
+    // Starting to Stretch (r/flexibility).
+    val SHOULDER_BACKBEND = StretchMove(
+        id = "shoulders_backbend",
+        name = "Shoulder backbend",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 30,
+        cue = "Squeeze your glutes and take straight arms overhead, then back, without arching.",
+        focus = Focus.both(0.26, Spot(Bone.ARM_L, V(0.0, 0.06, -0.04))),
+    )
+
+    val STANDING_BACKBEND = StretchMove(
+        id = "spine_standing_backbend",
+        name = "Spine backbend",
+        targetArea = BodyArea.SPINE,
+        holdSec = 30,
+        cue = "Hands on your shoulder blades, glutes tight: lean back from your upper back.",
+        focus = Focus(0.34, Spot(Bone.CHEST, V(0.0, 0.1, 0.11))),
+    )
+
+    val REAR_HAND_CLASP = StretchMove(
+        id = "shoulders_rear_hand_clasp",
+        name = "Rear hand clasp",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 30,
+        cue = "Hold a towel overhead and behind your back; the top hand draws the bottom one up.",
+        focus = Focus(0.26, Spot(Bone.ARM_L, V(0.0, 0.05, 0.05))),
+        isUnilateral = true,
+    )
+
+    val WRIST_BICEPS = StretchMove(
+        id = "shoulders_wall_wrist_biceps",
+        name = "Wrist-biceps stretch",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 30,
+        cue = "Palm flat on the wall, fingers back and arm straight: turn your chest away.",
+        focus = Focus(0.28, Spot(Bone.ARM_L, V(0.0, 0.2, 0.05))),
+        isUnilateral = true,
+    )
+
+    val ONE_LEG_PIKE = StretchMove(
+        id = "hamstrings_one_leg_pike",
+        name = "One-leg pike",
+        targetArea = BodyArea.HAMSTRINGS,
+        holdSec = 30,
+        cue = "Heel on a chair and the leg straight: lean forward with a flat back.",
+        focus = Focus(0.36, Spot(Bone.THIGH_L, V(0.0, 0.22, -0.07))),
+        isUnilateral = true,
+    )
+
+    val KNEELING_LUNGE = StretchMove(
+        id = "hips_kneeling_lunge",
+        name = "Kneeling lunge",
+        targetArea = BodyArea.HIPS,
+        holdSec = 30,
+        cue = "Back knee down, hands beside the front foot: ease your hips forward with a long back.",
+        focus = Focus(0.3, Spot(Bone.THIGH_R, V(0.0, 0.04, 0.07))),
+        isUnilateral = true,
+    )
+
+    val PANCAKE = StretchMove(
+        id = "hamstrings_pancake",
+        name = "Pancake",
+        targetArea = BodyArea.HAMSTRINGS,
+        holdSec = 30,
+        cue = "Legs wide, knees to the ceiling: fold forward from your hips with a flat back.",
+        focus = Focus.both(0.34, Spot(Bone.THIGH_L, V(0.0, 0.2, -0.07))),
+    )
+
     /** Every move, by body area within the first 26 and the ones the famous routines added after them. */
     val ALL: List<StretchMove> = listOf(
         PIGEON_POSE, BUTTERFLY_STRETCH, LIZARD_LUNGE,
@@ -296,6 +364,7 @@ object StretchMoves {
         CHILDS_POSE_LAT, OVERHEAD_SIDE_BEND,
         SUPINE_SPINAL_TWIST, COBRA_POSE, SEATED_SPINAL_TWIST,
         LEGS_UP_THE_WALL,
+        SHOULDER_BACKBEND, STANDING_BACKBEND, REAR_HAND_CLASP, WRIST_BICEPS, ONE_LEG_PIKE, KNEELING_LUNGE, PANCAKE,
     )
 
     fun of(id: String): StretchMove? = ALL.firstOrNull { it.id == id }
