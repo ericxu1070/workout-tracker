@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.form.Body
+import dev.gzclp.tracker.form.Figure
 import dev.gzclp.tracker.form.Bone
 import dev.gzclp.tracker.form.Focus
 import dev.gzclp.tracker.form.Frame
@@ -268,15 +269,17 @@ private class Scene {
         }
 
         nv = 0; nt = 0; placed.clear(); meshOf.fill(null); hot = tones.accent
-        for ((s, bones) in pose.chains()) if (bones.all { pose.has(it) }) chain(s, bones, tones, focus?.of(s, bones))
-        for (b in Bone.entries) if (pose.has(b)) Body.of(b)?.let { part(it, pose[b], 1.0, 1.0, 1.0, tones.body, false, b, focus?.of(it, b)) }
+        if (Figure.on) figure(tones, focus?.figure) else {
+            for ((s, bones) in pose.chains()) if (bones.all { pose.has(it) }) chain(s, bones, tones, focus?.of(s, bones))
+            for (b in Bone.entries) if (pose.has(b)) Body.of(b)?.let { part(it, pose[b], 1.0, 1.0, 1.0, tones.body, false, b, focus?.of(it, b)) }
+        }
         val body = nv
         val gear = pose.gear
         if (gearAt.size <= gear.size) gearAt = IntArray(gear.size * 2 + 1)
         for (k in gear.indices) { val g = gear[k]; gearAt[k] = nv; part(g.mesh, g.frame, g.sx, g.sy, g.sz, tones.of(g.tone), g.tone == Tone.METAL) }
         gearAt[gear.size] = nv
         val ghosts = ghost(body)
-        for (s in SEAMS) { cut(s.a, s.b); cut(s.b, s.a) }
+        if (!Figure.on) for (s in SEAMS) { cut(s.a, s.b); cut(s.b, s.a) }
         for (k in placed.indices) faces(placed[k], starts[k])
         java.util.Arrays.sort(keys, 0, nt)
         for (j in 0 until nt) {
@@ -378,6 +381,20 @@ private class Scene {
         nv += mesh.verts
     }
 
+    private val fig by lazy { FloatArray(Figure.mesh.verts * 3) }
+    private val figNormal by lazy { FloatArray(Figure.mesh.verts * 3) }
+
+    /** The [Figure] mesh bent to the pose, in one piece with no joints to cut; each vertex takes its [glow] share of the accent. */
+    private fun figure(tones: Tones, glow: FloatArray?) {
+        val mesh = Figure.mesh
+        if (!place(mesh)) return
+        Figure.pose(pose, fig, figNormal)
+        for (i in 0 until mesh.verts) {
+            vertex(nv + i, fig[i * 3], fig[i * 3 + 1], fig[i * 3 + 2], figNormal[i * 3], figNormal[i * 3 + 1], figNormal[i * 3 + 2], tones.body, false, glow?.get(i) ?: 0f)
+        }
+        nv += mesh.verts
+    }
+
     /** Moves each item of fixed gear that hides some of the body (a post, a step) out of the solid pass into [shade]; false if none does. */
     private fun ghost(body: Int): Boolean {
         val gear = pose.gear
@@ -452,9 +469,11 @@ private class Scene {
 
     /** Queues the front faces of [mesh], whose vertices start at [base], cut where they run into another surface, and a fringe along its silhouette. */
     private fun faces(mesh: Mesh, base: Int) {
-        val extra = 2 * mesh.tris + mesh.edges.size / 3
-        val more = nv + extra <= Short.MAX_VALUE
-        grow(if (more) extra else 0, extra + mesh.tris)
+        // A cut triangle can add two vertices; a mesh nothing cuts (the Figure) needs no room for them.
+        var cuts = false
+        for (v in base until base + mesh.verts) cuts = cuts || cut[v] < 0f
+        val more = !cuts || nv + 2 * mesh.tris <= Short.MAX_VALUE
+        grow(if (cuts && more) 2 * mesh.tris else 0, 3 * mesh.tris)
         if (front.size < mesh.tris) front = BooleanArray(mesh.tris)
         val edges = mesh.edges
         val t = mesh.tri
@@ -470,7 +489,10 @@ private class Scene {
             add(a, b, c, Float.MAX_VALUE)
             if (kept > 0) clip(a, b, c)
         }
-        if (!more) return
+        var rims = 0
+        for (k in edges.indices step 6) if (front[edges[k + 2]] != (edges[k + 5] >= 0 && front[edges[k + 5]])) rims++
+        if (!more || nv + 2 * rims > Short.MAX_VALUE) return
+        grow(2 * rims, 2 * rims)
         for (k in edges.indices step 6) {
             val one = front[edges[k + 2]]
             val two = edges[k + 5] >= 0 && front[edges[k + 5]]
