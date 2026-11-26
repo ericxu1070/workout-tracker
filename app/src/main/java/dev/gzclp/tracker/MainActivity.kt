@@ -1,13 +1,6 @@
 package dev.gzclp.tracker
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
@@ -86,6 +79,7 @@ import dev.gzclp.tracker.ui.homeTab
 import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.TabHost
 import dev.gzclp.tracker.ui.UpcomingScreen
+import dev.gzclp.tracker.ui.BackStack
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.GlassTabBar
 import dev.gzclp.tracker.ui.LocalPalette
@@ -148,12 +142,21 @@ class MainActivity : ComponentActivity() {
  * a split id for [Split], "split/day" for [SplitDay], a routine's [StretchRoutine.key] for [Stretch] and [StretchRoutine],
  * and nothing for [SettingsPage], which shows the app's settingsPage. [depth] orders them, so going back slides the way it came.
  */
-private enum class Route(val depth: Int) {
+internal enum class Route(val depth: Int) {
     Settings(1), SettingsPage(2), Days(3), Session(1), Exercise(1), BodyWeight(1), Activities(1), Split(3), SplitDay(4), Stretch(2), StretchRoutine(1),
 }
 
 /** The weigh-in just saved at [lb] to entry [id]; [before] is that entry before an edit, null for a new one. */
 private data class WeighInUndo(val id: String, val before: BodyWeight?, val lb: Double)
+
+/** Where Back from [route] lands: the screen back() opens, and the one a Back swipe shows under the finger. */
+internal fun backTo(route: Route?, playerFromPage: Boolean): Route? = when (route) {
+    Route.Days, Route.Split -> Route.SettingsPage
+    Route.SettingsPage -> Route.Settings
+    Route.SplitDay -> Route.Split
+    Route.Stretch -> if (playerFromPage) Route.StretchRoutine else null
+    else -> null
+}
 
 /** A [BackHandler] whose [enabled] is read in this scope alone, so a change to it recomposes only this. */
 @Composable
@@ -355,34 +358,29 @@ private fun App(model: AppModel) {
         if (pending != null) open(SheetState.FiveRm(pending, pending.weight ?: 0)) else finishWorkout(null)
     }
 
-    // Read in its own scope: a tab switch would otherwise recompose all of this, and every kept tab's screen with it.
-    LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }) {
+    fun back() {
+        val r = route
         when {
             sheet != null -> close()
-            route == Route.Days || route == Route.Split -> openSettings(SettingsPage.Program)
-            route == Route.SettingsPage -> route = Route.Settings
-            route == Route.SplitDay -> push(Route.Split, arg.substringBefore('/'))
-            route == Route.Activities -> closeActivities()
-            route == Route.Stretch && playerFromPage -> push(Route.StretchRoutine, arg)
-            route != null -> route = null
-            else -> tab = Tab.Exercises
+            r == null -> tab = Tab.Exercises
+            r == Route.Activities -> closeActivities()
+            else -> {
+                if (r == Route.Days || r == Route.Split) settingsPage = SettingsPage.Program
+                if (r == Route.SplitDay) arg = arg.substringBefore('/')
+                route = backTo(r, playerFromPage)
+            }
         }
     }
+    // Read in its own scope: a tab switch would otherwise recompose all of this, and every kept tab's screen with it.
+    // A pushed screen's pop is the [BackStack]'s, which shows it under the finger.
+    LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
     Box(Modifier.fillMaxSize()) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
-        // A pushed screen slides in from the trailing edge and back out on pop, as on iOS; the tabs underneath stay put.
-        AnimatedContent(
-            route, Modifier.backdropSource(backdrop),
-            transitionSpec = {
-                val push = (targetState?.depth ?: 0) > (initialState?.depth ?: 0)
-                val ease = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
-                (if (push) slideInHorizontally(tween(300, easing = ease)) { it } togetherWith fadeOut(tween(200))
-                else fadeIn(tween(200)) togetherWith slideOutHorizontally(tween(200, easing = ease)) { it })
-                    .apply { targetContentZIndex = if (push) 1f else -1f }
-            },
-            label = "route",
+        BackStack(
+            route, { it?.depth ?: 0 }, { sheet == null && route != null }, { backTo(route, playerFromPage) }, ::back,
+            Modifier.backdropSource(backdrop),
         ) { shown ->
             val session = state.sessions.firstOrNull { it.id == arg }
             val log = if (shown == Route.Exercise) state.exerciseLogs().firstOrNull { it.id == arg } else null

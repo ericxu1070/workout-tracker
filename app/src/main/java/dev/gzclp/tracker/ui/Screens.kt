@@ -276,7 +276,6 @@ fun HomeScreen(
     ScreenFrame(bottom = {
         BottomBar {
             PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
-            Spacer(Modifier.width(Space.md))
             PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
         }
     }) {
@@ -293,7 +292,7 @@ fun HomeScreen(
                         Txt(ex.detail(), Type.footnote, color = p.fg2)
                         if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
                             Spacer(Modifier.height(Space.xs))
-                            StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
+                            StrengthSuggestion(suggested, { onUseSuggestion(ex, suggested) })
                         }
                     }
                     Txt(ex.weight?.let(Fmt::lb) ?: "Set weight", Type.headline.tabular(), color = p.accent)
@@ -430,7 +429,7 @@ private fun ExerciseBlock(
     val suggested = if (plan != null) state.strengthSuggestion(ex) else null
     if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
         Spacer(Modifier.height(Space.xs))
-        StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
+        StrengthSuggestion(suggested, { onUseSuggestion(ex, suggested) })
     }
     Spacer(Modifier.height(Space.sm))
     Row(Modifier.fillMaxWidth().padding(vertical = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
@@ -465,30 +464,13 @@ private fun ExerciseBlock(
     }
 }
 
+/** A heavier weight the recent sets support than the plan: a sentence and a button that takes it. */
 @Composable
-fun StrengthSuggestionChip(
-    plan: Int,
-    suggested: Int,
-    onUse: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun StrengthSuggestion(suggested: Int, onUse: () -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
-    Pressable(
-        onClick = onUse,
-        modifier = modifier
-            .clip(RoundedCornerShape(Radius.md))
-            .background(p.fill)
-            .padding(horizontal = Space.md, vertical = Space.xs)
-            .semantics(mergeDescendants = true) {},
-        label = "Plan $plan · recent sets say $suggested · Use",
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Space.xs),
-        ) {
-            Txt("Plan $plan · recent sets say $suggested ·", Type.footnote, color = p.fg2)
-            Txt("Use", Type.footnote.copy(fontWeight = FontWeight.SemiBold), color = p.accent)
-        }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Txt("Your recent sets say you can lift more.", Type.footnote, Modifier.weight(1f), p.fg2)
+        SmallPill("Use ${Fmt.lb(suggested)}", onUse, Modifier.padding(start = Space.sm))
     }
 }
 

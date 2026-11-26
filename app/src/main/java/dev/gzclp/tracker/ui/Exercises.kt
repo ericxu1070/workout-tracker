@@ -68,7 +68,7 @@ fun ExercisesScreen(
     val logs = state.exerciseLogs()
     val daily = state.dailyBodyWeight()
     var span by rememberSaveable { mutableStateOf(MuscleSpan.Week) }
-    ScreenFrame {
+    ScreenFrame(bottom = { BottomBar { PillButton("Log weight", onLogWeight, Modifier.weight(1f), primary = true, icon = Icons.plus) } }) {
         Spacer(Modifier.height(52.dp))
         Txt("Exercises", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
@@ -105,7 +105,6 @@ fun ExercisesScreen(
                 }
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
-            AddRow("Log weight", first = false, onLogWeight)
         }
         if (logs.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))

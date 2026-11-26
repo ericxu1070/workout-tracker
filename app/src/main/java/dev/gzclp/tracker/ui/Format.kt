@@ -22,10 +22,11 @@ object Fmt {
     fun date(t: OffsetDateTime): String = date.format(t)
     fun shortDate(t: java.time.temporal.TemporalAccessor): String = short.format(t)
 
-    /** Today, Yesterday, or Sun, Nov 8. */
+    /** Today, Yesterday, Tomorrow, or Sun, Nov 8. */
     fun day(d: java.time.LocalDate, today: java.time.LocalDate): String = when (d) {
         today -> "Today"
         today.minusDays(1) -> "Yesterday"
+        today.plusDays(1) -> "Tomorrow"
         else -> date.format(d)
     }
 

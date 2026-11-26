@@ -110,12 +110,6 @@ fun AppState.shouldSuggest(ex: Exercise, suggestedWeight: Int): Boolean {
     return suggestedWeight >= plan + step
 }
 
-fun AppState.suggestionChipText(ex: Exercise): String? {
-    val plan = ex.weight ?: return null
-    val suggested = strengthSuggestion(ex) ?: return null
-    return if (shouldSuggest(ex, suggested)) "Plan $plan · recent sets say $suggested · Use" else null
-}
-
 fun AppState.adaptSessionStartEvents(day: ProgramDay = nextDay): List<Event> {
     val model = strengthModel()
     val exercises = exercises(day)

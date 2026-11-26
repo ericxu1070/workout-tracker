@@ -13,7 +13,6 @@ import dev.gzclp.tracker.log.adaptSessionStartEvents
 import dev.gzclp.tracker.log.shouldSuggest
 import dev.gzclp.tracker.log.strengthModel
 import dev.gzclp.tracker.log.strengthSuggestion
-import dev.gzclp.tracker.log.suggestionChipText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -164,8 +163,8 @@ class StrengthTest {
     @Test
     fun chipThresholdExceedsByAtLeastOneIncrement() {
         // Spec: When the suggestion exceeds the engine's weight by at least one increment
-        // (e.g., 5 lb for bench/ohp/upper or 10 lb for lower), show a chip on the exercise:
-        // "Plan 105 · recent sets say 115 · Use".
+        // (e.g., 5 lb for bench/ohp/upper or 10 lb for lower), show a suggestion on the exercise:
+        // "Your recent sets say you can lift more." with a "Use 115 lb" button.
 
         val fiveRm = mapOf(Lift.BENCH to 165, Lift.SQUAT to 225)
         val setupEvents = Commands.setup(fiveRm, Programs.GZCLP)
@@ -187,9 +186,6 @@ class StrengthTest {
         assertNotNull(suggestion)
         assertEquals(185, suggestion)
         assertTrue(appState.shouldSuggest(benchEx, suggestion!!))
-        val chipText = appState.suggestionChipText(benchEx)
-        assertNotNull(chipText)
-        assertEquals("Plan 140 · recent sets say 185 · Use", chipText)
     }
 
     @Test
