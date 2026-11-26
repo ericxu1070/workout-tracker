@@ -116,8 +116,25 @@ data class Palette(
 
     /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper. */
     val card: Color get() = if (glass) elevated.copy(alpha = 0.6f) else elevated
-    /** Liquid Glass bars and sheets: [bg] at [chromeAlpha], over whatever is blurred behind them. */
+    /** Liquid Glass sheets and the undo bar, which carry running text: [bg] at [chromeAlpha], over whatever is blurred behind them. */
     val chrome: Color get() = bg.copy(alpha = chromeAlpha)
+    /**
+     * Liquid Glass's tab bar and the switch floating over pages: see-through, [bg] at the clearest alpha from [CLEAREST_BAR] up at which
+     * their labels read at 4.5:1 under the sheen over what scrolls under them most, the wallpaper and cards ([panes]), blurred.
+     * Brighter blocks passing under (an accent button, a red pill) can dip below that; [halo] holds the labels over them.
+     */
+    val bar: Color by lazy {
+        val sheen = Color.White.copy(alpha = SHEEN)
+        fun reads(a: Int) = bg.copy(alpha = a / 100f).let { t ->
+            panes.flatMap { u -> t.compositeOver(u).let { listOf(it, sheen.compositeOver(it)) } }.all { s ->
+                // A tab's icon and label, the current one's on its pill; a segment's label on the track, the current one's on its pill.
+                val track = fill.compositeOver(s)
+                contrast(fg2, s) >= 4.5f && contrast(fg, pill.compositeOver(s)) >= 4.5f &&
+                    contrast(fg, track) >= 4.5f && contrast(fg, pill.compositeOver(track)) >= 4.5f
+            }
+        }
+        bg.copy(alpha = if (reads(100)) least(CLEAREST_BAR, 100, ::reads) / 100f else 1f)
+    }
     /** Tertiary text and icons: the faintest [fg] that still reads at 4.5:1 on every surface. */
     val fg3: Color by lazy {
         fun reads(a: Int) = fg.copy(alpha = a / 100f).let { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } }
@@ -136,11 +153,24 @@ data class Palette(
     }
     /** Text and icons on a [red] fill; red reads at 4.5:1 on both, so either reads on red. */
     val onRed: Color get() = if (dark) bg else elevated
+    /** The wallpaper at its plainest and brightest (every glow at its peak at once), and cards over it. */
+    private val panes: List<Color> by lazy {
+        val walls = listOf(bg) + glows.map { it.compositeOver(bg) } + glows.fold(bg) { under, g -> g.compositeOver(under) }
+        walls + walls.map { card.compositeOver(it) }
+    }
     /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each; in Liquid Glass, the worst case behind each pane. */
     val surfaces: List<Color> by lazy { if (glass) glassSurfaces(chrome) else surfaces(bg, elevated, fg) }
     val separator: Color get() = fg.copy(alpha = 0.10f)
     val fill: Color get() = fg.copy(alpha = 0.07f)
     val fillPressed: Color get() = fg.copy(alpha = 0.14f)
+    /**
+     * A tab bar's or segmented control's resting pill: a neutral highlight one shade off its bar, lighter on a dark bar, grayer on a
+     * light one; the strongest up to 12% on which fg reads at 4.5:1 over every one of [surfaces], a control's track among them.
+     */
+    val pill: Color by lazy {
+        (12 downTo 6).map { fg.copy(alpha = it / 100f) }.firstOrNull { t -> surfaces.all { contrast(fg, t.compositeOver(it)) >= 4.5f } }
+            ?: fg.copy(alpha = 0.06f)
+    }
     val scrim: Color get() = Color.Black.copy(alpha = if (dark) 0.55f else 0.30f)
 
     /**
@@ -149,8 +179,6 @@ data class Palette(
      * bars, and a [fill] on each.
      */
     private fun glassSurfaces(bar: Color): List<Color> {
-        val walls = listOf(bg) + glows.map { it.compositeOver(bg) } + glows.fold(bg) { under, g -> g.compositeOver(under) }
-        val panes = walls + walls.map { card.compositeOver(it) }
         val bars = (panes + listOf(accent, red, Color.White, Color.Black)).map { bar.compositeOver(it) }
         val all = panes + bars + bars.map { card.compositeOver(it) }
         return all + all.map { fill.compositeOver(it) }
@@ -226,6 +254,9 @@ object Palettes {
 
 /** The clearest Liquid Glass bars get, in percent: the alpha the Liquid Glass theme was tuned with. */
 const val CLEAREST_CHROME = 82
+
+/** The clearest Liquid Glass's tab bar and floating switch get, in percent: enough of [Palette.bg] to tint them the theme's color. */
+const val CLEAREST_BAR = 30
 
 /** The clearest a stained button gets, in percent: below this, over dark glass, it reads as dimmed, like a disabled button. */
 const val CLEAREST_STAIN = 85
