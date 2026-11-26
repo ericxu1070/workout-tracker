@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -61,12 +62,15 @@ fun StretchScreen(
     onStartRoutine: (StretchRoutine) -> Unit,
     onOpenRoutine: (StretchRoutine) -> Unit,
     onNewRoutine: () -> Unit,
+    initialAbout: String? = null,
 ) {
     val p = LocalPalette.current
     val routines = remember(state) { StretchRoutines.all(state) }
     val defaultKey = remember(state, defaultId) { StretchRoutines.of(defaultId, state).key }
     var selectedKey by remember(defaultKey) { mutableStateOf(defaultKey) }
     val currentRoutine = routines.firstOrNull { it.key == selectedKey } ?: routines.first()
+    var moreShown by rememberSaveable(defaultKey) { mutableStateOf(StretchRoutines.more.any { it.key == defaultKey }) }
+    var aboutKey by rememberSaveable { mutableStateOf(initialAbout) }
 
     var selectedAreaFilter by remember { mutableStateOf<BodyArea?>(null) }
     var previewMove by remember { mutableStateOf<StretchMove?>(null) }
@@ -92,9 +96,11 @@ fun StretchScreen(
 
             GroupHeader("Routines")
             Group {
-                routines.forEachIndexed { i, routine ->
+                @Composable
+                fun RoutineRow(routine: StretchRoutine, first: Boolean) {
                     val selected = routine.key == currentRoutine.key
-                    GroupRow(first = i == 0, onClick = { selectedKey = routine.key }) {
+                    val about = aboutKey == routine.key
+                    GroupRow(first = first, onClick = { selectedKey = routine.key }) {
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
@@ -106,14 +112,22 @@ fun StretchScreen(
                             Txt(routineMeta(routine), Type.footnote, color = p.fg2)
                         }
                         if (selected) Icon(Icons.check, p.accent, size = 18.dp)
-                        // The row picks the routine; the info button opens its page, as a Wi-Fi network's does.
+                        // A built-in routine's eye button opens what it is for in place; a custom one's opens its page to edit, as a Wi-Fi network's does.
+                        val label = if (routine.custom) "${routine.name} moves" else "About ${routine.name}"
                         Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
-                            Pressable({ onOpenRoutine(routine) }, m.semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
-                                Icon(Icons.info, p.accent, 22.dp)
-                            }
+                            Pressable(
+                                { if (routine.custom) onOpenRoutine(routine) else aboutKey = if (about) null else routine.key },
+                                m.semantics { contentDescription = label }, CircleShape, label = label,
+                            ) { Icon(if (routine.custom) Icons.info else Icons.eye, p.accent, 22.dp) }
                         }
                     }
+                    if (!routine.custom) Disclosed(about) { RoutineAbout(routine) { onOpenRoutine(routine) } }
                 }
+                RoutineRow(routines.first(), first = true)
+                StretchRoutines.popular.forEach { RoutineRow(it, first = false) }
+                ShowMoreRow(moreShown, { moreShown = !moreShown })
+                Disclosed(moreShown) { StretchRoutines.more.forEach { RoutineRow(it, first = false) } }
+                state?.customStretches?.values?.forEach { RoutineRow(it, first = false) }
                 AddRow("New routine", first = false, onClick = onNewRoutine)
             }
 
@@ -172,6 +186,25 @@ fun StretchScreen(
     // Move Detail Modal Preview
     previewMove?.let { move ->
         MovePreviewDialog(move = move, onDismiss = { previewMove = null })
+    }
+}
+
+/** What a built-in routine is, its goal, and when to pick it, then a way to its moves. */
+@Composable
+private fun RoutineAbout(routine: StretchRoutine, onMoves: () -> Unit) {
+    val p = LocalPalette.current
+    Column(Modifier.fillMaxWidth().padding(start = Space.lg, end = Space.lg, bottom = Space.xs), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+        Txt(routine.description, Type.subhead)
+        for ((label, text) in listOf("Goal" to routine.goal, "When" to routine.pick)) Row {
+            Txt(label, Type.subhead.copy(fontWeight = FontWeight.SemiBold), Modifier.width(56.dp), p.fg2)
+            Txt(text, Type.subhead, Modifier.weight(1f))
+        }
+        Pressable(onMoves, Modifier.heightIn(min = 44.dp).semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
+            Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
+                Txt("See moves", Type.subhead, color = p.accent)
+                Icon(Icons.chevronRight, p.accent, 16.dp)
+            }
+        }
     }
 }
 

@@ -201,7 +201,7 @@ class StretchTest {
     @Test
     fun everyRoutineIsListedOnceByName() {
         val names = StretchRoutines.all().map { it.name }
-        assertEquals(7, names.size)
+        assertEquals(20, names.size)
         assertEquals(names.size, names.toSet().size)
         // The default routine resolves to a listed one on every day of the Flexibility rotation.
         val d0 = LocalDate.of(2026, 11, 24)

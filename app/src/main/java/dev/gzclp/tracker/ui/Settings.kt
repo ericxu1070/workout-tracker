@@ -1,13 +1,5 @@
 package dev.gzclp.tracker.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.EaseOutQuart
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -18,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -118,13 +109,12 @@ fun SettingsScreen(
     val prefs = androidx.compose.runtime.remember(context) { dev.gzclp.tracker.Prefs(context) }
     val galleryState = androidx.compose.runtime.remember(prefs) { androidx.compose.runtime.mutableStateOf(prefs.saveToGallery) }
     val galleryEnabled = saveToGallery ?: galleryState.value
-    val routines = listOf(
-        StretchRoutines.ID_AFTER_WORKOUT to "After workout",
-        StretchRoutines.ID_FLEXIBILITY to "Flexibility",
-        StretchRoutines.ID_DANCE to "Dance",
-        StretchRoutines.ID_ATHLETICS to "Athletics",
-        StretchRoutines.ID_ATHLETICS_DYNAMIC to "Athletics dynamic",
-    ) + customStretches.map { it.id to it.name }
+    // The Flexibility days share one id, which picks the day's routine, so they are one choice here.
+    val moreRoutines = StretchRoutines.more.distinctBy { it.id }.map { it.id to if (it.id == StretchRoutines.ID_FLEXIBILITY) "Flexibility" else it.name }
+    val topRoutines = listOf(StretchRoutines.ID_AFTER_WORKOUT to "After workout") + StretchRoutines.popular.map { it.id to it.name }
+    val customRoutines = customStretches.map { it.id to it.name }
+    val routines = topRoutines + moreRoutines + customRoutines
+    var moreShown by rememberSaveable { mutableStateOf(moreRoutines.any { it.first == stretchRoutine }) }
     val anyReminder = weighInReminder || mealReminder || stretchReminder || waterReminder
 
     @Composable
@@ -290,13 +280,16 @@ fun SettingsScreen(
             SettingsPage.Stretching -> {
                 GroupHeader("Default routine")
                 Group {
-                    val current = routines.indexOfFirst { it.first == stretchRoutine }.coerceAtLeast(0)
-                    routines.forEachIndexed { i, (id, name) ->
-                        GroupRow(first = i == 0, onClick = { onStretchRoutine(id) }) {
-                            Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
-                            if (i == current) Icon(Icons.check, p.accent, 20.dp)
-                        }
+                    val current = routines.firstOrNull { it.first == stretchRoutine }?.first ?: StretchRoutines.ID_AFTER_WORKOUT
+                    @Composable
+                    fun RoutineRow(id: String, name: String, first: Boolean) = GroupRow(first = first, onClick = { onStretchRoutine(id) }) {
+                        Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        if (id == current) Icon(Icons.check, p.accent, 20.dp)
                     }
+                    topRoutines.forEachIndexed { i, (id, name) -> RoutineRow(id, name, i == 0) }
+                    ShowMoreRow(moreShown, { moreShown = !moreShown })
+                    Disclosed(moreShown) { moreRoutines.forEach { (id, name) -> RoutineRow(id, name, false) } }
+                    customRoutines.forEach { (id, name) -> RoutineRow(id, name, false) }
                 }
             }
 
@@ -364,15 +357,8 @@ fun SettingsScreen(
                     ThemeRow(Palettes.light.id, "Light", true) { Swatch(Palettes.light) }
                     ThemeRow(Palettes.dark.id, "Dark", false) { Swatch(Palettes.dark) }
                     ThemeRow(Palettes.SYSTEM, "System", false) { Swatch(Palettes.light, Palettes.dark) }
-                    GroupRow(first = false, onClick = { showMore = !showMore }, inset = Space.lg + 22.dp + Space.md) {
-                        Spacer(Modifier.width(22.dp + Space.md))
-                        Txt(if (showMore) "Show less" else "Show more", Type.body, Modifier.weight(1f), p.accent)
-                        val turn by animateFloatAsState(if (showMore) 90f else 0f, tween(220, easing = EaseOutQuart), label = "more")
-                        Icon(Icons.chevronRight, p.accent, 20.dp, Modifier.rotate(turn))
-                    }
-                    AnimatedVisibility(showMore, enter = expandVertically(tween(260, easing = EaseOutQuart)) + fadeIn(tween(260)), exit = shrinkVertically(tween(180, easing = EaseOutQuart)) + fadeOut(tween(120))) {
-                        Column { Palettes.custom.forEach { t -> ThemeRow(t.id, t.name, false) { Swatch(t) } } }
-                    }
+                    ShowMoreRow(showMore, { showMore = !showMore }, lead = 22.dp + Space.md)
+                    Disclosed(showMore) { Palettes.custom.forEach { t -> ThemeRow(t.id, t.name, false) { Swatch(t) } } }
                     ThemeRow(
                         LaptopTheme.ID, "Laptop", false,
                         laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder",

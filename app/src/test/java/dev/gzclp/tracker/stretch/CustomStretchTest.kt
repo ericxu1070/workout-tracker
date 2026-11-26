@@ -108,7 +108,7 @@ class CustomStretchTest {
         val s = store.state.value
 
         val all = StretchRoutines.all(s)
-        assertEquals(8, all.size)
+        assertEquals(StretchRoutines.all().size + 1, all.size)
         assertEquals(id, all.last().key)
         assertEquals(all.size, all.map { it.key }.toSet().size)
         val routine = StretchRoutines.of(id, s)

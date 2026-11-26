@@ -23,7 +23,7 @@ Calisthenics fields on `set` were added within version 2: the optional `added_lb
 
 The `stretch` and `stretch_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
-Custom stretch routines were added within version 2: the `stretch_routine_define` and `stretch_routine_remove` types. A `stretch` line from one names the custom routine's id in `routine`. A reader that predates them skips the new types, and still reads such a `stretch` line as a session of an unknown routine.
+Custom stretch routines were added within version 2: the `stretch_routine_define` and `stretch_routine_remove` types. A `stretch` line from one names the custom routine's id in `routine`. A reader that predates them skips the new types, and still reads such a `stretch` line as a session of an unknown routine. The built-in routines from `desk-reset` on were added within version 2 too; a reader that predates them reads their `stretch` lines the same way.
 
 The `water` and `water_clear` types were added within version 2. A reader that predates them skips them as unknown types.
 
@@ -315,7 +315,7 @@ A finished stretching session.
 |---|---|---|
 | `id` | string | Unique stretch session id, such as `st1795834800`. |
 | `at` | string | When completed, ISO-8601 string. |
-| `routine` | string | Routine id: a built-in one, `after_workout`, `flexibility`, `dance`, `athletics`, or `athletics_dynamic`, or a custom routine named by a `stretch_routine_define` line. |
+| `routine` | string | Routine id: a built-in one, `after_workout`, `flexibility`, `dance`, `athletics`, `athletics_dynamic`, `desk-reset`, `runners-cooldown`, `morning-flow`, `bedtime-wind-down`, `low-back-relief`, `hip-flexor-reset`, `front-splits`, `overhead-mobility`, `deep-squat-prep`, `calves-and-ankles`, `cyclists-cooldown`, `throwers-shoulder`, or `golf-warm-up`, or a custom routine named by a `stretch_routine_define` line. A built-in id added later has a hyphen, which a custom id never has, so it never takes over a custom routine. |
 | `duration_sec` | int | Duration in seconds. |
 | `moves` | array of string | List of move ids performed. |
 
