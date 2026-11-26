@@ -65,6 +65,13 @@ class SettingsUiTest {
         rule.onNodeWithText("Show less").assertExists()
     }
 
+    @Test fun appearanceAsksForGender() {
+        appearance("light")
+        rule.onNodeWithText("Gender").performScrollTo().assertExists()
+        rule.onAllNodesWithText("Muscle map body").assertCountEquals(0)
+        rule.onNodeWithText("Female").assertExists()
+    }
+
     @Test fun aCustomThemeOpensExpanded() {
         appearance("tokyo")
         rule.onNodeWithText("Show less").assertExists()

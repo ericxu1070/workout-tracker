@@ -378,7 +378,7 @@ fun SettingsScreen(
                         laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder",
                     ) { Swatch(laptop) }
                 }
-                GroupHeader("Muscle map body")
+                GroupHeader("Gender")
                 Group {
                     for ((female, name) in listOf(false to "Male", true to "Female")) GroupRow(first = !female, onClick = { onBodyFemale(female) }) {
                         Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)

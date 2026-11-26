@@ -7,7 +7,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -19,7 +21,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
-/** The Exercises tab's muscle map, male and female, in Tokyo Night and Liquid Glass, over the demo's last full week, with a muscle tapped. */
+/** The Exercises tab's muscle map, male and female, in Tokyo Night and Liquid Glass, over the demo's last full week, with a muscle tapped; and its Day, Week and Month. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
@@ -46,5 +48,18 @@ class MuscleMapShots {
         rule.waitForIdle()
         rule.onNodeWithContentDescription("Muscles worked: ", substring = true).performTouchInput { click(percentOffset(0.244f, 0.255f)) }
         rule.onRoot().captureRoboImage(File(out, "tokyo-muscles-tapped.png").path)
+    }
+
+    /** Day, Week and Month on the demo's last day lifted, so Day has sets of its own. */
+    @Test fun spans() {
+        out.mkdirs()
+        val idle = Demo.state.copy(active = null)
+        val day = idle.sessions.maxOf { it.startedAt }.toLocalDate()
+        rule.setContent { GzTheme(Palettes.tokyo) { Box(Modifier.fillMaxSize()) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = day) } } } }
+        for (span in listOf("Day", "Week", "Month")) {
+            rule.onNodeWithText(span).performClick()
+            rule.waitForIdle()
+            rule.onRoot().captureRoboImage(File(out, "tokyo-muscles-${span.lowercase()}.png").path)
+        }
     }
 }

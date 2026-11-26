@@ -32,13 +32,28 @@ class MuscleTest {
             session("2026-11-10T18:00:00-08:00", set("bench"), set("bench"), set("bench", reps = 0), set("weighted_dip")),
             session("2026-11-08T18:00:00-08:00", set("bench")), // the Sunday before
         ))
-        val (from, to) = muscleWindow(LocalDate.parse("2026-11-12"), month = false)
+        val (from, to) = muscleWindow(LocalDate.parse("2026-11-12"), MuscleSpan.Week)
         val w = s.muscleWork(from, to)
         assertEquals(MuscleWork(3, 3.0), w[Muscle.CHEST]) // two bench, one dip; the failed set is left out
         assertEquals(MuscleWork(3, 2.0), w[Muscle.TRICEPS]) // bench helps twice, dip trains once
         assertEquals(MuscleWork(3, 1.5), w[Muscle.SHOULDERS])
         assertNull(w[Muscle.QUADS])
-        assertEquals(4.0, s.muscleWork(muscleWindow(LocalDate.parse("2026-11-12"), month = true).first, to)[Muscle.CHEST]!!.load, 0.0)
+        assertEquals(4.0, s.muscleWork(muscleWindow(LocalDate.parse("2026-11-12"), MuscleSpan.Month).first, to)[Muscle.CHEST]!!.load, 0.0)
+    }
+
+    @Test fun theDayWindowHoldsOnlyToday() {
+        val s = AppState(sessions = listOf(
+            session("2026-11-12T07:00:00-08:00", set("squat"), set("bench")),
+            session("2026-11-11T18:00:00-08:00", set("bench")), // yesterday
+        ))
+        val w = muscleWindow(LocalDate.parse("2026-11-12"), MuscleSpan.Day)
+        assertEquals(LocalDate.parse("2026-11-12") to LocalDate.parse("2026-11-12"), w)
+        val work = s.muscleWork(w.first, w.second)
+        assertEquals(MuscleWork(1, 1.0), work[Muscle.CHEST])
+        assertEquals(MuscleWork(1, 1.0), work[Muscle.QUADS])
+        // A day's baseline is a seventh of ten sets; a week three days in still wants a full week's.
+        assertEquals(1L, baselineDays(MuscleSpan.Day, w))
+        assertEquals(7L, baselineDays(MuscleSpan.Week, muscleWindow(LocalDate.parse("2026-11-12"), MuscleSpan.Week)))
     }
 
     @Test fun theRunningSessionCounts() {
@@ -49,7 +64,8 @@ class MuscleTest {
     }
 
     @Test fun levelsScaleToTheMostWorkedOrTenSetsAWeek() {
-        assertEquals(mapOf(Muscle.CHEST to 0.5f), Muscles.levels(mapOf(Muscle.CHEST to MuscleWork(5, 5.0)), 3))
+        assertEquals(mapOf(Muscle.CHEST to 0.5f), Muscles.levels(mapOf(Muscle.CHEST to MuscleWork(5, 5.0)), 7))
+        assertEquals(0.7f, Muscles.levels(mapOf(Muscle.CHEST to MuscleWork(1, 1.0)), 1)[Muscle.CHEST]!!, 1e-6f) // a day wants 10/7 sets
         assertEquals(mapOf(Muscle.CHEST to 1f, Muscle.BICEPS to 0.25f), Muscles.levels(mapOf(Muscle.CHEST to MuscleWork(20, 20.0), Muscle.BICEPS to MuscleWork(5, 5.0)), 7))
         assertEquals(mapOf(Muscle.CHEST to 0.5f), Muscles.levels(mapOf(Muscle.CHEST to MuscleWork(20, 20.0)), 28)) // four weeks want 40
         assertEquals(emptyMap<Muscle, Float>(), Muscles.levels(emptyMap(), 7))

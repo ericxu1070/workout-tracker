@@ -1,7 +1,12 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -10,9 +15,11 @@ import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performTouchInput
 import dev.gzclp.tracker.log.CardioRun
 import dev.gzclp.tracker.log.Muscle
+import dev.gzclp.tracker.log.MuscleSpan
 import dev.gzclp.tracker.log.muscleWindow
 import dev.gzclp.tracker.log.muscleWork
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +43,7 @@ class MuscleMapTest {
     }
 
     @Test fun tappingAMuscleShowsItsNameAndSets() {
-        val week = muscleWindow(sunday, month = false)
+        val week = muscleWindow(sunday, MuscleSpan.Week)
         val chest = idle.muscleWork(week.first, week.second).getValue(Muscle.CHEST).sets
         rule.setContent { GzTheme(Palettes.tokyo) { ExercisesScreen(idle, {}, {}, {}, today = sunday) } }
         val map = rule.onNodeWithContentDescription("Muscles worked: ", substring = true)
@@ -48,5 +55,22 @@ class MuscleMapTest {
         // Between the figures is no muscle, so the name goes.
         map.performTouchInput { click(percentOffset(0.5f, 0.5f)) }
         rule.onAllNodesWithText("Chest").assertCountEquals(0)
+    }
+
+    @Test fun theSwitchHoldsDayWeekAndMonthAndStartsOnWeek() {
+        // The last day lifted, so Day has sets of its own, fewer than its week's.
+        val day = idle.sessions.maxOf { it.startedAt }.toLocalDate()
+        rule.setContent { GzTheme(Palettes.tokyo) { ExercisesScreen(idle, {}, {}, {}, today = day) } }
+        rule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).assertCountEquals(3)
+        val said = { span: MuscleSpan ->
+            val w = muscleWindow(day, span)
+            val n = idle.muscleWork(w.first, w.second)[Muscle.QUADS]?.sets ?: 0
+            "Quads ${if (n == 1) "1 set" else "$n sets"}"
+        }
+        assertNotEquals(said(MuscleSpan.Day), said(MuscleSpan.Week))
+        rule.onNodeWithContentDescription("Muscles worked: ", substring = true).assertContentDescriptionContains(said(MuscleSpan.Week), substring = true)
+        rule.onNodeWithText("Day").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("Muscles worked: ", substring = true).assertContentDescriptionContains(said(MuscleSpan.Day), substring = true)
     }
 }
