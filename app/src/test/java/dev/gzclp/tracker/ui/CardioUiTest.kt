@@ -18,6 +18,18 @@ class CardioUiTest {
         assertEquals("1 hr 20 min", Fmt.minutes(80 * 60))
         assertEquals("3 hr", Fmt.minutes(180 * 60))
         assertEquals("1 hr", Fmt.minutes(59 * 60 + 45))
+        assertEquals("<1 min", Fmt.minutes(14))
+        assertEquals("0 min", Fmt.minutes(0))
+    }
+
+    @Test fun theRunningClockStopsWhenStopIsTapped() {
+        val run = CardioRun("c1", "running", "Running", start)
+        val now = start.plusSeconds(34)
+        assertEquals(now, cardioClock(run, null, now))
+        assertEquals(start.plusSeconds(14), cardioClock(run, SheetState.CardioStop(run, 14), now))
+        // Logging a past session or editing another leaves the running clock alone.
+        assertEquals(now, cardioClock(run, SheetState.CardioStop(run, 14, now = now), now))
+        assertEquals(now, cardioClock(run, SheetState.CardioStop(run.copy(id = "c0"), 14), now))
     }
 
     @Test fun timeRangeSharesTheSuffixWithinHalfADay() {

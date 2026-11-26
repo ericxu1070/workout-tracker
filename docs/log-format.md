@@ -439,7 +439,7 @@ A finished cardio session, or an edit of one. Written when the user stops a sess
 | `activity` | string | Activity id. An edit can change it. |
 | `name` | string | Activity display name. |
 | `started_at` | string | When the session started, same format as `ts`. |
-| `duration_sec` | int | Active time, 60 to 86400. Set by the user, so it need not equal the time to this line's `ts`. |
+| `duration_sec` | int | Active time, 1 to 86400. Set by the user, so it need not equal the time to this line's `ts`. |
 | `distance_m` | int, optional | Distance in meters, 1 to 1000000. Absent when not given. |
 | `rpe` | number, optional | Rate of perceived exertion for the session, same format as on `set`. Absent when not given. |
 | `notes` | string, optional | The user's note, at most 200 characters. Absent when not given. |

@@ -120,6 +120,10 @@ fun SheetState.CardioStop.withActivity(a: Activity): SheetState.CardioStop =
     if (Activities.of(a.id)?.unit == unit) copy(run = run.copy(activity = a.id, name = a.name))
     else copy(run = run.copy(activity = a.id, name = a.name), distance = 0.0, distanceText = null, reach = 0.0)
 
+/** The time [run]'s clock shows: [now], or the moment Stop was tapped while its stop [sheet] is open. */
+fun cardioClock(run: CardioRun, sheet: SheetState?, now: OffsetDateTime): OffsetDateTime =
+    (sheet as? SheetState.CardioStop)?.takeIf { it.now == null && it.run.id == run.id }?.let { run.startedAt.plusSeconds(it.maxSec) } ?: now
+
 /** The duration that ends at the first [hour]:[minute] after [start], kept within a minute and [maxSec]. */
 fun durationEndingAt(start: OffsetDateTime, hour: Int, minute: Int, maxSec: Long): Long {
     val end = start.withHour(hour).withMinute(minute).withSecond(0).let { if (it.isAfter(start)) it else it.plusDays(1) }

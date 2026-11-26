@@ -92,8 +92,8 @@ class CardioTest {
         val s = AppState()
         fun log(sec: Long = 1800, start: OffsetDateTime = t0, m: Int? = null, rpe: Double? = null, notes: String? = null, a: Activity = running) =
             Commands.logCardio(s, null, a, start, sec, m, rpe, notes, t0).singleOrNull() as CardioLogged?
-        assertNull(log(sec = 59))
-        assertNotNull(log(sec = 60))
+        assertNull(log(sec = 0))
+        assertNotNull("a session under a minute saves", log(sec = 1))
         assertNotNull(log(sec = 86_400))
         assertNull(log(sec = 86_401))
         assertNull("start in the future", log(start = t0.plusSeconds(1)))

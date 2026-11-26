@@ -41,6 +41,7 @@ import dev.gzclp.tracker.engine.Activity
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.ui.ActivitiesScreen
 import dev.gzclp.tracker.ui.CardioRunScreen
+import dev.gzclp.tracker.ui.cardioClock
 import dev.gzclp.tracker.ui.CardioScreen
 import dev.gzclp.tracker.ui.cardioEdit
 import dev.gzclp.tracker.ui.cardioPast
@@ -287,7 +288,7 @@ private fun App(model: AppModel) {
     /** Opens the stop sheet with the running session's time frozen at this tap. */
     fun stopCardio() {
         val run = model.store.state.value.cardioActive ?: return
-        open(SheetState.CardioStop(run, Duration.between(run.startedAt, model.now()).seconds.coerceAtMost(Commands.CARDIO_DURATION_SEC.last)))
+        open(SheetState.CardioStop(run, Duration.between(run.startedAt, model.now()).seconds.coerceIn(Commands.CARDIO_DURATION_SEC)))
     }
     fun pickCardioEnd(s: SheetState.CardioStop) {
         val end = s.run.startedAt.plusSeconds(s.durationSec)
@@ -470,7 +471,7 @@ private fun App(model: AppModel) {
                 else -> TabHost({ tab }, { tab = it }) { t ->
                         when (t) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
-                                run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+                                run, cardioClock(run, sheet, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime()),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
                             ) else WorkoutPages(model.workoutMode, model::chooseWorkoutMode, onSettings = { push(Route.Settings) }) { page ->
                                 when (page) {
