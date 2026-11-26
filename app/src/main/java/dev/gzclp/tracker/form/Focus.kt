@@ -28,12 +28,12 @@ private val STAR = Poser().apply {
  * Where a stretch is felt: full strength within half of [reach] of its [spots], fading smoothly to nothing [reach] metres
  * away along the body. Each surface's shares are worked out once, on the [STAR], so they follow the body through any pose.
  */
-open class Focus(val reach: Double, vararg val spots: Spot) {
-    protected val points = spots.map { STAR[it.bone].at(it.at.x, it.at.y, it.at.z) }
+class Focus(val reach: Double, vararg val spots: Spot) {
+    private val points = spots.map { STAR[it.bone].at(it.at.x, it.at.y, it.at.z) }
     private val made = HashMap<Pair<Mesh, Bone>, FloatArray>()
 
     /** How strongly the point [p] of the [STAR] feels the stretch, 0..1. */
-    open fun at(p: V) = points.maxOf { jerk(2 * (1 - (p - it).len / reach)) }
+    fun at(p: V) = points.maxOf { jerk(2 * (1 - (p - it).len / reach)) }
 
     /** Each vertex's share, 0..1, of [skin] bent by [bones]. */
     fun of(skin: Skin, bones: Array<Bone>): FloatArray = made.getOrPut(skin.mesh to bones[0]) {

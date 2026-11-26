@@ -77,6 +77,8 @@ fun SettingsScreen(
     onPlates: (Plates) -> Unit,
     showPlates: Boolean = true,
     onShowPlates: (Boolean) -> Unit = {},
+    bodyFemale: Boolean = false,
+    onBodyFemale: (Boolean) -> Unit = {},
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
     cardioGoalMin: Int = 150,
@@ -375,6 +377,13 @@ fun SettingsScreen(
                         LaptopTheme.ID, "Laptop", false,
                         laptop?.name?.split('-')?.joinToString(" ") { it.replaceFirstChar(Char::uppercase) } ?: if (sync.folder == null) "Choose a sync folder first" else "Not found in the sync folder",
                     ) { Swatch(laptop) }
+                }
+                GroupHeader("Muscle map body")
+                Group {
+                    for ((female, name) in listOf(false to "Male", true to "Female")) GroupRow(first = !female, onClick = { onBodyFemale(female) }) {
+                        Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
+                        if (female == bodyFemale) Icon(Icons.check, p.accent, 20.dp)
+                    }
                 }
             }
         }

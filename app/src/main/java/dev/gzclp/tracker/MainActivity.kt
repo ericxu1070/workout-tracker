@@ -82,6 +82,7 @@ import dev.gzclp.tracker.ui.ExercisesScreen
 import dev.gzclp.tracker.ui.FoodScreen
 import dev.gzclp.tracker.ui.SessionScreen
 import dev.gzclp.tracker.ui.Tab
+import dev.gzclp.tracker.ui.homeTab
 import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
@@ -155,7 +156,7 @@ private data class WeighInUndo(val id: String, val before: BodyWeight?, val lb: 
 @Composable
 private fun App(model: AppModel) {
     val state by model.store.state.collectAsState()
-    var tab by rememberSaveable { mutableStateOf(Tab.Workout) }
+    var tab by rememberSaveable { mutableStateOf(homeTab(state)) }
     var route by rememberSaveable { mutableStateOf<Route?>(null) }
     var arg by rememberSaveable { mutableStateOf("") }
     // The player was started from its routine's page, so leaving it goes back there.
@@ -346,7 +347,7 @@ private fun App(model: AppModel) {
         if (pending != null) open(SheetState.FiveRm(pending, pending.weight ?: 0)) else finishWorkout(null)
     }
 
-    BackHandler(sheet != null || route != null || tab != Tab.Workout) {
+    BackHandler(sheet != null || route != null || tab != Tab.Exercises) {
         when {
             sheet != null -> close()
             route == Route.Days || route == Route.Split -> openSettings(SettingsPage.Program)
@@ -355,7 +356,7 @@ private fun App(model: AppModel) {
             route == Route.Activities -> closeActivities()
             route == Route.Stretch && playerFromPage -> push(Route.StretchRoutine, arg)
             route != null -> route = null
-            else -> tab = Tab.Workout
+            else -> tab = Tab.Exercises
         }
     }
 
@@ -402,7 +403,7 @@ private fun App(model: AppModel) {
                         if (it) requestNotifications()
                     },
                     onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
-                    showPlates = model.showPlates, onShowPlates = model::chooseShowPlates,
+                    showPlates = model.showPlates, onShowPlates = model::chooseShowPlates, bodyFemale = model.bodyFemale, onBodyFemale = model::chooseBodyFemale,
                     warmups = model.warmups, onWarmups = model::chooseWarmups,
                     cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
                     splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },
@@ -508,7 +509,7 @@ private fun App(model: AppModel) {
                                 state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) },
                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                             )
-                            Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
+                            Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() }, female = model.bodyFemale)
                             Tab.History -> HistoryScreen(
                                 state, historyView, { historyView = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
                                 deleting = deleting, onDelete = { open(SheetState.Delete(it)) },
