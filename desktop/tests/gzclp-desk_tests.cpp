@@ -86,6 +86,46 @@ private slots:
         QCOMPARE(log.stretches[0].routine, QString("evening"));
         QVERIFY(d["water"].toList().isEmpty());
         QCOMPARE(d["stretches"].toMap()["total"].toInt(), 1);
+        // The custom routine keeps the name its define gave it after it is removed.
+        const QVariantMap evening = d["stretches"].toMap()["routines"].toList().value(0).toMap();
+        QCOMPARE(evening["name"].toString(), QString("Evening"));
+        QCOMPARE(evening["minutes"].toDouble(), 115 / 60.0);
+    }
+
+    void everyDocumentedTypeIsReadOrSkipped() {
+        const QString doc = QString::fromUtf8(readFile("GZCLP_LOG_DOC"));
+        auto it = QRegularExpression("^### `([a-z_]+)`$", QRegularExpression::MultilineOption).globalMatch(doc);
+        int types = 0;
+        while (it.hasNext()) {
+            const QString type = it.next().captured(1);
+            QVERIFY2(kReadTypes.contains(type) != kSkippedTypes.contains(type), qPrintable(type));
+            ++types;
+        }
+        QCOMPARE(types, int(kReadTypes.size() + kSkippedTypes.size()));
+    }
+
+    void stretchRoutinesAreNamed() {
+        const QByteArray lines =
+            "{\"v\":2,\"seq\":1,\"ts\":\"2026-11-16T08:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st1\",\"at\":\"2026-11-16T08:00:00-08:00\",\"routine\":\"limber-11\",\"duration_sec\":300,\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":2,\"ts\":\"2026-11-17T08:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st2\",\"at\":\"2026-11-17T08:00:00-08:00\",\"routine\":\"limber-11\",\"duration_sec\":30,\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":3,\"ts\":\"2026-11-17T09:00:00-08:00\",\"type\":\"stretch_routine_define\",\"routine\":\"evening\",\"name\":\"Evening\",\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":4,\"ts\":\"2026-11-17T09:01:00-08:00\",\"type\":\"stretch_routine_define\",\"routine\":\"evening\",\"name\":\"Night\",\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":5,\"ts\":\"2026-11-18T20:00:00-08:00\",\"type\":\"stretch\",\"id\":\"st3\",\"at\":\"2026-11-18T20:00:00-08:00\",\"routine\":\"evening\",\"duration_sec\":600,\"moves\":[]}\n"
+            "{\"v\":2,\"seq\":6,\"ts\":\"2026-11-19T08:00:00-08:00\",\"type\":\"stretch_routine_remove\",\"routine\":\"evening\"}\n";
+        const QVariantList routines = dashboard(parseLog(lines))["stretches"].toMap()["routines"].toList();
+        QCOMPARE(routines.size(), 2);
+        QCOMPARE(routines[0].toMap()["name"].toString(), QString("Limber 11"));  // most sessions first
+        QCOMPARE(routines[0].toMap()["sessions"].toInt(), 2);
+        QCOMPARE(routines[1].toMap()["name"].toString(), QString("Night"));  // the newest define wins
+    }
+
+    void onlyWaterIsNotAnEmptyLog() {
+        QTemporaryDir dir;
+        QFile file(dir.filePath("log.jsonl"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("{\"v\":2,\"seq\":1,\"ts\":\"2026-11-20T08:00:00-08:00\",\"type\":\"water\",\"id\":\"wt1\",\"at\":\"2026-11-20T08:00:00-08:00\",\"ml\":500}\n");
+        file.close();
+        QCOMPARE(Backend(file.fileName()).status(), QString("ready"));
     }
 
     void partialLastLineIsSkipped() {

@@ -1,5 +1,5 @@
 """Writes a deterministic log with six weeks of GZCLP, two weeks of push/pull/legs, a custom split,
-weigh-ins, cardio, and the edge cases the reader must handle (a corrected set, a
+weigh-ins, cardio, water, stretching, and the edge cases the reader must handle (a corrected set, a
 cleared set, a cleared and an edited weigh-in, an edited and a discarded cardio
 session, an accidental session, an open session, and a partial last line).
 
@@ -218,6 +218,24 @@ for k in (5, 6, 7):
 ride = datetime(2026, 10, 4, 9, 0, tzinfo=TZ)
 emit(ride, "cardio_start", entry_id=epoch_id("c", ride), activity="cycling", name="Cycling")
 emit(ride + timedelta(minutes=1), "cardio_clear", entry_id=epoch_id("c", ride))
+
+# Water most days, and stretching three or four times a week: built-in routines and a custom one.
+for d in range(55):
+    day = datetime(2026, 9, 28, 8, 0, tzinfo=TZ) + timedelta(days=d)
+    for k, ml in enumerate([500, 750, 500, 250 * (d % 4)][: 3 + d % 2]):
+        at = day + timedelta(hours=3 * k)
+        if ml:
+            emit(at, "water", id=epoch_id("wt", at), at=at.isoformat(timespec="seconds"), ml=ml)
+emit(datetime(2026, 10, 1, 21, 0, tzinfo=TZ), "stretch_routine_define", routine="evening", name="Evening",
+     moves=[{"move": "lats_childs_pose", "hold_sec": 60}, {"move": "hips_pigeon", "hold_sec": 120}])
+routines = ["after_workout", "evening", "limber-11", "after_workout", "desk-reset"]
+for d in range(0, 55, 2):
+    at = datetime(2026, 9, 28, 20, 0, tzinfo=TZ) + timedelta(days=d)
+    routine = routines[(d // 2) % len(routines)]
+    emit(at, "stretch", id=epoch_id("st", at), at=at.isoformat(timespec="seconds"), routine=routine,
+         duration_sec=300 + 60 * (d % 5), moves=["hips_pigeon"])
+emit(datetime(2026, 11, 20, 12, 0, tzinfo=TZ), "food_estimate", meal="20261120T120000-0800.jpg", label="Rice bowl",
+     kcal_low=600, kcal_high=800, confirmed=True)
 
 # The workout in progress: its sets must not count yet.
 live = datetime(2026, 11, 21, 18, 0, tzinfo=TZ)

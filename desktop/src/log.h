@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
@@ -79,11 +80,17 @@ struct Log {
     QVector<Cardio> cardio;             // finished cardio sessions, by start
     QVector<WaterEntry> water;          // resolved water entries, by at
     QVector<StretchEntry> stretches;    // resolved stretch sessions, by at
+    QHash<QString, QString> routineNames;  // custom stretch routine id -> newest name, kept after a remove
+
 
     QString name(const QString &exercise) const;
 };
 
 Log parseLog(const QByteArray &bytes);
+
+// Every type in docs/log-format.md is either read or skipped on purpose: nothing the phone writes is unknown.
+extern const QSet<QString> kReadTypes;
+extern const QSet<QString> kSkippedTypes;
 
 // The view model the QML dashboard draws, one key per module.
 QVariantMap dashboard(const Log &log);

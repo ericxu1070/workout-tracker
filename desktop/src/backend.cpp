@@ -41,7 +41,8 @@ void Backend::reload() {
     } else {
         m_watcher.addPath(m_path);
         const Log log = parseLog(file.readAll());
-        m_status = log.sessions.isEmpty() && log.bodyWeight.isEmpty() && log.events.isEmpty() && log.cardio.isEmpty() ? "empty" : "ready";
+        m_status = log.sessions.isEmpty() && log.bodyWeight.isEmpty() && log.events.isEmpty() && log.cardio.isEmpty()
+                           && log.water.isEmpty() && log.stretches.isEmpty() ? "empty" : "ready";
         m_data = dashboard(log);
         m_syncedAt = QFileInfo(file).lastModified();
     }

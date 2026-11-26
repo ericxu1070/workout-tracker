@@ -54,10 +54,16 @@ QString Log::name(const QString &exercise) const {
     return pretty;
 }
 
+const QSet<QString> kReadTypes{"exercise_define", "session_start", "session_end", "session_edit", "set", "set_clear",
+                               "progression", "body_weight", "body_weight_clear", "cardio", "cardio_clear", "exercise_meta",
+                               "water", "water_clear", "stretch", "stretch_clear", "stretch_routine_define", "exercise_remap"};
+
+// Program setup and rotation, swaps (sets name the exercise done), a stretch routine's removal (its sessions keep their
+// name), an open cardio session, and meal estimates (no desktop view) change nothing the dashboard shows.
+const QSet<QString> kSkippedTypes{"program_start", "program", "increments", "program_define", "program_remove", "day_exercises",
+                                  "exercise_swap", "stretch_routine_remove", "cardio_start", "food_estimate"};
+
 Log parseLog(const QByteArray &bytes) {
-    static const QSet<QString> known{"exercise_define", "session_start", "session_end", "session_edit", "set", "set_clear",
-                                     "progression", "body_weight", "body_weight_clear", "cardio",
-                                     "cardio_clear", "exercise_meta", "water", "water_clear", "stretch", "stretch_clear", "exercise_remap"};
 
     QList<QByteArray> lines = bytes.split('\n');
     // The last piece is either empty (the file ends with \n) or an append in progress.
@@ -68,7 +74,7 @@ Log parseLog(const QByteArray &bytes) {
         if (line.trimmed().isEmpty())
             continue;
         const QJsonObject o = QJsonDocument::fromJson(line).object();
-        if (o["v"].toInt() != 2 || !known.contains(o["type"].toString()))
+        if (o["v"].toInt() != 2 || !kReadTypes.contains(o["type"].toString()))
             continue;
         objects.append(o);
     }
@@ -185,6 +191,8 @@ Log parseLog(const QByteArray &bytes) {
             stretchEntries.insert(id, {id, o["routine"].toString(), parseTime(o["at"]), o["duration_sec"].toInt(), moves});
         } else if (type == "stretch_clear") {
             stretchEntries.remove(o["id"].toString());
+        } else if (type == "stretch_routine_define") {
+            log.routineNames.insert(o["routine"].toString(), o["name"].toString());
         }
     }
 

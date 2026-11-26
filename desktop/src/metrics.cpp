@@ -34,6 +34,20 @@ double bodyweightFactorFor(const QString &exercise, const QHash<QString, Exercis
     return -1.0;
 }
 
+// The phone's built-in stretch routines (stretch/StretchRoutine.kt); a custom one is named by its stretch_routine_define.
+QString routineName(const Log &log, const QString &id) {
+    static const QHash<QString, QString> kBuiltIn{
+        {"after_workout", "After workout"}, {"flexibility", "Flexibility"}, {"dance", "Dance mobility"},
+        {"athletics", "Athletics static"}, {"athletics_dynamic", "Athletics dynamic"}, {"desk-reset", "Desk reset"},
+        {"runners-cooldown", "Runner's cooldown"}, {"morning-flow", "Morning flow"}, {"bedtime-wind-down", "Bedtime wind-down"},
+        {"low-back-relief", "Low back relief"}, {"hip-flexor-reset", "Hip flexor reset"}, {"front-splits", "Front splits"},
+        {"overhead-mobility", "Overhead mobility"}, {"deep-squat-prep", "Deep squat prep"}, {"calves-and-ankles", "Calves and ankles"},
+        {"cyclists-cooldown", "Cyclist's cooldown"}, {"throwers-shoulder", "Thrower's shoulder"}, {"golf-warm-up", "Golf warm-up"},
+        {"starting-to-stretch", "Starting to Stretch"}, {"sun-salutation-a", "Sun salutation A"}, {"simple-6", "Simple 6"},
+        {"limber-11", "Limber 11"}};
+    return log.routineNames.value(id, kBuiltIn.value(id, log.name(id)));
+}
+
 QDate monday(const QDate &d) { return d.addDays(1 - d.dayOfWeek()); }
 
 double msecs(const QDate &d) { return double(QDateTime(d, QTime(12, 0)).toMSecsSinceEpoch()); }
@@ -275,16 +289,28 @@ QVariantMap dashboard(const Log &log) {
         water.append(QVariantMap{{"t", msecs(it.key())}, {"v", double(it.value())}, {"avg", sum / n}});
     }
 
-    // Stretching sessions per week
+    // Stretching sessions per week, and per-routine totals over the last 8 weeks.
     QVariantList stretchPerWeek;
     QVector<int> stretchCounts(weeks.size(), 0);
+    QMap<QString, Totals> routineTotals;
     for (const StretchEntry &st : log.stretches) {
-        const QDate m = monday(st.at.date());
-        if (weekIndex.contains(m))
-            stretchCounts[weekIndex.value(m)]++;
+        const int week = weekIndex.value(monday(st.at.date()));
+        stretchCounts[week]++;
+        if (week < weeks.size() - 8)
+            continue;
+        Totals &t = routineTotals[st.routine];
+        t.name = routineName(log, st.routine);
+        t.sessions++;
+        t.minutes += st.durationSec / 60.0;
     }
     for (int c : stretchCounts)
         stretchPerWeek.append(c);
+    QVariantList routines;
+    for (auto it = routineTotals.cbegin(); it != routineTotals.cend(); ++it)
+        routines.append(QVariantMap{{"id", it.key()}, {"name", it->name}, {"sessions", it->sessions}, {"minutes", it->minutes}});
+    std::stable_sort(routines.begin(), routines.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap()["sessions"].toInt() > b.toMap()["sessions"].toInt();
+    });
 
     return {{"workouts", int(workouts.size())},
             {"weeks", weeks},
@@ -297,6 +323,5 @@ QVariantMap dashboard(const Log &log) {
             {"bodyWeight", body},
             {"cardio", QVariantMap{{"minutes", cardioMinutes}, {"activities", activities}}},
             {"water", water},
-            {"stretches", QVariantMap{{"perWeek", stretchPerWeek}, {"total", int(log.stretches.size())}}},
-            {"stretching", stretchPerWeek}};
+            {"stretches", QVariantMap{{"perWeek", stretchPerWeek}, {"total", int(log.stretches.size())}, {"routines", routines}}}};
 }
