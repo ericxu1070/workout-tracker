@@ -104,7 +104,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -341,18 +340,35 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
     }
 }
 
-/**
- * A segmented control: one thumb slides under the labels, which cross-fade as it passes; tap a segment or drag the thumb.
- * Given a [pager], the thumb follows a swipe of the pages, and dragging it snaps the pages to the segment under it; otherwise it springs to [selected].
- * Held, the bar swells a little; held or swiped, the thumb lifts past the bar, springs after the finger, and squashes with its speed ([ThumbMotion]).
- */
+/** A segmented control: one accent thumb slides under the labels, which cross-fade as it passes ([ThumbRow]). */
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
+    val p = LocalPalette.current
+    // The thumb takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
+    ThumbRow(options.size, selected, onSelect, p.thumb, modifier.fillMaxWidth(), pager, Modifier.background(p.fill, CircleShape), Modifier.height(36.dp)) { i, thumb ->
+        if (thumb) Txt(options[i], Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onAccent, maxLines = 1)
+        else Txt(options[i], Type.subhead, color = p.fg, maxLines = 1)
+    }
+}
+
+/**
+ * [count] equal segments on a bar ([frame], drawn behind them) with one [thumb] pill that slides under them: tap a segment or drag the thumb.
+ * Given a [pager], the thumb follows a swipe of the pages, and dragging it snaps the pages to the segment under it; otherwise it springs to
+ * [selected], and a drag selects the segment it is let go over. Held, the bar swells a little; held or swiped, the thumb lifts past the bar,
+ * springs after the finger, and squashes with its speed ([ThumbMotion]). [cell] sizes a segment; [content] draws segment i on the bar, and
+ * again on the thumb when its second argument is true.
+ */
+@Composable
+fun ThumbRow(
+    count: Int, selected: Int, onSelect: (Int) -> Unit, thumb: Color, modifier: Modifier, pager: PagerState? = null,
+    frame: Modifier, cell: Modifier, content: @Composable (Int, Boolean) -> Unit,
+) {
     val p = LocalPalette.current
     val scope = rememberCoroutineScope()
     val select by rememberUpdatedState(onSelect)
     val own = remember { Animatable(selected.toFloat()) }
-    LaunchedEffect(selected) { own.animateTo(selected.toFloat(), SegmentSpring) }
+    // The thumb's own spring ([ThumbMotion]) carries it to a new selection, so a tap moves it as fast and bouncy as a drag.
+    LaunchedEffect(selected) { own.snapTo(selected.toFloat()) }
     var held by remember { androidx.compose.runtime.mutableStateOf(false) }
     val swiped by (pager?.interactionSource ?: remember { MutableInteractionSource() }).collectIsDraggedAsState()
     // Where the thumb heads: the finger while it drags the thumb; the pages' position while a finger swipes them; else the page
@@ -383,7 +399,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     LaunchedEffect(lifted) { motion.lift.animateTo(if (lifted) 1f else 0f, ThumbMotion.Lift) }
     val swell by animateFloatAsState(if (held) 1.04f else 1f, androidx.compose.animation.core.spring(0.55f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
     Box(
-        modifier.fillMaxWidth().graphicsLayer { scaleX = swell; scaleY = swell }.background(p.fill, CircleShape).padding(Space.xs)
+        modifier.graphicsLayer { scaleX = swell; scaleY = swell }
             .pointerInput(Unit) {
                 // Watches the finger without taking it, so taps and drags below still work.
                 awaitEachGesture {
@@ -395,71 +411,74 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                         held = false
                     }
                 }
-            }
-            .pointerInput(pager, options.size) {
-                val segment = size.width / options.size.toFloat()
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
-                    // The thumb stays under the finger; the pages snap to the segment it is over, so a page held under the finger stays clear.
-                    val from = at()
-                    var spot = from
-                    var shown = pager?.currentPage
-                    fun follow(x: Float) {
-                        spot = (from + (x - down.position.x) / segment).coerceIn(0f, options.lastIndex.toFloat())
-                        drag = spot
-                        val over = spot.roundToInt()
-                        if (pager != null && over != shown) {
-                            shown = over
-                            scope.launch { pager.springTo(over) }
-                        }
-                    }
-                    try {
-                        follow(slop.position.x)
-                        horizontalDrag(slop.id) { follow(it.position.x); it.consume() }
-                    } finally {
-                        drag = null
-                        val to = spot.roundToInt()
-                        if (pager == null) {
-                            scope.launch { own.snapTo(to.toFloat()) }
-                            select(to)
-                        } else if (to != shown) scope.launch { pager.springTo(to) }
-                    }
-                }
             },
     ) {
-        // Selected is the segment under the thumb.
-        val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
-        var area by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
-        fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / options.size).let { w -> thumbPill((motion.x + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch) }
-        // In Liquid Glass a lifted thumb is clear glass: the labels under it show through it, bent at its rim.
-        val clear = { if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f }
-        Row(Modifier.onSizeChanged { area = it.toSize() }.glassLens({ pill(area) }, clear)) {
-            options.forEachIndexed { i, o ->
-                Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
-                    Txt(o, Type.subhead, color = p.fg, maxLines = 1)
+        // The bar is a layer of its own behind the segments, so a bar that clips (a glass pane) leaves the lifted thumb whole.
+        Box(Modifier.matchParentSize().then(frame))
+        Box(
+            Modifier.fillMaxWidth().padding(Space.xs)
+                .pointerInput(pager, count) {
+                    val segment = size.width / count.toFloat()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
+                        // The thumb stays under the finger; the pages snap to the segment it is over, so a page held under the finger stays clear.
+                        val from = at()
+                        var spot = from
+                        var shown = pager?.currentPage
+                        fun follow(x: Float) {
+                            spot = (from + (x - down.position.x) / segment).coerceIn(0f, count - 1f)
+                            drag = spot
+                            val over = spot.roundToInt()
+                            if (pager != null && over != shown) {
+                                shown = over
+                                scope.launch { pager.springTo(over) }
+                            }
+                        }
+                        try {
+                            follow(slop.position.x)
+                            horizontalDrag(slop.id) { follow(it.position.x); it.consume() }
+                        } finally {
+                            drag = null
+                            val to = spot.roundToInt()
+                            if (pager == null) {
+                                scope.launch { own.snapTo(to.toFloat()) }
+                                select(to)
+                            } else if (to != shown) scope.launch { pager.springTo(to) }
+                        }
+                    }
+                },
+        ) {
+            // Selected is the segment under the thumb.
+            val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
+            var area by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+            fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / count).let { w -> thumbPill((motion.x + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch) }
+            // In Liquid Glass a lifted thumb is clear glass: the labels under it show through it, bent at its rim.
+            val clear = { if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f }
+            Row(Modifier.onSizeChanged { area = it.toSize() }.glassLens({ pill(area) }, clear)) {
+                repeat(count) { i ->
+                    Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).then(cell).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
+                        content(i, false)
+                    }
                 }
             }
-        }
-        // The thumb carries its own labels, clipped to its pill, so each label turns as the thumb's edge crosses it.
-        // It takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
-        // Lifted, it grows past the bar, so nothing here clips to the bar.
-        Row(
-            Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
-                val pill = pill(size)
-                with(p.thumbPainter) { paint(pill, p.thumb, motion.lift.value.coerceIn(0f, 1f)) }
-                // Its accent-colored labels fade as it clears, leaving the bar's own labels seen through the glass.
-                val a = 1f - clear()
-                if (a > 0f) clipPath(Path().apply { addRoundRect(pill) }) {
-                    drawContext.canvas.saveLayer(pill.let { androidx.compose.ui.geometry.Rect(it.left, it.top, it.right, it.bottom) }, androidx.compose.ui.graphics.Paint().apply { alpha = a })
-                    this@drawWithContent.drawContent()
-                    drawContext.canvas.restore()
-                }
-            },
-        ) {
-            options.forEach { o ->
-                Box(Modifier.weight(1f).height(36.dp), contentAlignment = Alignment.Center) {
-                    Txt(o, Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onAccent, maxLines = 1)
+            // The thumb carries its own labels, clipped to its pill, so each label turns as the thumb's edge crosses it.
+            // Lifted, it grows past the bar, so nothing here clips to the bar.
+            Row(
+                Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
+                    val pill = pill(size)
+                    with(p.thumbPainter) { paint(pill, thumb, motion.lift.value.coerceIn(0f, 1f)) }
+                    // Its accent-colored labels fade as it clears, leaving the bar's own labels seen through the glass.
+                    val a = 1f - clear()
+                    if (a > 0f) clipPath(Path().apply { addRoundRect(pill) }) {
+                        drawContext.canvas.saveLayer(pill.let { androidx.compose.ui.geometry.Rect(it.left, it.top, it.right, it.bottom) }, androidx.compose.ui.graphics.Paint().apply { alpha = a })
+                        this@drawWithContent.drawContent()
+                        drawContext.canvas.restore()
+                    }
+                },
+            ) {
+                repeat(count) { i ->
+                    Box(Modifier.weight(1f).then(cell), contentAlignment = Alignment.Center) { content(i, true) }
                 }
             }
         }
@@ -637,31 +656,31 @@ private fun Tab.icon(): ImageVector = when (this) {
     Tab.Food -> Icons.utensils
 }
 
-/** The app's bottom tab bar: five destinations, the current one in the accent. In Liquid Glass it floats as a capsule, the current tab in a lens. */
+/**
+ * The app's bottom tab bar: five destinations on a [ThumbRow], the current one on a raised pill in the accent; tap a tab, or drag the pill
+ * along the bar and let go over one. In Liquid Glass it floats as a capsule, and the held pill turns to glass.
+ */
 @Composable
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
-    val tabs: @Composable RowScope.() -> Unit = {
-        Tab.entries.forEach { t ->
-            val c = if (t == selected) p.accent else p.fg2
-            Pressable(
-                { onSelect(t) }, Modifier.weight(1f).fillMaxHeight().semantics { this.selected = t == selected },
-                if (p.glass) CircleShape else RectangleShape, if (p.glass && t == selected) p.fill else Color.Transparent, role = Role.Tab,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Icon(t.icon(), c, 24.dp)
-                    Txt(t.label, Type.caption.copy(fontWeight = if (t == selected) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
-                }
+    val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
+        // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+            val t = Tab.entries[i]
+            val c = if (thumb) p.accent else p.fg2
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Icon(t.icon(), c, 24.dp)
+                Txt(t.label, Type.caption, color = c, maxLines = 1)
             }
         }
     }
-    if (p.glass) Row(
-        modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs)
-            .fillMaxWidth().height(GlassTabBar).shadow(8.dp, CircleShape).glassPane(CircleShape).padding(Space.xs),
-        content = tabs,
+    if (p.glass) bar(
+        modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs).fillMaxWidth().height(GlassTabBar),
+        Modifier.shadow(8.dp, CircleShape).glassPane(CircleShape),
     ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
-        Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp), content = tabs)
+        // Inset so the end tabs' pills keep the screen's 16 dp gutter.
+        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(56.dp), Modifier)
     }
 }
 
