@@ -1,7 +1,6 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.engine.Activities
@@ -96,24 +92,9 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
                 val day = monday.plusDays(i)
                 val mix = w.days[day]
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Txt(day.dayOfWeek.name.take(1), Type.caption, color = p.fg2)
+                    Txt(weekday(day.dayOfWeek), Type.caption, color = p.fg2)
                     Spacer(Modifier.height(Space.xs))
-                    // A day's marker shows what it held; today, when empty, is a ring. The accent stays for what can be tapped.
-                    Box(
-                        Modifier.size(36.dp).clip(CircleShape)
-                            .then(if (mix != null) Modifier.dayMarker(mix, kinds).semantics { contentDescription = dayLabel(mix) } else Modifier)
-                            .then(if (day == today && mix == null) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Txt(
-                            "${day.dayOfMonth}", Type.subhead.tabular().copy(fontWeight = if (mix != null || day == today) FontWeight.SemiBold else FontWeight.Normal),
-                            color = when {
-                                mix != null -> kinds.on
-                                day > today -> p.fg2
-                                else -> p.fg
-                            },
-                        )
-                    }
+                    DayCell(day, today, mix, null)
                 }
             }
         }

@@ -1,16 +1,32 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.Kind
 import dev.gzclp.tracker.log.Segment
+import dev.gzclp.tracker.ui.Type.tabular
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlin.math.abs
 
 /** Lifting, cardio and stretching marks, and the day number written on them. */
@@ -42,62 +58,41 @@ internal fun kindColors(bg: Color, elevated: Color, fg: Color): KindColors {
     return KindColors(fg, fg, fg, bg)
 }
 
-/** The faintest a kind gets: a light day keeps this much of its hue, enough for blue and pink to stay apart under protanopia. */
-private const val FLOOR = 0.45f
-
-/**
- * [c] with its saturation scaled by [intensity] (0 to 1, floored at [FLOOR]): mixed in linear light with the gray of
- * the same luminance, so text on it reads exactly as well at every intensity.
- */
-internal fun atIntensity(c: Color, intensity: Float): Color = mixLinear(gray(c), c, FLOOR + (1 - FLOOR) * intensity.coerceIn(0f, 1f))
-
-private fun gray(c: Color): Color {
-    val l = c.convert(ColorSpaces.LinearSrgb).let { 0.2126f * it.red + 0.7152f * it.green + 0.0722f * it.blue }
-    return Color(l, l, l, c.alpha, ColorSpaces.LinearSrgb).convert(ColorSpaces.Srgb)
-}
-
-/** Mixes in linear light, so a blend never dips darker than both ends the way an sRGB blend does. */
-internal fun mixLinear(a: Color, b: Color, t: Float): Color {
-    val x = a.convert(ColorSpaces.LinearSrgb)
-    val y = b.convert(ColorSpaces.LinearSrgb)
-    fun m(p: Float, q: Float) = p + (q - p) * t
-    return Color(m(x.red, y.red), m(x.green, y.green), m(x.blue, y.blue), m(x.alpha, y.alpha), ColorSpaces.LinearSrgb).convert(ColorSpaces.Srgb)
-}
-
-/** The widest blend between two kinds, as a fraction of the circle on each side of their border. */
-private const val BLEND = 0.08f
-
-/**
- * Sweep-gradient stops for a day of several kinds: each kind's arc is its share of the day, starting at 12 o'clock in
- * [Kind] order, with a soft blend across each border. Position 0 is the middle of the first arc, so the sweep's seam
- * falls inside solid color; draw it turned by [sweepTurn].
- */
-internal fun sweepStops(segments: List<Segment>, colors: List<Color>): List<Pair<Float, Color>> {
-    val n = segments.size
-    val stops = mutableListOf(0f to colors[0])
-    var at = segments[0].share / 2
-    for (i in 0 until n) {
-        val j = (i + 1) % n
-        val w = minOf(BLEND, segments[i].share / 2, segments[j].share / 2)
-        for (k in 0..4) stops += (at - w + 2 * w * k / 4) to mixLinear(colors[i], colors[j], k / 4f)
-        if (j != 0) at += segments[j].share
-    }
-    stops += 1f to colors[0]
-    return stops.map { (at, c) -> at.coerceIn(0f, 1f) to c }
-}
-
-/** Degrees to turn [sweepStops]'s sweep (which starts at 3 o'clock) so the first arc starts at 12. */
-internal fun sweepTurn(segments: List<Segment>) = -90f + segments[0].share * 180f
-
 /** "Lifting 52 min, cardio 30 min" for screen readers. */
 fun dayLabel(segments: List<Segment>) =
     segments.joinToString(", ") { it.kind.label + " " + Fmt.minutes(it.sec) }.lowercase().replaceFirstChar { it.uppercase() }
 
-/** A day's marker fill: one kind fills it, several share it like a pie, each as deep as that kind's load. */
-fun Modifier.dayMarker(segments: List<Segment>, kinds: KindColors): Modifier {
-    val colors = segments.map { atIntensity(kinds.of(it.kind), it.intensity) }
-    if (segments.size == 1) return background(colors[0], CircleShape)
-    val brush = Brush.sweepGradient(*sweepStops(segments, colors).toTypedArray())
-    val turn = sweepTurn(segments)
-    return drawBehind { rotate(turn) { drawCircle(brush) } }
+/** Mon, Tue: the column headers, Monday first in Week and Month alike. */
+internal fun weekday(d: DayOfWeek): String = d.getDisplayName(TextStyle.SHORT, Locale.US)
+
+/**
+ * A calendar day, the same in Week and Month: a plain number, today's on an accent-filled circle, and under it one 4 dp
+ * dot per kind the day held, in [Kind] order. Opens the day when [onClick] is given.
+ */
+@Composable
+fun DayCell(date: LocalDate, today: LocalDate, mix: List<Segment>?, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    val isToday = date == today
+    val desc = listOfNotNull("Today".takeIf { isToday }, mix?.let { "${dayLabel(it)} on ${Fmt.shortDate(date)}" }).joinToString(", ")
+    val body: @Composable BoxScope.() -> Unit = {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(36.dp).clip(CircleShape).then(if (isToday) Modifier.background(p.accent) else Modifier), contentAlignment = Alignment.Center) {
+                Txt(
+                    "${date.dayOfMonth}", Type.subhead.tabular().copy(fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal),
+                    color = when {
+                        isToday -> p.onAccent
+                        date > today -> p.fg2
+                        else -> p.fg
+                    },
+                )
+            }
+            Spacer(Modifier.height(Space.xs))
+            Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+                mix?.forEach { Box(Modifier.size(4.dp).clip(CircleShape).background(p.kinds.of(it.kind))) }
+            }
+        }
+    }
+    val m = if (desc.isEmpty()) modifier else modifier.semantics { contentDescription = desc }
+    if (onClick != null) Pressable(onClick, m, label = desc, scale = SMALL_PRESS, content = body)
+    else Box(m, contentAlignment = Alignment.Center, content = body)
 }

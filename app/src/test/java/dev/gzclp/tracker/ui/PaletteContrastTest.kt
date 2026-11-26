@@ -2,8 +2,6 @@ package dev.gzclp.tracker.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
-import dev.gzclp.tracker.log.Kind
-import dev.gzclp.tracker.log.Segment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -143,31 +141,13 @@ class PaletteContrastTest {
         assertEquals(p.id, scanned, p.fg3.alpha, 1 / 255f)
     }
 
-    @Test fun dayMarkersReadAndStandApartInEveryTheme() {
-        val mixes = listOf(
-            listOf(Segment(Kind.LIFT, 3000, 0.5f, 0f), Segment(Kind.CARDIO, 2400, 0.4f, 1f), Segment(Kind.STRETCH, 600, 0.1f, 0.5f)),
-            listOf(Segment(Kind.CARDIO, 5700, 0.95f, 1f), Segment(Kind.STRETCH, 300, 0.05f, 0f)),
-        )
+    @Test fun kindDotsStandApartInEveryTheme() {
         for (p in themes) {
             val k = p.kinds
             val hues = listOf(k.lift, k.cardio, k.stretch)
             // No theme falls back to one color for all three.
             assertEquals("${p.id} kinds", 3, hues.distinct().size)
-            for (c in hues) for (t in listOf(0f, 0.5f, 1f)) p.check("day number on a kind at $t", k.on, atIntensity(c, t), 4.5f)
             for (c in hues) for (s in listOf(p.bg, p.elevated)) p.check("kind mark on surface", c, s, 3f)
-            // Every color in a pie, blends included, keeps the day number readable.
-            for (m in mixes) for ((_, c) in sweepStops(m, m.map { atIntensity(k.of(it.kind), it.intensity) })) p.check("day number on a blend", k.on, c, 4.5f)
         }
-    }
-
-    @Test fun sweepStopsRunInOrderAndCloseOnTheFirstColor() {
-        val segs = listOf(Segment(Kind.LIFT, 3000, 0.5f, 1f), Segment(Kind.CARDIO, 2400, 0.4f, 1f), Segment(Kind.STRETCH, 600, 0.1f, 1f))
-        val cs = listOf(Color.Red, Color.Green, Color.Blue)
-        val stops = sweepStops(segs, cs)
-        assertEquals(stops.map { it.first }.sorted(), stops.map { it.first })
-        assertEquals(0f to Color.Red, stops.first())
-        assertEquals(1f to Color.Red, stops.last())
-        // Half the day in the first arc puts its middle, stop 0, at 3 o'clock, where the sweep starts anyway.
-        assertEquals(0f, sweepTurn(segs), 1e-6f)
     }
 }
