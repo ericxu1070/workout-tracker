@@ -47,14 +47,11 @@ class StepPillTest {
     private fun clickLabel(label: String) = SemanticsMatcher("click label $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
     private fun check(label: String) = rule.onNode(clickLabel(label))
 
-    /** The middle of the tinted run in the column 12dp from the left edge (inside the pill's 8dp bleed, outside every row), or null with no pill. */
-    private fun pillCenter(): Float? {
-        // Drawn straight from the view, so a frame mid-animation can be read with the clock paused.
-        val v = rule.activity.window.decorView
-        val img = Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888).also { rule.runOnUiThread { v.draw(Canvas(it)) } }
+    /** The middle of the tinted run in the column 12dp from the left edge (inside the pill's 12dp bleed, outside every row), or null with no pill. */
+    private fun pillCenter(img: Bitmap = frame()): Float? {
         val x = (12 * rule.density.density).toInt()
         val bg = p.bg.toArgb()
-        // Runs of tinted pixels; the pill (its rounded cap, this near its end) is the one between 16 and 64dp tall, not a bar at the screen's edge.
+        // Runs of tinted pixels; the pill is the one between 16 and 64dp tall (a row, its inflation and its stretch), not a bar at the screen's edge.
         val runs = mutableListOf<IntRange>()
         var start = -1
         for (y in 0..img.height) {
@@ -66,6 +63,12 @@ class StepPillTest {
         val pill = runs.filter { it.count() in (16 * dp).toInt()..(64 * dp).toInt() }
         assertTrue("several pill-sized runs: $pill", pill.size <= 1)
         return pill.firstOrNull()?.let { (it.first + it.last) / 2f }
+    }
+
+    /** Drawn straight from the view, so a frame mid-animation can be read with the clock paused. */
+    private fun frame(): Bitmap {
+        val v = rule.activity.window.decorView
+        return Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888).also { rule.runOnUiThread { v.draw(Canvas(it)) } }
     }
 
     private fun rowCenter(label: String) = check(label).fetchSemanticsNode().boundsInRoot.center.y
@@ -111,6 +114,16 @@ class StepPillTest {
         val mid = pillCenter()
         assertNotNull("pill vanished mid-flight", mid)
         assertTrue("pill at $mid, not between $from and $to", mid!! > from + 2 && mid < to - 2)
+        // A springy move: it carries past set 2 and settles back onto it.
+        val shots = System.getProperty("gzclp.shots")
+        val path = (1..40).mapNotNull { n ->
+            rule.mainClock.advanceTimeByFrame()
+            val img = frame()
+            if (shots != null && n % 3 == 0) File(shots, "pill-flight/%02d.png".format(n)).apply { parentFile!!.mkdirs() }.outputStream().use { img.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            pillCenter(img)
+        }
+        assertTrue("no overshoot past $to: max ${path.max()}", path.max() > to + 2)
+        assertEquals(to, path.last(), 2f)
         rule.mainClock.autoAdvance = true
         rule.waitForIdle()
         assertPillOn("Log ${first.name} set 2")

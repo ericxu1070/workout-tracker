@@ -1,7 +1,6 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
@@ -30,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /** Where the current row of a [StepPillHost] sits, in the host's own coordinates; null while no row is current. */
 class StepPillState(internal val surface: Color) {
@@ -41,8 +41,8 @@ class StepPillState(internal val surface: Color) {
 
 private val LocalStepPill = staticCompositionLocalOf<StepPillState?> { null }
 
-/** The spring the pill rides from one row to the next: the segmented thumb's damping, so it settles without a bounce. */
-private val PillSpring = spring<Rect>(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+/** The spring the pill rides from one row to the next: underdamped, so it overshoots by about a tenth of the move and settles back. */
+private val PillSpring = spring<Rect>(dampingRatio = 0.6f, stiffness = 300f)
 
 /**
  * Draws one accent-tinted pill behind whichever row inside it carries [stepPill] with `on = true`.
@@ -56,7 +56,10 @@ fun StepPillHost(surface: Color, modifier: Modifier = Modifier, content: @Compos
     val rect = remember { Animatable(Rect.Zero, Rect.VectorConverter) }
     val shown = remember { Animatable(0f) }
     val inflate = with(LocalDensity.current) { Space.xs.toPx() }
-    val bleed = with(LocalDensity.current) { Space.sm.toPx() }
+    // 12dp past the row each side: on a card's 16dp padding, a 10dp corner nests inside the card's 14dp one.
+    val bleed = with(LocalDensity.current) { Space.md.toPx() }
+    val corner = with(LocalDensity.current) { Radius.md.toPx() }
+    val maxStretch = with(LocalDensity.current) { Space.sm.toPx() }
     LaunchedEffect(state) {
         snapshotFlow { state.target }.collect { t ->
             if (t == null) { launch { shown.animateTo(0f) }; return@collect }
@@ -70,10 +73,12 @@ fun StepPillHost(surface: Color, modifier: Modifier = Modifier, content: @Compos
             val a = shown.value
             if (a == 0f) return@drawBehind
             val r = rect.value
-            val h = r.height + 2 * inflate
+            // In flight it stretches along the move with its speed, up to 8dp, and is back to its row's height at rest.
+            val stretch = (abs(rect.velocity.top) * 0.01f).coerceAtMost(maxStretch)
+            val h = r.height + 2 * inflate + stretch
             drawRoundRect(
-                p.stepPill, Offset(r.left - bleed, r.top - inflate), Size(r.width + 2 * bleed, h),
-                CornerRadius(h / 2), alpha = a,
+                p.stepPill, Offset(r.left - bleed, r.top - inflate - stretch / 2), Size(r.width + 2 * bleed, h),
+                CornerRadius(corner), alpha = a,
             )
         },
     ) { CompositionLocalProvider(LocalStepPill provides state, content = content) }
