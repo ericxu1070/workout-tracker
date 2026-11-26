@@ -44,26 +44,37 @@ data class Palette(
      * This theme in Liquid Glass: a wallpaper of [glowsFor] its accent, bars at [CLEAREST_CHROME], and fg, fg2, accent and red each lifted
      * toward the extreme just enough to read at 4.5:1 over everything [glassSurfaces] names, fg with tertiary text's alpha so the ladder keeps its steps.
      * Where no lift reaches, the bars go more opaque and then the glows dimmer. One instance per theme: the wallpaper cache and every token search key on it.
+     * Lifts and bar alpha are bisected, since each step toward the extreme only adds contrast: a linear search held a phone's first frame for a second or two.
      */
     val glassed: Palette by lazy {
         if (glass) return@lazy this
         val toward = if (dark) Color.White else Color.Black
-        fun reads(c: Color, on: List<Color>, alpha: Float = 1f) = on.all { contrast(c.copy(alpha = alpha).compositeOver(it), it) >= 4.5f }
-        fun lift(c: Color, ok: (Color) -> Boolean) = (0..100).map { Color(lerp(c, toward, it / 100f).toArgb()) }.firstOrNull(ok)
-        (10 downTo 0).asSequence().flatMap { k -> (CLEAREST_CHROME..100).asSequence().map { k to it } }.firstNotNullOfOrNull { (k, a) ->
+        // Opaque text against surfaces whose luminance is worked out once: a luminance costs a few hundred nanoseconds and this runs on the first frame.
+        fun reads(c: Color, lums: List<Float>) = c.luminance().let { l -> lums.all { ratio(l, it) >= 4.5f } }
+        fun lift(c: Color, ok: (Color) -> Boolean): Color? {
+            fun at(i: Int) = Color(lerp(c, toward, i / 100f).toArgb())
+            return if (ok(at(100))) at(least(0, 100) { ok(at(it)) }) else null
+        }
+        fun attempt(k: Int, a: Int): Palette? {
             val lit = copy(id = "$id-glass", glows = glowsFor(accent, k / 10f), chromeAlpha = a / 100f, thumbPainter = GlassThumb)
             val on = lit.surfaces
+            val lums = on.map { it.luminance() }
             // A filled control's label sits under its sheen.
-            val sheened = on.map { Color.White.copy(alpha = SHEEN).compositeOver(it) }
-            val f = lift(fg) { reads(it, on, maxOf(fg3.alpha, 0.75f)) && reads(it, sheened) } ?: return@firstNotNullOfOrNull null
-            val f2 = lift(fg2) { reads(it, on) } ?: return@firstNotNullOfOrNull null
-            val ac = lift(accent) { reads(it, on) } ?: return@firstNotNullOfOrNull null
-            val r = lift(red) { reads(it, on) } ?: return@firstNotNullOfOrNull null
-            lit.copy(
+            val sheened = on.map { Color.White.copy(alpha = SHEEN).compositeOver(it).luminance() }
+            val tertiary = maxOf(fg3.alpha, 0.75f)
+            val f = lift(fg) { c -> reads(c, sheened) && on.all { contrast(c.copy(alpha = tertiary).compositeOver(it), it) >= 4.5f } } ?: return null
+            val f2 = lift(fg2) { reads(it, lums) } ?: return null
+            val ac = lift(accent) { reads(it, lums) } ?: return null
+            val r = lift(red) { reads(it, lums) } ?: return null
+            return lit.copy(
                 fg = f, fg2 = f2, accent = ac, red = r, thumb = if (thumb == accent) ac else thumb,
                 onAccent = if (contrast(Color.Black, ac) >= contrast(Color.White, ac)) Color.Black else Color.White,
             ).takeIf { it.textReads() }
-        } ?: copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumbPainter = GlassThumb)
+        }
+        // The strongest glow that reads with opaque bars, then the clearest bars that read under it.
+        if (attempt(0, 100) == null) return@lazy copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumbPainter = GlassThumb)
+        val k = 10 - least(0, 10) { attempt(10 - it, 100) != null }
+        attempt(k, least(CLEAREST_CHROME, 100) { attempt(k, it) != null })!!
     }
     fun withGlass(on: Boolean) = if (on) glassed else this
     /** Text reads on every glass surface, a filled control's label under its sheen too, and a switch stands off its track. */
@@ -78,7 +89,8 @@ data class Palette(
     val chrome: Color get() = bg.copy(alpha = chromeAlpha)
     /** Tertiary text and icons: the faintest [fg] that still reads at 4.5:1 on every surface. */
     val fg3: Color by lazy {
-        (42..100).map { fg.copy(alpha = it / 100f) }.firstOrNull { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } } ?: fg
+        fun reads(a: Int) = fg.copy(alpha = a / 100f).let { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } }
+        if (reads(100)) fg.copy(alpha = least(42, 100, ::reads) / 100f) else fg
     }
     /** Day marks for lifting, cardio and stretching, fitted to this theme's surfaces. */
     val kinds: KindColors by lazy { kindColors(bg, elevated, fg) }
@@ -205,11 +217,18 @@ fun glowsFor(accent: Color, strength: Float): List<Color> {
 fun surfaces(bg: Color, elevated: Color, fg: Color): List<Color> =
     listOf(bg, elevated, fg.copy(alpha = 0.07f).compositeOver(bg), fg.copy(alpha = 0.07f).compositeOver(elevated))
 
-/** WCAG contrast ratio, 1 to 21. */
-fun contrast(a: Color, b: Color): Float {
-    val (hi, lo) = listOf(a.luminance(), b.luminance()).sortedDescending()
-    return (hi + 0.05f) / (lo + 0.05f)
+/** The least of [lo]..[hi] at which [ok] holds, given it holds at [hi] and, once it holds, holds above too. */
+private fun least(lo: Int, hi: Int, ok: (Int) -> Boolean): Int {
+    var no = lo - 1
+    var yes = hi
+    while (yes - no > 1) (no + yes).div(2).let { if (ok(it)) yes = it else no = it }
+    return yes
 }
+
+/** WCAG contrast ratio, 1 to 21. */
+fun contrast(a: Color, b: Color): Float = ratio(a.luminance(), b.luminance())
+
+private fun ratio(a: Float, b: Float) = (maxOf(a, b) + 0.05f) / (minOf(a, b) + 0.05f)
 
 val LocalPalette = staticCompositionLocalOf { Palettes.tokyo }
 
