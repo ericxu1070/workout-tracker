@@ -21,7 +21,7 @@ The app logs a weight and reps for every set, shows the next eight workouts and 
 
 ### Water Tracker & Stretching
 - **Water Tracking**: Interactive morphing cup Canvas in the Food tab with real-time fluid wave animation, haptic drag-to-fill, preset increments, and daily goal pace reminders.
-- **Guided Stretching**: 26 keyframed stretching movements across 10 body areas with smooth procedural stick-figure Canvas animations. Follow pre-built routines (After workout, built from the day's lifts, then a library such as Desk reset, Runner's cooldown and Thrower's shoulder) or build custom sequences with automated rest intervals and coaching chimes.
+- **Guided Stretching**: 52 keyframed stretching movements across 10 body areas with smooth procedural stick-figure Canvas animations. Follow pre-built routines (After workout, built from the day's lifts, then a library such as Desk reset, Limber 11, Simple 6 and Sun salutation A) or build custom sequences with automated rest intervals and coaching chimes.
 
 All data stays on the phone, except what you choose to write to Android Health Connect. The app mirrors its log to a folder you share with Syncthing. `docs/log-format.md` describes that log (version 2) for the desktop analysis app.
 

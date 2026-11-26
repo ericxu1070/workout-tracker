@@ -318,7 +318,7 @@ object StretchRoutines {
         move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60), move(StretchMoves.LEGS_UP_THE_WALL, 120),
     )
     // Joe DeFranco's Limber 11: roll 10–15 passes a leg, 30–60 s on the ball, then 5–10 reps a side of each drill, 10 circles each way
-    // for the hydrants and 20–30 s a side for the two stretches.
+    // for the hydrants, 20–30 s a side on the piriformis and 5–10 reps a side of the hip flexor stretch, each held 3 s.
     private val limber = preset(
         "limber-11", "Limber 11", "Joe DeFranco's lower-body warm-up: three foam-roll drills, then eight mobility moves.",
         "Loosen the hips and legs before squats, deadlifts or sprints.",
@@ -328,7 +328,7 @@ object StretchRoutines {
         move(StretchMoves.ROLLOVER_V_SIT, 50, dynamic = true), move(StretchMoves.ROCKING_FROG, 50, dynamic = true),
         move(StretchMoves.FIRE_HYDRANT_CIRCLES, 120, dynamic = true), move(StretchMoves.MOUNTAIN_CLIMBERS, 40, dynamic = true),
         move(StretchMoves.COSSACK_SQUAT, 60, dynamic = true), move(StretchMoves.SEATED_PIRIFORMIS, 60),
-        move(StretchMoves.RFE_HIP_FLEXOR, 60),
+        move(StretchMoves.RFE_HIP_FLEXOR, 80, dynamic = true),
     )
 
     /** The few routines listed right under After workout. */

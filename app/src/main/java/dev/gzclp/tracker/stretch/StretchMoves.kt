@@ -517,7 +517,7 @@ object StretchMoves {
 
     val RFE_HIP_FLEXOR = StretchMove(
         id = "hips_rfe_hip_flexor",
-        name = "Rear-foot-elevated hip flexor stretch",
+        name = "Elevated hip flexor stretch",
         targetArea = BodyArea.HIPS,
         holdSec = 30,
         cue = "Back foot on a bench, squeeze that glute and sink the back knee until the front of the hip stretches.",
