@@ -32,6 +32,8 @@ data class Palette(
     val fg3: Color by lazy {
         (42..100).map { fg.copy(alpha = it / 100f) }.firstOrNull { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } } ?: fg
     }
+    /** Day marks for lifting, cardio and stretching, fitted to this theme's surfaces. */
+    val kinds: KindColors by lazy { kindColors(bg, elevated, fg) }
     /** Text and icons on a [red] fill; red reads at 4.5:1 on both, so either reads on red. */
     val onRed: Color get() = if (dark) bg else elevated
     /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each. */

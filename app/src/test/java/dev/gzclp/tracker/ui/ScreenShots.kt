@@ -37,6 +37,8 @@ import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
 import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.log.Cardio
+import dev.gzclp.tracker.log.LogCodec
+import dev.gzclp.tracker.log.StretchLogged
 import dev.gzclp.tracker.log.mondayOf
 import dev.gzclp.tracker.engine.Activities
 import org.junit.Test
@@ -375,6 +377,10 @@ class ScreenShots {
             val at = today.minusDays(back).atTime(7, 5 + i).atOffset(t0.offset)
             "c$i" to Cardio("c$i", a, Activities.of(a)!!.name, at, min * 60L + 17, if (a == "yoga") null else (min * 160.9 + i * 300).toInt() * if (a == "cycling") 3 else 1)
         }.toMap())
+        // Stretches on top: days of one, two and three kinds, by days before today and minutes.
+        val mixed = withCardio.copy(stretches = listOf(0L to 12, 2L to 25, 5L to 10, 6L to 30, 9L to 15, 13L to 20, 16L to 6).mapIndexed { i, (back, min) ->
+            "x$i" to StretchLogged("x$i", LogCodec.TS.format(today.minusDays(back).atTime(20, 0).atOffset(t0.offset)), "after_workout", min * 60L)
+        }.toMap())
         val mine = split(idle, now.plusDays(1))
         val splitNow = now.plusDays(7)
         val mineLive = mine.then(splitNow) { Commands.start(it, splitNow) }
@@ -521,9 +527,9 @@ class ScreenShots {
                 }
             }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}) {} } }
-            shot(p, "10-history-month") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.Month, {}, {}, {}, today) {} } }
+            for (tall in listOf(false, true)) shot(p, if (tall) "10-history-month-full" else "10-history-month", tall) { TabFrame(Tab.History, {}) { HistoryScreen(mixed, HistoryView.Month, {}, {}, {}, today) {} } }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-week-full" else "10-history-week", tall) {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.Week, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today), today, {}, {}) } }
+                TabFrame(Tab.History, {}) { HistoryScreen(mixed, HistoryView.Week, {}, {}, {}) { WeekView(mixed, food, mondayOf(today), today, {}, {}) } }
             }
             shot(p, "10-history-week-empty") {
                 TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.Week, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today).minusDays(70), today, {}, {}) } }
