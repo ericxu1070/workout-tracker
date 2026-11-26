@@ -103,6 +103,22 @@ class SwipePagesTest {
         assertEquals(1, mode)
     }
 
+    /** Offscreen pages stay composed, so Stretching's figure warm-up waits on this until Stretching is shown. */
+    @Test fun onlyTheShownPageIsSettled() {
+        val shown = BooleanArray(3)
+        rule.setContent {
+            WorkoutPages(mode, { mode = it }) { page ->
+                shown[page] = settledHere()
+                ScreenFrame { WorkoutSwitch(page) { mode = it } }
+            }
+        }
+        rule.waitForIdle()
+        assertEquals(listOf(true, false, false), shown.toList())
+        rule.onAllNodes(hasText("Stretching")).onFirst().performClick()
+        rule.waitForIdle()
+        assertEquals(listOf(false, false, true), shown.toList())
+    }
+
     @Test fun anOpenSheetHoldsThePage() {
         workout(sheet = true)
         rule.onRoot().performTouchInput { swipeLeft() }

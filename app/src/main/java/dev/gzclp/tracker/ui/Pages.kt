@@ -31,6 +31,13 @@ val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = 0.82f, stiffness
 /** The pager whose pages hold the composition; a [WorkoutSwitch] in a page follows it. */
 val LocalPages = compositionLocalOf<PagerState?> { null }
 
+/** Which of the [LocalPages] holds the composition. */
+private val LocalPage = compositionLocalOf { 0 }
+
+/** Whether the caller's page is the one the pages came to rest on; always true outside [Pages]. Offscreen pages stay composed, so work only the shown page needs waits on this. */
+@Composable
+fun settledHere(): Boolean = LocalPages.current?.let { it.settledPage == LocalPage.current } ?: true
+
 /** Where the pager stands, in pages: 1.5 is halfway from the second page to the third. */
 val PagerState.position: Float get() = currentPage + currentPageOffsetFraction
 
@@ -53,7 +60,7 @@ fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, pag
             HorizontalPager(
                 pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = beyond,
                 flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
-            ) { page(it) }
+            ) { CompositionLocalProvider(LocalPage provides it) { page(it) } }
         }
     }
 

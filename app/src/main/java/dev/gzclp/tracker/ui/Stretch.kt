@@ -80,7 +80,9 @@ fun StretchScreen(
     }
 
     // Each move's figure solves its balance once per launch: one a frame now, not mid-scroll on the first fling into the library.
-    LaunchedEffect(Unit) { for (move in StretchMoves.ALL) withFrameNanos { Motions.of(move) } }
+    // Only once Stretching is the page shown: as a neighbor page it stays composed, and the work would land on Lifting's frames.
+    val shown = settledHere()
+    LaunchedEffect(shown) { if (shown) for (move in StretchMoves.ALL) withFrameNanos { Motions.of(move) } }
 
     // Lazy, so the move library below the fold, a 3D figure per row, composes only as it scrolls in.
     LazyScreenFrame(bottom = {
