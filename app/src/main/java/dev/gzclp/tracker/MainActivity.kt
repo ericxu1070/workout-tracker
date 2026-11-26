@@ -100,6 +100,7 @@ import dev.gzclp.tracker.ui.Sheet
 import dev.gzclp.tracker.ui.SheetContent
 import dev.gzclp.tracker.ui.SheetState
 import dev.gzclp.tracker.ui.WeekView
+import dev.gzclp.tracker.ui.WorkoutPages
 import dev.gzclp.tracker.ui.WorkoutScreen
 import dev.gzclp.tracker.ui.photoTimeNote
 import dev.gzclp.tracker.ui.unloggedSets
@@ -447,44 +448,50 @@ private fun App(model: AppModel) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
-                            ) else if (model.workoutMode == 1) CardioScreen(
-                                state, LocalDate.now(), model.cardioGoalMin, onMode = model::chooseWorkoutMode,
-                                onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
-                                onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) }, lifting = state.active != null,
-                            ) else if (model.workoutMode == 2) StretchScreen(
-                                state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
-                                onSettings = { push(Route.Settings) }, onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
-                                onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
-                            ) else if (state.active == null) HomeScreen(
-                                state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
-                                onEditWeight = { open(weightSheet(it)) },
-                                onMode = model::chooseWorkoutMode,
-                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
-                                onStartOpen = ::startOpenFlow,
-                            ) else WorkoutScreen(
-                                state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
-                                onLog = { ex, i, w, r, rpe ->
-                                    val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
-                                    model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
-                                    if (!wasLogged) model.startRest(ex, i)
-                                },
-                                onClear = { ex, i ->
-                                    model.dispatch { Commands.clearSet(it, ex, i) }
-                                    model.cancelRestFor(ex, i)
-                                },
-                                onEditWeight = { open(weightSheet(it)) },
-                                onSwap = { open(SheetState.Swap(it, "")) },
-                                onSkipRest = model::cancelRest,
-                                onSettings = { push(Route.Settings) },
-                                onEnd = {
-                                    val n = unloggedSets(state)
-                                    if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
-                                },
-                                warmups = model.warmups,
-                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
-                                onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
-                                onMode = model::chooseWorkoutMode,
-                            )
+                            ) else WorkoutPages(model.workoutMode, model::chooseWorkoutMode) { page ->
+                                when (page) {
+                                    1 -> CardioScreen(
+                                        state, LocalDate.now(), model.cardioGoalMin, onMode = model::chooseWorkoutMode,
+                                        onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
+                                        onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) }, lifting = state.active != null,
+                                    )
+                                    2 -> StretchScreen(
+                                        state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
+                                        onSettings = { push(Route.Settings) }, onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
+                                        onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
+                                    )
+                                    else -> if (state.active == null) HomeScreen(
+                                        state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
+                                        onEditWeight = { open(weightSheet(it)) },
+                                        onMode = model::chooseWorkoutMode,
+                                        onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
+                                        onStartOpen = ::startOpenFlow,
+                                    ) else WorkoutScreen(
+                                        state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
+                                        onLog = { ex, i, w, r, rpe ->
+                                            val wasLogged = state.active?.sets?.containsKey(SetKey(ex.id, ex.tier, i)) == true
+                                            model.dispatch { Commands.logSet(it, ex, i, r, w, model.now(), model.restTargets, rpe) }
+                                            if (!wasLogged) model.startRest(ex, i)
+                                        },
+                                        onClear = { ex, i ->
+                                            model.dispatch { Commands.clearSet(it, ex, i) }
+                                            model.cancelRestFor(ex, i)
+                                        },
+                                        onEditWeight = { open(weightSheet(it)) },
+                                        onSwap = { open(SheetState.Swap(it, "")) },
+                                        onSkipRest = model::cancelRest,
+                                        onSettings = { push(Route.Settings) },
+                                        onEnd = {
+                                            val n = unloggedSets(state)
+                                            if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
+                                        },
+                                        warmups = model.warmups,
+                                        onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
+                                        onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
+                                        onMode = model::chooseWorkoutMode,
+                                    )
+                                }
+                            }
                             Tab.Upcoming -> UpcomingScreen(
                                 state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) },
                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },

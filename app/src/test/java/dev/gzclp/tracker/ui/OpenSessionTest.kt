@@ -167,7 +167,7 @@ class OpenSessionTest {
         // Changing target reps to 3 (heavier)
         OpenSessionManager.updateReps(state, "squat", 3)
         val heavyWeight = OpenSessionManager.exercises.first().targetWeight
-        assertTrue("Lower reps should yield higher suggested weight ($heavyWeight > $initialWeight)", heavyWeight >= initialWeight)
+        assertTrue("Lower reps should yield higher suggested weight ($heavyWeight > $initialWeight)", heavyWeight > initialWeight)
 
         // Changing target reps to 12 (lighter)
         OpenSessionManager.updateReps(state, "squat", 12)
@@ -202,6 +202,12 @@ class OpenSessionTest {
     @Test
     fun recentExercisesReturnsPastSessionExercises() {
         var state = setupGzclp()
+        val s0 = listOf(
+            SessionStart("s_older", Programs.GZCLP, "A1"),
+            SetLogged("s_older", "face_pull", "t3", "3x15+", 1, 15, 15, 35, 35, false),
+            SessionEnd("s_older", Programs.GZCLP, "A1", LogCodec.TS.format(now.minusDays(1)), 1800),
+        )
+        state = s0.mapIndexed { i, e -> Entry(700L + i, now.minusDays(1), e) }.fold(state) { s, e -> s.apply(e) }
         val s1Start = SessionStart("s_recents", Programs.GZCLP, "A1")
         val s1Sets = listOf(
             SetLogged("s_recents", "lat_pulldown", "t3", "3x15+", 1, 15, 15, 100, 100, false),
@@ -211,8 +217,7 @@ class OpenSessionTest {
         state = (listOf(s1Start) + s1Sets + listOf(s1End)).mapIndexed { i, e -> Entry(800L + i, now, e) }.fold(state) { s, e -> s.apply(e) }
 
         val recents = recentExercises(state)
-        assertTrue(recents.contains("lat_pulldown"))
-        assertTrue(recents.contains("barbell_curl"))
+        assertEquals("newest session first", listOf("lat_pulldown", "barbell_curl", "face_pull"), recents)
     }
 
     @Test

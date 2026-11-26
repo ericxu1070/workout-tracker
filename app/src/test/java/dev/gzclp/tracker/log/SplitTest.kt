@@ -266,9 +266,10 @@ class SplitTest {
                 bad.copy(days = emptyList()),
                 bad.copy(days = listOf(SplitDay("x", "X", listOf(SplitSlot("bench", 3, emptyList()))))),
                 bad.copy(days = listOf(SplitDay("x", "X", listOf(SplitSlot("bench", 3, listOf(5, 5, 5)), SplitSlot("bench", 5, listOf(5, 5, 5)))))),
-                ProgramRemove("ppl"),
             )
         }
+        assertEquals(good.customPrograms, s.st.customPrograms)
+        s.dispatch(t0) { listOf(ProgramRemove("ppl")) }
         assertEquals(good.customPrograms, s.st.customPrograms)
         assertEquals(Programs.of("ppl"), s.st.programOf("ppl"))
     }

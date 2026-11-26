@@ -2,6 +2,9 @@ package dev.gzclp.tracker.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -40,7 +43,8 @@ class SheetAndWaterUiTest {
     @Test fun aShortSlowDragLeavesTheSheetOpen() {
         var closed = 0
         sheet { closed++ }
-        rule.onNodeWithText("Log weight").performTouchInput { swipeDown(startY = top, endY = top + 20f, durationMillis = 800) }
+        // Past the touch slop, short of a quarter of the sheet, and slow.
+        rule.onNodeWithText("Log weight").performTouchInput { swipeDown(startY = top, endY = top + 60f, durationMillis = 800) }
         assertEquals(0, closed)
     }
 
@@ -59,8 +63,13 @@ class SheetAndWaterUiTest {
     }
 
     @Test fun paceShowsOnlyWhenThereIsOne() {
-        rule.setContent { WaterDailyRing(500, 2500, deficitMl = null) }
+        var deficit by mutableStateOf<Int?>(null)
+        rule.setContent { WaterDailyRing(500, 2500, deficitMl = deficit) }
         rule.onAllNodesWithText("On pace").assertCountEquals(0)
         rule.onAllNodesWithText("behind pace", substring = true).assertCountEquals(0)
+        deficit = 0
+        rule.onAllNodesWithText("On pace").assertCountEquals(1)
+        deficit = 300
+        rule.onAllNodesWithText("300 ml behind pace").assertCountEquals(1)
     }
 }
