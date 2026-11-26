@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="launcher_bg">#1A1B26</color>
+    <!-- The launch animation: splash_draw, splash_settle (pair with SplashExit.Zoom in MainActivity) or splash_glow. -->
+    <item name="splash_icon" type="drawable">@drawable/splash_draw</item>
     <style name="Theme.GZCLP" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/launcher_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/launcher_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:windowSplashScreenAnimationDuration">700</item>
     </style>
 </resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <group android:name="mark" android:pivotX="54" android:pivotY="54">
+                <group android:translateX="18" android:translateY="18" android:scaleX="0.28125" android:scaleY="0.28125">
+                    <group android:translateX="17.65" android:translateY="15.58" android:scaleX="0.861" android:scaleY="0.861">
+                        <group android:translateX="133.44" android:translateY="54.89" android:scaleX="0.9702" android:scaleY="0.9702">
+                            <path android:name="glyph" android:fillColor="#FF7AA2F7" android:fillAlpha="0" android:pathData="M 3.0795036 -16.951804 C 0.89546423 -17.036074 -1.2834814 -17.022008 -3.447018 -16.915568 C -20.75531 -16.064068 -38.588661 -9.1783417 -49.438663 6.4526805 C -60.220391 21.985345 -58.084801 42.784122 -47.590622 55.985396 C -54.898414 60.532264 -61.285273 66.106777 -66.385072 72.613733 C -80.721415 90.905818 -83.634104 118.03491 -69.098752 139.65049 C -54.563401 161.26607 -29.601436 171.62268 -4.9125664 172.87495 C 19.776303 174.12722 45.785464 166.40978 63.398494 146.93394 A 17 17 0 0 0 62.192637 122.9215 A 17 17 0 0 0 38.182205 124.12735 C 29.106213 134.16325 12.966702 139.7393 -3.1913523 138.91973 C -19.349406 138.10016 -33.932598 131.01572 -40.884934 120.67687 C -47.837269 110.33803 -46.520962 102.38802 -39.62271 93.586374 C -32.724706 84.785046 -18.615452 77.00112 -0.0025767883 77.000312 A 17 17 0 0 0 14.721353 68.50295 A 17 17 0 0 0 16.388212 62.278396 A 17 17 0 0 0 17.0002 60.001562 A 17 17 0 0 0 17.0002 59.999549 A 17 17 0 0 0 14.723366 51.502187 A 17 17 0 0 0 14.723366 51.500174 A 17 17 0 0 0 8.5028377 45.279646 A 17 17 0 0 0 2.2802966 43.610773 A 17 17 0 0 0 0.0014494434 43.000799 L -0.00056367244 43.000799 C -10.50177 42.998899 -17.94542 38.6154 -20.975218 34.869824 C -24.005218 31.123999 -24.520398 30.177789 -21.508693 25.838986 C -18.496989 21.500182 -10.818747 17.488543 -1.7761319 17.043683 C 7.2664831 16.598822 16.089865 19.835847 20.345998 24.393569 A 17 17 0 0 0 44.372536 25.21492 A 17 17 0 0 0 45.1959 1.1883825 C 33.851656 -10.959713 18.367779 -16.361925 3.0795036 -16.951804 z " />
+                        </group>
+                    </group>
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="mark">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.82" android:valueTo="1" android:duration="550" android:interpolator="@interpolator/splash_settle" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.82" android:valueTo="1" android:duration="550" android:interpolator="@interpolator/splash_settle" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="glyph">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:duration="300" android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+</animated-vector>
