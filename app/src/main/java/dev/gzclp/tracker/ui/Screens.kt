@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,7 +83,21 @@ import java.time.OffsetDateTime
 
 /** A full-height screen: scrolling content below the status bar, optional bottom bar. */
 @Composable
-fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) = Frame(bottom) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.lg).padding(bottom = Space.x3),
+        content = content,
+    )
+}
+
+/** A [ScreenFrame] whose items compose only as they scroll into view, for a page with a long list below the fold. */
+@Composable
+fun LazyScreenFrame(bottom: (@Composable () -> Unit)? = null, content: LazyListScope.() -> Unit) = Frame(bottom) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, bottom = Space.x3), content = content)
+}
+
+@Composable
+private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () -> Unit) {
     val p = LocalPalette.current
     val title = remember { LargeTitle() }
     var top by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
@@ -89,13 +106,7 @@ fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable C
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
     Column(Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {
-            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title) {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                        .padding(horizontal = Space.lg).padding(bottom = Space.x3),
-                    content = content,
-                )
-            }
+            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title, content = scroller)
             // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
             androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
                 Column(Modifier.fillMaxWidth().background(p.bg)) {

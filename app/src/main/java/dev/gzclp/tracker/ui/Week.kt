@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,12 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,6 +27,7 @@ import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.food.Meal
 import dev.gzclp.tracker.log.ActivityTotal
+import dev.gzclp.tracker.log.Kind
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.SessionBest
 import dev.gzclp.tracker.log.firstDay
@@ -54,36 +54,61 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
         Txt(weekLabel(monday, thisWeek), Type.headline, Modifier.weight(1f), align = TextAlign.Center)
         MiniStep(Icons.chevronRight, "Week after", enabled = monday < thisWeek) { onWeek(monday.plusDays(7)) }
     }
-    if (w.workouts == 0 && w.cardioSessions == 0 && w.bodyWeight == null && mealCount == 0) {
+    if (w.days.isEmpty() && w.bodyWeight == null && mealCount == 0) {
         Spacer(Modifier.height(Space.xxl))
         Txt("Nothing logged", Type.headline)
         return
     }
     Spacer(Modifier.height(Space.lg))
-    Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        val before = if (monday == thisWeek) "last week" else "the week before"
-        Tile("Gym", w.gymSec, count(w.workouts, "workout"), minutesVs(w.gymSec - w.prevGymSec, before), Modifier.weight(1f))
-        Tile("Cardio", w.cardioSec, count(w.cardioSessions, "session"), minutesVs(w.cardioSec - w.prevCardioSec, before), Modifier.weight(1f))
+    val kinds = p.kinds
+    val totals = listOf(
+        Triple(Kind.LIFT, w.gymSec, w.gymSec - w.prevGymSec) to count(w.workouts, "workout"),
+        Triple(Kind.CARDIO, w.cardioSec, w.cardioSec - w.prevCardioSec) to count(w.cardioSessions, "session"),
+        Triple(Kind.STRETCH, w.stretchSec, w.stretchSec - w.prevStretchSec) to count(w.stretches, "stretch", "stretches"),
+    )
+    Group {
+        val all = totals.sumOf { it.first.second }
+        // The week's split by time, in the day markers' colors.
+        if (all > 0) Row(Modifier.padding(start = Space.lg, end = Space.lg, top = Space.lg, bottom = Space.xs).height(8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            totals.filter { it.first.second > 0 }.forEach { (t, _) ->
+                Box(Modifier.weight(t.second.toFloat()).fillMaxHeight().clip(CircleShape).background(kinds.of(t.first)))
+            }
+        }
+        totals.forEachIndexed { i, (t, n) ->
+            val (kind, sec, change) = t
+            GroupRow(first = i == 0) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(kinds.of(kind)))
+                Column(Modifier.weight(1f).padding(start = Space.md)) {
+                    Txt(kind.label, Type.body, maxLines = 1)
+                    Txt(n, Type.footnote, color = p.fg2, maxLines = 1)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Txt(Fmt.minutes(sec), Type.body.tabular())
+                    Txt(signedMinutes(change), Type.footnote.tabular(), color = p.fg2)
+                }
+            }
+        }
     }
     Spacer(Modifier.height(Space.md))
     Group {
         Row(Modifier.padding(Space.md)) {
             for (i in 0L until 7L) {
                 val day = monday.plusDays(i)
-                val active = day in w.activeDays
+                val mix = w.days[day]
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Txt(day.dayOfWeek.name.take(1), Type.caption, color = p.fg2)
                     Spacer(Modifier.height(Space.xs))
-                    // A workout day is a filled dot and today a ring; the accent stays for what can be tapped.
+                    // A day's marker shows what it held; today, when empty, is a ring. The accent stays for what can be tapped.
                     Box(
-                        Modifier.size(36.dp).clip(CircleShape).background(if (active) p.fg else Color.Transparent)
-                            .then(if (day == today && !active) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier),
+                        Modifier.size(36.dp).clip(CircleShape)
+                            .then(if (mix != null) Modifier.dayMarker(mix, kinds).semantics { contentDescription = dayLabel(mix) } else Modifier)
+                            .then(if (day == today && mix == null) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier),
                         contentAlignment = Alignment.Center,
                     ) {
                         Txt(
-                            "${day.dayOfMonth}", Type.subhead.tabular().copy(fontWeight = if (active || day == today) FontWeight.SemiBold else FontWeight.Normal),
+                            "${day.dayOfMonth}", Type.subhead.tabular().copy(fontWeight = if (mix != null || day == today) FontWeight.SemiBold else FontWeight.Normal),
                             color = when {
-                                active -> p.bg
+                                mix != null -> kinds.on
                                 day > today -> p.fg2
                                 else -> p.fg
                             },
@@ -126,19 +151,6 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
 }
 
 @Composable
-private fun Tile(title: String, sec: Long, count: String, change: String, modifier: Modifier) {
-    val p = LocalPalette.current
-    Column(modifier.fillMaxHeight().clip(RoundedCornerShape(Radius.lg)).background(p.elevated).padding(Space.lg)) {
-        Txt(title, Type.footnote, color = p.fg2)
-        Spacer(Modifier.height(Space.xs))
-        Txt(Fmt.minutes(sec), Type.title2.tabular(), maxLines = 1)
-        Spacer(Modifier.height(Space.xs))
-        Txt(count, Type.footnote, color = p.fg2)
-        Txt(change, Type.footnote.tabular(), color = p.fg2)
-    }
-}
-
-@Composable
 private fun ValueRow(first: Boolean, label: String, value: String, change: String?) {
     val p = LocalPalette.current
     GroupRow(first) {
@@ -160,7 +172,7 @@ private fun weekLabel(monday: LocalDate, thisWeek: LocalDate): String {
     }
 }
 
-private fun count(n: Int, noun: String) = "$n $noun" + if (n == 1) "" else "s"
+private fun count(n: Int, noun: String, plural: String = noun + "s") = "$n " + if (n == 1) noun else plural
 
 private fun top(b: SessionBest) = "${b.topWeight} × ${b.topReps}"
 
@@ -181,10 +193,14 @@ private fun signed(lb: Double): String {
     }
 }
 
-/** "25 min more" over "than last week", one fact per line so the tile never breaks mid-phrase; or "Same as last week". */
-internal fun minutesVs(sec: Long, before: String): String {
+/** +25 min, −1 hr 6 min, ±0 min: a week's time against the week before. */
+internal fun signedMinutes(sec: Long): String {
     val m = (sec / 60.0).roundToLong()
-    return if (m == 0L) "Same as $before" else Fmt.minutes(abs(m) * 60) + (if (m > 0) " more" else " less") + "\nthan $before"
+    return when {
+        m > 0 -> "+" + Fmt.minutes(m * 60)
+        m < 0 -> "−" + Fmt.minutes(-m * 60)
+        else -> "±0 min"
+    }
 }
 
 /** A week's cardio per activity: sessions, distance, and time. Shared with the Cardio page. */
