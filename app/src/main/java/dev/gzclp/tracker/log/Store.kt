@@ -25,8 +25,9 @@ class Store(private val file: File) {
             out.write(entries.joinToString("") { LogCodec.encode(it) + "\n" }.toByteArray())
             out.fd.sync()
         }
-        // A remap rewrites earlier lines, so the state is folded again from the file.
-        _state.value = if (entries.any { it.event is ExerciseRemap }) load() else entries.fold(_state.value) { s, e -> s.apply(e) }
+        // A remap rewrites earlier lines, and a set deleted from a finished workout undoes what it led to, so the state is folded again from the file.
+        val before = _state.value
+        _state.value = if (entries.any { e -> e.event is ExerciseRemap || e.event.let { it is SetCleared && it.sessionId != before.active?.id } }) load() else entries.fold(before) { s, e -> s.apply(e) }
         return entries
     }
 

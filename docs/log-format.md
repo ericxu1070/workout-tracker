@@ -31,6 +31,8 @@ The `exercise_remap` type was added within version 2. A reader that predates it 
 
 The `food_estimate` type was added within version 2. Meal photos never enter the log; only this text does. A reader that predates it skips it as an unknown type.
 
+Deleting from History was added within version 2: a `set_clear` can come after its session's `session_end`, and then a `progression` line can stop counting (see "Deleted exercises"). A reader that predates it and drops every cleared set already hides the deleted sets and workouts, but still counts the deleted exercise's `progression` lines.
+
 ## File
 
 - Name: `gzclp-log.jsonl`, in the folder picked in the app's Settings (shared with Syncthing).
@@ -197,6 +199,7 @@ Every change to an exercise's prescription. Apply them in order to get each exer
 
 Progression lines for a session are written right before its `session_end`, with the same `ts`.
 An exercise whose sets were all left unlogged in a session gets no progression line.
+A line whose exercise was later deleted from its session no longer counts (see "Deleted exercises" under `set_clear`).
 
 ### `session_start`
 
@@ -281,6 +284,10 @@ The user removed a logged set. It no longer counts.
 | Field | Type | Meaning |
 |---|---|---|
 | `session_id`, `exercise`, `tier`, `set_index` | | The set identity. |
+
+A `set_clear` is written during the workout, or after its `session_end` when the user deletes an exercise or a whole workout from History. Deleting an exercise clears every set of that `exercise` and `tier` in the session; deleting a workout clears every set of the session. Both are written together, with one `ts`. A set cleared after `session_end` is never logged again.
+
+**Deleted exercises.** When every set of an (`exercise`, `tier`) in a session is cleared, the `progression` lines with that `session_id`, `exercise`, and `tier` no longer count. Replay the other `progression` lines: the prescription goes back to what it was before that session, unless a later session moved it since. A session with every set cleared reads as an accidental start (see `session_end`): it is not a workout, and the rotation is worked out as if it had no sets.
 
 ### `session_end`
 
@@ -449,7 +456,7 @@ The user deleted a finished cardio session, or discarded the one in progress. It
 
 ## Computing the desktop metrics
 
-First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets from sessions with no `session_end`.
+First resolve sets: newest `set` per identity wins, drop cleared sets (a clear can come after `session_end`), drop sets from sessions with no `session_end`. Then drop the `progression` lines of deleted exercises: those whose (`session_id`, `exercise`, `tier`) had `set` lines and has no resolved set left.
 
 | Metric | How |
 |---|---|
@@ -514,4 +521,9 @@ First resolve sets: newest `set` per identity wins, drop cleared sets, drop sets
 {"v":2,"seq":112,"ts":"2026-12-01T09:35:00-08:00","type":"water_clear","id":"wt1795836600"}
 {"v":2,"seq":113,"ts":"2026-12-01T12:30:00-08:00","type":"food_estimate","meal":"20261201T123000-0800.jpg","label":"Chicken rice bowl","kcal_low":600,"kcal_high":800,"confirmed":true}
 {"v":2,"seq":114,"ts":"2026-12-02T08:00:00-08:00","type":"exercise_remap","from":"pull_ups","to":"pull_up","bodyweight":true}
+{"v":2,"seq":115,"ts":"2026-12-03T18:00:00-08:00","type":"session_start","session_id":"s1796349600","program":"gzclp","day":"B1","mode":"program","counts":true}
+{"v":2,"seq":116,"ts":"2026-12-03T18:04:00-08:00","type":"set","session_id":"s1796349600","exercise":"ohp","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":2,"target_weight":100,"weight":100,"amrap":false}
+{"v":2,"seq":117,"ts":"2026-12-03T18:40:00-08:00","type":"progression","exercise":"ohp","tier":"t1","kind":"stage_change","from_weight":100,"to_weight":100,"from_stage":"5x3+","to_stage":"6x2+","session_id":"s1796349600"}
+{"v":2,"seq":118,"ts":"2026-12-03T18:40:00-08:00","type":"session_end","session_id":"s1796349600","program":"gzclp","day":"B1","started_at":"2026-12-03T18:00:00-08:00","duration_sec":2400}
+{"v":2,"seq":119,"ts":"2026-12-03T20:00:00-08:00","type":"set_clear","session_id":"s1796349600","exercise":"ohp","tier":"t1","set_index":1}
 ```

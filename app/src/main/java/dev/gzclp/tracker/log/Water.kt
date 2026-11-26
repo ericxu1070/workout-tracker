@@ -43,7 +43,7 @@ object WaterLog {
     /** [recommendedMl] from the body weight in effect on [day] and that day's logged workouts and cardio. */
     fun recommendedMl(state: AppState, day: LocalDate): Int = recommendedMl(
         state.dailyBodyWeight().inEffect(day),
-        state.sessions.filter { it.startedAt.toLocalDate() == day }.sumOf { it.durationSec },
+        state.sessions.filter { it.sets.isNotEmpty() && it.startedAt.toLocalDate() == day }.sumOf { it.durationSec },
         state.cardio.values.filter { it.startedAt.toLocalDate() == day }.sumOf { it.durationSec },
     )
 

@@ -12,6 +12,7 @@ import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.BodyWeightCleared
+import dev.gzclp.tracker.log.SetCleared
 import dev.gzclp.tracker.log.BodyWeightLogged
 import dev.gzclp.tracker.log.CardioCleared
 import dev.gzclp.tracker.log.CardioLogged
@@ -24,7 +25,7 @@ import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.Locale
 
-/** What one dispatch writes to Health Connect. [deletedWeights] are weigh-in entry ids, [deletedSessions] cardio entry ids. */
+/** What one dispatch writes to Health Connect. [deletedWeights] are weigh-in entry ids, [deletedSessions] cardio entry ids and emptied workout ids. */
 data class HealthWrites(val upserts: List<Record>, val deletedWeights: List<String>, val deletedSessions: List<String> = emptyList()) {
     val isEmpty: Boolean get() = upserts.isEmpty() && deletedWeights.isEmpty() && deletedSessions.isEmpty()
 }
@@ -46,6 +47,8 @@ object HealthRecords {
         val upserts = mutableListOf<Record>()
         val deletes = mutableListOf<String>()
         val deletedSessions = mutableListOf<String>()
+        // Finished workouts sets were deleted from, by the seq of the last clear.
+        val trimmed = linkedMapOf<String, Long>()
         var s = before
         for (entry in entries) {
             val e = entry.event
@@ -61,8 +64,14 @@ object HealthRecords {
                     val id = if (e is SessionEnd) e.sessionId else (e as SessionEdit).sessionId
                     s.sessions.lastOrNull { it.id == id }?.takeIf { it.sets.isNotEmpty() }?.let { upserts += session(s, it, entry.seq) }
                 }
+                is SetCleared -> if (s.sessions.any { it.id == e.sessionId }) trimmed[e.sessionId] = entry.seq
                 else -> {}
             }
+        }
+        // What is left of the workout is written whole; a workout with nothing left goes.
+        for ((id, seq) in trimmed) {
+            val r = s.sessions.last { it.id == id }
+            if (r.sets.isEmpty()) deletedSessions += id else upserts += session(s, r, seq)
         }
         return HealthWrites(upserts, deletes, deletedSessions)
     }
