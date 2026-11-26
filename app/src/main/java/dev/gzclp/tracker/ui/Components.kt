@@ -112,6 +112,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.toSize
 
 /** The screen's large title and where its bottom edge is on screen, so [ScreenFrame] can show it inline once it scrolls away. */
 class LargeTitle {
@@ -429,7 +430,11 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     ) {
         // Selected is the segment under the thumb.
         val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
-        Row {
+        var area by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+        fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / options.size).let { w -> thumbPill((motion.x + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch) }
+        // In Liquid Glass a lifted thumb is clear glass: the labels under it show through it, bent at its rim.
+        val clear = { if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f }
+        Row(Modifier.onSizeChanged { area = it.toSize() }.glassLens({ pill(area) }, clear)) {
             options.forEachIndexed { i, o ->
                 Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
                     Txt(o, Type.subhead, color = p.fg, maxLines = 1)
@@ -441,10 +446,15 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
         // Lifted, it grows past the bar, so nothing here clips to the bar.
         Row(
             Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
-                val w = size.width / options.size
-                val pill = thumbPill((motion.x + 0.5f) * w, size.height / 2, w, size.height, motion.lift.value, motion.stretch)
+                val pill = pill(size)
                 with(p.thumbPainter) { paint(pill, p.thumb, motion.lift.value.coerceIn(0f, 1f)) }
-                clipPath(Path().apply { addRoundRect(pill) }) { this@drawWithContent.drawContent() }
+                // Its accent-colored labels fade as it clears, leaving the bar's own labels seen through the glass.
+                val a = 1f - clear()
+                if (a > 0f) clipPath(Path().apply { addRoundRect(pill) }) {
+                    drawContext.canvas.saveLayer(pill.let { androidx.compose.ui.geometry.Rect(it.left, it.top, it.right, it.bottom) }, androidx.compose.ui.graphics.Paint().apply { alpha = a })
+                    this@drawWithContent.drawContent()
+                    drawContext.canvas.restore()
+                }
             },
         ) {
             options.forEach { o ->

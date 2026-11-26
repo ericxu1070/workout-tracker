@@ -67,8 +67,10 @@ class ThumbTest {
     @Test fun aLiftedThumbClearsTheBar() {
         // The thumb is 36 dp in a bar 4 dp taller each side.
         val pill = thumbPill(60f, 18f, 120f, 36f, lift = 1f, stretch = 0f)
-        assertTrue("height ${pill.height}", pill.height > 44f)
-        assertTrue("width ${pill.width}", pill.width < 120f * 1.2f)
+        assertTrue("height ${pill.height}", pill.height > 44f + 8f)
+        assertTrue("width ${pill.width}", pill.width < 120f * 1.1f)
+        // Grown mostly taller: the selector contrasts with the bar instead of looking like a bigger copy of it.
+        assertTrue("taller than wider", pill.height / 36f - 1f > 4 * (pill.width / 120f - 1f))
         assertEquals(18f, (pill.top + pill.bottom) / 2, 1e-4f)
     }
 

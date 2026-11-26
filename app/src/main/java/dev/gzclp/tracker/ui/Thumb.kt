@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
@@ -32,12 +33,12 @@ fun interface ThumbPainter {
 val SolidThumb = ThumbPainter { pill, color, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
 
 /**
- * Liquid Glass: the solid pill at rest; lifted, it turns to glass, clearing a little and catching Liquid Glass's sheen and rim
- * ([glassSheen], [glassRim]) in proportion to [lift], as a held iOS 26 thumb does.
+ * Liquid Glass: the solid pill at rest; lifted, it turns to clear glass, catching Liquid Glass's sheen and rim ([glassSheen], [glassRim])
+ * in proportion to [lift], as a held iOS 26 thumb does. The labels under it show through, bent by [glassLens].
  */
 val GlassThumb = ThumbPainter { pill, color, lift ->
     val outline = Outline.Rounded(pill)
-    drawOutline(outline, color.copy(alpha = color.alpha * (1f - GLASS_CLEAR * lift)))
+    drawOutline(outline, lerp(color, GlassFill, lift))
     if (lift > 0f) drawContext.canvas.run {
         saveLayer(androidx.compose.ui.geometry.Rect(pill.left, pill.top, pill.right, pill.bottom).inflate(2.dp.toPx()), Paint().apply { alpha = lift })
         glassSheen(outline)
@@ -46,8 +47,8 @@ val GlassThumb = ThumbPainter { pill, color, lift ->
     }
 }
 
-/** How much a fully lifted glass thumb clears: little enough that its label keeps reading on it. */
-const val GLASS_CLEAR = 0.2f
+/** A fully lifted glass thumb: a faint frost, so the labels it bends read through it. */
+private val GlassFill = Color.White.copy(alpha = 0.14f)
 
 /** The stretch a thumb moving at [velocity] segments a second wants: 0 at rest, rising toward [MAX_STRETCH] the faster it goes, either way. */
 fun stretchFor(velocity: Float): Float = MAX_STRETCH * tanh(abs(velocity) / 5f)
@@ -63,9 +64,9 @@ fun thumbScale(stretch: Float): Pair<Float, Float> {
 
 const val MAX_STRETCH = 0.18f
 
-/** How much a lifted thumb grows: its height clears the bar's, its width barely changes. */
-const val LIFT_GROW_X = 0.12f
-const val LIFT_GROW_Y = 0.34f
+/** How much a lifted thumb grows: mostly taller, well past the bar's height, and only a little wider, so it stands out from the bar. */
+const val LIFT_GROW_X = 0.06f
+const val LIFT_GROW_Y = 0.6f
 
 /** The pill for a thumb centered at [cx], [cy] in a [w] by [h] segment, at [lift] and [stretch]. */
 fun thumbPill(cx: Float, cy: Float, w: Float, h: Float, lift: Float, stretch: Float): RoundRect {
