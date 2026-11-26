@@ -1,9 +1,12 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assume.assumeNotNull
@@ -36,6 +39,23 @@ class TabBarShots {
         rule.mainClock.advanceTimeBy(600)
         rule.onRoot().captureRoboImage(File(out, "${p.id}-40-tabs-held.png").path)
         rule.onRoot().performTouchInput { up() }
+    }
+
+    /** Frames 32 ms apart after a tap from Workout to History: the pill springs across, bouncing a little as it lands. */
+    @Test fun tapFrames() {
+        val out = System.getProperty("gzclp.shots")
+        assumeNotNull(out)
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            var tab by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Tab.Workout) }
+            GzTheme(Palettes.dark) { TabBar(tab) { tab = it } }
+        }
+        rule.mainClock.advanceTimeBy(500)
+        rule.onNodeWithText("History").performClick()
+        repeat(10) { k ->
+            rule.mainClock.advanceTimeBy(32)
+            rule.onRoot().captureRoboImage(File(out, "dark-41-tab-tap-%02d.png".format(k)).path)
+        }
     }
 
     // One render per test: a compose rule takes one setContent.

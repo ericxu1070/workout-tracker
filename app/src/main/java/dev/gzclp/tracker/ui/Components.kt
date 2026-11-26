@@ -104,7 +104,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -368,7 +367,8 @@ fun ThumbRow(
     val scope = rememberCoroutineScope()
     val select by rememberUpdatedState(onSelect)
     val own = remember { Animatable(selected.toFloat()) }
-    LaunchedEffect(selected) { own.animateTo(selected.toFloat(), SegmentSpring) }
+    // The thumb's own spring ([ThumbMotion]) carries it to a new selection, so a tap moves it as fast and bouncy as a drag.
+    LaunchedEffect(selected) { own.snapTo(selected.toFloat()) }
     var held by remember { androidx.compose.runtime.mutableStateOf(false) }
     val swiped by (pager?.interactionSource ?: remember { MutableInteractionSource() }).collectIsDraggedAsState()
     // Where the thumb heads: the finger while it drags the thumb; the pages' position while a finger swipes them; else the page
@@ -664,12 +664,13 @@ private fun Tab.icon(): ImageVector = when (this) {
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+        // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
             val t = Tab.entries[i]
             val c = if (thumb) p.accent else p.fg2
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Icon(t.icon(), c, 24.dp)
-                Txt(t.label, Type.caption.copy(fontWeight = if (thumb) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
+                Txt(t.label, Type.caption, color = c, maxLines = 1)
             }
         }
     }
@@ -678,7 +679,8 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
         Modifier.shadow(8.dp, CircleShape).glassPane(CircleShape),
     ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
-        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp), Modifier)
+        // Inset so the end tabs' pills keep the screen's 16 dp gutter.
+        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(56.dp), Modifier)
     }
 }
 
