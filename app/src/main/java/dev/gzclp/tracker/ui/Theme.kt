@@ -5,7 +5,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,17 +33,49 @@ data class Palette(
     val thumb: Color = accent,
     /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
     val glows: List<Color> = emptyList(),
+    /** Liquid Glass bars' and sheets' alpha, fitted by [glassed]. */
+    val chromeAlpha: Float = 1f,
     /** How [thumb] is painted, resting and lifted under a finger; a theme with a material shows it only while lifted. */
     val thumbPainter: ThumbPainter = SolidThumb,
 ) {
     val glass: Boolean get() = glows.isNotEmpty()
-    /** A card's fill: [elevated], or in Liquid Glass a translucent pane over the wallpaper ([elevated] is that pane over [bg]). */
-    val card: Color get() = if (glass) Color.White.copy(alpha = 0.07f).compositeOver(bg.copy(alpha = 0.45f)) else elevated
-    /** Liquid Glass bars and sheets: [bg] at the least alpha that keeps text at 4.5:1 over anything blurred behind them. */
-    val chrome: Color by lazy {
-        (50..100).map { bg.copy(alpha = it / 100f) }
-            .firstOrNull { c -> glassSurfaces(c).all { s -> listOf(fg, fg2, accent, red).all { contrast(it.compositeOver(s), s) >= 4.5f } } } ?: bg
+
+    /**
+     * This theme in Liquid Glass: a wallpaper of [glowsFor] its accent, bars at [CLEAREST_CHROME], and fg, fg2, accent and red each lifted
+     * toward the extreme just enough to read at 4.5:1 over everything [glassSurfaces] names, fg with tertiary text's alpha so the ladder keeps its steps.
+     * Where no lift reaches, the bars go more opaque and then the glows dimmer. One instance per theme: the wallpaper cache and every token search key on it.
+     */
+    val glassed: Palette by lazy {
+        if (glass) return@lazy this
+        val toward = if (dark) Color.White else Color.Black
+        fun reads(c: Color, on: List<Color>, alpha: Float = 1f) = on.all { contrast(c.copy(alpha = alpha).compositeOver(it), it) >= 4.5f }
+        fun lift(c: Color, ok: (Color) -> Boolean) = (0..100).map { Color(lerp(c, toward, it / 100f).toArgb()) }.firstOrNull(ok)
+        (10 downTo 0).asSequence().flatMap { k -> (CLEAREST_CHROME..100).asSequence().map { k to it } }.firstNotNullOfOrNull { (k, a) ->
+            val lit = copy(id = "$id-glass", glows = glowsFor(accent, k / 10f), chromeAlpha = a / 100f, thumbPainter = GlassThumb)
+            val on = lit.surfaces
+            // A filled control's label sits under its sheen.
+            val sheened = on.map { Color.White.copy(alpha = SHEEN).compositeOver(it) }
+            val f = lift(fg) { reads(it, on, maxOf(fg3.alpha, 0.75f)) && reads(it, sheened) } ?: return@firstNotNullOfOrNull null
+            val f2 = lift(fg2) { reads(it, on) } ?: return@firstNotNullOfOrNull null
+            val ac = lift(accent) { reads(it, on) } ?: return@firstNotNullOfOrNull null
+            val r = lift(red) { reads(it, on) } ?: return@firstNotNullOfOrNull null
+            lit.copy(
+                fg = f, fg2 = f2, accent = ac, red = r, thumb = if (thumb == accent) ac else thumb,
+                onAccent = if (contrast(Color.Black, ac) >= contrast(Color.White, ac)) Color.Black else Color.White,
+            ).takeIf { it.textReads() }
+        } ?: copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumbPainter = GlassThumb)
     }
+    fun withGlass(on: Boolean) = if (on) glassed else this
+    /** Text reads on every glass surface, a filled control's label under its sheen too, and a switch stands off its track. */
+    private fun textReads() = contrast(onAccent, Color.White.copy(alpha = SHEEN).compositeOver(accent)) >= 4.5f && surfaces.all { s ->
+        listOf(fg, fg2, fg3, accent, red).all { contrast(it.compositeOver(s), s) >= 4.5f } &&
+            contrast(fg, Color.White.copy(alpha = SHEEN).compositeOver(s)) >= 4.5f && contrast(accent, fillPressed.compositeOver(s)) >= 3f
+    }
+
+    /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper. */
+    val card: Color get() = if (glass) elevated.copy(alpha = 0.6f) else elevated
+    /** Liquid Glass bars and sheets: [bg] at [chromeAlpha], over whatever is blurred behind them. */
+    val chrome: Color get() = bg.copy(alpha = chromeAlpha)
     /** Tertiary text and icons: the faintest [fg] that still reads at 4.5:1 on every surface. */
     val fg3: Color by lazy {
         (42..100).map { fg.copy(alpha = it / 100f) }.firstOrNull { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } } ?: fg
@@ -74,7 +108,7 @@ data class Palette(
     private fun glassSurfaces(bar: Color): List<Color> {
         val walls = listOf(bg) + glows.map { it.compositeOver(bg) } + glows.fold(bg) { under, g -> g.compositeOver(under) }
         val panes = walls + walls.map { card.compositeOver(it) }
-        val bars = (panes + listOf(accent, red, Color.White)).map { bar.compositeOver(it) }
+        val bars = (panes + listOf(accent, red, Color.White, Color.Black)).map { bar.compositeOver(it) }
         val all = panes + bars + bars.map { card.compositeOver(it) }
         return all + all.map { fill.compositeOver(it) }
     }
@@ -85,11 +119,10 @@ object Palettes {
     val tokyo = Palette("tokyo", "Tokyo Night", true, Color(0xFF1A1B26), Color(0xFF24283B), Color(0xFFC0CAF5), Color(0xFFA9B1D6), Color(0xFF7AA2F7), Color(0xFF1A1B26), Color(0xFFF7768E))
     val dark = Palette("dark", "Dark", true, Color(0xFF000000), Color(0xFF1C1C1E), Color(0xFFF5F5F7), Color(0xFFA1A1A6), Color(0xFF2A94FF), Color(0xFF000000), Color(0xFFFF584E))
     val light = Palette("light", "Light", false, Color(0xFFF2F2F7), Color(0xFFFFFFFF), Color(0xFF1C1C1E), Color(0xFF65656A), Color(0xFF0062CC), Color(0xFFFFFFFF), Color(0xFFCE0014))
-    /** Apple's Liquid Glass, dark: glass panes over a wallpaper of blue, violet and teal glows. */
-    val glass = Palette(
-        "glass", "Liquid Glass", true, Color(0xFF0B0F1A), Color(0xFF1C202A), Color(0xFFF2F5FF), Color(0xFFB4BDD2), Color(0xFF7DBFFF), Color(0xFF0B0F1A), Color(0xFFFF9E96),
-        glows = listOf(Color(0xFF2F6BFF).copy(alpha = 0.18f), Color(0xFF9B5CFF).copy(alpha = 0.14f), Color(0xFF16C2AE).copy(alpha = 0.10f)), thumbPainter = GlassThumb,
-    )
+    /** The colors the Liquid Glass theme had before glass became a switch; a saved `glass` theme loads as Midnight with glass on. */
+    val midnight = Palette("midnight", "Midnight", true, Color(0xFF0B0F1A), Color(0xFF1C202A), Color(0xFFF2F5FF), Color(0xFFB4BDD2), Color(0xFF7DBFFF), Color(0xFF0B0F1A), Color(0xFFFF9E96))
+    /** Midnight in Liquid Glass, the look the Liquid Glass theme shipped with. */
+    val glass get() = midnight.glassed
     /** The hand-tuned themes, which every screenshot renders. */
     val all = listOf(jade, tokyo, dark, light)
 
@@ -122,12 +155,12 @@ object Palettes {
     )
 
     /** Every theme past Light, Dark and System, by name. */
-    val custom = (listOf(jade, tokyo, glass) + omarchy).sortedBy { it.name }
+    val custom = (listOf(jade, tokyo, midnight) + omarchy).sortedBy { it.name }
 
     /** Light or Dark, following the phone. */
     const val SYSTEM = "system"
 
-    fun of(id: String) = (all + glass + omarchy).firstOrNull { it.id == id } ?: tokyo
+    fun of(id: String) = (all + midnight + omarchy).firstOrNull { it.id == id } ?: tokyo
 
     fun resolve(id: String, systemDark: Boolean, laptop: Palette?) = when (id) {
         SYSTEM -> if (systemDark) dark else light
@@ -146,6 +179,27 @@ object Palettes {
             listOf("mode" to mode, "background" to bg, "lighter_background" to lighterBg, "foreground" to fg, "dark_foreground" to darkFg, "accent" to accent, "red" to red)
                 .mapNotNull { (k, v) -> v?.let { "$k = \"$it\"" } }.joinToString("\n"),
         )!!.copy(id = id, name = name)
+}
+
+/** The clearest Liquid Glass bars get, in percent: the alpha the Liquid Glass theme was tuned with. */
+const val CLEAREST_CHROME = 82
+
+/**
+ * Liquid Glass's three wallpaper glows for a theme with [accent]: the accent, a neighbor a little warmer and one a little cooler on the
+ * hue wheel (blue, violet and teal for a blue accent), at [strength] of the peaks Liquid Glass was tuned with.
+ */
+fun glowsFor(accent: Color, strength: Float): List<Color> {
+    val r = accent.red; val g = accent.green; val b = accent.blue
+    val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = max - min
+    val h = when {
+        d == 0f -> 0f
+        max == r -> 60f * (((g - b) / d) % 6f)
+        max == g -> 60f * ((b - r) / d + 2f)
+        else -> 60f * ((r - g) / d + 4f)
+    }
+    // Saturated, as Liquid Glass's blue, violet and teal were: a vivid glow tints the glass without lifting it toward the text; a gray accent stays gray.
+    val s = (if (max == 0f) 0f else d / max).let { if (it < 0.15f) it else maxOf(it, 0.82f) }
+    return listOf(0f to 0.18f, 50f to 0.14f, -40f to 0.10f).map { (turn, peak) -> Color.hsv(((h + turn) % 360f + 360f) % 360f, s, max, peak * strength) }
 }
 
 fun surfaces(bg: Color, elevated: Color, fg: Color): List<Color> =

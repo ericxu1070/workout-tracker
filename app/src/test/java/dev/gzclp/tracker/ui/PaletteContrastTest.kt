@@ -9,12 +9,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** WCAG minimums for every built-in theme and every Omarchy theme the Laptop theme can take: 4.5:1 for text, 3:1 for controls and chart marks. */
+/** WCAG minimums for every built-in theme and every Omarchy theme the Laptop theme can take, each with Liquid Glass off and on: 4.5:1 for text, 3:1 for controls and chart marks. */
 class PaletteContrastTest {
     private val laptop = File(javaClass.getResource("/themes")!!.toURI()).list()!!
         .filter { it.endsWith(".raw.toml") }.sorted()
         .map { LaptopTheme.parse(javaClass.getResource("/themes/$it")!!.readText())!!.let { p -> p.copy(id = "laptop-${it.removeSuffix(".raw.toml")}") } }
-    private val themes = Palettes.all + Palettes.glass + Palettes.omarchy + laptop
+    private val flat = Palettes.all + Palettes.midnight + Palettes.omarchy + laptop
+    private val glass = flat.map { it.glassed }
+    private val themes = flat + glass
 
     private fun Palette.check(what: String, fgColor: Color, bgColor: Color, min: Float) {
         val solid = if (fgColor.alpha < 1f) fgColor.compositeOver(bgColor) else fgColor
@@ -22,7 +24,7 @@ class PaletteContrastTest {
         assertTrue("$id $what %.2f < $min".format(c), c >= min)
     }
 
-    @Test fun coversEveryTheme() = assertEquals(4 + 1 + 24 + 26, themes.size)
+    @Test fun coversEveryTheme() = assertEquals(2 * (4 + 1 + 24 + 26), themes.size)
 
     @Test fun textReadsOnEverySurface() {
         for (p in themes) for ((i, s) in p.surfaces.withIndex()) {
@@ -67,11 +69,11 @@ class PaletteContrastTest {
         }
     }
 
-    @Test fun liquidGlassReadsOverItsWorstBackdrop() {
-        val p = Palettes.glass
-        // Translucent, or it is only a flat theme with rims.
-        assertTrue("chrome alpha ${p.chrome.alpha}", p.chrome.alpha < 0.9f)
-        assertTrue("card alpha ${p.card.alpha}", p.card.alpha < 0.6f)
+    @Test fun liquidGlassReadsOverItsWorstBackdrop() = glass.forEach { p ->
+        // Translucent over a visible wallpaper (at least a fifth of the glow Liquid Glass was tuned with), or it is only a flat theme with rims.
+        assertTrue("${p.id} chrome alpha ${p.chrome.alpha}", p.chrome.alpha < 0.96f)
+        assertTrue("${p.id} card alpha ${p.card.alpha}", p.card.alpha <= 0.6f)
+        assertTrue("${p.id} glow alpha ${p.glows.first().alpha}", p.glows.first().alpha > 0.03f)
         for ((i, s) in p.surfaces.withIndex()) {
             // A filled control's label at the top of its sheen, and a switch or segment against its track, on every backdrop.
             p.check("fg on sheen over surface $i", p.fg, Color.White.copy(alpha = SHEEN).compositeOver(s), 4.5f)
@@ -79,6 +81,14 @@ class PaletteContrastTest {
         }
         // The primary pill and the segmented thumb, lit.
         p.check("onAccent on lit accent", p.onAccent, Color.White.copy(alpha = SHEEN).compositeOver(p.accent), 4.5f)
+    }
+
+    @Test fun theLiquidGlassThemeKeepsItsLook() {
+        // Midnight under glass is what the Liquid Glass theme was: full glows, bars at 82%, secondary text as it was.
+        val p = Palettes.midnight.glassed
+        assertEquals(0.18f, p.glows.first().alpha, 1e-3f)
+        assertEquals(0.82f, p.chrome.alpha, 1e-3f)
+        assertEquals(Palettes.midnight.fg2, p.fg2)
     }
 
     @Test fun dayMarkersReadAndStandApartInEveryTheme() {

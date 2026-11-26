@@ -17,6 +17,21 @@ class PrefsTest {
         assertEquals("jade", Prefs(ApplicationProvider.getApplicationContext()).theme)
     }
 
+    @Test fun theOldLiquidGlassThemeLoadsAsMidnightWithGlassOn() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        assertEquals(false, Prefs(context).glass)
+        context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE).edit().putString("theme", "glass").commit()
+        val prefs = Prefs(context)
+        assertEquals("midnight", prefs.theme)
+        assertEquals(true, prefs.glass)
+        // Glass stays on after choosing another theme, and off once switched off.
+        prefs.theme = "light"
+        assertEquals(true, Prefs(context).glass)
+        prefs.glass = false
+        assertEquals(false, Prefs(context).glass)
+        assertEquals("light", Prefs(context).theme)
+    }
+
     @Test fun waterGoalSetBeforeAutoGoalsCarriesOverButTheOldDefaultDoesNot() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val raw = context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE)

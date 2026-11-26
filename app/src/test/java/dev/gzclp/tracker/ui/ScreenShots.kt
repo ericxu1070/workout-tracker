@@ -119,6 +119,9 @@ class ScreenShots {
     @Composable
     private fun workoutTab(mode: Int, screen: @Composable () -> Unit) = TabFrame(Tab.Workout, {}) { WorkoutPages(mode, {}, {}) { if (it == mode) screen() } }
 
+    /** Liquid Glass over a dark and a light theme, rendered beside the flat themes. */
+    private val glassThemes = listOf(Palettes.glass, Palettes.light.glassed)
+
     private fun shot(p: Palette, name: String, tall: Boolean = false, content: @Composable () -> Unit) {
         out.mkdirs()
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h3000dp-420dpi")
@@ -273,7 +276,7 @@ class ScreenShots {
         val running = Commands.startCardio(week, Activities.of("running")!!, start).fold(week) { s, e -> s.apply(Entry(s.lastSeq + 1, start, e)) }
         val run = running.cardioActive!!
         val today = now.toLocalDate()
-        for (p in Palettes.all + Palettes.glass) {
+        for (p in Palettes.all + glassThemes + Palettes.of("gruvbox").glassed) {
             shot(p, "19-cardio") { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
             shot(p, "19-cardio-full", tall = true) { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
             shot(p, "19-cardio-mid-lift") { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}, lifting = true) } }
@@ -349,13 +352,13 @@ class ScreenShots {
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(), page = SettingsPage.Program,
             )
         }
-        for (p in listOf(Palettes.light, Palettes.tokyo, Palettes.glass)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
+        for (p in listOf(Palettes.light, Palettes.tokyo, Palettes.glass, Palettes.light.glassed)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
             SettingsScreen(
-                true, mine.programId, mine.increments, p.id, Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
-                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, initialShowMore = more,
+                true, mine.programId, mine.increments, p.id.removeSuffix("-glass"), Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, glass = p.glass, page = SettingsPage.Appearance, initialShowMore = more,
             )
         }
-        for (p in Palettes.all + Palettes.glass) {
+        for (p in Palettes.all + glassThemes) {
             shot(p, "23-settings-splits") { settings(p)() }
             shot(p, "23-start-from-sheet") {
                 Box(Modifier.fillMaxSize()) {
