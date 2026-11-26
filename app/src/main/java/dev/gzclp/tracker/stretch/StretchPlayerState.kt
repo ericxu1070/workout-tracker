@@ -142,8 +142,11 @@ class StretchPlayerState(
         isFinished = false
     }
 
+    /** Whether the move under way reached its hold; a move skipped while getting ready was never done. */
+    private fun held(): Boolean = schedule?.let { s -> msIntoMove > s.spans.first { it.stage == Stage.HOLD }.startMs } ?: false
+
     private fun advanceMove() {
-        currentMove?.let { completedMoveList.add(it.id) }
+        if (held()) currentMove?.let { completedMoveList.add(it.id) }
         if (moveIndex + 1 < moves.size) {
             begin(moveIndex + 1)
         } else {
@@ -188,7 +191,7 @@ class StretchPlayerState(
         at: OffsetDateTime = OffsetDateTime.now(),
     ): StretchLogged {
         val entryId = id ?: "st${at.toEpochSecond()}"
-        val finalMoves = (completedMoveList + listOfNotNull(currentMove?.id)).distinct()
+        val finalMoves = (completedMoveList + listOfNotNull(currentMove?.id?.takeIf { !isFinished && held() })).distinct()
         return StretchLogged(
             id = entryId,
             at = LogCodec.TS.format(at),

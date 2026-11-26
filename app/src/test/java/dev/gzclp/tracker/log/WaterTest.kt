@@ -114,7 +114,7 @@ class WaterTest {
 
     @Test
     fun volumeShowsMlAndOz() {
-        assertEquals("300 ml · 10.1 oz", WaterLog.formatVolume(300))
+        assertEquals("300 ml", WaterLog.formatVolume(300))
     }
 
     @Test

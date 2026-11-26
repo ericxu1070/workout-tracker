@@ -292,7 +292,7 @@ fun MealSheet(
         }
 
         val showSuggestions = suggestions
-        if (showSuggestions.isNotEmpty()) GroupHeader(if (currentEst != null) "Other suggestions" else "Top estimates (tap to confirm)")
+        if (showSuggestions.isNotEmpty()) GroupHeader(if (currentEst != null) "Other suggestions" else "Top estimates")
         if (showSuggestions.isNotEmpty()) Group {
             showSuggestions.forEachIndexed { idx, pred ->
                 GroupRow(first = idx == 0, onClick = {
@@ -303,7 +303,7 @@ fun MealSheet(
                         Txt(pred.kcalRange.formatted, Type.caption, color = p.fg2)
                     }
                     if (currentEst?.label == pred.label) {
-                        Txt("✓", Type.headline, color = p.accent)
+                        Icon(Icons.check, p.accent, 18.dp)
                     } else {
                         Icon(Icons.chevronRight, p.fg3, 16.dp)
                     }
@@ -328,7 +328,7 @@ fun MealSheet(
 
     Spacer(Modifier.height(Space.md))
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-        PillButton("Delete", onDelete, Modifier.weight(1f), onSurface = true)
+        PillButton("Delete meal", onDelete, Modifier.weight(1f), onSurface = true, danger = true)
         PillButton("Done", onDone, Modifier.weight(1f), primary = true)
     }
 }

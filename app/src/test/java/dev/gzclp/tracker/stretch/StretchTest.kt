@@ -264,10 +264,10 @@ class StretchTest {
         player.resume()
         assertFalse(player.isPaused)
 
-        // Skip to end
+        // Skip to end: a move skipped while getting ready was never held, so it does not count.
         player.skipNext()
         assertTrue(player.isFinished)
-        assertEquals(2, player.completedMoves.size)
+        assertEquals(listOf(StretchMoves.BUTTERFLY_STRETCH.id), player.completedMoves)
 
         // Create log event
         val atTime = OffsetDateTime.parse("2026-11-24T10:00:00Z")
@@ -276,9 +276,7 @@ class StretchTest {
         assertEquals(LogCodec.TS.format(atTime), logged.at)
         assertEquals("test_routine", logged.routine)
         assertTrue(logged.durationSec >= 1L)
-        assertEquals(2, logged.moves.size)
-        assertTrue(logged.moves.contains(StretchMoves.BUTTERFLY_STRETCH.id))
-        assertTrue(logged.moves.contains(StretchMoves.STANDING_FORWARD_FOLD.id))
+        assertEquals(listOf(StretchMoves.BUTTERFLY_STRETCH.id), logged.moves)
     }
 
     @Test

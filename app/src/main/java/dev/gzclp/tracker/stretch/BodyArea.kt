@@ -10,7 +10,7 @@ enum class BodyArea(val displayName: String) {
     QUADS("Quads"),
     CALVES("Calves"),
     ANKLES("Ankles"),
-    UPPER_BACK("Upper Back"),
+    UPPER_BACK("Upper back"),
     CHEST("Chest"),
     SHOULDERS("Shoulders"),
     LATS("Lats"),

@@ -72,17 +72,21 @@ fun ExercisesScreen(
         Spacer(Modifier.height(52.dp))
         Txt("Exercises", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
-        Segmented(MuscleSpan.entries.map { it.name }, span.ordinal, { span = MuscleSpan.entries[it] })
-        Spacer(Modifier.height(Space.lg))
         // A new span fades in through a short blur in place; the map never slides.
         AnimatedContent(span, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) }, label = "span") { s ->
             val blur by transition.animateDp({ tween(200) }, label = "blur") { if (it == EnterExitState.Visible) 0.dp else 8.dp }
             val window = muscleWindow(today, s)
-            MuscleChart(
-                state.muscleWork(window.first, window.second), baselineDays(s, window), female,
-                Modifier.fillMaxWidth().height(340.dp).blur(blur, BlurredEdgeTreatment.Unbounded),
-            )
+            val work = state.muscleWork(window.first, window.second)
+            val days = baselineDays(s, window)
+            Column(Modifier.blur(blur, BlurredEdgeTreatment.Unbounded)) {
+                MuscleChart(work, days, female, Modifier.fillMaxWidth().height(340.dp))
+                Spacer(Modifier.height(Space.sm))
+                MuscleScale(work, days, Modifier.align(Alignment.CenterHorizontally))
+            }
         }
+        // The span switch sits with the map it changes, under its scale.
+        Spacer(Modifier.height(Space.md))
+        Segmented(MuscleSpan.entries.map { it.name }, span.ordinal, { span = MuscleSpan.entries[it] })
         Spacer(Modifier.height(Space.xxl))
         Group {
             GroupRow(first = true, onClick = onBodyWeight) {
@@ -290,9 +294,8 @@ private fun RelativeStrength(state: AppState, bests: List<SessionBest>, onLogWei
     val first = rs.first()
     val last = rs.last()
     val delta = last.ratio - first.ratio
-    Row(verticalAlignment = Alignment.Bottom) {
+    Column {
         Txt(Fmt.ratio(last.ratio), Type.title1)
-        Spacer(Modifier.width(Space.sm))
         Txt(
             "body weight" + when {
                 rs.size == 1 -> ""
@@ -300,7 +303,7 @@ private fun RelativeStrength(state: AppState, bests: List<SessionBest>, onLogWei
                 delta <= -0.005 -> ", down ${"%.2f".format(-delta)} since ${Fmt.shortDate(first.at)}"
                 else -> ", same as ${Fmt.shortDate(first.at)}"
             },
-            Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2,
+            Type.subhead, color = p.fg2,
         )
     }
     Spacer(Modifier.height(Space.md))
@@ -329,14 +332,12 @@ fun BodyWeightScreen(
     val p = LocalPalette.current
     val entries = state.weighIns()
     val daily = state.dailyBodyWeight()
-    ScreenFrame {
+    ScreenFrame(bottom = { BottomBar { PillButton("Log weight", onLog, Modifier.weight(1f), primary = true, icon = Icons.plus) } }) {
         NavRow(onBack)
         Txt("Body weight", Type.largeTitle)
         if (entries.isEmpty()) {
             Spacer(Modifier.height(Space.lg))
             Txt("No weigh-ins yet", Type.headline)
-            Spacer(Modifier.height(Space.lg))
-            PillButton("Log weight", onLog, Modifier.fillMaxWidth(), primary = true, icon = Icons.plus)
             return@ScreenFrame
         }
         val avg = sevenDayAverage(daily)
@@ -347,9 +348,8 @@ fun BodyWeightScreen(
         if (firstAvg != null && lastAvg != null) {
             val delta = lastAvg.value - firstAvg.value
             Spacer(Modifier.height(Space.lg))
-            Row(verticalAlignment = Alignment.Bottom) {
+            Column {
                 Txt(Fmt.lb(lastAvg.value), Type.title1)
-                Spacer(Modifier.width(Space.sm))
                 Txt(
                     "7-day average" + when {
                         avg.size == 1 -> ""
@@ -357,7 +357,7 @@ fun BodyWeightScreen(
                         delta <= -0.05 -> ", down ${Fmt.tenths(-delta)} lb since ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
                         else -> ", same as ${Fmt.shortDate(dayAt.getValue(firstAvg.key))}"
                     },
-                    Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2,
+                    Type.subhead, color = p.fg2,
                 )
             }
         }
@@ -369,9 +369,6 @@ fun BodyWeightScreen(
             ),
             listOf("Day", "Avg"), minSpan = 6f, value = { Fmt.tenths(it.toDouble()) },
         )
-        Spacer(Modifier.height(Space.xxl))
-        PillButton("Log weight", onLog, Modifier.fillMaxWidth(), primary = true, icon = Icons.plus)
-
         GroupHeader("Weigh-ins")
         Group {
             entries.asReversed().forEachIndexed { i, w ->

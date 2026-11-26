@@ -124,7 +124,7 @@ fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpen
                                 val style = Type.subhead.tabular().copy(fontWeight = if (isToday || mix != null) FontWeight.SemiBold else FontWeight.Normal)
                                 val open = sessionOn[date]?.let { s -> { onOpenSession(s.id) } } ?: cardioOn[date]?.let { c -> { onCardio(c) } }
                                 if (mix != null && open != null) {
-                                    Pressable(open, Modifier.size(40.dp), CircleShape, label = "${dayLabel(mix)} on ${Fmt.shortDate(date)}") {
+                                    Pressable(open, Modifier.size(40.dp), CircleShape, scale = SMALL_PRESS, label = "${dayLabel(mix)} on ${Fmt.shortDate(date)}") {
                                         Box(Modifier.matchParentSize().dayMarker(mix, kinds))
                                         Txt("$d", style, color = kinds.on)
                                     }

@@ -62,9 +62,9 @@ class WaterUiTest {
 
     @Test
     fun vesselNames() {
-        assertEquals("Espresso Cup", vesselName(100))
+        assertEquals("Espresso cup", vesselName(100))
         assertEquals("Tumbler", vesselName(300))
-        assertEquals("Tall Glass", vesselName(550))
+        assertEquals("Tall glass", vesselName(550))
         assertEquals("Bottle", vesselName(750))
         assertEquals("Jug", vesselName(1000))
     }

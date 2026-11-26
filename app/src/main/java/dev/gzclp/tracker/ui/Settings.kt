@@ -145,11 +145,24 @@ fun SettingsScreen(
     @Composable
     fun StepRow(label: String, value: String, first: Boolean, valueWidth: androidx.compose.ui.unit.Dp, less: String, more: String, onLess: () -> Unit, onMore: () -> Unit) =
         GroupRow(first = first) {
-            Txt(label, Type.body, Modifier.weight(1f), maxLines = 1)
+            // Two lines at large text sizes, so the label is never cut off beside its steppers.
+            Txt(label, Type.body, Modifier.weight(1f), maxLines = 2)
             MiniStep(Icons.minus, less, onClick = onLess)
             Txt(value, Type.body.tabular(), Modifier.widthIn(min = valueWidth).padding(horizontal = Space.sm), maxLines = 1, align = TextAlign.Center)
             MiniStep(Icons.plus, more, onClick = onMore)
         }
+
+    /** A reminder time, set in the system time picker as every other time in the app is. */
+    @Composable
+    fun TimeRow(label: String, minutes: Int, onTime: (Int) -> Unit) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        GroupRow(first = false, onClick = {
+            android.app.TimePickerDialog(context, { _, h, m -> onTime(h * 60 + m) }, minutes / 60, minutes % 60, android.text.format.DateFormat.is24HourFormat(context)).show()
+        }) {
+            Txt(label, Type.body, Modifier.weight(1f))
+            Txt(Fmt.clockTime(minutes), Type.body.tabular(), color = p.accent)
+        }
+    }
 
     ScreenFrame {
         NavRow(onBack)
@@ -313,12 +326,10 @@ fun SettingsScreen(
                 Spacer(Modifier.height(Space.xxl))
                 Group {
                     ToggleRow("Weigh-in", weighInReminder, true, "Weigh-in reminder", onWeighInReminder)
-                    if (weighInReminder) StepRow("Weigh-in time", Fmt.clockTime(weighInMinutes), false, 96.dp, "Earlier reminder", "Later reminder",
-                        { onWeighInTime((weighInMinutes - 15).mod(24 * 60)) }, { onWeighInTime((weighInMinutes + 15) % (24 * 60)) })
+                    if (weighInReminder) TimeRow("Weigh-in time", weighInMinutes, onWeighInTime)
                     ToggleRow("Meals", mealReminder, false, "Meal reminder", onMealReminder)
                     ToggleRow("Stretching", stretchReminder, false, "Stretch reminder", onStretchReminder)
-                    if (stretchReminder) StepRow("Stretch time", Fmt.clockTime(stretchReminderMinutes), false, 96.dp, "Earlier stretch reminder", "Later stretch reminder",
-                        { onStretchReminderTime((stretchReminderMinutes - 15).mod(24 * 60)) }, { onStretchReminderTime((stretchReminderMinutes + 15) % (24 * 60)) })
+                    if (stretchReminder) TimeRow("Stretch time", stretchReminderMinutes, onStretchReminderTime)
                     ToggleRow("Water pace", waterReminder, false, "Water pace reminder", onWaterReminder)
                 }
                 if (anyReminder && !notificationsAllowed) {

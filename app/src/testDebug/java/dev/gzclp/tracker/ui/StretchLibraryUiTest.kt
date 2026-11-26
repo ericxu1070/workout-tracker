@@ -6,12 +6,14 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.stretch.StretchMoves
 import dev.gzclp.tracker.stretch.StretchRoutine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +22,7 @@ import org.robolectric.annotation.Config
 import java.io.File
 import java.time.OffsetDateTime
 
-/** The routine list: After workout and a few popular ones, the library behind Show more, and each preset's info in place. */
+/** The routine list: After workout and a few popular ones, the library behind Show more, and each routine's chevron to its page. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
 class StretchLibraryUiTest {
@@ -39,7 +41,7 @@ class StretchLibraryUiTest {
         rule.onAllNodesWithText(library.name).assertCountEquals(0)
         rule.onNodeWithText("Show more").performClick()
         rule.onNodeWithText(library.name).assertExists()
-        rule.onNodeWithText("Show less").performClick()
+        rule.onNodeWithText("Show less").performScrollTo().performClick()
         rule.onAllNodesWithText(library.name).assertCountEquals(0)
     }
 
@@ -48,29 +50,32 @@ class StretchLibraryUiTest {
         rule.onNodeWithText("Show less").assertExists()
     }
 
-    @Test fun aCustomRoutineStaysInSightAndItsInfoOpensItsPage() {
+    @Test fun aCustomRoutineComesFirstAndItsChevronOpensItsPage() {
         val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
         store.dispatch(OffsetDateTime.parse("2026-11-25T20:00:00-08:00")) { Commands.newStretchRoutine(it, "Evening", listOf(StretchMoves.PIGEON_POSE)) }
         val state = store.state.value
         var opened: StretchRoutine? = null
         rule.setContent { StretchScreen(state, StretchRoutines.ID_AFTER_WORKOUT, {}, { opened = it }, {}) }
-        rule.onNodeWithText("Show more").assertExists()
-        rule.onNodeWithText("Evening").assertExists()
-        rule.onNodeWithContentDescription("Evening moves").performClick()
+        val evening = rule.onNodeWithText("Evening").fetchSemanticsNode().boundsInRoot.top
+        val builtIn = rule.onNodeWithText(popular.name).fetchSemanticsNode().boundsInRoot.top
+        val more = rule.onNodeWithText("Show more").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("your routines come first", evening < builtIn)
+        assertTrue("Show more is the last row", more > builtIn)
+        rule.onNodeWithContentDescription("Open Evening").performClick()
         assertEquals("Evening", opened?.name)
     }
 
-    @Test fun infoOpensTheGoalInPlaceAndLeadsToTheMoves() {
+    @Test fun aBuiltInRoutinesChevronOpensItsPage() {
         var opened: StretchRoutine? = null
         show(onOpen = { opened = it })
         rule.onAllNodesWithText(popular.goal).assertCountEquals(0)
-        rule.onNodeWithContentDescription("About ${popular.name}").performClick()
+        rule.onNodeWithContentDescription("Open ${popular.name}").performClick()
+        assertEquals(popular.id, opened?.id)
+    }
+
+    @Test fun aBuiltInRoutinesPageSaysWhatItIsFor() {
+        rule.setContent { StretchRoutineScreen(popular, {}, {}, {}, {}, {}) }
         rule.onNodeWithText(popular.goal).assertExists()
         rule.onNodeWithText(popular.pick).assertExists()
-        assertEquals(null, opened)
-        rule.onNodeWithText("See moves").performClick()
-        assertEquals(popular.id, opened?.id)
-        rule.onNodeWithContentDescription("About ${popular.name}").performClick()
-        rule.onAllNodesWithText(popular.goal).assertCountEquals(0)
     }
 }

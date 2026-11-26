@@ -165,7 +165,7 @@ fun CardioScreen(
             Group {
                 recent.forEachIndexed { i, a ->
                     GroupRow(first = i == 0, onClick = { onQuick(a) }) {
-                        Box(Modifier.size(32.dp).clip(CircleShape).background(p.accent), contentAlignment = Alignment.Center) { Icon(Icons.play, p.onAccent, 14.dp) }
+                        Box(Modifier.size(32.dp).clip(CircleShape).background(p.fill), contentAlignment = Alignment.Center) { Icon(Icons.play, p.fg, 14.dp) }
                         Txt(a.name, Type.body, Modifier.weight(1f).padding(start = Space.md), maxLines = 1)
                     }
                 }
@@ -176,8 +176,6 @@ fun CardioScreen(
             Group { AddRow("Log past session", first = true, onClick = onLogPast) }
             return@ScreenFrame
         }
-        GroupHeader("This week")
-        ActivityTotals(summary.byActivity)
         GroupHeader("Sessions")
         Group {
             state.cardioWeek(week).forEachIndexed { i, c ->
@@ -247,8 +245,8 @@ fun CardioRunScreen(run: CardioRun, now: OffsetDateTime, onSettings: () -> Unit,
     val sec = Duration.between(run.startedAt, now).seconds
     ScreenFrame(bottom = {
         BottomBar {
-            PillButton("Discard", onDiscard, Modifier.weight(1f))
-            PillButton("Stop", onStop, Modifier.weight(1f), primary = true)
+            PillButton("Discard cardio", onDiscard, Modifier.weight(1f))
+            PillButton("Stop cardio", onStop, Modifier.weight(1f), primary = true)
         }
     }) {
         NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
@@ -361,7 +359,10 @@ fun CardioStopSheet(
                     else Txt("Not set", Type.body, color = p.fg2)
                 }
             }
-            Slider(s.distance.toFloat(), { update(s.copy(distance = it.toDouble(), distanceText = null)) }, max.toFloat(), unit.step.toFloat(), "Distance in ${unit.label}")
+            StepSlider(
+                Math.round(s.distance / unit.step).toInt(), Math.round(max / unit.step).toInt(),
+                { update(s.copy(distance = Math.round(it * unit.step * 1000) / 1000.0, distanceText = null)) }, "Distance in ${unit.label}",
+            )
             Row {
                 Txt("0", Type.caption, Modifier.weight(1f), p.fg2)
                 Txt("${distanceValue(max, unit).removeSuffix(".0")} ${unit.label}", Type.caption, color = p.fg2)
@@ -372,15 +373,18 @@ fun CardioStopSheet(
                 Txt("RPE", Type.body, Modifier.weight(1f))
                 s.rpeValue?.let { Txt(Fmt.rpe(it), Type.headline.tabular(), color = p.accent) } ?: Txt("Not set", Type.body, color = p.fg2)
             }
-            Slider(s.rpe.toFloat(), { update(s.copy(rpe = it.roundToInt())) }, 19f, 1f, "RPE")
-            Txt("10", Type.caption, Modifier.align(Alignment.End), p.fg2)
+            StepSlider(s.rpe, 19, { update(s.copy(rpe = it)) }, "RPE")
+            Row {
+                Txt("Not set", Type.caption, Modifier.weight(1f), p.fg2)
+                Txt("10", Type.caption, color = p.fg2)
+            }
         }
         NameField(s.notes, "Notes (optional)", Commands.CARDIO_NOTES_MAX) { update(s.copy(notes = it)) }
         val ok = s.durationSec in Commands.CARDIO_DURATION_SEC && (now == null || !s.run.startedAt.isAfter(now))
-        if (now == null || s.run.id.isEmpty()) PillButton("Save", onSave, Modifier.fillMaxWidth(), primary = true, enabled = ok)
+        if (now == null || s.run.id.isEmpty()) PillButton("Save cardio", onSave, Modifier.fillMaxWidth(), primary = true, enabled = ok)
         else Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-            PillButton("Delete", { update(SheetState.CardioDiscard(s.run)) }, Modifier.weight(1f), onSurface = true)
-            PillButton("Save", onSave, Modifier.weight(1f), primary = true, enabled = ok)
+            PillButton("Delete cardio", { update(SheetState.CardioDiscard(s.run)) }, Modifier.weight(1f), onSurface = true, danger = true)
+            PillButton("Save cardio", onSave, Modifier.weight(1f), primary = true, enabled = ok)
         }
     }
 }

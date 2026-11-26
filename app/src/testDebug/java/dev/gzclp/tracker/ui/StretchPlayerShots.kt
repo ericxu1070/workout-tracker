@@ -1,6 +1,9 @@
 package dev.gzclp.tracker.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.gzclp.tracker.stretch.StretchMoves
@@ -27,6 +30,27 @@ class StretchPlayerShots {
         rule.setContent { GzTheme(p) { GuidedStretchPlayerScreen(routine, {}, {}) } }
         rule.mainClock.advanceTimeBy(atMs)
         rule.onRoot().captureRoboImage(File(out, "${p.id}-$name.png").path)
+    }
+
+    /** The finish screen after every move was held. */
+    @Test fun done() = shot(
+        "62-stretch-done", StretchRoutine("t", "Bedtime wind-down", "", "", listOf(StretchMoves.STANDING_FORWARD_FOLD, StretchMoves.PIGEON_POSE)),
+        listOf(StretchMoves.STANDING_FORWARD_FOLD, StretchMoves.PIGEON_POSE).sumOf { (StretchPlayerState.READY_SEC + StretchPlayerState.SWITCH_SEC + it.holdSec) * 1000L } + 5_000,
+    )
+
+    /** Every move skipped while getting ready: nothing was held, so there is nothing to log. */
+    @Test fun doneSkipped() {
+        val out = System.getProperty("gzclp.shots") ?: return
+        val routine = StretchRoutine("t", "Bedtime wind-down", "", "", listOf(StretchMoves.STANDING_FORWARD_FOLD, StretchMoves.PIGEON_POSE))
+        rule.mainClock.autoAdvance = false
+        rule.setContent { GzTheme(Palettes.jade) { GuidedStretchPlayerScreen(routine, {}, {}) } }
+        rule.mainClock.advanceTimeBy(100)
+        repeat(routine.moves.size) {
+            rule.onNodeWithContentDescription("Next move").performClick()
+            rule.mainClock.advanceTimeBy(100)
+        }
+        rule.onNodeWithText("Close").assertExists()
+        rule.onRoot().captureRoboImage(File(out, "jade-62-stretch-done-skipped.png").path)
     }
 
     @Test fun stillHold() = shot(

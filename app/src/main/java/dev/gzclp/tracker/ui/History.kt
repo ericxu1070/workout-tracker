@@ -11,7 +11,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.EaseOutQuart
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.rotate
 import androidx.compose.runtime.key
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableIntStateOf
@@ -157,7 +162,7 @@ fun SessionScreen(
             }
             s.afterLastSet?.let { after ->
                 GroupRow(first = false) {
-                    Txt("After last set", Type.body, Modifier.weight(1f))
+                    Txt("Left running", Type.body, Modifier.weight(1f))
                     Txt(Fmt.minutes(after), Type.body.tabular(), color = if (after >= LONG_AFTER_LAST_SEC) p.red else p.fg2)
                 }
             }
@@ -179,24 +184,45 @@ fun SessionScreen(
 /** A workout that ran on this long after its last set was probably left running. */
 private const val LONG_AFTER_LAST_SEC = 15 * 60L
 
-/** Logged sets as rows: "Set 1" and its [gap] when given, then weight × reps right-aligned, short sets in red. */
+/**
+ * Logged sets as rows: "Set 1", its rest before it ([gap]) under a Rest header when given, then weight × reps right-aligned, short
+ * sets in red. Sets that all match (one weight, every rep made, no RPE) fold into one "4 × 3 at 270 lb" row that a tap opens.
+ */
 @Composable
 fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }) {
     val p = LocalPalette.current
+    val same = sets.size > 1 && sets.all { it.weight == sets[0].weight && it.actualReps == sets[0].actualReps && it.actualReps >= it.targetReps && it.rpe == null && it.tier == sets[0].tier }
+    var open by rememberSaveable { mutableStateOf(false) }
+    val gaps = sets.any { gap(it) != null } && (!same || open)
+    if (gaps) Row(Modifier.padding(start = Space.lg, bottom = Space.xs)) {
+        Spacer(Modifier.width(SET_LABEL))
+        Txt("Rest", Type.footnote, color = p.fg2)
+    }
     Group {
-        sets.forEachIndexed { i, set ->
-            GroupRow(first = i == 0) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Set ${set.setIndex}" + if (set.amrap) " (AMRAP)" else "", Type.body, maxLines = 1)
-                    gap(set)?.let { Txt("  " + Fmt.clock(it), Type.subhead.tabular(), color = p.fg2, maxLines = 1) }
+        if (same) {
+            val s0 = sets[0]
+            GroupRow(first = true, onClick = { open = !open }) {
+                Txt("${sets.size} × ${s0.actualReps}" + (if (sets.any { it.amrap }) "+" else "") + " at ${Fmt.lb(s0.weight)}", Type.body.tabular(), Modifier.weight(1f), maxLines = 1)
+                val turn by animateFloatAsState(if (open) 90f else 0f, tween(220, easing = EaseOutQuart), label = "sets")
+                Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.rotate(turn))
+            }
+        }
+        Disclosed(!same || open) {
+            sets.forEachIndexed { i, set ->
+                GroupRow(first = i == 0 && !same) {
+                    Txt("Set ${set.setIndex}", Type.body, Modifier.width(SET_LABEL), maxLines = 1)
+                    Txt(gap(set)?.let { Fmt.clock(it) }.orEmpty(), Type.subhead.tabular(), Modifier.weight(1f), p.fg2, maxLines = 1)
+                    Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), color = p.fg2)
+                    Txt("${set.actualReps}" + if (set.amrap) "+" else "", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
+                    set.rpe?.let { Txt("  RPE ${Fmt.rpe(it)}", Type.body.tabular(), color = p.fg2) }
                 }
-                Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), color = p.fg2)
-                Txt("${set.actualReps}", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
-                set.rpe?.let { Txt(" @ ${Fmt.rpe(it)}", Type.body.tabular(), color = p.fg2) }
             }
         }
     }
 }
+
+/** The set label's column, so each rest time lines up under its header. */
+private val SET_LABEL = 72.dp
 
 /** About three gridlines over [range], on a 1, 2, 2.5 or 5 step. */
 private fun niceStep(range: Float): Float {
@@ -299,7 +325,7 @@ fun BarChart(sessions: List<SessionRecord>) {
     val pick = remember(sessions) { mutableStateOf<Int?>(null) }
     Canvas(Modifier.fillMaxWidth().height(160.dp).chartPick(pick, sessions.size, sessions.indices.joinToString("; ") { read(it) }, ::read) { i, w ->
         val left = 48.dp.toPx()
-        left + (w - left) / 16 * (i + 0.5f)
+        left + (w - left) / sessions.size * (i + 0.5f)
     }) {
         val left = 48.dp.toPx()
         val top = 8.dp.toPx()
@@ -311,8 +337,9 @@ fun BarChart(sessions: List<SessionRecord>) {
             label(tm, if (g + step > hi + 0.1f) "${g.toInt()} min" else "${g.toInt()}", Offset(0f, y(g)), p.fg2, alignY = 0.5f)
             g += step
         }
-        val slot = (size.width - left) / 16
-        val barW = slot * 0.62f
+        // The bars share the plot's whole width, so the gridlines never run on over nothing.
+        val slot = (size.width - left) / sessions.size
+        val barW = minOf(slot * 0.62f, 24.dp.toPx())
         mins.forEachIndexed { i, m ->
             val x = left + slot * i + (slot - barW) / 2
             val h = (bottom - y(m)).coerceAtLeast(2.dp.toPx())
@@ -323,8 +350,7 @@ fun BarChart(sessions: List<SessionRecord>) {
         }
         label(tm, Fmt.shortDate(sessions.first().startedAt), Offset(left, bottom + 6.dp.toPx()), p.fg2)
         if (sessions.size > 1) {
-            val lastX = left + slot * (sessions.size - 1) + slot / 2
-            label(tm, Fmt.shortDate(sessions.last().startedAt), Offset(lastX, bottom + 6.dp.toPx()), p.fg2, alignX = if (sessions.size > 13) 1f else 0.5f)
+            label(tm, Fmt.shortDate(sessions.last().startedAt), Offset(size.width, bottom + 6.dp.toPx()), p.fg2, alignX = 1f)
         }
         pick.value?.takeIf { it < sessions.size }?.let { i ->
             callout(tm, p, left + slot * (i + 0.5f), Fmt.shortDate(sessions[i].startedAt), listOf(Fmt.minutes(sessions[i].durationSec) to p.fg), barW / 2)

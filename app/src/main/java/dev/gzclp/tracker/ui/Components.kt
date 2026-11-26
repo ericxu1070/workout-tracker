@@ -168,6 +168,7 @@ fun Pressable(
     label: String? = null,
     repeat: Boolean = false,
     role: Role = Role.Button,
+    scale: Float = 0.97f,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = LocalPalette.current
@@ -184,14 +185,14 @@ fun Pressable(
             delay(70)
         }
     }
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(if (pressed) 80 else 200), label = "press")
+    val pressScale by animateFloatAsState(if (pressed) scale else 1f, tween(if (pressed) 80 else 200), label = "press")
     val ring = when {
         focused -> p.accent
         else -> border
     }
     Box(
         modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
             .clip(shape)
             .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
             // In Liquid Glass every filled control is a lit pane, but on a glass sheet, where it would be glass on glass.
@@ -225,6 +226,7 @@ fun PillButton(
     icon: ImageVector? = null,
     onSurface: Boolean = false,
     destructive: Boolean = false,
+    danger: Boolean = false,
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
@@ -237,7 +239,8 @@ fun PillButton(
         p.glass -> p.thumb
         else -> p.card
     }
-    val fg = if (destructive) p.onRed else if (primary) p.onAccent else p.fg
+    // [danger]: a neutral pill with a red label, for a Delete that asks before it deletes.
+    val fg = if (destructive) p.onRed else if (primary) p.onAccent else if (danger) p.red else p.fg
     Pressable(
         onClick, modifier.heightIn(min = 52.dp), CircleShape, fill,
         pressedFill = if (primary || destructive) Color.Black.copy(alpha = 0.14f) else p.fillPressed, enabled = enabled,
@@ -263,7 +266,10 @@ fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
 
 @Composable
 fun IconButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = LocalPalette.current.fg) =
-    Pressable(onClick, modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, label = label) { Icon(icon, tint, 22.dp) }
+    Pressable(onClick, modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, label = label, scale = SMALL_PRESS) { Icon(icon, tint, 22.dp) }
+
+/** How far a control under 48 dp gives when pressed: 3 percent of 44 dp is a pixel, too little to see. */
+const val SMALL_PRESS = 0.92f
 
 @Composable
 fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
@@ -311,7 +317,8 @@ fun GroupRow(
                 verticalAlignment = Alignment.CenterVertically, content = content,
             )
         }
-        if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape) { inner() } else inner()
+        // A full-width row takes the pressed fill only: shrunk, its highlight would stop short of the card.
+        if (onClick != null) Pressable(onClick, Modifier.fillMaxWidth(), RectangleShape, scale = 1f) { inner() } else inner()
     }
 }
 
@@ -519,40 +526,6 @@ fun ThumbRow(
     }
 }
 
-/**
- * A slider from 0 to [max] that snaps to multiples of [step]: thin track, accent fill up to a white thumb.
- * Touching the track jumps the thumb there, then it follows the finger.
- */
-@Composable
-fun Slider(value: Float, onChange: (Float) -> Unit, max: Float, step: Float, label: String, modifier: Modifier = Modifier) {
-    val p = LocalPalette.current
-    val change by rememberUpdatedState(onChange)
-    fun snap(v: Float) = (Math.round(v.coerceIn(0f, max) / step) * step).coerceAtMost(max)
-    val frac = if (max > 0f) (value / max).coerceIn(0f, 1f) else 0f
-    BoxWithConstraints(
-        modifier.fillMaxWidth().height(44.dp)
-            .semantics {
-                contentDescription = label
-                progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..max)
-                setProgress { change(snap(it)); true }
-            }
-            .pointerInput(max, step) {
-                val thumb = 28.dp.toPx()
-                fun at(x: Float) = change(snap((x - thumb / 2) / (size.width - thumb) * max))
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    at(down.position.x)
-                    horizontalDrag(down.id) { at(it.position.x); it.consume() }
-                }
-            },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed))
-        Box(Modifier.width(14.dp + (maxWidth - 28.dp) * frac).height(4.dp).clip(CircleShape).background(p.accent))
-        SliderThumb(Modifier.padding(start = (maxWidth - 28.dp) * frac))
-    }
-}
-
 /** The 28dp white slider knob; where white can't clear 3:1 on the sheet (Light), a fg3 ring outlines it. */
 @Composable
 fun SliderThumb(modifier: Modifier = Modifier) {
@@ -569,7 +542,7 @@ fun thumbRinged(p: Palette) = contrast(Color.White, p.elevated) < 3f || contrast
 @Composable
 fun MiniStep(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Pressable(onClick, Modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, p.fill, enabled = enabled, label = label) { Icon(icon, p.fg, 18.dp) }
+    Pressable(onClick, Modifier.size(44.dp).semantics { contentDescription = label }, CircleShape, p.fill, enabled = enabled, label = label, scale = SMALL_PRESS) { Icon(icon, p.fg, 18.dp) }
 }
 
 /** An on/off switch: accent track when on, the knob slides across. */

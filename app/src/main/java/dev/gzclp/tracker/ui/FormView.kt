@@ -602,7 +602,7 @@ fun FormToggle(exId: String, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     var open by rememberSaveable { mutableStateOf(false) }
     Column(modifier) {
-        Pressable({ open = !open }, Modifier.fillMaxWidth().heightIn(min = 44.dp), label = if (open) "Hide form" else "Show form") {
+        Pressable({ open = !open }, Modifier.fillMaxWidth().heightIn(min = 44.dp), label = if (open) "Hide form" else "Show form", scale = 1f) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Txt(if (open) "Hide form" else "Show form", Type.subhead, color = p.fg2)
                 Spacer(Modifier.width(Space.xs))
