@@ -65,6 +65,11 @@ class Prefs(context: Context) {
             e.apply()
         }
 
+    /** The body the app draws (the muscle map, and the form figure once it has a female build): female when true, male by default. */
+    var bodyFemale: Boolean
+        get() = p.getBoolean("body_female", false)
+        set(v) = p.edit().putBoolean("body_female", v).apply()
+
     var weighInReminder: Boolean
         get() = p.getBoolean("weigh_in_reminder", true)
         set(v) = p.edit().putBoolean("weigh_in_reminder", v).apply()

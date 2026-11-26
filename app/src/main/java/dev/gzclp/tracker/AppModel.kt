@@ -81,6 +81,8 @@ class AppModel private constructor(private val context: Context) {
         private set
     var showPlates by mutableStateOf(prefs.showPlates)
         private set
+    var bodyFemale by mutableStateOf(prefs.bodyFemale)
+        private set
     var sync by mutableStateOf(syncUi())
         private set
     var notice by mutableStateOf<String?>(null)
@@ -254,6 +256,11 @@ class AppModel private constructor(private val context: Context) {
     fun chooseShowPlates(on: Boolean) {
         prefs.showPlates = on
         showPlates = on
+    }
+
+    fun chooseBodyFemale(on: Boolean) {
+        prefs.bodyFemale = on
+        bodyFemale = on
     }
 
     fun choosePlates(v: Plates) {

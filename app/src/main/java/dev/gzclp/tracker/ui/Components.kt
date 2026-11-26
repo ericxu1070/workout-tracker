@@ -653,6 +653,9 @@ fun BottomBar(content: @Composable RowScope.() -> Unit) {
 
 enum class Tab(val label: String) { Workout("Workout"), Upcoming("Upcoming"), Exercises("Exercises"), History("History"), Food("Food") }
 
+/** The tab the app opens on: Exercises, or Workout while a workout or cardio session is running. */
+fun homeTab(state: dev.gzclp.tracker.log.AppState): Tab = if (state.active != null || state.cardioActive != null) Tab.Workout else Tab.Exercises
+
 private fun Tab.icon(): ImageVector = when (this) {
     Tab.Workout -> Icons.dumbbell
     Tab.Upcoming -> Icons.calendar

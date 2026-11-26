@@ -37,6 +37,9 @@ import dev.gzclp.tracker.log.isCalisthenics
 import dev.gzclp.tracker.log.ratios
 import dev.gzclp.tracker.log.sevenDayAverage
 import dev.gzclp.tracker.log.weighIns
+import dev.gzclp.tracker.log.days
+import dev.gzclp.tracker.log.muscleWindow
+import dev.gzclp.tracker.log.muscleWork
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,13 +50,22 @@ import dev.gzclp.tracker.ui.Type.tabular
 import kotlin.math.roundToInt
 
 @Composable
-fun ExercisesScreen(state: AppState, onOpen: (String) -> Unit, onBodyWeight: () -> Unit, onLogWeight: () -> Unit) {
+fun ExercisesScreen(
+    state: AppState, onOpen: (String) -> Unit, onBodyWeight: () -> Unit, onLogWeight: () -> Unit,
+    today: LocalDate = LocalDate.now(), female: Boolean = false,
+) {
     val p = LocalPalette.current
     val logs = state.exerciseLogs()
     val daily = state.dailyBodyWeight()
+    var month by rememberSaveable { mutableStateOf(false) }
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("Exercises", Type.largeTitle)
+        Spacer(Modifier.height(Space.lg))
+        Segmented(listOf("Week", "Month"), if (month) 1 else 0, { month = it == 1 })
+        Spacer(Modifier.height(Space.lg))
+        val window = muscleWindow(today, month)
+        MuscleChart(state.muscleWork(window.first, window.second), days(window), female, Modifier.fillMaxWidth().height(340.dp))
         Spacer(Modifier.height(Space.xxl))
         Group {
             GroupRow(first = true, onClick = onBodyWeight) {

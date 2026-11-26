@@ -448,11 +448,11 @@ class ScreenShots {
                 }
             }
             shot(p, "06-upcoming-full", tall = true) { TabFrame(Tab.Upcoming, {}) { UpcomingScreen(idle, today, {}) } }
-            shot(p, "08-exercises") { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+            shot(p, "08-exercises") { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) } }
             shot(p, "09-exercise-detail") { ExerciseScreen(idle, bench, {}, {}) }
             shot(p, "09-exercise-relative") { ExerciseScreen(idle, bench, {}, {}, initialRelative = true) }
             shot(p, "09-exercise-relative-empty") { ExerciseScreen(idle.copy(bodyWeights = emptyMap()), bench, {}, {}, initialRelative = true) }
-            shot(p, "08-exercises-full", tall = true) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+            shot(p, "08-exercises-full", tall = true) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) } }
             shot(p, "15-body-weight") { BodyWeightScreen(idle, today, {}, {}, {}) }
             shot(p, "15-body-weight-full", tall = true) { BodyWeightScreen(idle, today, {}, {}, {}) }
             shot(p, "15-body-weight-empty") { BodyWeightScreen(idle.copy(bodyWeights = emptyMap()), today, {}, {}, {}) }
@@ -477,7 +477,7 @@ class ScreenShots {
             }
             shot(p, "16-weigh-in-undo") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) }
+                    TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) }
                     UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = 64.dp))
                 }
             }
@@ -577,7 +577,7 @@ class ScreenShots {
         shot(Palettes.glass, "16-weigh-in-undo-blur") {
             val b = rememberBackdrop()
             Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().backdropSource(b)) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+                Box(Modifier.fillMaxSize().backdropSource(b)) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) } }
                 UndoBar("Saved ${Fmt.lb(idle.weighIns().last().lb)}", {}, Modifier.padding(bottom = GlassTabBar + Space.xs + Space.sm), b)
             }
         }
