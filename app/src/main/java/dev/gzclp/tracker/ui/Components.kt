@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -114,6 +115,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.toSize
 
@@ -389,7 +394,7 @@ fun ThumbRow(
     val scope = rememberCoroutineScope()
     val select by rememberUpdatedState(onSelect)
     val own = remember { Animatable(selected.toFloat()) }
-    // The thumb's own spring ([ThumbMotion]) carries it to a new selection, so a tap moves it as fast and bouncy as a drag.
+    // The thumb's own spring ([ThumbMotion]) carries it to a new selection: a tap glides it there, a drag or a swipe lands with a small bounce.
     LaunchedEffect(selected) { own.snapTo(selected.toFloat()) }
     var held by remember { androidx.compose.runtime.mutableStateOf(false) }
     val swiped by (pager?.interactionSource ?: remember { MutableInteractionSource() }).collectIsDraggedAsState()
@@ -411,6 +416,11 @@ fun ThumbRow(
         }
     }
     val motion = remember { ThumbMotion(at()) }
+    fun pick(i: Int) {
+        motion.momentum = false
+        if (pager != null) tap(i) else select(i)
+    }
+    LaunchedEffect(swiped) { if (swiped) motion.momentum = true }
     val lifted = held || swiped
     // Waits, without frames, for the target to move, then chases it until the thumb rests there again.
     LaunchedEffect(motion) {
@@ -420,7 +430,7 @@ fun ThumbRow(
         }
     }
     LaunchedEffect(lifted) { motion.lift.animateTo(if (lifted) 1f else 0f, ThumbMotion.Lift) }
-    val swell by animateFloatAsState(if (held) 1.04f else 1f, androidx.compose.animation.core.spring(0.55f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
+    val swell by animateFloatAsState(if (held) 1.04f else 1f, androidx.compose.animation.core.spring(1f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
     Box(
         modifier.graphicsLayer { scaleX = swell; scaleY = swell },
     ) {
@@ -436,7 +446,7 @@ fun ThumbRow(
                         // Only a finger that lands on the thumb holds or drags it; elsewhere on the bar a touch is a tap on that segment.
                         if (abs(down.position.x - (motion.x.coerceIn(0f, count - 1f) + 0.5f) * segment) > segment / 2 + grab) {
                             // Chosen as the finger lands, so a tab or page shows a whole tap sooner; the lift's click then picks it again, a no-op.
-                            if (onDown) (down.position.x / segment).toInt().coerceIn(0, count - 1).let { if (pager != null) tap(it) else select(it) }
+                            if (onDown) pick((down.position.x / segment).toInt().coerceIn(0, count - 1))
                             return@awaitEachGesture
                         }
                         held = true
@@ -447,6 +457,7 @@ fun ThumbRow(
                                 while (currentEvent.changes.any { it.pressed }) awaitPointerEvent()
                                 return@awaitEachGesture
                             }
+                            motion.momentum = true
                             // The thumb stays under the finger; the pages snap to the segment it is over, so a page held under the finger stays clear.
                             val from = at()
                             var spot = from
@@ -498,7 +509,7 @@ fun ThumbRow(
                 },
             ) {
                 repeat(count) { i ->
-                    Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).then(cell).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
+                    Pressable({ pick(i) }, Modifier.weight(1f).then(cell).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
                         Box(Modifier.halo()) { content(i, false) }
                     }
                 }
@@ -561,6 +572,15 @@ fun Toggle(on: Boolean, label: String, onChange: (Boolean) -> Unit) {
 
 private val SheetEase = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
+/** A let-go sheet settles at the release's speed: critically damped, so it never bounces past where it lands. */
+private val SheetSpring = androidx.compose.animation.core.spring<Float>(dampingRatio = 1f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)
+
+/** Whether a sheet let go [down] sheet heights below open, moving [speed] heights a second, closes: where its momentum would carry it (UIScrollView's projection) is past halfway. */
+internal fun sheetCloses(down: Float, speed: Float): Boolean = down + speed * 0.499f > 0.5f
+
+/** Where a sheet pulled [pulled] heights below open sits: 1:1 downward; pulled up past open, it gives a third as much, as there is nowhere higher to go. */
+internal fun sheetBand(pulled: Float): Float = if (pulled < 0f) pulled / 3 else pulled
+
 /** Bottom sheet over a scrim; tapping the scrim dismisses. */
 @Composable
 fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBackdrop.current, content: @Composable ColumnScope.() -> Unit) {
@@ -574,25 +594,44 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
         }
         AnimatedVisibility(
             visible, Modifier.align(Alignment.BottomCenter),
-            // Apple's sheet curve: fast out of the gate, long settle; leaving takes about two thirds as long.
-            enter = slideInVertically(tween(300, easing = SheetEase)) { it }, exit = slideOutVertically(tween(200, easing = SheetEase)) { it },
+            // Coming in, the sheet's own [down] carries it, so a finger can catch it on the way; leaving takes about two thirds as long.
+            enter = EnterTransition.None, exit = slideOutVertically(tween(200, easing = SheetEase)) { it },
         ) {
-            // Dragged down, the sheet follows the finger 1:1; past a quarter of its height or on a downward flick it closes, else it springs back.
-            val drag = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+            // How far down the sheet sits, in sheet heights: 1 is out of sight, 0 open. One value the finger, the entrance and the
+            // settle all drive, so each picks up from where and how fast the last left it.
+            val down = remember { Animatable(1f) }
             val height = remember { androidx.compose.runtime.mutableIntStateOf(1) }
-            LaunchedEffect(visible) { if (visible) drag.floatValue = 0f }
+            // While a finger holds it, where the finger has pulled it (null otherwise), drawn on the same frame it moves.
+            var pulled by remember { androidx.compose.runtime.mutableStateOf<Float?>(null) }
+            // Apple's sheet curve: fast out of the gate, long settle. Keyed on [visible] so a sheet reopened as it leaves comes back.
+            LaunchedEffect(visible) { if (visible) down.animateTo(0f, tween(300, easing = SheetEase)) }
             Box(
                 Modifier.fillMaxWidth()
-                    .onSizeChanged { height.intValue = it.height }
-                    .offset { androidx.compose.ui.unit.IntOffset(0, drag.floatValue.toInt()) }
+                    .layout { m, c ->
+                        val pl = m.measure(c)
+                        height.intValue = pl.height.coerceAtLeast(1)
+                        layout(pl.width, pl.height) { pl.place(0, ((pulled?.let(::sheetBand) ?: down.value) * pl.height).roundToInt()) }
+                    }
                     .draggable(
-                        androidx.compose.foundation.gestures.rememberDraggableState { d -> drag.floatValue = (drag.floatValue + d).coerceAtLeast(0f) },
+                        androidx.compose.foundation.gestures.rememberDraggableState { d -> pulled = (pulled ?: down.value) + d / height.intValue },
                         androidx.compose.foundation.gestures.Orientation.Vertical,
+                        onDragStarted = { down.stop(); pulled = down.value },
                         onDragStopped = { v: Float ->
-                            if (drag.floatValue > height.intValue / 4f || v > 1500f) onDismiss()
-                            else androidx.compose.animation.core.animate(drag.floatValue, 0f, animationSpec = tween(200, easing = SheetEase)) { x, _ -> drag.floatValue = x }
+                            down.snapTo(sheetBand(pulled ?: down.value))
+                            pulled = null
+                            // Where the release would carry it, as a flick's momentum projects; past halfway it closes.
+                            val speed = v / height.intValue
+                            if (sheetCloses(down.value, speed)) {
+                                down.animateTo(1f, SheetSpring, speed)
+                                onDismiss()
+                            } else down.animateTo(0f, SheetSpring, speed)
                         },
                     )
+                    // Above open, the sheet's color runs on below its bottom edge, so no gap opens under it.
+                    .drawBehind {
+                        val gap = -(pulled?.let(::sheetBand) ?: down.value) * size.height
+                        if (gap > 0f) drawRect(p.elevated, Offset(0f, size.height - 1f), Size(size.width, gap + 1f))
+                    }
                     .then(
                         RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl).let { if (p.glass) Modifier.glassPane(it, backdrop) else Modifier.clip(it).background(p.elevated) },
                     )
