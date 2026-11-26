@@ -114,7 +114,6 @@ fun StretchScreen(
         BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true, enabled = currentRoutine.moves.isNotEmpty()) }
     }) {
         item { Column {
-            Spacer(Modifier.height(Space.xxl))
             // A row selects its routine, marked by the check alone; its chevron opens the routine's page.
             @Composable
             fun RoutineRow(routine: StretchRoutine, first: Boolean) {
@@ -137,7 +136,7 @@ fun StretchScreen(
                     }
                 }
             }
-            Txt("Your routines", Type.footnote, Modifier.padding(start = Space.lg, bottom = Space.sm), p.fg2)
+            GroupHeader("Your routines")
             Group {
                 val custom = state?.customStretches?.values.orEmpty()
                 custom.forEachIndexed { i, r -> RoutineRow(r, first = i == 0) }
@@ -498,8 +497,8 @@ fun GuidedStretchPlayerScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Txt("Next", Type.footnote, color = p.fg2)
-                        Txt("${nextMove.name} (${nextMove.holdSec}s)", Type.subhead.copy(fontWeight = FontWeight.SemiBold))
-                        Txt(nextMove.targetArea.displayName, Type.footnote, color = p.fg2)
+                        Txt(nextMove.name, Type.subhead.copy(fontWeight = FontWeight.SemiBold))
+                        Txt("${nextMove.targetArea.displayName} · ${nextMove.holdSec} sec", Type.footnote, color = p.fg2)
                     }
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(Radius.sm)).background(p.elevated)) {
                         FormView(Motions.of(nextMove), Modifier.fillMaxSize(), focus = nextMove.focus, still = 1f)

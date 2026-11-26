@@ -55,14 +55,15 @@ class ChartTouchTest {
         show { BarChart(sessions) }
         val chart = rule.onNodeWithContentDescription("Oct\u00A01, 52 min", substring = true)
         chart.assert(state(null))
-        // 16 slots after a 48 dp axis, in a 379 dp wide chart: bar 3 centers at 48 + 20.7 × 3.5.
-        chart.performTouchInput { click(Offset((48 + 331f / 16 * 3.5f).dp.toPx(), height / 2f)) }
+        // The six bars share the 331 dp after a 48 dp axis, in a 379 dp wide chart: bar 3 centers at 48 + 55.2 × 3.5.
+        chart.performTouchInput { click(Offset((48 + 331f / 6 * 3.5f).dp.toPx(), height / 2f)) }
         chart.assert(state("Oct\u00A07, 1 hr 10 min"))
         rule.onRoot().captureRoboImage(File(out, "charts/bar-tap.png").path)
-        chart.performTouchInput { click(Offset((48 + 331f / 16 * 3.5f).dp.toPx(), height / 2f)) }
+        chart.performTouchInput { click(Offset((48 + 331f / 6 * 3.5f).dp.toPx(), height / 2f)) }
         chart.assert(state(null))
-        chart.performTouchInput { click(Offset(width - 4f, height / 2f)) }
-        chart.assert(state(null))
+        // The bars reach the plot's right edge, so a tap near it picks the last one.
+        chart.performTouchInput { click(Offset(width - 8.dp.toPx(), height / 2f)) }
+        chart.assert(state("Oct\u00A011, 1 hr 6 min"))
     }
 
     @Test fun draggingALineScrubsAndReleasingHidesIt() {
