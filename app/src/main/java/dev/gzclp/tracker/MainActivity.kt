@@ -401,7 +401,7 @@ private fun App(model: AppModel) {
                     stretchRoutine = model.stretchRoutine, onStretchRoutine = model::chooseStretchRoutine, customStretches = state.customStretches.values.toList(),
                     waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
                     saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
-                    waterGoalMl = model.waterGoalMl, onWaterGoal = model::chooseWaterGoal,
+                    waterGoalMl = model.waterGoalMl(state, LocalDate.now()), onWaterGoal = model::chooseWaterGoal,
                     page = settingsPage.takeIf { shown == Route.SettingsPage }, onPage = ::openSettings,
                     onHealthConnect = { on ->
                         val unavailable = if (on) model.healthUnavailable() else null

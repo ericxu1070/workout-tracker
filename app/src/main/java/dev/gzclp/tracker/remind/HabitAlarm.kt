@@ -141,7 +141,7 @@ object HabitAlarm {
                 val last = prefs.waterRemindedMillis.takeIf { it > 0 }?.let { OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(it), now.offset) }
                 val state = AppModel.get(context).store.state.value
                 rebuild(context, state)
-                if (!WaterLog.shouldRemind(state, now, prefs.waterGoalMl, last)) return
+                if (!WaterLog.shouldRemind(state, now, WaterLog.goalMl(state, now.toLocalDate(), prefs.waterGoalOverrideMl), last)) return
                 prefs.waterRemindedMillis = now.toInstant().toEpochMilli()
                 postNotification(
                     context, kind,

@@ -21,6 +21,35 @@ object WaterLog {
     val DEFAULT_WAKE_TIME: LocalTime = LocalTime.of(7, 0)
     const val ML_PER_OZ = 29.5735
 
+    const val ML_PER_KG = 30
+    const val LIFT_ML_PER_HOUR = 500
+    const val CARDIO_ML_PER_HOUR = 1000
+    const val MAX_ACTIVITY_ML = 2000
+    val GOAL_RANGE = 500..8000
+    private const val KG_PER_LB = 0.45359237
+
+    /**
+     * A day's water goal: 30 ml per kg of body weight (NICE CG174's 25 to 30 ml/kg/day), or [DEFAULT_GOAL_ML] with no
+     * weigh-in, plus 0.5 L per hour of lifting and 1 L per hour of cardio (at most [MAX_ACTIVITY_ML]) to replace sweat
+     * (ACSM 2007, Exercise and Fluid Replacement). Rounded to 100 ml so the Settings stepper can land on it.
+     */
+    fun recommendedMl(weightLb: Double?, liftSec: Long, cardioSec: Long): Int {
+        val base = weightLb?.let { it * KG_PER_LB * ML_PER_KG } ?: DEFAULT_GOAL_ML.toDouble()
+        val activity = (liftSec * LIFT_ML_PER_HOUR + cardioSec * CARDIO_ML_PER_HOUR) / 3600.0
+        val ml = base + activity.coerceAtMost(MAX_ACTIVITY_ML.toDouble())
+        return (Math.round(ml / 100) * 100).toInt().coerceIn(GOAL_RANGE)
+    }
+
+    /** [recommendedMl] from the body weight in effect on [day] and that day's logged workouts and cardio. */
+    fun recommendedMl(state: AppState, day: LocalDate): Int = recommendedMl(
+        state.dailyBodyWeight().inEffect(day),
+        state.sessions.filter { it.startedAt.toLocalDate() == day }.sumOf { it.durationSec },
+        state.cardio.values.filter { it.startedAt.toLocalDate() == day }.sumOf { it.durationSec },
+    )
+
+    /** The goal on [day]: the user's [override] when set, otherwise [recommendedMl]. */
+    fun goalMl(state: AppState, day: LocalDate, override: Int?): Int = override ?: recommendedMl(state, day)
+
     /** A volume as "250 ml · 8.5 oz". */
     fun formatVolume(ml: Int): String = "$ml ml · %.1f oz".format(Locale.US, ml / ML_PER_OZ)
 
@@ -145,7 +174,7 @@ object WaterLog {
     fun shouldRemind(
         state: AppState,
         now: OffsetDateTime = OffsetDateTime.now(),
-        goalMl: Int = DEFAULT_GOAL_ML,
+        goalMl: Int = recommendedMl(state, now.toLocalDate()),
         lastRemindedAt: OffsetDateTime? = null,
         wakeTime: LocalTime = predictedWakeTime(now.toLocalDate()),
     ): Boolean {

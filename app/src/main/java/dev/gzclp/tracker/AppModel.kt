@@ -26,6 +26,7 @@ import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.BodyWeightLogged
 import dev.gzclp.tracker.log.StretchLogged
 import dev.gzclp.tracker.log.Store
+import dev.gzclp.tracker.log.WaterLog
 import dev.gzclp.tracker.log.WaterLogged
 import dev.gzclp.tracker.log.hasWeighIn
 import dev.gzclp.tracker.remind.HabitAlarm
@@ -43,6 +44,7 @@ import dev.gzclp.tracker.ui.SyncUi
 import dev.gzclp.tracker.ui.restLabel
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.concurrent.Executors
@@ -114,7 +116,7 @@ class AppModel private constructor(private val context: Context) {
         private set
     var waterReminder by mutableStateOf(prefs.waterReminder)
         private set
-    var waterGoalMl by mutableStateOf(prefs.waterGoalMl)
+    var waterGoalOverrideMl by mutableStateOf(prefs.waterGoalOverrideMl)
         private set
     var waterCupMl by mutableStateOf(prefs.waterCupMl)
         private set
@@ -277,9 +279,14 @@ class AppModel private constructor(private val context: Context) {
         HabitAlarm.schedule(context, HabitKind.WATER, store.state.value)
     }
 
+    /** The goal on [day]; follows that day's body weight and activity unless set by hand. */
+    fun waterGoalMl(state: AppState, day: LocalDate): Int = WaterLog.goalMl(state, day, waterGoalOverrideMl)
+
+    /** Sets today's goal to [ml]; stepping onto the recommended goal follows it again. */
     fun chooseWaterGoal(ml: Int) {
-        prefs.waterGoalMl = ml
-        waterGoalMl = ml
+        val override = ml.takeIf { it != WaterLog.recommendedMl(store.state.value, now().toLocalDate()) }
+        prefs.waterGoalOverrideMl = override
+        waterGoalOverrideMl = override
     }
 
     fun chooseWaterCup(ml: Int) {

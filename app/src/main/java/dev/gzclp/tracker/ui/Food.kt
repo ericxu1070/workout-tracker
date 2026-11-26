@@ -70,7 +70,7 @@ fun FoodScreen(
         WaterScreen(
             state = storeState,
             day = day,
-            goalMl = model.waterGoalMl,
+            goalMl = model.waterGoalMl(storeState, day),
             cupSizeMl = model.waterCupMl,
             onBack = { showWaterTracker = false },
             // A past day's drink is stamped at this time of day on that date, so it lands on the day being viewed.
@@ -106,7 +106,7 @@ fun FoodScreen(
         Group {
             GroupRow(first = true, onClick = { showWaterTracker = true }) {
                 val intake = storeState?.let { WaterLog.totalMlForDay(it, day) } ?: 0
-                val goal = model?.waterGoalMl ?: WaterLog.DEFAULT_GOAL_ML
+                val goal = if (model != null && storeState != null) model.waterGoalMl(storeState, day) else WaterLog.DEFAULT_GOAL_ML
                 val frac = if (goal > 0) (intake.toFloat() / goal).coerceIn(0f, 1f) else 0f
                 Canvas(Modifier.size(24.dp)) {
                     val w = 3.dp.toPx()

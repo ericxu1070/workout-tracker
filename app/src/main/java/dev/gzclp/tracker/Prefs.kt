@@ -95,9 +95,17 @@ class Prefs(context: Context) {
         }
         set(v) = p.edit().putBoolean("save_to_gallery", v).apply()
 
-    var waterGoalMl: Int
-        get() = p.getInt("water_goal_ml", 2500)
-        set(v) = p.edit().putInt("water_goal_ml", v).apply()
+    /** The water goal set by hand, null to follow the recommended one; 0 is stored for null. */
+    var waterGoalOverrideMl: Int?
+        get() {
+            // A goal stepped to before goals followed activity carries over, unless it was the old 2500 default.
+            if (!p.contains("water_goal_override_ml")) {
+                val old = p.getInt("water_goal_ml", 2500)
+                p.edit().putInt("water_goal_override_ml", if (old == 2500) 0 else old).remove("water_goal_ml").apply()
+            }
+            return p.getInt("water_goal_override_ml", 0).takeIf { it > 0 }
+        }
+        set(v) = p.edit().putInt("water_goal_override_ml", v ?: 0).apply()
 
     var waterCupMl: Int
         get() = p.getInt("water_cup_ml", 250)
