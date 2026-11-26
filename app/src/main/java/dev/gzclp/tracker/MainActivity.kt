@@ -138,9 +138,15 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(style, style)
             }
             val view = androidx.compose.ui.platform.LocalView.current
+            // A new mode keeps the last tap and the window size, which only a new tap or a resize would set again.
+            val last = remember { arrayOf(Motion.Off) }
             val motion = remember(model.loaded, model.animatorsOn) {
                 val fx = effectsFor(model.loaded, model.animatorsOn)
-                Motion(fx, RippleField().takeIf { fx.isNotEmpty() }, Feel(this, view).takeIf { Effect.Feel in fx })
+                Motion(fx, RippleField().takeIf { fx.isNotEmpty() }, Feel(this, view).takeIf { Effect.Feel in fx }).apply {
+                    tap = last[0].tap
+                    window = last[0].window
+                    last[0] = this
+                }
             }
             GzTheme(palette) {
                 CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates, LocalMotion provides motion) { App(model) }

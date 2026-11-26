@@ -376,8 +376,8 @@ fun WorkoutScreen(
         Txt(Fmt.minutes(Duration.between(a.startedAt, now).seconds), Type.subhead.tabular(), color = p.fg2)
         val exercises = state.sessionExercises().map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
-        // Loaded: a workout just started rises into place, its exercises arriving from the bottom up. Drawn only, so every row
-        // takes a tap from the first frame.
+        // Loaded: a workout just started rises into place, the set pill with its rows. Drawn only, so every row takes a tap from
+        // the first frame.
         val motion = LocalMotion.current
         val rise = remember(a.id) { Animatable(if (Effect.Bookends in motion && Duration.between(a.startedAt, now).seconds < 3) 0f else 1f) }
         LaunchedEffect(a.id) {
@@ -387,25 +387,23 @@ fun WorkoutScreen(
             }
         }
         // One pill for the whole session, so it springs from the last set of one exercise to the first of the next.
-        StepPillHost(p.bg, Modifier.fillMaxWidth()) {
+        StepPillHost(
+            p.bg,
+            Modifier.fillMaxWidth().then(
+                if (Effect.Bookends !in motion) Modifier else Modifier.graphicsLayer {
+                    translationY = (1f - rise.value) * 56.dp.toPx()
+                    alpha = rise.value
+                },
+            ),
+        ) {
             Column {
-                exercises.forEachIndexed { i, ex ->
+                exercises.forEach { ex ->
                     Spacer(Modifier.height(Space.x3))
-                    Column(if (Effect.Bookends !in motion) Modifier else Modifier.graphicsLayer {
-                        val k = stagger(rise.value, exercises.size - 1 - i, exercises.size)
-                        translationY = (1f - k) * 56.dp.toPx()
-                        alpha = k
-                    }) { ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups, onUseSuggestion) }
+                    ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups, onUseSuggestion)
                 }
             }
         }
     }
-}
-
-/** Item [i] of [n]'s share of a staggered entrance at [t]: each starts a little after the one before, all done at 1. */
-internal fun stagger(t: Float, i: Int, n: Int): Float {
-    val lag = 0.4f * i / n.coerceAtLeast(1)
-    return ((t - lag) / (1f - 0.4f)).coerceIn(0f, 1f)
 }
 
 /** The running rest in the bottom bar: time left over a draining bar, and Skip rest. Same height as End workout. */
