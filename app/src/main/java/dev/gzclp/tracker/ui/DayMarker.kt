@@ -42,8 +42,8 @@ internal fun kindColors(bg: Color, elevated: Color, fg: Color): KindColors {
     return KindColors(fg, fg, fg, bg)
 }
 
-/** The faintest a kind gets: a light day keeps this much of its hue. */
-private const val FLOOR = 0.3f
+/** The faintest a kind gets: a light day keeps this much of its hue, enough for blue and pink to stay apart under protanopia. */
+private const val FLOOR = 0.45f
 
 /**
  * [c] with its saturation scaled by [intensity] (0 to 1, floored at [FLOOR]): mixed in linear light with the gray of

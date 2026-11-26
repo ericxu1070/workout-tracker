@@ -30,13 +30,14 @@ fun AppState.bouts(): List<Bout> =
             runCatching { OffsetDateTime.parse(s.at, LogCodec.TS).toLocalDate() }.getOrNull()?.let { Bout(Kind.STRETCH, it, s.durationSec, s.durationSec.toDouble()) }
         }
 
-/** Each day's segments in [Kind] order, only for days with training time. */
+/** Each day's segments in [Kind] order. A day logged with no time at all splits evenly between its kinds. */
 fun dayMix(bouts: List<Bout>): Map<LocalDate, List<Segment>> =
-    bouts.filter { it.sec > 0 }.groupBy { it.day }.mapValues { (_, day) ->
+    bouts.groupBy { it.day }.mapValues { (_, day) ->
         val total = day.sumOf { it.sec }.toFloat()
-        day.groupBy { it.kind }.toSortedMap().map { (kind, bs) ->
+        val kinds = day.groupBy { it.kind }.toSortedMap()
+        kinds.map { (kind, bs) ->
             val sec = bs.sumOf { it.sec }
-            Segment(kind, sec, sec / total, (bs.sumOf { it.load } / FULL.getValue(kind)).coerceIn(0.0, 1.0).toFloat())
+            Segment(kind, sec, if (total > 0) sec / total else 1f / kinds.size, (bs.sumOf { it.load } / FULL.getValue(kind)).coerceIn(0.0, 1.0).toFloat())
         }
     }
 

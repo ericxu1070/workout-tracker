@@ -24,8 +24,9 @@ class DayMixTest {
             stretches = mapOf(stretch("x1", "2026-11-10T19:10:00-08:00", 600), stretch("x2", "not a time", 600)),
         )
         val mix = dayMix(s.bouts())
-        // A session with no time draws nothing; a stretch with a stamp the log never writes is skipped.
-        assertEquals(setOf(day), mix.keys)
+        // A stretch with a stamp the log never writes is skipped; a workout with no time still marks its day.
+        assertEquals(setOf(day, day.plusDays(1)), mix.keys)
+        assertEquals(listOf(Segment(Kind.LIFT, 0, 1f, 0f)), mix.getValue(day.plusDays(1)))
         val segs = mix.getValue(day)
         assertEquals(listOf(Kind.LIFT, Kind.CARDIO, Kind.STRETCH), segs.map { it.kind })
         assertEquals(listOf(0.6f, 0.3f, 0.1f), segs.map { it.share })
