@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <group android:name="mark" android:pivotX="54" android:pivotY="54">
+                <group android:translateX="18" android:translateY="18" android:scaleX="0.28125" android:scaleY="0.28125">
+                    <group android:translateX="17.65" android:translateY="15.58" android:scaleX="0.861" android:scaleY="0.861">
+                        <group android:translateX="133.44" android:translateY="54.89" android:scaleX="0.9702" android:scaleY="0.9702">
+                            <path android:name="stroke" android:strokeColor="#FF7AA2F7" android:strokeWidth="34" android:strokeLineCap="round" android:trimPathEnd="0" android:pathData="M 32.77 12.79 C 24 3.5 12 -0.5 0 0 C -20 0.5 -40 12 -40 30 C -40 47 -20 60 0 60 M 0 60 C -26 60 -62 78 -62 106 C -62 136 -32 156 -4 156 C 18 156 38 149 50.79 135.53" />
+                        </group>
+                    </group>
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="stroke">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="trimPathEnd" android:valueFrom="0" android:valueTo="1" android:duration="700" android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+</animated-vector>
