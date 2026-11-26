@@ -4,7 +4,8 @@ import dev.gzclp.tracker.form.Focus
 
 /**
  * A single stretch move with target body area, hold duration, one-line cue, and [focus], where on the body it is felt.
- * An [isUnilateral] move works one side at a time: its hold is split between the two sides.
+ * An [isUnilateral] move works one side at a time: its hold is split between the two sides. A move a routine plays
+ * [isDynamic] runs as reps at [pacing], or at its motion's pace when that is null.
  */
 data class StretchMove(
     val id: String,
@@ -15,6 +16,7 @@ data class StretchMove(
     val focus: Focus,
     val isUnilateral: Boolean = false,
     val isDynamic: Boolean = false,
+    val pacing: Pacing? = null,
 ) {
     init {
         require(holdSec in 1..300) { "Hold time must be positive, got $holdSec for $id" }

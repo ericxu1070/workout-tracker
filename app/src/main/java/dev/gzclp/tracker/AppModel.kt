@@ -104,6 +104,10 @@ class AppModel private constructor(private val context: Context) {
         private set
     var stretchRoutine by mutableStateOf(prefs.stretchRoutine)
         private set
+    var stretchSound by mutableStateOf(prefs.stretchSound)
+        private set
+    var stretchHaptics by mutableStateOf(prefs.stretchHaptics)
+        private set
     var cardioGoalMin by mutableStateOf(prefs.cardioGoalMin)
         private set
     var autoAdaptWeights by mutableStateOf(prefs.autoAdaptWeights)
@@ -265,6 +269,16 @@ class AppModel private constructor(private val context: Context) {
         prefs.stretchReminder = on
         stretchReminder = on
         HabitAlarm.schedule(context, HabitKind.STRETCH, store.state.value)
+    }
+
+    fun chooseStretchSound(on: Boolean) {
+        prefs.stretchSound = on
+        stretchSound = on
+    }
+
+    fun chooseStretchHaptics(on: Boolean) {
+        prefs.stretchHaptics = on
+        stretchHaptics = on
     }
 
     fun chooseStretchReminderTime(minutes: Int) {

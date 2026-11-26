@@ -526,8 +526,9 @@ private fun mix(a: Int, b: Int, t: Float): Int {
 /**
  * The exercise as a 3D figure you can orbit: drag to turn around it or look down on it, double-tap to reset; let go and the
  * camera circles it again. It loops one rep at the lift's real tempo; [still] freezes it at one point of the rep and stops
- * the frame clock and the circling (thumbnails, tests). [focus] lights where a stretch is felt; [mirror] shows the move
- * done on the other side.
+ * the frame clock and the circling (thumbnails, tests). [time], read every frame, sets the seconds into the rep instead of
+ * the frame clock, for a player that keeps the figure in step with its own timer. [focus] lights where a stretch is felt;
+ * [mirror] shows the move done on the other side.
  */
 @Composable
 fun FormView(
@@ -536,6 +537,7 @@ fun FormView(
     focus: Focus? = null,
     mirror: Boolean = false,
     still: Float? = null,
+    time: (() -> Double)? = null,
     orbit: Orbit = remember(motion) { Orbit(motion.yaw ?: DEFAULT_YAW) },
 ) {
     val p = LocalPalette.current
@@ -564,7 +566,7 @@ fun FormView(
     // The mirror flips the drawn picture, and the drag with it, so the figure still turns under the finger.
     Canvas(modifier.clipToBounds().semantics { contentDescription = "3D exercise form. Drag to look around it, double-tap to reset." }.graphicsLayer(scaleX = if (mirror) -1f else 1f).then(gestures)) {
         val sec = clock / 1e9
-        val d = still?.toDouble() ?: motion.tempo.at(sec)
+        val d = still?.toDouble() ?: motion.tempo.at(time?.invoke() ?: sec)
         val breath = if (still != null) 0.0 else 0.5 - 0.5 * cos(2 * PI * sec / BREATH_SEC)
         drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus) }
     }

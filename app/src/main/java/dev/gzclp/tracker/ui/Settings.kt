@@ -99,6 +99,10 @@ fun SettingsScreen(
     stretchRoutine: String = StretchRoutines.ID_AFTER_WORKOUT,
     onStretchRoutine: (String) -> Unit = {},
     customStretches: List<dev.gzclp.tracker.stretch.StretchRoutine> = emptyList(),
+    stretchSound: Boolean = false,
+    onStretchSound: (Boolean) -> Unit = {},
+    stretchHaptics: Boolean = true,
+    onStretchHaptics: (Boolean) -> Unit = {},
     page: SettingsPage? = null,
     onPage: (SettingsPage) -> Unit = {},
     initialShowMore: Boolean = Palettes.custom.any { it.id == themeId },
@@ -278,6 +282,11 @@ fun SettingsScreen(
             }
 
             SettingsPage.Stretching -> {
+                GroupHeader("Guidance")
+                Group {
+                    ToggleRow("Sound", stretchSound, true, "Stretch sound", onStretchSound)
+                    ToggleRow("Haptics", stretchHaptics, false, "Stretch haptics", onStretchHaptics)
+                }
                 GroupHeader("Default routine")
                 Group {
                     val current = routines.firstOrNull { it.first == stretchRoutine }?.first ?: StretchRoutines.ID_AFTER_WORKOUT

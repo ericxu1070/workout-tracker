@@ -1,5 +1,7 @@
 package dev.gzclp.tracker.form
 
+import dev.gzclp.tracker.stretch.Pacing
+import dev.gzclp.tracker.stretch.RepPosition
 import dev.gzclp.tracker.stretch.StretchMove
 import kotlin.math.atan2
 import kotlin.math.min
@@ -8,6 +10,9 @@ import kotlin.math.sqrt
 /** One rep's timing in seconds: [out] from the start position to the far end, a [pause] there, [back] again, then [rest] at the start. */
 class Tempo(val out: Double, val pause: Double, val back: Double, val rest: Double, private val from: Double? = null) {
     val period = out + pause + back + rest
+
+    /** True for a flow, which runs straight through its movement and never retraces it. */
+    val flows: Boolean get() = from != null
 
     /** How far through the movement (0 the start position, 1 the far end) at [t] seconds into the loop. */
     fun at(t: Double): Double {
@@ -190,4 +195,27 @@ object Motions {
 
     /** The motion for a stretch. */
     fun of(move: StretchMove): Motion = of(move.id)
+
+    /**
+     * A dynamic stretch's rep: the catalog's own [StretchMove.pacing], else its motion's: easing out is the stretch, the pause
+     * at the far end the hold, and easing back with the rest at the start the release. A flow is one phase. A still stretch's
+     * motion is slowed to follow while paused, so played as reps it takes [Pacing.DYNAMIC].
+     */
+    fun pacing(move: StretchMove): Pacing = move.pacing ?: of(move).tempo.let {
+        when {
+            it === HOLD_TEMPO -> Pacing.DYNAMIC
+            it.flows -> Pacing(it.period, 0.0, 0.0)
+            else -> Pacing(it.out, it.pause, it.back + it.rest)
+        }
+    }
+
+    /**
+     * Seconds into [move]'s motion at [at] in its reps, phase by phase: the stretch eases out, the hold stays at the far end
+     * and the release eases back, however long the pacing makes each.
+     */
+    fun motionSec(move: StretchMove, at: RepPosition): Double {
+        val t = of(move).tempo
+        val parts = if (t.flows) listOf(t.period, 0.0, 0.0) else listOf(t.out, t.pause, t.back + t.rest)
+        return at.rep * t.period + parts.take(at.phase.ordinal).sum() + at.phaseFraction * parts[at.phase.ordinal]
+    }
 }

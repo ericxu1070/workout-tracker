@@ -132,6 +132,16 @@ class Prefs(context: Context) {
         get() = p.getInt("stretch_reminder_minutes", 20 * 60)
         set(v) = p.edit().putInt("stretch_reminder_minutes", v).apply()
 
+    /** The stretch player speaks its cues aloud. */
+    var stretchSound: Boolean
+        get() = p.getBoolean("stretch_sound", false)
+        set(v) = p.edit().putBoolean("stretch_sound", v).apply()
+
+    /** The stretch player taps the phone at each cue. */
+    var stretchHaptics: Boolean
+        get() = p.getBoolean("stretch_haptics", true)
+        set(v) = p.edit().putBoolean("stretch_haptics", v).apply()
+
     var stretchRoutine: String
         get() = p.getString("stretch_routine", "after_workout") ?: "after_workout"
         set(v) = p.edit().putString("stretch_routine", v).apply()

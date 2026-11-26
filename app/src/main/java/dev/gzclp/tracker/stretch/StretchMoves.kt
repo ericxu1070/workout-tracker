@@ -523,6 +523,8 @@ object StretchMoves {
         cue = "Back foot on a bench, squeeze that glute and sink the back knee until the front of the hip stretches.",
         focus = Focus(0.3, Spot(Bone.THIGH_L, V(0.0, 0.08, 0.06))),
         isUnilateral = true,
+        // Limber 11 holds each rep 3 s at the bottom.
+        pacing = Pacing(2.0, 3.0, 2.0),
     )
 
     /** Every move, by body area within the first 26 and the ones the famous routines added after them. */

@@ -1,5 +1,15 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -20,8 +30,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,27 +42,39 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Event
 import dev.gzclp.tracker.log.StretchLogged
-import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.stretch.BodyArea
+import dev.gzclp.tracker.stretch.Stage
+import dev.gzclp.tracker.stretch.StretchCoach
 import dev.gzclp.tracker.stretch.StretchMove
 import dev.gzclp.tracker.stretch.StretchMoves
 import dev.gzclp.tracker.stretch.StretchPlayerState
 import dev.gzclp.tracker.stretch.StretchRoutine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
-import kotlinx.coroutines.delay
 
 /** The Workout tab's Stretching page: every routine to pick and start, each with its own page, then the move library. */
 @Composable
@@ -297,14 +321,33 @@ fun GuidedStretchPlayerScreen(
     routine: StretchRoutine,
     onBack: () -> Unit,
     onFinish: (StretchLogged) -> Unit,
+    sound: Boolean = false,
+    haptics: Boolean = true,
 ) {
     val p = LocalPalette.current
     val player = remember(routine) { StretchPlayerState(routine) }
     val isPaused = player.isPaused
+    val context = LocalContext.current
+    val coach = remember(sound, haptics) { StretchCoach(context, sound, haptics) }
+    DisposableEffect(coach) { onDispose { coach.close() } }
+    // The clock runs on frames, which stop when the screen sleeps: a phone on the mat stays awake while the player is open.
+    val view = LocalView.current
+    DisposableEffect(view, player.isFinished) {
+        view.keepScreenOn = !player.isFinished
+        onDispose { view.keepScreenOn = false }
+    }
     LaunchedEffect(player, isPaused, player.isFinished) {
-        while (!player.isPaused && !player.isFinished) {
-            delay(1000L)
-            player.tick()
+        if (isPaused) coach.hush()
+        var last = withFrameNanos { it }
+        var carry = 0L
+        while (!player.isPaused && !player.isFinished) withFrameNanos { now ->
+            carry += now - last
+            last = now
+            val ms = carry / 1_000_000
+            carry -= ms * 1_000_000
+            // A stalled frame (the app in the background) resumes where it left off rather than skipping ahead.
+            player.advance(ms.coerceAtMost(250))
+            player.drainCues().forEach(coach::play)
         }
     }
 
@@ -343,6 +386,7 @@ fun GuidedStretchPlayerScreen(
                         icon = Icons.chevronLeft,
                         label = "Previous move",
                         onClick = {
+                            coach.hush()
                             player.skipPrev()
                         },
                         tint = if (moveIndex > 0) p.fg else p.fg2.copy(alpha = 0.3f),
@@ -360,6 +404,7 @@ fun GuidedStretchPlayerScreen(
                         icon = Icons.chevronRight,
                         label = "Next move",
                         onClick = {
+                            coach.hush()
                             player.skipNext()
                         },
                         tint = p.fg,
@@ -387,16 +432,10 @@ fun GuidedStretchPlayerScreen(
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(CircleShape)
-                .background(p.fill),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth(player.progressFraction)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(p.accent),
-            )
-        }
+                .background(p.fill)
+                // Read while drawing, so the bar creeps on every frame without recomposing the screen.
+                .drawBehind { drawRoundRect(p.accent, size = Size(size.width * player.progressFraction, size.height), cornerRadius = CornerRadius(size.height / 2)) },
+        )
 
         Spacer(Modifier.height(Space.md))
 
@@ -410,7 +449,9 @@ fun GuidedStretchPlayerScreen(
                 .padding(Space.sm),
             contentAlignment = Alignment.Center,
         ) {
-            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), focus = currentMove.focus, mirror = player.isSecondSide)
+            // A dynamic move's figure keeps time with its reps; a still hold's loops at its own tempo.
+            val reps = remember(player) { { player.motionSec } }
+            FormView(Motions.of(currentMove), Modifier.fillMaxSize(), focus = currentMove.focus, mirror = player.isSecondSide, time = reps.takeIf { player.schedule?.pacing != null })
         }
 
         Spacer(Modifier.height(Space.md))
@@ -447,47 +488,7 @@ fun GuidedStretchPlayerScreen(
 
         Spacer(Modifier.height(Space.lg))
 
-        // Large Countdown Clock Ring
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = Space.sm),
-            contentAlignment = Alignment.Center,
-        ) {
-            val ready = player.isGettingReady
-            val secondsLeft = if (ready) player.readyRemaining else player.secondsRemaining
-            val total = player.countdownSec
-            val ringProgress = (secondsLeft.toFloat() / total.coerceAtLeast(1)).coerceIn(0f, 1f)
-
-            Box(
-                Modifier.size(130.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                    // Background circle track
-                    drawCircle(
-                        color = p.fill,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
-                    )
-                    // Active countdown arc
-                    drawArc(
-                        color = if (ready) p.fg2 else p.accent,
-                        startAngle = -90f,
-                        sweepAngle = 360f * ringProgress,
-                        useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Txt(
-                        text = "$secondsLeft",
-                        style = Type.largeTitle.tabular(),
-                        color = p.fg,
-                    )
-                    Txt(if (!ready) "seconds" else if (player.isSecondSide) "Switch" else "Get ready", Type.caption, color = p.fg2)
-                }
-            }
-        }
+        Box(Modifier.fillMaxWidth().padding(vertical = Space.sm), contentAlignment = Alignment.Center) { CountdownRing(player) }
 
         Spacer(Modifier.height(Space.md))
 
@@ -512,6 +513,86 @@ fun GuidedStretchPlayerScreen(
                 }
             } else {
                 Txt("Last move", Type.subhead, color = p.accent, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+/**
+ * The countdown under way, draining every frame: getting ready or switching sides in gray, the hold in the accent. A dynamic
+ * hold adds an inner ring for the rep under way, a segment per phase, and names the phase and the rep.
+ */
+@Composable
+private fun CountdownRing(player: StretchPlayerState) {
+    val p = LocalPalette.current
+    val ready = player.isGettingReady
+    val pacing = player.schedule?.pacing
+    val repPhase = player.repPhase
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(156.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = 8.dp.toPx()
+                fun ring(inset: Float, stroke: Float, color: Color, start: Float, sweep: Float, cap: StrokeCap) = drawArc(
+                    color, start, sweep, false, Offset(inset, inset), Size(size.width - 2 * inset, size.height - 2 * inset), style = Stroke(stroke, cap = cap),
+                )
+                ring(w / 2, w, p.fill, 0f, 360f, StrokeCap.Butt)
+                val left = player.countdownMsLeft.toFloat() / (player.span?.lengthMs ?: 1L).coerceAtLeast(1L)
+                ring(w / 2, w, if (ready) p.fg2 else p.accent, -90f, 360f * left, StrokeCap.Round)
+                val rep = player.rep ?: return@Canvas
+                if (pacing == null) return@Canvas
+                val thin = 4.dp.toPx()
+                val inset = w + 6.dp.toPx() + thin / 2
+                val gap = if (pacing.phases.size > 1) 4f else 0f
+                var start = -90f
+                var done = 0.0
+                for ((phase, sec) in pacing.phases) {
+                    val sweep = (360 * sec / pacing.period).toFloat()
+                    val filled = when {
+                        phase == rep.phase -> rep.phaseFraction
+                        done + sec <= rep.repFraction * pacing.period + 1e-9 -> 1f
+                        else -> 0f
+                    }
+                    ring(inset, thin, p.fill, start + gap / 2, sweep - gap, StrokeCap.Butt)
+                    ring(inset, thin, p.fg, start + gap / 2, (sweep - gap) * filled, StrokeCap.Butt)
+                    start += sweep
+                    done += sec
+                }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RollingNumber(if (ready) player.readyRemaining else player.secondsRemaining, Type.largeTitle.tabular())
+                // The phase is what to do now, so it reads at a glance; the unit under a still hold stays quiet.
+                val phase = repPhase?.second?.label?.takeIf { pacing != null && pacing.phases.size > 1 }
+                when {
+                    ready -> Txt(if (player.isSecondSide) "Switch" else "Get ready", Type.caption, color = p.fg2)
+                    phase != null -> Txt(phase, Type.headline)
+                    else -> Txt("seconds", Type.caption, color = p.fg2)
+                }
+            }
+        }
+        // Shown from the start, so the ring does not jump when the reps begin.
+        if (pacing != null) {
+            Spacer(Modifier.height(Space.sm))
+            val reps = player.schedule?.let { s -> s.reps(s.spans.first { it.stage == Stage.HOLD && it.side == player.span?.side }.lengthMs) } ?: 0
+            Txt("Rep ${(repPhase?.first ?: 0) + 1} of $reps", Type.headline.tabular())
+        }
+    }
+}
+
+/** [n] in [style], each digit rolling down to its next value as it changes, like a clock's. */
+@Composable
+private fun RollingNumber(n: Int, style: TextStyle) {
+    val text = n.toString()
+    Row(Modifier.clearAndSetSemantics { this.text = AnnotatedString(text) }) {
+        text.forEachIndexed { i, c ->
+            // Keyed from the right, so the units stay the units when 10 becomes 9.
+            key(text.length - i) {
+                AnimatedContent(
+                    c, label = "digit",
+                    transitionSpec = {
+                        val ease = tween<IntOffset>(260, easing = CubicBezierEasing(0.25f, 1f, 0.5f, 1f))
+                        (slideInVertically(ease) { -it } + fadeIn(tween(180))) togetherWith (slideOutVertically(ease) { it } + fadeOut(tween(120))) using SizeTransform(clip = true)
+                    },
+                ) { Txt("$it", style, color = LocalPalette.current.fg) }
             }
         }
     }
