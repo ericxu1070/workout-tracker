@@ -116,4 +116,27 @@ class WaterTest {
     fun volumeShowsMlAndOz() {
         assertEquals("300 ml · 10.1 oz", WaterLog.formatVolume(300))
     }
+
+    @Test
+    fun recommendedGoalFollowsBodyWeightAndTheDaysActivity() {
+        assertEquals(WaterLog.DEFAULT_GOAL_ML, WaterLog.recommendedMl(null, 0, 0))
+        val kg80 = 80 / 0.45359237
+        assertEquals(2400, WaterLog.recommendedMl(kg80, 0, 0))
+        assertEquals(2900, WaterLog.recommendedMl(kg80, 3600, 0))
+        // Cardio counts twice what lifting does per minute.
+        assertEquals(2900, WaterLog.recommendedMl(kg80, 0, 1800))
+        assertEquals(4400, WaterLog.recommendedMl(kg80, 10 * 3600, 10 * 3600))
+        assertEquals(8000, WaterLog.recommendedMl(900.0, 0, 0))
+
+        val base = AppState(bodyWeights = mapOf("b" to BodyWeight("b", t0.minusDays(3), kg80)))
+        val lift = SessionRecord("s", base.program, base.nextDay, t0, 3600, emptyList())
+        val run = Cardio("c", "run", "Run", t0.withHour(18), 1800)
+        val yesterday = SessionRecord("y", base.program, base.nextDay, t0.minusDays(1), 3600, emptyList())
+        val state = base.copy(sessions = listOf(lift, yesterday), cardio = mapOf("c" to run))
+        assertEquals(2400, WaterLog.recommendedMl(base, day))
+        assertEquals(3400, WaterLog.recommendedMl(state, day))
+        assertEquals(2500, WaterLog.recommendedMl(state, day.minusDays(4)))
+        assertEquals(3000, WaterLog.goalMl(state, day, 3000))
+        assertEquals(3400, WaterLog.goalMl(state, day, null))
+    }
 }
