@@ -124,8 +124,8 @@ class ThumbMotion(start: Float) {
     }
 
     companion object {
-        // Stiff and lightly underdamped, as iOS's segmented thumbs: about 40 ms behind a moving finger, a small overshoot on arrival.
-        const val FOLLOW_STIFFNESS = 1200f
+        // Stiff and lightly underdamped, as iOS's segmented thumbs: about 35 ms behind a moving finger, a small overshoot on arrival.
+        const val FOLLOW_STIFFNESS = 1600f
         const val FOLLOW_DAMPING = 0.7f
         const val SQUASH_STIFFNESS = Spring.StiffnessMedium
         const val SQUASH_DAMPING = 0.4f

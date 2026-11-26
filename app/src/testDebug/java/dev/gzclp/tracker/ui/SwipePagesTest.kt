@@ -27,6 +27,7 @@ import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -159,5 +160,20 @@ class SwipePagesTest {
         rule.mainClock.autoAdvance = true
         rule.waitForIdle()
         assertEquals(HistoryView.All, view)
+    }
+
+    /** A tap moved nothing for a frame or more; the pages now move on the first frame after it and land within 300 ms. */
+    @Test fun aTapMovesThePagesOnTheNextFrame() {
+        lateinit var pager: androidx.compose.foundation.pager.PagerState
+        rule.setContent {
+            pager = rememberPages(mode, 3) { mode = it }
+            Pages(pager, header = { Segmented(modes, mode, {}, pager = pager) }) { ScreenFrame { Txt("${modes[it]} page", Type.body) } }
+        }
+        rule.mainClock.autoAdvance = false
+        rule.onNodeWithText("Cardio").performClick()
+        rule.mainClock.advanceTimeByFrame()
+        assertTrue("moved ${pager.position}", pager.position > 0.01f)
+        rule.mainClock.advanceTimeBy(300)
+        assertEquals(1f, pager.position, 0.01f)
     }
 }

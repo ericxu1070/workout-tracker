@@ -357,7 +357,19 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     // Where the thumb heads: the finger while it drags the thumb; the pages' position while a finger swipes them; else the page
     // they are headed to, so after a tap or a fling the thumb leads the pages instead of trailing them.
     var drag by remember { androidx.compose.runtime.mutableStateOf<Float?>(null) }
-    val at = { drag ?: pager?.let { if (swiped) it.position else it.targetPage.toFloat() } ?: own.value }
+    // A tapped segment, aimed at on the tap itself so the thumb moves on the next frame along with the pages.
+    var aim by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    val at = { drag ?: aim?.toFloat() ?: pager?.let { if (swiped) it.position else it.targetPage.toFloat() } ?: own.value }
+    fun tap(i: Int) {
+        aim = i
+        scope.launch {
+            try {
+                pager?.springTo(i)
+            } finally {
+                if (aim == i) aim = null
+            }
+        }
+    }
     val motion = remember { ThumbMotion(at()) }
     val lifted = held || swiped
     // Waits, without frames, for the target to move, then chases it until the thumb rests there again.
@@ -398,7 +410,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                         val over = spot.roundToInt()
                         if (pager != null && over != shown) {
                             shown = over
-                            scope.launch { pager.animateScrollToPage(over, animationSpec = SegmentSpring) }
+                            scope.launch { pager.springTo(over) }
                         }
                     }
                     try {
@@ -410,7 +422,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
                         if (pager == null) {
                             scope.launch { own.snapTo(to.toFloat()) }
                             select(to)
-                        } else if (to != shown) scope.launch { pager.animateScrollToPage(to, animationSpec = SegmentSpring) }
+                        } else if (to != shown) scope.launch { pager.springTo(to) }
                     }
                 }
             },
@@ -419,7 +431,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
         val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
         Row {
             options.forEachIndexed { i, o ->
-                Pressable({ if (pager != null) scope.launch { pager.animateScrollToPage(i, animationSpec = SegmentSpring) } else select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
+                Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
                     Txt(o, Type.subhead, color = p.fg, maxLines = 1)
                 }
             }

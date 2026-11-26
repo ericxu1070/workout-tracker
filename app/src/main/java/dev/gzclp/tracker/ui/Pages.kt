@@ -43,8 +43,8 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** The spring every segment change rides, tapped, swiped or dragged: quick (settled in about 150 ms) with at most a slight overshoot. */
-val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = 0.86f, stiffness = 1000f)
+/** The spring a fling's pages land on, and a pager-less switch's selection: the same as [springTo]'s. */
+val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = PAGE_DAMPING, stiffness = PAGE_STIFFNESS)
 
 /** The pager whose pages hold the composition. */
 val LocalPages = compositionLocalOf<PagerState?> { null }
@@ -59,7 +59,32 @@ fun settledHere(): Boolean = LocalPages.current?.let { it.settledPage == LocalPa
 /** Where the pager stands, in pages: 1.5 is halfway from the second page to the third. */
 val PagerState.position: Float get() = currentPage + currentPageOffsetFraction
 
-/** A pager kept in step with [selected]: when [selected] changes the pages follow on [SegmentSpring]; a swipe reports the page it settles on to [onSelect]. */
+/**
+ * Turns to [page] on a stiff spring stepped each frame from the first one, so the pages move on the frame after a tap;
+ * an animation started the usual way spends its first frame standing still. Settles in about 180 ms.
+ */
+suspend fun PagerState.springTo(page: Int) = scroll {
+    val span = (layoutInfo.pageSize + layoutInfo.pageSpacing).toFloat()
+    var x = position
+    var v = 0f
+    var last = 0L
+    while (true) {
+        val now = withFrameNanos { it }
+        val dt = if (last == 0L) 1 / 60f else ((now - last) / 1e9f).coerceAtMost(1 / 20f)
+        last = now
+        val (nx, nv) = springStep(x, v, page.toFloat(), dt, PAGE_STIFFNESS, PAGE_DAMPING)
+        x = nx
+        v = nv
+        val done = abs(x - page) < 1e-3f && abs(v) < 1e-2f
+        scrollBy(((if (done) page.toFloat() else x) - position) * span)
+        if (done) break
+    }
+}
+
+const val PAGE_STIFFNESS = 1500f
+const val PAGE_DAMPING = 0.9f
+
+/** A pager kept in step with [selected]: when [selected] changes the pages follow ([springTo]); a swipe reports the page it settles on to [onSelect]. */
 @Composable
 fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerState {
     val pager = rememberPagerState(selected) { count }
@@ -67,12 +92,12 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
     val select by rememberUpdatedState(onSelect)
     LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect { if (it != current) select(it) } }
     // Never fights a scroll already under way: its settled page is reported when it lands.
-    LaunchedEffect(selected) { if (!pager.isScrollInProgress && pager.currentPage != selected) pager.animateScrollToPage(selected, animationSpec = SegmentSpring) }
+    LaunchedEffect(selected) { if (!pager.isScrollInProgress && pager.currentPage != selected) pager.springTo(selected) }
     return pager
 }
 
 /**
- * A screen of swipeable pages under a fixed [header] (which holds a [Segmented] given the same [pager]); the pages settle on [SegmentSpring].
+ * A screen of swipeable pages under a fixed [header] (which holds a [Segmented] given the same [pager]); the pages settle on a spring.
  * The header stays put while the pages slide or scroll beneath it. [beyond] pages on each side stay composed,
  * added one a frame once the pages have opened, so opening costs only the page shown.
  */
