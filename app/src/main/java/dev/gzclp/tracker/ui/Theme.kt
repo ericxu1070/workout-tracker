@@ -227,8 +227,8 @@ object Palettes {
 /** The clearest Liquid Glass bars get, in percent: the alpha the Liquid Glass theme was tuned with. */
 const val CLEAREST_CHROME = 82
 
-/** The clearest a primary button's [Palette.stain] gets: past this it reads as a tinted outline rather than a button. */
-const val CLEAREST_STAIN = 70
+/** The clearest a stained button gets, in percent: below this, over dark glass, it reads as dimmed, like a disabled button. */
+const val CLEAREST_STAIN = 85
 
 /** Liquid Glass's clear control, a frost over whatever is behind it: faint on dark glass, a brighter sheet on light glass, as iOS's. */
 fun clearGlass(dark: Boolean) = Color.White.copy(alpha = if (dark) 0.14f else 0.6f)

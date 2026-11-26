@@ -69,7 +69,7 @@ object LaptopTheme {
      * [c] when it reads at 4.5:1 on every surface; otherwise the nearest blend toward [toward] that does,
      * or with [dimmest] the farthest one, for secondary text. Blends snap to 8-bit so the cached copy parses back unchanged.
      */
-    fun readable(c: Color, on: List<Color>, toward: Color, dimmest: Boolean = false): Color {
+    private fun readable(c: Color, on: List<Color>, toward: Color, dimmest: Boolean = false): Color {
         if (!dimmest && reads(c, on)) return c
         val steps = (0..100).map { Color(lerp(c, toward, it / 100f).toArgb()) }
         return (if (dimmest) steps.reversed() else steps).firstOrNull { reads(it, on) } ?: c

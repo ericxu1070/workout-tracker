@@ -52,7 +52,7 @@ class SwipeShots {
 
     @Test fun workoutMidSwipe() = midSwipe(Palettes.jade, "30-workout-mid-swipe") { workout() }
 
-    /** Liquid Glass's thumb, lifted by the swipe: glass with its sheen and rim, where at rest it is a solid pill. */
+    /** Liquid Glass's thumb, lifted by the swipe: clearer glass than at rest, the labels under it bent at its rim. */
     @Test fun glassMidSwipe() = midSwipe(Palettes.glass, "30-workout-mid-swipe") { workout() }
 
     @androidx.compose.runtime.Composable private fun workout() {
