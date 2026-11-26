@@ -81,8 +81,6 @@ import dev.gzclp.tracker.ui.Type.tabular
 fun StretchScreen(
     state: AppState?,
     defaultId: String,
-    onMode: (Int) -> Unit,
-    onSettings: () -> Unit,
     onStartRoutine: (StretchRoutine) -> Unit,
     onOpenRoutine: (StretchRoutine) -> Unit,
     onNewRoutine: () -> Unit,
@@ -113,8 +111,6 @@ fun StretchScreen(
         BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true, enabled = currentRoutine.moves.isNotEmpty()) }
     }) {
         item { Column {
-            NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-            WorkoutSwitch(2, onMode)
             Spacer(Modifier.height(Space.xxl))
             Txt(currentRoutine.name, Type.largeTitle)
             Spacer(Modifier.height(Space.xs))

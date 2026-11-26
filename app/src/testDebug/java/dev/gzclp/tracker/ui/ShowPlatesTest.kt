@@ -42,7 +42,7 @@ class ShowPlatesTest {
         rule.setContent {
             CompositionLocalProvider(LocalShowPlates provides show) {
                 WorkoutScreen(state, t0.plusMinutes(5), null, onLog = { _, _, _, _, _ -> }, onClear = { _, _ -> }, onEditWeight = {}, onSwap = {},
-                    onSkipRest = {}, onSettings = {}, onEnd = {}, warmups = true)
+                    onSkipRest = {}, onEnd = {}, warmups = true)
             }
         }
         val weight = "${Plates().round(ex.weight!!)}"

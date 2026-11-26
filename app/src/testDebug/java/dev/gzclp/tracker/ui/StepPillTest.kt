@@ -98,7 +98,7 @@ class StepPillTest {
                         state = store.state.value
                     },
                     onClear = { e: Exercise, i: Int -> store.dispatch(t0) { Commands.clearSet(it, e, i) }; state = store.state.value },
-                    onEditWeight = {}, onSwap = {}, onSkipRest = {}, onSettings = {}, onEnd = {}, warmups = false,
+                    onEditWeight = {}, onSwap = {}, onSkipRest = {}, onEnd = {}, warmups = false,
                 )
             }
         }
@@ -159,7 +159,7 @@ class StepPillTest {
                         store.dispatch(t0) { Commands.logSet(it, e, i, r, w, t0, Tier.entries.associateWith { t -> t.defaultRestSec }, rpe) }
                         state = store.state.value
                     },
-                    onClear = { _, _ -> }, onFinish = {}, onSettings = {},
+                    onClear = { _, _ -> }, onFinish = {},
                 )
             }
         }

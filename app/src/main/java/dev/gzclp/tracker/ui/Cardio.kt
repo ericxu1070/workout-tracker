@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,7 +31,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -57,20 +55,20 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
-/** The Lifting | Cardio | Stretching switch atop each Workout page; [mode] is this page's index. In [WorkoutPages] it holds still while its page slides. */
+/**
+ * The Workout tab's Lifting, Cardio and Stretching screens as pages under one header, the gear and their switch:
+ * swipe the pages, or tap or drag the switch. The header stays put while the pages slide or scroll.
+ */
 @Composable
-fun WorkoutSwitch(mode: Int, onSelect: (Int) -> Unit) {
-    val pager = LocalPages.current
-    // Pinned, every page's copy sits in the same spot; only the current page's is read out.
-    val here = pager?.let { Modifier.pinned(it, mode).then(if (it.currentPage == mode) Modifier else Modifier.clearAndSetSemantics {}) } ?: Modifier
-    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) }, here, pager)
-}
-
-/** The Workout tab's Lifting, Cardio and Stretching screens as pages: swipe between them, or tap or drag their switch. */
-@Composable
-fun WorkoutPages(mode: Int, onMode: (Int) -> Unit, page: @Composable (Int) -> Unit) =
+fun WorkoutPages(mode: Int, onMode: (Int) -> Unit, onSettings: () -> Unit, page: @Composable (Int) -> Unit) {
+    val p = LocalPalette.current
+    val pager = rememberPages(mode, 3, onMode)
     // All three stay composed: a thumb dragged from Lifting to Stretching outlives its page sliding off screen.
-    Pages(rememberPages(mode, 3, onMode), Modifier.fillMaxSize(), beyond = 2, page = page)
+    Pages(pager, beyond = 2, header = {
+        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
+        Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onMode(it) }, pager = pager)
+    }, page = page)
+}
 
 /** Finished sessions whose own local start date falls in the week from [monday], newest first. */
 fun AppState.cardioWeek(monday: LocalDate): List<Cardio> =
@@ -133,8 +131,6 @@ fun CardioScreen(
     state: AppState,
     today: LocalDate,
     goalMin: Int,
-    onMode: (Int) -> Unit,
-    onSettings: () -> Unit,
     onStart: () -> Unit,
     onQuick: (Activity) -> Unit,
     onLogPast: () -> Unit,
@@ -146,8 +142,6 @@ fun CardioScreen(
     val summary = state.week(week)
     val total = summary.cardioSec
     ScreenFrame(bottom = { BottomBar { PillButton(if (lifting) "Lift in progress" else "Start cardio", onStart, Modifier.weight(1f), primary = true, enabled = !lifting) } }) {
-        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        WorkoutSwitch(1, onMode)
         Spacer(Modifier.height(Space.xxl))
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(Fmt.minutes(total), Type.title1)

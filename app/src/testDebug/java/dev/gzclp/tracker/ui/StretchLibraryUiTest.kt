@@ -30,7 +30,7 @@ class StretchLibraryUiTest {
     private val library = StretchRoutines.more.first()
 
     private fun show(defaultId: String = StretchRoutines.ID_AFTER_WORKOUT, onOpen: (StretchRoutine) -> Unit = {}) {
-        rule.setContent { StretchScreen(null, defaultId, {}, {}, {}, onOpen, {}) }
+        rule.setContent { StretchScreen(null, defaultId, {}, onOpen, {}) }
     }
 
     @Test fun theLibraryWaitsBehindShowMore() {
@@ -53,7 +53,7 @@ class StretchLibraryUiTest {
         store.dispatch(OffsetDateTime.parse("2026-11-25T20:00:00-08:00")) { Commands.newStretchRoutine(it, "Evening", listOf(StretchMoves.PIGEON_POSE)) }
         val state = store.state.value
         var opened: StretchRoutine? = null
-        rule.setContent { StretchScreen(state, StretchRoutines.ID_AFTER_WORKOUT, {}, {}, {}, { opened = it }, {}) }
+        rule.setContent { StretchScreen(state, StretchRoutines.ID_AFTER_WORKOUT, {}, { opened = it }, {}) }
         rule.onNodeWithText("Show more").assertExists()
         rule.onNodeWithText("Evening").assertExists()
         rule.onNodeWithContentDescription("Evening moves").performClick()

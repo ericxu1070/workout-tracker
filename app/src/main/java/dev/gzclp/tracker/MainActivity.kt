@@ -463,23 +463,22 @@ private fun App(model: AppModel) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
-                            ) else WorkoutPages(model.workoutMode, model::chooseWorkoutMode) { page ->
+                            ) else WorkoutPages(model.workoutMode, model::chooseWorkoutMode, onSettings = { push(Route.Settings) }) { page ->
                                 when (page) {
                                     1 -> CardioScreen(
-                                        state, LocalDate.now(), model.cardioGoalMin, onMode = model::chooseWorkoutMode,
-                                        onSettings = { push(Route.Settings) }, onStart = { push(Route.Activities) }, onQuick = ::startCardio,
+                                        state, LocalDate.now(), model.cardioGoalMin,
+                                        onStart = { push(Route.Activities) }, onQuick = ::startCardio,
                                         onLogPast = { push(Route.Activities, "log") }, onEdit = { open(cardioEdit(it, model.now())) }, lifting = state.active != null,
                                     )
                                     2 -> StretchScreen(
-                                        state, model.stretchRoutine, onMode = model::chooseWorkoutMode,
-                                        onSettings = { push(Route.Settings) }, onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
+                                        state, model.stretchRoutine,
+                                        onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
                                         onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
                                     )
                                     else -> if (state.active == null) HomeScreen(
-                                        state, onStart = ::startFlow, onSettings = { push(Route.Settings) },
+                                        state, onStart = ::startFlow,
                                         onEditWeight = { open(weightSheet(it)) },
-                                        onMode = model::chooseWorkoutMode,
-                                        onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
+                                                                                onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                         onStartOpen = ::startOpenFlow,
                                     ) else WorkoutScreen(
                                         state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
@@ -495,7 +494,6 @@ private fun App(model: AppModel) {
                                         onEditWeight = { open(weightSheet(it)) },
                                         onSwap = { open(SheetState.Swap(it, "")) },
                                         onSkipRest = model::cancelRest,
-                                        onSettings = { push(Route.Settings) },
                                         onEnd = {
                                             val n = unloggedSets(state)
                                             if (n > 0) open(SheetState.EndConfirm(n)) else endFlow()
@@ -503,7 +501,6 @@ private fun App(model: AppModel) {
                                         warmups = model.warmups,
                                         onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                         onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
-                                        onMode = model::chooseWorkoutMode,
                                     )
                                 }
                             }

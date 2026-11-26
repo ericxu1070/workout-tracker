@@ -82,9 +82,6 @@ import dev.gzclp.tracker.ui.Type.tabular
 import java.time.Duration
 import java.time.OffsetDateTime
 
-/** The height in px of the [ScreenFrame] scroll area around the composition. */
-val LocalFrameHeight = androidx.compose.runtime.compositionLocalOf { 0 }
-
 /** A full-height screen: scrolling content below the status bar, optional bottom bar. */
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) = Frame(bottom) {
@@ -105,7 +102,6 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     val p = LocalPalette.current
     val title = remember { LargeTitle() }
     var top by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    var height by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barPx = with(androidx.compose.ui.platform.LocalDensity.current) { 44.dp.toPx() }
     val inline by remember { androidx.compose.runtime.derivedStateOf { title.bottom < top } }
     // Liquid Glass floats the bottom bar over the page, which scrolls on under it and under the tab bar below.
@@ -116,16 +112,17 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     val inset = if (b == null) 0.dp else with(density) { bar.toDp() }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
     Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
-        Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx; height = it.size.height }) {
+        Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {
             Box(Modifier.matchParentSize().backdropSource(b)) {
                 androidx.compose.runtime.CompositionLocalProvider(
-                    LocalLargeTitle provides title, LocalFrameHeight provides height - with(density) { inset.roundToPx() }, LocalBottomInset provides inset,
+                    LocalLargeTitle provides title, LocalBottomInset provides inset,
                     content = scroller,
                 )
             }
             androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides b) {
-                // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
-                androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it;
+                // not in a page of [Pages], whose fixed header above already holds the screen's bar.
+                androidx.compose.animation.AnimatedVisibility(inline && LocalPages.current == null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
                     Column(Modifier.fillMaxWidth().then(if (b != null) Modifier.glassPane(androidx.compose.ui.graphics.RectangleShape) else Modifier.background(p.bg))) {
                         Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = Space.x4), contentAlignment = Alignment.Center) {
                             Txt(title.text, Type.headline, maxLines = 1)
@@ -265,9 +262,7 @@ fun Exercise.warmsUp(): Boolean = tier == Tier.T1 || (tier == Tier.CUSTOM && id 
 fun HomeScreen(
     state: AppState,
     onStart: () -> Unit,
-    onSettings: () -> Unit,
     onEditWeight: (Exercise) -> Unit,
-    onMode: (Int) -> Unit = {},
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onStartOpen: () -> Unit = {},
 ) {
@@ -282,8 +277,6 @@ fun HomeScreen(
             PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
         }
     }) {
-        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        WorkoutSwitch(0, onMode)
         Spacer(Modifier.height(Space.xxl))
         Txt(day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xxl))
@@ -333,12 +326,10 @@ fun WorkoutScreen(
     onEditWeight: (Exercise) -> Unit,
     onSwap: (Exercise) -> Unit,
     onSkipRest: () -> Unit,
-    onSettings: () -> Unit,
     onEnd: () -> Unit,
     warmups: Boolean = true,
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
-    onMode: ((Int) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
@@ -353,8 +344,6 @@ fun WorkoutScreen(
                 OpenSessionManager.reset()
                 onFinishOpen(counts)
             },
-            onSettings = onSettings,
-            onMode = onMode,
         )
         return
     }
@@ -365,9 +354,7 @@ fun WorkoutScreen(
             else PillButton("End workout", onEnd, Modifier.weight(1f))
         }
     }) {
-        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        // Lifting shows the session; Cardio and Stretching stay a tap away mid-lift.
-        onMode?.let { WorkoutSwitch(0, it); Spacer(Modifier.height(Space.xxl)) }
+        Spacer(Modifier.height(Space.xxl))
         Txt(a.day.title, Type.largeTitle, maxLines = 1)
         Spacer(Modifier.height(Space.xs))
         Txt(Fmt.minutes(Duration.between(a.startedAt, now).seconds), Type.subhead.tabular(), color = p.fg2)

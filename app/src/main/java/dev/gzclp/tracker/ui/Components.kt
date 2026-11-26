@@ -7,13 +7,13 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
@@ -112,6 +112,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.toSize
 
 /** The screen's large title and where its bottom edge is on screen, so [ScreenFrame] can show it inline once it scrolls away. */
 class LargeTitle {
@@ -342,7 +343,8 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 
 /**
  * A segmented control: one thumb slides under the labels, which cross-fade as it passes; tap a segment or drag the thumb.
- * Given a [pager], the thumb is the pager's position, so it follows a swipe and dragging it turns the pages; otherwise it springs to [selected].
+ * Given a [pager], the thumb follows a swipe of the pages, and dragging it snaps the pages to the segment under it; otherwise it springs to [selected].
+ * Held, the bar swells a little; held or swiped, the thumb lifts past the bar, springs after the finger, and squashes with its speed ([ThumbMotion]).
  */
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
@@ -351,49 +353,107 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     val select by rememberUpdatedState(onSelect)
     val own = remember { Animatable(selected.toFloat()) }
     LaunchedEffect(selected) { own.animateTo(selected.toFloat(), SegmentSpring) }
-    val at = { pager?.position ?: own.value }
+    var held by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val swiped by (pager?.interactionSource ?: remember { MutableInteractionSource() }).collectIsDraggedAsState()
+    // Where the thumb heads: the finger while it drags the thumb; the pages' position while a finger swipes them; else the page
+    // they are headed to, so after a tap or a fling the thumb leads the pages instead of trailing them.
+    var drag by remember { androidx.compose.runtime.mutableStateOf<Float?>(null) }
+    // A tapped segment, aimed at on the tap itself so the thumb moves on the next frame along with the pages.
+    var aim by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    val at = { drag ?: aim?.toFloat() ?: pager?.let { if (swiped) it.position else it.targetPage.toFloat() } ?: own.value }
+    fun tap(i: Int) {
+        aim = i
+        scope.launch {
+            try {
+                pager?.springTo(i)
+            } finally {
+                if (aim == i) aim = null
+            }
+        }
+    }
+    val motion = remember { ThumbMotion(at()) }
+    val lifted = held || swiped
+    // Waits, without frames, for the target to move, then chases it until the thumb rests there again.
+    LaunchedEffect(motion) {
+        while (true) {
+            androidx.compose.runtime.snapshotFlow { at() }.first { it != motion.x }
+            motion.chase(at)
+        }
+    }
+    LaunchedEffect(lifted) { motion.lift.animateTo(if (lifted) 1f else 0f, ThumbMotion.Lift) }
+    val swell by animateFloatAsState(if (held) 1.04f else 1f, androidx.compose.animation.core.spring(0.55f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
     Box(
-        modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)
+        modifier.fillMaxWidth().graphicsLayer { scaleX = swell; scaleY = swell }.background(p.fill, CircleShape).padding(Space.xs)
+            .pointerInput(Unit) {
+                // Watches the finger without taking it, so taps and drags below still work.
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    held = true
+                    try {
+                        do { val e = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial) } while (e.changes.any { it.pressed })
+                    } finally {
+                        held = false
+                    }
+                }
+            }
             .pointerInput(pager, options.size) {
                 val segment = size.width / options.size.toFloat()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
-                    // The thumb takes the finger's travel in segments; let go, it springs to the nearest one.
-                    val moves = Channel<Float>(Channel.UNLIMITED)
-                    scope.launch {
-                        if (pager != null) pager.scroll(MutatePriority.UserInput) { for (d in moves) scrollBy(d * (pager.layoutInfo.pageSize + pager.layoutInfo.pageSpacing)) }
-                        else for (d in moves) own.snapTo((own.value + d).coerceIn(0f, options.lastIndex.toFloat()))
-                        val to = at().roundToInt()
-                        if (pager != null) pager.animateScrollToPage(to, animationSpec = SegmentSpring)
-                        else { select(to); own.animateTo(to.toFloat(), SegmentSpring) }
+                    // The thumb stays under the finger; the pages snap to the segment it is over, so a page held under the finger stays clear.
+                    val from = at()
+                    var spot = from
+                    var shown = pager?.currentPage
+                    fun follow(x: Float) {
+                        spot = (from + (x - down.position.x) / segment).coerceIn(0f, options.lastIndex.toFloat())
+                        drag = spot
+                        val over = spot.roundToInt()
+                        if (pager != null && over != shown) {
+                            shown = over
+                            scope.launch { pager.springTo(over) }
+                        }
                     }
                     try {
-                        moves.trySend((slop.position.x - down.position.x) / segment)
-                        horizontalDrag(slop.id) { moves.trySend((it.position.x - it.previousPosition.x) / segment); it.consume() }
+                        follow(slop.position.x)
+                        horizontalDrag(slop.id) { follow(it.position.x); it.consume() }
                     } finally {
-                        moves.close()
+                        drag = null
+                        val to = spot.roundToInt()
+                        if (pager == null) {
+                            scope.launch { own.snapTo(to.toFloat()) }
+                            select(to)
+                        } else if (to != shown) scope.launch { pager.springTo(to) }
                     }
                 }
             },
     ) {
-        val on by remember(pager) { derivedStateOf { at().roundToInt() } }
-        Row {
+        // Selected is the segment under the thumb.
+        val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
+        var area by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+        fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / options.size).let { w -> thumbPill((motion.x + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch) }
+        // In Liquid Glass a lifted thumb is clear glass: the labels under it show through it, bent at its rim.
+        val clear = { if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f }
+        Row(Modifier.onSizeChanged { area = it.toSize() }.glassLens({ pill(area) }, clear)) {
             options.forEachIndexed { i, o ->
-                Pressable({ select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
+                Pressable({ if (pager != null) tap(i) else select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
                     Txt(o, Type.subhead, color = p.fg, maxLines = 1)
                 }
             }
         }
         // The thumb carries its own labels, clipped to its pill, so each label turns as the thumb's edge crosses it.
         // It takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
+        // Lifted, it grows past the bar, so nothing here clips to the bar.
         Row(
             Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
-                val w = size.width / options.size
-                val pill = Path().apply { addRoundRect(RoundRect(at() * w, 0f, at() * w + w, size.height, CornerRadius(size.height / 2))) }
-                clipPath(pill) {
-                    drawPath(pill, p.thumb)
+                val pill = pill(size)
+                with(p.thumbPainter) { paint(pill, p.thumb, motion.lift.value.coerceIn(0f, 1f)) }
+                // Its accent-colored labels fade as it clears, leaving the bar's own labels seen through the glass.
+                val a = 1f - clear()
+                if (a > 0f) clipPath(Path().apply { addRoundRect(pill) }) {
+                    drawContext.canvas.saveLayer(pill.let { androidx.compose.ui.geometry.Rect(it.left, it.top, it.right, it.bottom) }, androidx.compose.ui.graphics.Paint().apply { alpha = a })
                     this@drawWithContent.drawContent()
+                    drawContext.canvas.restore()
                 }
             },
         ) {

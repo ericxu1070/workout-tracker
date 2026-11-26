@@ -457,8 +457,6 @@ fun OpenSessionScreen(
     onLog: (Exercise, Int, Int, Int, Double?) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onFinish: (Boolean) -> Unit,
-    onSettings: () -> Unit,
-    onMode: ((Int) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val a = state.active
@@ -474,18 +472,15 @@ fun OpenSessionScreen(
             )
         }
     }) {
-        NavRow {
-            SmallPill("Add exercise", { showAddExercise = true })
-            IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2)
-        }
-        onMode?.let { WorkoutSwitch(0, it); Spacer(Modifier.height(Space.xxl)) }
-
+        Spacer(Modifier.height(Space.xxl))
+        // The gear and the switch sit in the Workout header above, so adding an exercise sits with the title.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Txt("Open session", Type.largeTitle)
                 val elapsed = if (a != null) Duration.between(a.startedAt, now).seconds else 0L
                 Txt(Fmt.clock(elapsed) + " elapsed", Type.subhead.tabular(), color = p.fg2)
             }
+            SmallPill("Add exercise", { showAddExercise = true })
         }
 
         if (OpenSessionManager.exercises.isEmpty()) {

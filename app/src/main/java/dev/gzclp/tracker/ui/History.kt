@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -21,9 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -65,24 +61,20 @@ fun HistoryScreen(
     week: @Composable ColumnScope.() -> Unit,
 ) {
     val pager = rememberPages(view.ordinal, HistoryView.entries.size) { onView(HistoryView.entries[it]) }
-    var top by remember { mutableIntStateOf(0) }
-    ScreenFrame {
-        // The pages reach the bottom of the screen even when short, so a swipe anywhere below the switch turns them.
-        val rest = with(LocalDensity.current) { (LocalFrameHeight.current - top - Space.x3.roundToPx()).coerceAtLeast(0).toDp() }
+    Pages(pager, header = {
         Spacer(Modifier.height(52.dp))
         Txt("History", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
         Segmented(HistoryView.entries.map { it.name }, view.ordinal, { onView(HistoryView.entries[it]) }, pager = pager)
-        Pages(pager, Modifier.bleed(Space.lg).onPlaced { top = it.positionInParent().y.roundToInt() }.heightIn(min = rest)) { page ->
-            Column(Modifier.fillMaxWidth().padding(horizontal = Space.lg)) {
-                when (HistoryView.entries[page]) {
-                    HistoryView.Week -> week()
-                    HistoryView.Month -> {
-                        Spacer(Modifier.height(Space.lg))
-                        MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
-                    }
-                    HistoryView.All -> AllHistory(state, onOpen, onCardio, deleting, onDelete)
+    }) { page ->
+        ScreenFrame {
+            when (HistoryView.entries[page]) {
+                HistoryView.Week -> week()
+                HistoryView.Month -> {
+                    Spacer(Modifier.height(Space.lg))
+                    MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
                 }
+                HistoryView.All -> AllHistory(state, onOpen, onCardio, deleting, onDelete)
             }
         }
     }

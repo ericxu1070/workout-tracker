@@ -30,7 +30,7 @@ class DeclutterTest {
 
     @Test fun nextWorkoutShowsOnlyTheDayAsItsHeading() {
         val s = state()
-        rule.setContent { HomeScreen(s, {}, {}, {}) }
+        rule.setContent { WorkoutPages(0, {}, {}) { if (it == 0) HomeScreen(s, {}, {}) } }
         rule.onNodeWithText(s.nextDay.title).assertExists()
         rule.onAllNodesWithText(s.program.name, substring = true).assertCountEquals(0)
         rule.onAllNodesWithText("first workout", substring = true).assertCountEquals(0)

@@ -31,6 +31,8 @@ data class Palette(
     val thumb: Color = accent,
     /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
     val glows: List<Color> = emptyList(),
+    /** How [thumb] is painted, resting and lifted under a finger; a theme with a material shows it only while lifted. */
+    val thumbPainter: ThumbPainter = SolidThumb,
 ) {
     val glass: Boolean get() = glows.isNotEmpty()
     /** A card's fill: [elevated], or in Liquid Glass a translucent pane over the wallpaper ([elevated] is that pane over [bg]). */
@@ -86,7 +88,7 @@ object Palettes {
     /** Apple's Liquid Glass, dark: glass panes over a wallpaper of blue, violet and teal glows. */
     val glass = Palette(
         "glass", "Liquid Glass", true, Color(0xFF0B0F1A), Color(0xFF1C202A), Color(0xFFF2F5FF), Color(0xFFB4BDD2), Color(0xFF7DBFFF), Color(0xFF0B0F1A), Color(0xFFFF9E96),
-        glows = listOf(Color(0xFF2F6BFF).copy(alpha = 0.18f), Color(0xFF9B5CFF).copy(alpha = 0.14f), Color(0xFF16C2AE).copy(alpha = 0.10f)),
+        glows = listOf(Color(0xFF2F6BFF).copy(alpha = 0.18f), Color(0xFF9B5CFF).copy(alpha = 0.14f), Color(0xFF16C2AE).copy(alpha = 0.10f)), thumbPainter = GlassThumb,
     )
     /** The hand-tuned themes, which every screenshot renders. */
     val all = listOf(jade, tokyo, dark, light)
