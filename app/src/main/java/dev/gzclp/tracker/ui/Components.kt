@@ -1,5 +1,21 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.MutatePriority
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.animateFloatAsState
@@ -313,19 +329,64 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
     }
 }
 
+/**
+ * A segmented control: one thumb slides under the labels, which cross-fade as it passes; tap a segment or drag the thumb.
+ * Given a [pager], the thumb is the pager's position, so it follows a swipe and dragging it turns the pages; otherwise it springs to [selected].
+ */
 @Composable
-fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
     val p = LocalPalette.current
-    // The selected pill takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
-    Row(modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)) {
-        options.forEachIndexed { i, o ->
-            val on = i == selected
-            Pressable(
-                { onSelect(i) },
-                Modifier.weight(1f).height(36.dp).semantics { this.selected = on },
-                CircleShape, if (on) p.accent else Color.Transparent, role = Role.Tab,
-            ) {
-                Txt(o, Type.subhead.copy(fontWeight = if (on) Type.headline.fontWeight else Type.subhead.fontWeight), color = if (on) p.onAccent else p.fg, maxLines = 1)
+    val scope = rememberCoroutineScope()
+    val select by rememberUpdatedState(onSelect)
+    val own = remember { Animatable(selected.toFloat()) }
+    LaunchedEffect(selected) { own.animateTo(selected.toFloat(), SegmentSpring) }
+    val at = { pager?.position ?: own.value }
+    Box(
+        modifier.fillMaxWidth().clip(CircleShape).background(p.fill).padding(Space.xs)
+            .pointerInput(pager, options.size) {
+                val segment = size.width / options.size.toFloat()
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() } ?: return@awaitEachGesture
+                    // The thumb takes the finger's travel in segments; let go, it springs to the nearest one.
+                    val moves = Channel<Float>(Channel.UNLIMITED)
+                    scope.launch {
+                        if (pager != null) pager.scroll(MutatePriority.UserInput) { for (d in moves) scrollBy(d * (pager.layoutInfo.pageSize + pager.layoutInfo.pageSpacing)) }
+                        else for (d in moves) own.snapTo((own.value + d).coerceIn(0f, options.lastIndex.toFloat()))
+                        val to = at().roundToInt()
+                        if (pager != null) pager.animateScrollToPage(to, animationSpec = SegmentSpring)
+                        else { select(to); own.animateTo(to.toFloat(), SegmentSpring) }
+                    }
+                    moves.trySend((slop.position.x - down.position.x) / segment)
+                    horizontalDrag(slop.id) { moves.trySend((it.position.x - it.previousPosition.x) / segment); it.consume() }
+                    moves.close()
+                }
+            },
+    ) {
+        val on by remember(pager) { derivedStateOf { at().roundToInt() } }
+        Row {
+            options.forEachIndexed { i, o ->
+                Pressable({ select(i) }, Modifier.weight(1f).height(36.dp).semantics { this.selected = i == on }, CircleShape, role = Role.Tab) {
+                    Txt(o, Type.subhead, color = p.fg, maxLines = 1)
+                }
+            }
+        }
+        // The thumb carries its own labels, clipped to its pill, so each label turns as the thumb's edge crosses it.
+        // It takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
+        Row(
+            Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
+                val w = size.width / options.size
+                val pill = Path().apply { addRoundRect(RoundRect(at() * w, 0f, at() * w + w, size.height, CornerRadius(size.height / 2))) }
+                clipPath(pill) {
+                    drawPath(pill, p.thumb)
+                    this@drawWithContent.drawContent()
+                }
+            },
+        ) {
+            options.forEach { o ->
+                Box(Modifier.weight(1f).height(36.dp), contentAlignment = Alignment.Center) {
+                    Txt(o, Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onAccent, maxLines = 1)
+                }
             }
         }
     }
@@ -406,6 +467,7 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
     val p = LocalPalette.current
     // Back closes the sheet, never the screen or the app beneath it.
     androidx.activity.compose.BackHandler(visible, onDismiss)
+    HoldPages(visible)
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
             Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))

@@ -27,6 +27,8 @@ data class Palette(
     val accent: Color,
     val onAccent: Color,
     val red: Color,
+    /** The segmented control's selection thumb, which [onAccent] labels sit on; a theme may restyle it. */
+    val thumb: Color = accent,
 ) {
     /** Tertiary text and icons: the faintest [fg] that still reads at 4.5:1 on every surface. */
     val fg3: Color by lazy {

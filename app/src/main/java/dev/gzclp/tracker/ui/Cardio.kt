@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -55,10 +56,17 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
-/** The Lifting | Cardio | Stretching switch atop the idle Workout tab; [mode] is the selected index. */
+/** The Lifting | Cardio | Stretching switch atop each Workout page; [mode] is this page's index. In [WorkoutPages] it holds still while its page slides. */
 @Composable
-fun WorkoutSwitch(mode: Int, onSelect: (Int) -> Unit) =
-    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) })
+fun WorkoutSwitch(mode: Int, onSelect: (Int) -> Unit) {
+    val pager = LocalPages.current
+    Segmented(listOf("Lifting", "Cardio", "Stretching"), mode, { if (it != mode) onSelect(it) }, pager?.let { Modifier.pinned(it, mode) } ?: Modifier, pager)
+}
+
+/** The Workout tab's Lifting, Cardio and Stretching screens as pages: swipe between them, or tap or drag their switch. */
+@Composable
+fun WorkoutPages(mode: Int, onMode: (Int) -> Unit, page: @Composable (Int) -> Unit) =
+    Pages(rememberPages(mode, 3, onMode), Modifier.fillMaxSize(), page)
 
 /** Finished sessions whose own local start date falls in the week from [monday], newest first. */
 fun AppState.cardioWeek(monday: LocalDate): List<Cardio> =

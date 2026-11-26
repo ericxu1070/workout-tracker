@@ -589,6 +589,7 @@ fun MovePreviewDialog(
     onDismiss: () -> Unit,
 ) {
     val p = LocalPalette.current
+    HoldPages(true)
     Box(
         Modifier
             .fillMaxSize()

@@ -56,63 +56,72 @@ fun HistoryScreen(
     today: java.time.LocalDate = java.time.LocalDate.now(),
     week: @Composable ColumnScope.() -> Unit,
 ) {
-    val p = LocalPalette.current
-    val done = state.sessions.filter { it.sets.isNotEmpty() }
+    val pager = rememberPages(view.ordinal, HistoryView.entries.size) { onView(HistoryView.entries[it]) }
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("History", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
-        Segmented(HistoryView.entries.map { it.name }, view.ordinal, { onView(HistoryView.entries[it]) })
-        when (view) {
-            HistoryView.Week -> { week(); return@ScreenFrame }
-            HistoryView.Month -> {
-                Spacer(Modifier.height(Space.lg))
-                MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
-                return@ScreenFrame
-            }
-            HistoryView.All -> {}
-        }
-        val cardio = state.cardio.values
-        if (done.isEmpty() && cardio.isEmpty()) {
-            Spacer(Modifier.height(Space.xxl))
-            Txt("No workouts yet", Type.headline)
-            return@ScreenFrame
-        }
-        if (done.isNotEmpty()) {
-            val recent = done.takeLast(16)
-            val avg = done.sumOf { it.durationSec } / done.size
-            Spacer(Modifier.height(Space.xxl))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Txt(Fmt.minutes(avg), Type.title1)
-                Spacer(Modifier.width(Space.sm))
-                Txt("average workout", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
-            }
-            Spacer(Modifier.height(Space.md))
-            BarChart(recent)
-        }
-        GroupHeader(if (cardio.isEmpty()) "${done.size} ${if (done.size == 1) "workout" else "workouts"}" else "${done.size} lifting · ${cardio.size} cardio")
-        Group {
-            (done.map { it.startedAt to it } + cardio.map { it.startedAt to it }).sortedByDescending { it.first }.forEachIndexed { i, (_, s) ->
-                if (s is Cardio) GroupRow(first = i == 0, onClick = { onCardio(s) }) {
-                    val unit = Activities.of(s.activity)?.unit ?: DistanceUnit.MI
-                    Column(Modifier.weight(1f)) {
-                        Txt("${s.name} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
-                        Txt(
-                            listOfNotNull(Fmt.time(s.startedAt), s.distanceM?.let { distanceText(it, unit) }, s.distanceM?.let { HealthRecords.pace(s.activity, unit, it, s.durationSec) })
-                                .joinToString(" · "),
-                            Type.footnote, color = p.fg2, maxLines = 1,
-                        )
+        Segmented(HistoryView.entries.map { it.name }, view.ordinal, { onView(HistoryView.entries[it]) }, pager = pager)
+        Pages(pager, Modifier.bleed(Space.lg)) { page ->
+            Column(Modifier.fillMaxWidth().padding(horizontal = Space.lg)) {
+                when (HistoryView.entries[page]) {
+                    HistoryView.Week -> week()
+                    HistoryView.Month -> {
+                        Spacer(Modifier.height(Space.lg))
+                        MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
                     }
-                    Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
-                    Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
-                } else if (s is SessionRecord) GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
-                    Column(Modifier.weight(1f)) {
-                        Txt("${s.day.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
-                        Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) }, Type.footnote, color = p.fg2, maxLines = 1)
-                    }
-                    Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
-                    Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                    HistoryView.All -> AllHistory(state, onOpen, onCardio)
                 }
+            }
+        }
+    }
+}
+
+/** Every finished lift and cardio session, newest first, under the average workout and the last 16 lifts' bars. */
+@Composable
+private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit) {
+    val p = LocalPalette.current
+    val done = state.sessions.filter { it.sets.isNotEmpty() }
+    val cardio = state.cardio.values
+    if (done.isEmpty() && cardio.isEmpty()) {
+        Spacer(Modifier.height(Space.xxl))
+        Txt("No workouts yet", Type.headline)
+        return
+    }
+    if (done.isNotEmpty()) {
+        val recent = done.takeLast(16)
+        val avg = done.sumOf { it.durationSec } / done.size
+        Spacer(Modifier.height(Space.xxl))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Txt(Fmt.minutes(avg), Type.title1)
+            Spacer(Modifier.width(Space.sm))
+            Txt("average workout", Type.subhead, Modifier.padding(bottom = 4.dp), p.fg2)
+        }
+        Spacer(Modifier.height(Space.md))
+        BarChart(recent)
+    }
+    GroupHeader(if (cardio.isEmpty()) "${done.size} ${if (done.size == 1) "workout" else "workouts"}" else "${done.size} lifting · ${cardio.size} cardio")
+    Group {
+        (done.map { it.startedAt to it } + cardio.map { it.startedAt to it }).sortedByDescending { it.first }.forEachIndexed { i, (_, s) ->
+            if (s is Cardio) GroupRow(first = i == 0, onClick = { onCardio(s) }) {
+                val unit = Activities.of(s.activity)?.unit ?: DistanceUnit.MI
+                Column(Modifier.weight(1f)) {
+                    Txt("${s.name} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
+                    Txt(
+                        listOfNotNull(Fmt.time(s.startedAt), s.distanceM?.let { distanceText(it, unit) }, s.distanceM?.let { HealthRecords.pace(s.activity, unit, it, s.durationSec) })
+                            .joinToString(" · "),
+                        Type.footnote, color = p.fg2, maxLines = 1,
+                    )
+                }
+                Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+            } else if (s is SessionRecord) GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
+                Column(Modifier.weight(1f)) {
+                    Txt("${s.day.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
+                    Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) }, Type.footnote, color = p.fg2, maxLines = 1)
+                }
+                Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
         }
     }
