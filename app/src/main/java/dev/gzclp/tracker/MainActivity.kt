@@ -92,6 +92,7 @@ import dev.gzclp.tracker.ui.RippleField
 import dev.gzclp.tracker.ui.effectsFor
 import dev.gzclp.tracker.ui.ripples
 import dev.gzclp.tracker.ui.watchTaps
+import dev.gzclp.tracker.ui.touchdown
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -203,6 +204,7 @@ private fun App(model: AppModel) {
     var historyWeek by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows this week across Sunday midnight
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val motion = LocalMotion.current
 
     LaunchedEffect(state.active != null || state.cardioActive != null) {
         while (state.active != null || state.cardioActive != null) {
@@ -367,6 +369,7 @@ private fun App(model: AppModel) {
         model.dispatch { Commands.startOpen(it, model.now()) }
     }
     fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
+        motion.touchdown(motion.tap)
         model.dispatch { Commands.end(it, model.now(), fiveRm, counts) }
         model.cancelRest()
         close()
@@ -393,7 +396,6 @@ private fun App(model: AppModel) {
     // A pushed screen's pop is the [BackStack]'s, which shows it under the finger.
     LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
-    val motion = LocalMotion.current
     motion.ripples?.let { RippleClock(it) }
     Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples)) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.

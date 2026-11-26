@@ -106,6 +106,13 @@ val DropScale = androidx.compose.animation.core.keyframes<Float> {
 /** How long a drop takes to land, when its ripple starts. */
 const val DROP_LAND_MS = 200L
 
+/** The big landing at [at], a workout's end: the strongest ripple, and a thud with its tail. */
+fun Motion.touchdown(at: Offset, strength: Float = 1f) {
+    if (Effect.Bookends !in effects) return
+    ripples?.drop(if (at == Offset.Unspecified) Offset(window.width / 2f, window.height / 2f) else at, strength)
+    feel?.touchdown()
+}
+
 /** A landing's spring: quick, with one small overshoot, for things set down rather than tapped. */
 fun <T> landSpring() = spring<T>(dampingRatio = 0.6f, stiffness = 500f)
 
@@ -270,6 +277,14 @@ class Feel(private val context: Context, private val view: View) {
     fun double() = play(HapticFeedbackConstants.CONFIRM) {
         addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 0.8f)
         addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1f, 90)
+    }
+
+    /** The big landing: a full thud, then the ripple's tail of fading ticks. */
+    fun touchdown() = play(HapticFeedbackConstants.CONFIRM) {
+        addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1f)
+        addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f, 140)
+        addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 180)
+        addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.15f, 220)
     }
 
     /** A ring's tail: three fading ticks. */

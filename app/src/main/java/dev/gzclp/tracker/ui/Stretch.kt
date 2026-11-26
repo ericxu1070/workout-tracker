@@ -614,6 +614,9 @@ private fun RoutineCompleteView(
     val p = LocalPalette.current
     val held = player.completedMoves.size
     val sec = player.elapsedTotalSec
+    val motion = LocalMotion.current
+    // Loaded: the routine lands, a little softer than a workout.
+    androidx.compose.runtime.LaunchedEffect(Unit) { if (held > 0) motion.touchdown(Offset.Unspecified, 0.6f) }
     // One line says what was done; nothing held means nothing to log, so the only way on is Close.
     ScreenFrame(bottom = {
         BottomBar {
