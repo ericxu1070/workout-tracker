@@ -82,7 +82,7 @@ import dev.gzclp.tracker.ui.TabHost
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.BackStack
 import dev.gzclp.tracker.ui.GzTheme
-import dev.gzclp.tracker.ui.GlassTabBar
+import dev.gzclp.tracker.ui.tabBarHeight
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -542,7 +542,7 @@ private fun App(model: AppModel) {
             }
         }
         LaunchedEffect(weighUndo) {
-            delay(4000)
+            delay(8000)
             weighUndo = null
         }
         UndoBar(
@@ -551,9 +551,8 @@ private fun App(model: AppModel) {
                 weighUndo?.let { u -> model.dispatch { Commands.undoBodyWeight(it, u.id, u.before) } }
                 weighUndo = null
             },
-            // Clears the tab bar where there is one.
-            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = if (route != null) Space.lg else if (LocalPalette.current.glass) GlassTabBar + Space.xs + Space.sm else 64.dp),
+            // Over the bottom bar's pill, above the tab bar where there is one.
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = tabBarHeight(route == null) + Space.lg),
             backdrop,
         )
         Sheet(sheet != null, ::close, backdrop) {
