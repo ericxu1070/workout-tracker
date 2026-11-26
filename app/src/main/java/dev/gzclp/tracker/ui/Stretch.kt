@@ -121,7 +121,7 @@ fun StretchScreen(
                 GroupRow(first = first, onClick = { selectedKey = routine.key }) {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
+                            Txt(routine.name, Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
                             if (routine.key == defaultKey) {
                                 Spacer(Modifier.width(Space.xs))
                                 Txt("Default", Type.footnote, color = p.fg2)
@@ -601,55 +601,22 @@ private fun RoutineCompleteView(
     onFinish: () -> Unit,
 ) {
     val p = LocalPalette.current
-    ScreenFrame {
-        NavRow(onBack)
-        Spacer(Modifier.height(Space.md))
-
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(Radius.lg))
-                .background(p.card)
-                .padding(Space.lg),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(p.accent),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.check, p.onAccent, size = 32.dp)
-                }
-
-                Spacer(Modifier.height(Space.md))
-                Txt("Routine done", Type.title1)
-                Spacer(Modifier.height(Space.xs))
-                Txt(player.routine.name, Type.subhead, color = p.fg2)
-
-                Spacer(Modifier.height(Space.lg))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Txt(Fmt.clock(player.elapsedTotalSec), Type.title2.tabular())
-                        Txt("Duration", Type.footnote, color = p.fg2)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Txt("${player.completedMoves.size}", Type.title2.tabular())
-                        Txt("Moves", Type.footnote, color = p.fg2)
-                    }
-                }
-
-                Spacer(Modifier.height(Space.xxl))
-                // Nothing held, nothing to log: every move was skipped before its hold.
-                if (player.completedMoves.isEmpty()) PillButton("Close", onBack, Modifier.fillMaxWidth(), onSurface = true)
-                else PillButton("Log routine", onFinish, Modifier.fillMaxWidth(), primary = true)
-            }
+    val held = player.completedMoves.size
+    val sec = player.elapsedTotalSec
+    // One line says what was done; nothing held means nothing to log, so the only way on is Close.
+    ScreenFrame(bottom = {
+        BottomBar {
+            if (held == 0) PillButton("Close", onBack, Modifier.weight(1f), onSurface = true)
+            else PillButton("Log routine", onFinish, Modifier.weight(1f), primary = true)
         }
+    }) {
+        NavRow(onBack)
+        Txt("Routine done", Type.largeTitle)
+        Spacer(Modifier.height(Space.xs))
+        Txt(
+            "${player.routine.name} · ${if (sec < 60) "$sec sec" else Fmt.minutes(sec)} · $held of ${player.routine.moves.size} moves held",
+            Type.subhead, color = p.fg2,
+        )
     }
 }
 

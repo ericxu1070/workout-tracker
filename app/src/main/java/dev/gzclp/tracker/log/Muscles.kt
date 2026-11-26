@@ -84,16 +84,17 @@ object Muscles {
     const val FULL_SETS_PER_WEEK = 10.0
 
     /**
-     * How dark each muscle shades over a window of [days] days (see [baselineDays]), 0..1: its load against the most-worked
+     * How dark each muscle shades over a window of [days] days (see [baselineDays]), 0..1: its sets against the most-worked
      * muscle's, or against ten sets a week scaled to the window when nothing reached that, so a heavy window still shows which muscles got the most.
+     * Sets, not load, so a shade agrees with the map's scale and the count a tap shows.
      */
     fun levels(work: Map<Muscle, MuscleWork>, days: Long): Map<Muscle, Float> {
         val full = full(work, days)
-        return work.mapValues { (it.value.load / full).toFloat() }
+        return work.mapValues { (it.value.sets / full).toFloat() }
     }
 
-    /** The load that shades a muscle fully over [days], in sets: the scale [levels] measures against. */
-    fun full(work: Map<Muscle, MuscleWork>, days: Long): Double = maxOf(work.values.maxOfOrNull { it.load } ?: 0.0, FULL_SETS_PER_WEEK * days / 7)
+    /** The sets that shade a muscle fully over [days]: the scale [levels] measures against. */
+    fun full(work: Map<Muscle, MuscleWork>, days: Long): Double = maxOf(work.values.maxOfOrNull { it.sets.toDouble() } ?: 0.0, FULL_SETS_PER_WEEK * days / 7)
 }
 
 /**

@@ -96,8 +96,8 @@ private fun muscleBase(p: Palette): Color = lerp(p.bg, p.fg, if (p.dark) 0.16f e
 /** A muscle's fill at [level] (0..1) of a full week: the base when untrained, then from a pale accent tint to the full accent. */
 private fun muscleFill(p: Palette, level: Float): Color = if (level <= 0f) muscleBase(p) else lerp(muscleBase(p), p.accent, 0.25f + 0.75f * level.coerceIn(0f, 1f))
 
-/** Where a tap landed: the muscle it hit and the point above which its name shows, in the chart's pixels. */
-private class Picked(val muscle: Muscle, val at: Offset)
+/** Where a tap landed: the muscle it hit, the tap's height, and the muscle's left and right edges, in the chart's pixels. */
+private class Picked(val muscle: Muscle, val y: Float, val left: Float, val right: Float)
 
 /**
  * The flat anatomy chart: front and rear side by side, each muscle filled by its share of the window's [work] over
@@ -122,7 +122,10 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
                         val f = fit(v, i, size.width.toFloat(), size.height.toFloat(), gap)
                         val x = (tap.x - f.dx) / f.s + v.x
                         val y = (tap.y - f.dy) / f.s + v.y
-                        v.parts.firstOrNull { (m, path) -> m != null && path.contains(x, y) }?.let { (m, _) -> Picked(m!!, tap) }
+                        v.parts.firstOrNull { (m, path) -> m != null && path.contains(x, y) }?.let { (m, _) ->
+                            val edges = v.parts.filter { it.first == m }.map { it.second.getBounds() }
+                            Picked(m!!, tap.y, (edges.minOf { it.left } - v.x) * f.s + f.dx, (edges.maxOf { it.right } - v.x) * f.s + f.dx)
+                        }
                     }
                 }
             },
@@ -143,7 +146,7 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
             }
         }
         picked?.let { sel ->
-            Callout(sel.at) {
+            Callout(sel) {
                 Row(
                     Modifier.shadow(8.dp, CircleShape).background(p.elevated, CircleShape).padding(horizontal = Space.md, vertical = Space.sm),
                     horizontalArrangement = Arrangement.spacedBy(Space.sm),
@@ -163,7 +166,7 @@ fun MuscleScale(work: Map<Muscle, MuscleWork>, days: Long, modifier: Modifier = 
     val full = Muscles.full(work, days).roundToInt().coerceAtLeast(1)
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
         Box(Modifier.size(48.dp, 8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(muscleBase(p), muscleFill(p, 1f)))))
-        Txt("0 to $full sets", Type.footnote.tabular(), color = p.fg2)
+        Txt("0 to ${sets(full)}", Type.footnote.tabular(), color = p.fg2)
     }
 }
 
@@ -186,15 +189,15 @@ private fun Path.contains(x: Float, y: Float): Boolean {
     return Region().apply { setPath(asAndroidPath(), clip) }.contains(x.toInt(), y.toInt())
 }
 
-/** Places [content] beside [at], level with it: to its right, or to its left when there is no room; kept inside the chart. */
+/** Places [content] beside the picked muscle, level with the tap: past its right edge, or its left when there is no room; kept inside the chart. */
 @Composable
-private fun Callout(at: Offset, content: @Composable () -> Unit) {
+private fun Callout(at: Picked, content: @Composable () -> Unit) {
     Layout(content, Modifier.fillMaxSize()) { measurables, constraints ->
         val c = measurables.single().measure(Constraints())
         val gap = Space.md.roundToPx()
         layout(constraints.maxWidth, constraints.maxHeight) {
-            val right = at.x.toInt() + gap
-            val x = if (right + c.width <= constraints.maxWidth) right else (at.x.toInt() - gap - c.width).coerceAtLeast(0)
+            val right = at.right.toInt() + gap
+            val x = if (right + c.width <= constraints.maxWidth) right else (at.left.toInt() - gap - c.width).coerceAtLeast(0)
             c.place(x, (at.y.toInt() - c.height / 2).coerceIn(0, (constraints.maxHeight - c.height).coerceAtLeast(0)))
         }
     }
