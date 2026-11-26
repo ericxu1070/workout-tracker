@@ -60,10 +60,26 @@ class SettingsUiTest {
         rule.onNodeWithText("System").assertExists()
         rule.onNodeWithText("Laptop").assertExists()
         rule.onAllNodesWithText("Gruvbox").assertCountEquals(0)
-        rule.onNodeWithText("Show more").performClick()
+        // The Motion choice above the themes puts Show more below the fold.
+        rule.onNodeWithText("Show more").performScrollTo().performClick()
         rule.onNodeWithText("Gruvbox").performScrollTo().performClick()
         assertEquals("gruvbox", chosen)
         rule.onNodeWithText("Show less").assertExists()
+    }
+
+    @Test fun appearanceChoosesLoadedOrPerformance() {
+        var loaded: Boolean? = null
+        rule.setContent {
+            SettingsScreen(
+                true, Programs.GZCLP, Increments(), "light", null, Tier.entries.associateWith { it.defaultRestSec },
+                SyncUi(null, null, null), true, true, 7 * 60, HealthUi(false, null), Plates(),
+                {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, loaded = true, onLoaded = { loaded = it },
+            )
+        }
+        rule.onNodeWithText("Motion").assertExists()
+        rule.onAllNodesWithText("Liquid Glass").assertCountEquals(0)
+        rule.onNodeWithText("Performance").performClick()
+        assertEquals(false, loaded)
     }
 
     @Test fun appearanceAsksForGender() {
