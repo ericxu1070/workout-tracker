@@ -11,13 +11,13 @@ class ThemeChoiceTest {
     }
 
     @Test fun savedThemesStillLoad() {
-        for (id in listOf("jade", "tokyo", "dark", "light")) assertEquals(id, Palettes.resolve(id, false, null).id)
+        for (id in listOf("jade", "tokyo", "dark", "light", "glass")) assertEquals(id, Palettes.resolve(id, false, null).id)
         assertEquals(Palettes.tokyo, Palettes.resolve(LaptopTheme.ID, false, null))
         assertEquals("Laptop", Palettes.label(LaptopTheme.ID))
     }
 
     @Test fun everyOmarchyThemeIsListedAndMatchesItsLaptopReading() {
-        assertEquals(26, Palettes.custom.size)
+        assertEquals(27, Palettes.custom.size)
         assertEquals(Palettes.custom.map { it.name }.sorted(), Palettes.custom.map { it.name })
         for (p in Palettes.omarchy) {
             val fixture = javaClass.getResource("/themes/${p.id}.toml")!!.readText()

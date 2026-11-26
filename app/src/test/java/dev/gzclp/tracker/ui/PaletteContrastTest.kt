@@ -14,7 +14,7 @@ class PaletteContrastTest {
     private val laptop = File(javaClass.getResource("/themes")!!.toURI()).list()!!
         .filter { it.endsWith(".raw.toml") }.sorted()
         .map { LaptopTheme.parse(javaClass.getResource("/themes/$it")!!.readText())!!.let { p -> p.copy(id = "laptop-${it.removeSuffix(".raw.toml")}") } }
-    private val themes = Palettes.all + Palettes.omarchy + laptop
+    private val themes = Palettes.all + Palettes.glass + Palettes.omarchy + laptop
 
     private fun Palette.check(what: String, fgColor: Color, bgColor: Color, min: Float) {
         val solid = if (fgColor.alpha < 1f) fgColor.compositeOver(bgColor) else fgColor
@@ -22,7 +22,7 @@ class PaletteContrastTest {
         assertTrue("$id $what %.2f < $min".format(c), c >= min)
     }
 
-    @Test fun coversEveryTheme() = assertEquals(4 + 24 + 26, themes.size)
+    @Test fun coversEveryTheme() = assertEquals(4 + 1 + 24 + 26, themes.size)
 
     @Test fun textReadsOnEverySurface() {
         for (p in themes) for ((i, s) in p.surfaces.withIndex()) {
@@ -51,6 +51,20 @@ class PaletteContrastTest {
             // The slider knob is white; where white can't clear 3:1, its fg3 ring must.
             p.check("slider thumb edge", if (thumbRinged(p)) p.fg3 else Color.White, s, 3f)
         }
+    }
+
+    @Test fun liquidGlassReadsOverItsWorstBackdrop() {
+        val p = Palettes.glass
+        // Translucent, or it is only a flat theme with rims.
+        assertTrue("chrome alpha ${p.chrome.alpha}", p.chrome.alpha < 0.9f)
+        assertTrue("card alpha ${p.card.alpha}", p.card.alpha < 0.6f)
+        for ((i, s) in p.surfaces.withIndex()) {
+            // A filled control's label at the top of its sheen, and a switch or segment against its track, on every backdrop.
+            p.check("fg on sheen over surface $i", p.fg, Color.White.copy(alpha = SHEEN).compositeOver(s), 4.5f)
+            p.check("accent vs track over surface $i", p.accent, p.fillPressed.compositeOver(s), 3f)
+        }
+        // The primary pill and the segmented thumb, lit.
+        p.check("onAccent on lit accent", p.onAccent, Color.White.copy(alpha = SHEEN).compositeOver(p.accent), 4.5f)
     }
 
     @Test fun dayMarkersReadAndStandApartInEveryTheme() {

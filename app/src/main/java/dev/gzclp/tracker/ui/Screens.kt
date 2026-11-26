@@ -3,6 +3,7 @@ package dev.gzclp.tracker.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -88,7 +89,7 @@ val LocalFrameHeight = androidx.compose.runtime.compositionLocalOf { 0 }
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) = Frame(bottom) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.lg).padding(bottom = Space.x3),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.lg).padding(bottom = Space.x3 + LocalBottomInset.current),
         content = content,
     )
 }
@@ -96,7 +97,7 @@ fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable C
 /** A [ScreenFrame] whose items compose only as they scroll into view, for a page with a long list below the fold. */
 @Composable
 fun LazyScreenFrame(bottom: (@Composable () -> Unit)? = null, content: LazyListScope.() -> Unit) = Frame(bottom) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, bottom = Space.x3), content = content)
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, bottom = Space.x3 + LocalBottomInset.current), content = content)
 }
 
 @Composable
@@ -107,21 +108,41 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     var height by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barPx = with(androidx.compose.ui.platform.LocalDensity.current) { 44.dp.toPx() }
     val inline by remember { androidx.compose.runtime.derivedStateOf { title.bottom < top } }
+    // Liquid Glass floats the bottom bar over the page, which scrolls on under it and under the tab bar below.
+    val b = rememberBackdrop()
+    val below = LocalBottomInset.current
+    var bar by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val inset = if (b == null) 0.dp else with(density) { bar.toDp() }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
-    Column(Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
+    Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx; height = it.size.height }) {
-            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title, LocalFrameHeight provides height, content = scroller)
-            // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
-            androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-                Column(Modifier.fillMaxWidth().background(p.bg)) {
-                    Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = Space.x4), contentAlignment = Alignment.Center) {
-                        Txt(title.text, Type.headline, maxLines = 1)
+            Box(Modifier.matchParentSize().backdropSource(b)) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalLargeTitle provides title, LocalFrameHeight provides height - with(density) { inset.roundToPx() }, LocalBottomInset provides inset,
+                    content = scroller,
+                )
+            }
+            androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides b) {
+                // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
+                androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                    Column(Modifier.fillMaxWidth().then(if (b != null) Modifier.glassPane(androidx.compose.ui.graphics.RectangleShape) else Modifier.background(p.bg))) {
+                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = Space.x4), contentAlignment = Alignment.Center) {
+                            Txt(title.text, Type.headline, maxLines = 1)
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(p.separator))
                     }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(p.separator))
+                }
+                // One glass pane from the bar down to the screen's edge, so nothing peeks between it and a floating tab bar.
+                if (b != null && bottom != null) Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { bar = it.height }.glassPane(androidx.compose.ui.graphics.RectangleShape),
+                ) {
+                    bottom()
+                    Spacer(Modifier.height(below))
                 }
             }
         }
-        bottom?.invoke()
+        if (b == null) bottom?.invoke()
     }
 }
 

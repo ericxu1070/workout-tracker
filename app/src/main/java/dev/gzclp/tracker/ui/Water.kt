@@ -526,7 +526,7 @@ fun WaterDailyRing(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.lg))
-            .background(p.elevated)
+            .background(p.card).cardRim(p, Radius.lg)
             .padding(Space.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {

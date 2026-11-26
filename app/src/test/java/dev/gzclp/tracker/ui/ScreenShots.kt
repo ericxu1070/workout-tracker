@@ -311,7 +311,7 @@ class ScreenShots {
         val running = Commands.startCardio(week, Activities.of("running")!!, start).fold(week) { s, e -> s.apply(Entry(s.lastSeq + 1, start, e)) }
         val run = running.cardioActive!!
         val today = now.toLocalDate()
-        for (p in Palettes.all) {
+        for (p in Palettes.all + Palettes.glass) {
             shot(p, "19-cardio") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
             shot(p, "19-cardio-full", tall = true) { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
             shot(p, "19-cardio-mid-lift") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}, lifting = true) } }
@@ -396,13 +396,13 @@ class ScreenShots {
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(), page = SettingsPage.Program,
             )
         }
-        for (p in listOf(Palettes.light, Palettes.tokyo)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
+        for (p in listOf(Palettes.light, Palettes.tokyo, Palettes.glass)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
             SettingsScreen(
                 true, mine.programId, mine.increments, p.id, Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, initialShowMore = more,
             )
         }
-        for (p in Palettes.all) {
+        for (p in Palettes.all + Palettes.glass) {
             shot(p, "23-settings-splits") { settings(p)() }
             shot(p, "23-start-from-sheet") {
                 Box(Modifier.fillMaxSize()) {
@@ -608,6 +608,22 @@ class ScreenShots {
                     TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[3], ""), swapped, {}, {}, {}) }
                 }
+            }
+        }
+        // The sheets above render solid, as the glass does where nothing records a backdrop; the app's own sheets blur the screen under them.
+        shot(Palettes.glass, "05-starting-weight-sheet-blur") {
+            val b = rememberBackdrop()
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().backdropSource(b)) { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
+                val missing = idle.exercise(dev.gzclp.tracker.engine.Slot("face_pull_new", Tier.CYCLE)).copy(name = "Cable crunch")
+                Sheet(true, {}, b) { SheetContent(SheetState.Weight(missing, 45), idle, {}, {}, {}) }
+            }
+        }
+        shot(Palettes.glass, "16-weigh-in-undo-blur") {
+            val b = rememberBackdrop()
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().backdropSource(b)) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}) } }
+                UndoBar("Saved ${Fmt.lb(idle.weighIns().last().lb)}", {}, Modifier.padding(bottom = GlassTabBar + Space.xs + Space.sm), b)
             }
         }
     }

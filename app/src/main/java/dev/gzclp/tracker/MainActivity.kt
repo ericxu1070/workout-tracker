@@ -84,6 +84,10 @@ import dev.gzclp.tracker.ui.Tab
 import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
+import dev.gzclp.tracker.ui.GlassTabBar
+import dev.gzclp.tracker.ui.LocalPalette
+import dev.gzclp.tracker.ui.backdropSource
+import dev.gzclp.tracker.ui.rememberBackdrop
 import dev.gzclp.tracker.ui.HistoryScreen
 import dev.gzclp.tracker.ui.HistoryView
 import dev.gzclp.tracker.ui.HomeScreen
@@ -352,9 +356,11 @@ private fun App(model: AppModel) {
     }
 
     Box(Modifier.fillMaxSize()) {
+        // In Liquid Glass the sheet and the undo bar blur the screen under them.
+        val backdrop = rememberBackdrop()
         // A pushed screen slides in from the trailing edge and back out on pop, as on iOS; the tabs underneath stay put.
         AnimatedContent(
-            route,
+            route, Modifier.backdropSource(backdrop),
             transitionSpec = {
                 val push = (targetState?.depth ?: 0) > (initialState?.depth ?: 0)
                 val ease = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
@@ -530,9 +536,11 @@ private fun App(model: AppModel) {
                 weighUndo = null
             },
             // Clears the tab bar where there is one.
-            Modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = if (route == null) 64.dp else Space.lg),
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(bottom = if (route != null) Space.lg else if (LocalPalette.current.glass) GlassTabBar + Space.xs + Space.sm else 64.dp),
+            backdrop,
         )
-        Sheet(sheet != null, ::close) {
+        Sheet(sheet != null, ::close, backdrop) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
                 s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime, onPickEnd = ::pickCardioEnd,

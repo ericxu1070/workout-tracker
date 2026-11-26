@@ -29,7 +29,17 @@ data class Palette(
     val red: Color,
     /** The segmented control's selection thumb, which [onAccent] labels sit on; a theme may restyle it. */
     val thumb: Color = accent,
+    /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
+    val glows: List<Color> = emptyList(),
 ) {
+    val glass: Boolean get() = glows.isNotEmpty()
+    /** A card's fill: [elevated], or in Liquid Glass a translucent pane over the wallpaper ([elevated] is that pane over [bg]). */
+    val card: Color get() = if (glass) Color.White.copy(alpha = 0.07f).compositeOver(bg.copy(alpha = 0.45f)) else elevated
+    /** Liquid Glass bars and sheets: [bg] at the least alpha that keeps text at 4.5:1 over anything blurred behind them. */
+    val chrome: Color by lazy {
+        (50..100).map { bg.copy(alpha = it / 100f) }
+            .firstOrNull { c -> glassSurfaces(c).all { s -> listOf(fg, fg2, accent, red).all { contrast(it.compositeOver(s), s) >= 4.5f } } } ?: bg
+    }
     /** Tertiary text and icons: the faintest [fg] that still reads at 4.5:1 on every surface. */
     val fg3: Color by lazy {
         (42..100).map { fg.copy(alpha = it / 100f) }.firstOrNull { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } } ?: fg
@@ -38,12 +48,25 @@ data class Palette(
     val kinds: KindColors by lazy { kindColors(bg, elevated, fg) }
     /** Text and icons on a [red] fill; red reads at 4.5:1 on both, so either reads on red. */
     val onRed: Color get() = if (dark) bg else elevated
-    /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each. */
-    val surfaces: List<Color> get() = surfaces(bg, elevated, fg)
+    /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each; in Liquid Glass, the worst case behind each pane. */
+    val surfaces: List<Color> by lazy { if (glass) glassSurfaces(chrome) else surfaces(bg, elevated, fg) }
     val separator: Color get() = fg.copy(alpha = 0.10f)
     val fill: Color get() = fg.copy(alpha = 0.07f)
     val fillPressed: Color get() = fg.copy(alpha = 0.14f)
     val scrim: Color get() = Color.Black.copy(alpha = if (dark) 0.55f else 0.30f)
+
+    /**
+     * The wallpaper at its plainest and brightest (every glow at its peak at once), cards over it, and [bar] over all of
+     * that plus whatever bright content can scroll under a bar (accent and red pills, white knobs and photos), cards on those
+     * bars, and a [fill] on each.
+     */
+    private fun glassSurfaces(bar: Color): List<Color> {
+        val walls = listOf(bg) + glows.map { it.compositeOver(bg) } + glows.fold(bg) { under, g -> g.compositeOver(under) }
+        val panes = walls + walls.map { card.compositeOver(it) }
+        val bars = (panes + listOf(accent, red, Color.White)).map { bar.compositeOver(it) }
+        val all = panes + bars + bars.map { card.compositeOver(it) }
+        return all + all.map { fill.compositeOver(it) }
+    }
 }
 
 object Palettes {
@@ -51,6 +74,11 @@ object Palettes {
     val tokyo = Palette("tokyo", "Tokyo Night", true, Color(0xFF1A1B26), Color(0xFF24283B), Color(0xFFC0CAF5), Color(0xFFA9B1D6), Color(0xFF7AA2F7), Color(0xFF1A1B26), Color(0xFFF7768E))
     val dark = Palette("dark", "Dark", true, Color(0xFF000000), Color(0xFF1C1C1E), Color(0xFFF5F5F7), Color(0xFFA1A1A6), Color(0xFF2A94FF), Color(0xFF000000), Color(0xFFFF584E))
     val light = Palette("light", "Light", false, Color(0xFFF2F2F7), Color(0xFFFFFFFF), Color(0xFF1C1C1E), Color(0xFF65656A), Color(0xFF0062CC), Color(0xFFFFFFFF), Color(0xFFCE0014))
+    /** Apple's Liquid Glass, dark: glass panes over a wallpaper of blue, violet and teal glows. */
+    val glass = Palette(
+        "glass", "Liquid Glass", true, Color(0xFF0B0F1A), Color(0xFF1C202A), Color(0xFFF2F5FF), Color(0xFFB4BDD2), Color(0xFF7DBFFF), Color(0xFF0B0F1A), Color(0xFFFF9E96),
+        glows = listOf(Color(0xFF2F6BFF).copy(alpha = 0.18f), Color(0xFF9B5CFF).copy(alpha = 0.14f), Color(0xFF16C2AE).copy(alpha = 0.10f)),
+    )
     /** The hand-tuned themes, which every screenshot renders. */
     val all = listOf(jade, tokyo, dark, light)
 
@@ -83,12 +111,12 @@ object Palettes {
     )
 
     /** Every theme past Light, Dark and System, by name. */
-    val custom = (listOf(jade, tokyo) + omarchy).sortedBy { it.name }
+    val custom = (listOf(jade, tokyo, glass) + omarchy).sortedBy { it.name }
 
     /** Light or Dark, following the phone. */
     const val SYSTEM = "system"
 
-    fun of(id: String) = (all + omarchy).firstOrNull { it.id == id } ?: tokyo
+    fun of(id: String) = (all + glass + omarchy).firstOrNull { it.id == id } ?: tokyo
 
     fun resolve(id: String, systemDark: Boolean, laptop: Palette?) = when (id) {
         SYSTEM -> if (systemDark) dark else light
