@@ -81,13 +81,23 @@ class SettingsUiTest {
             rule.onNodeWithText("Bodybuilder").performScrollTo().performClick()
             assertEquals("bodybuilder", chosen)
         } finally {
-            Figure.on = false
+            Figure.on = true
         }
     }
 
-    @Test fun theBuildHidesWhileTheFigureIsPieces() {
+    @Test fun theBuildIsAskedByDefault() {
         appearance("light")
-        rule.onAllNodesWithText("Build").assertCountEquals(0)
+        rule.onNodeWithText("Build").performScrollTo().assertExists()
+    }
+
+    @Test fun theBuildHidesWhileTheFigureIsPieces() {
+        Figure.on = false
+        try {
+            appearance("light")
+            rule.onAllNodesWithText("Build").assertCountEquals(0)
+        } finally {
+            Figure.on = true
+        }
     }
 
     @Test fun aCustomThemeOpensExpanded() {

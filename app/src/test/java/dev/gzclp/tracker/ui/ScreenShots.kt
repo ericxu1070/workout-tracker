@@ -201,7 +201,7 @@ class ScreenShots {
                 }
             }
         } finally {
-            dev.gzclp.tracker.form.Figure.on = false
+            dev.gzclp.tracker.form.Figure.on = true
             dev.gzclp.tracker.form.Figure.shape = "male"
             RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
         }
@@ -236,7 +236,7 @@ class ScreenShots {
                 }
             }
         } finally {
-            dev.gzclp.tracker.form.Figure.on = false
+            dev.gzclp.tracker.form.Figure.on = true
             dev.gzclp.tracker.form.Figure.shape = "male"
             RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
         }
@@ -263,7 +263,7 @@ class ScreenShots {
                 }
             }
         } finally {
-            dev.gzclp.tracker.form.Figure.on = false
+            dev.gzclp.tracker.form.Figure.on = true
             RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
         }
     }

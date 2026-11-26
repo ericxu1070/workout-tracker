@@ -19,7 +19,7 @@ class FigureTest(private val body: String) {
     private val pos = FloatArray(mesh.verts * 3)
 
     @Before fun on() { Figure.on = true; Figure.shape = body }
-    @After fun off() { Figure.on = false; Figure.shape = "male" }
+    @After fun off() { Figure.on = true; Figure.shape = "male" }
 
     private fun at(i: Int) = V(pos[i * 3].toDouble(), pos[i * 3 + 1].toDouble(), pos[i * 3 + 2].toDouble())
 
@@ -122,6 +122,7 @@ class FigureTest(private val body: String) {
         }
         val motions = fresh.loadClass(Motions::class.java.name)
         val poser = fresh.loadClass(Poser::class.java.name)
+        fresh.loadClass(Figure::class.java.name).let { it.getMethod("setOn", Boolean::class.java).invoke(it.getField("INSTANCE").get(null), false) }
         val motion = motions.getMethod("of", String::class.java).invoke(motions.getField("INSTANCE").get(null), "squat")
         motion.javaClass.getMethod("pose", poser, Double::class.java, Double::class.java).invoke(motion, poser.getConstructor().newInstance(), 0.5, 0.0)
         assertTrue("opening the squat as the pieces read $read", read.none { it.endsWith(".bin") })
