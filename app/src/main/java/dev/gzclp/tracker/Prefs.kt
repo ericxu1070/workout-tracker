@@ -53,6 +53,10 @@ class Prefs(context: Context) {
         get() = p.getBoolean("warmups", true)
         set(v) = p.edit().putBoolean("warmups", v).apply()
 
+    var showPlates: Boolean
+        get() = p.getBoolean("show_plates", true)
+        set(v) = p.edit().putBoolean("show_plates", v).apply()
+
     var plates: Plates
         get() = Plates(p.getInt("plate_bar", 45), Plates.SIZES.associateWith { p.getInt("plate_pairs_${Plates.label(it)}", Plates.DEFAULT.getValue(it)) })
         set(v) {

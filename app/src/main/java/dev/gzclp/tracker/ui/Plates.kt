@@ -8,6 +8,9 @@ import dev.gzclp.tracker.log.Exercise
 /** The bar and plates set in Settings. */
 val LocalPlates = staticCompositionLocalOf { Plates() }
 
+/** Settings › Show plates: off hides every per-side plate line, for lifters who do the math themselves. */
+val LocalShowPlates = staticCompositionLocalOf { true }
+
 /** The prescription as loaded: a barbell lift's target rounds to the nearest weight the plates make. The log keeps the engine's weight. */
 fun Plates.prescribe(ex: Exercise): Exercise =
     if (ex.id in Catalog.barbell && ex.weight != null) ex.copy(weight = round(ex.weight)) else ex

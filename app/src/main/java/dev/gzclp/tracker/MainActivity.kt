@@ -98,6 +98,7 @@ import dev.gzclp.tracker.ui.StretchRoutineScreen
 import dev.gzclp.tracker.log.StretchRoutineDefine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.LocalPlates
+import dev.gzclp.tracker.ui.LocalShowPlates
 import dev.gzclp.tracker.ui.SettingsPage
 import dev.gzclp.tracker.ui.SettingsScreen
 import dev.gzclp.tracker.ui.SetupScreen
@@ -122,7 +123,7 @@ class MainActivity : ComponentActivity() {
                 val style = if (palette.dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(style, style)
             }
-            GzTheme(palette) { CompositionLocalProvider(LocalPlates provides model.plates) { App(model) } }
+            GzTheme(palette) { CompositionLocalProvider(LocalPlates provides model.plates, LocalShowPlates provides model.showPlates) { App(model) } }
         }
         if (savedInstanceState == null) onNewIntent(intent)
     }
@@ -401,6 +402,7 @@ private fun App(model: AppModel) {
                         if (it) requestNotifications()
                     },
                     onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
+                    showPlates = model.showPlates, onShowPlates = model::chooseShowPlates,
                     warmups = model.warmups, onWarmups = model::chooseWarmups,
                     cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
                     splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },
