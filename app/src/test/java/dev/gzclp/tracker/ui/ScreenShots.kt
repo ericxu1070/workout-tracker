@@ -56,7 +56,7 @@ class ScreenShots {
     private val out = File(System.getProperty("gzclp.shots") ?: "build/shots")
     private val rest = Tier.entries.associateWith { it.defaultRestSec }
     private val t0 = OffsetDateTime.parse("2026-09-28T18:00:00-07:00")
-    /** The demo November, ten minutes into Monday's workout. */
+    /** The demo half-year, ten minutes into Monday's workout. */
     private fun history(): Pair<AppState, OffsetDateTime> = Demo.state to Demo.now
 
     private fun AppState.then(at: OffsetDateTime, build: (AppState) -> List<dev.gzclp.tracker.log.Event>): AppState =
@@ -98,7 +98,7 @@ class ScreenShots {
             listOf(0xFFF2C14E, 0xFFE07A5F, 0xFF8D6E63), listOf(0xFF81B29A, 0xFFF4A261, 0xFFE9C46A),
             listOf(0xFFD4A373, 0xFF6A994E, 0xFFBC4749), listOf(0xFFE76F51, 0xFF2A9D8F, 0xFFF4F1DE),
         )
-        return days.flatMap { day -> listOf(7 to 48, 12 to 31, 15 to 52, 19 to 14).mapIndexed { i, (h, m) ->
+        return days.flatMap { day -> Demo.meals(day).mapIndexed { i, at ->
             val bmp = android.graphics.Bitmap.createBitmap(1280, 960, android.graphics.Bitmap.Config.ARGB_8888)
             val c = android.graphics.Canvas(bmp)
             val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
@@ -110,7 +110,7 @@ class ScreenShots {
                 c.drawCircle(520f + k * 120f, 420f + (k % 2) * 140f, 150f - k * 20f, paint)
             }
             val cam = File.createTempFile("cam", ".jpg").apply { outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) } }
-            log.add(cam, day.atTime(h, m).plusMinutes(day.dayOfMonth % 5 * 6L).atOffset(Demo.now.offset))
+            log.add(cam, at)
         } }
     }
 
