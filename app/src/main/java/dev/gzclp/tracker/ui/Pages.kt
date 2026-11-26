@@ -115,7 +115,7 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
     Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars)) {
         // Drawn over the pages, so a lifted thumb can grow past the header's bottom edge.
         Box(Modifier.zIndex(1f)) {
-            Column(Modifier.underSheets().padding(horizontal = Space.lg), content = header)
+            Column(Modifier.padding(horizontal = Space.lg), content = header)
             // An overlay held open over a page dims and holds the header too, as it did when the header sat in the page.
             val dim by animateFloatAsState(if (holds.intValue > 0) 1f else 0f, tween(if (holds.intValue > 0) 240 else 160), label = "dim")
             if (dim > 0f) Box(Modifier.matchParentSize().graphicsLayer { alpha = dim }.background(p.scrim).clickable(remember { MutableInteractionSource() }, null) {})

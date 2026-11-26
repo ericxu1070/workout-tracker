@@ -542,7 +542,6 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
     // Back closes the sheet, never the screen or the app beneath it.
     androidx.activity.compose.BackHandler(visible, onDismiss)
     HoldPages(visible)
-    SheetOpen(visible)
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
             Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
@@ -568,9 +567,8 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
                             else androidx.compose.animation.core.animate(drag.floatValue, 0f, animationSpec = tween(200, easing = SheetEase)) { x, _ -> drag.floatValue = x }
                         },
                     )
-                    // Glass: Liquid Glass's pane; in other themes the blurred, faded screen shows through, never enough to drop text below 4.5:1 (sheetAlpha).
                     .then(
-                        RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl).let { if (p.glass) Modifier.glassPane(it, backdrop) else Modifier.clip(it).background(p.elevated.copy(alpha = sheetAlpha(p))) },
+                        RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl).let { if (p.glass) Modifier.glassPane(it, backdrop) else Modifier.clip(it).background(p.elevated) },
                     )
                     .clickable(remember { MutableInteractionSource() }, null) {},
             ) {
@@ -661,7 +659,7 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
         modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs)
             .fillMaxWidth().height(GlassTabBar).shadow(8.dp, CircleShape).glassPane(CircleShape).padding(Space.xs),
         content = tabs,
-    ) else Column(modifier.fillMaxWidth().underSheets().background(p.bg)) {
+    ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
         Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp), content = tabs)
     }

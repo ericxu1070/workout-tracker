@@ -111,7 +111,7 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     val density = androidx.compose.ui.platform.LocalDensity.current
     val inset = if (b == null) 0.dp else with(density) { bar.toDp() }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
-    Column(Modifier.fillMaxSize().underSheets().page().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
+    Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {
             Box(Modifier.matchParentSize().backdropSource(b)) {
                 androidx.compose.runtime.CompositionLocalProvider(
