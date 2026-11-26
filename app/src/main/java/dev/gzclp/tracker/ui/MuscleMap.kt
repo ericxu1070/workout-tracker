@@ -46,13 +46,13 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** One drawn side of the body: its view box, each region's muscle (null for skin the map never shades) and path, and the silhouette. */
-private class BodyView(val x: Float, val y: Float, val w: Float, val h: Float, val parts: List<Pair<Muscle?, Path>>, val outline: Path)
+internal class BodyView(val x: Float, val y: Float, val w: Float, val h: Float, val parts: List<Pair<Muscle?, Path>>, val outline: Path)
 
 /**
  * The front and rear anatomy charts, male and female: react-native-body-highlighter 3.2.0's paths (MIT, see NOTICE),
  * extracted by tools/muscle-paths.py. Each line of the file is "view <id> <x> <y> <w> <h>" or "<id> <slug> <side> <d>".
  */
-private object BodyPaths {
+internal object BodyPaths {
     val views: Map<String, BodyView> by lazy {
         val boxes = HashMap<String, FloatArray>()
         val parts = HashMap<String, MutableList<Pair<Muscle?, Path>>>()
@@ -90,11 +90,8 @@ private object BodyPaths {
     }
 }
 
-/** An untrained muscle's fill, and skin's. */
-private fun muscleBase(p: Palette): Color = lerp(p.bg, p.fg, if (p.dark) 0.16f else 0.12f)
-
 /** A muscle's fill at [level] (0..1) of a full week: the base when untrained, then from a pale accent tint to the full accent. */
-private fun muscleFill(p: Palette, level: Float): Color = if (level <= 0f) muscleBase(p) else lerp(muscleBase(p), p.accent, 0.25f + 0.75f * level.coerceIn(0f, 1f))
+private fun muscleFill(p: Palette, level: Float): Color = if (level <= 0f) p.muscle else lerp(p.muscle, p.accent, 0.25f + 0.75f * level.coerceIn(0f, 1f))
 
 /** Where a tap landed: the muscle it hit, the tap's height, and the muscle's left and right edges, in the chart's pixels. */
 private class Picked(val muscle: Muscle, val y: Float, val left: Float, val right: Float)
@@ -135,7 +132,7 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
                 translate(f.dx, f.dy) {
                     scale(f.s, f.s, Offset.Zero) {
                         translate(-v.x, -v.y) {
-                            for ((m, path) in v.parts) drawPath(path, if (m == null) muscleBase(p) else muscleFill(p, levels[m] ?: 0f))
+                            for ((m, path) in v.parts) drawPath(path, if (m == null) p.muscle else muscleFill(p, levels[m] ?: 0f))
                             drawPath(v.outline, p.fg.copy(alpha = 0.22f), style = Stroke(1.dp.toPx() / f.s))
                             picked?.let { sel ->
                                 for ((m, path) in v.parts) if (m == sel.muscle) drawPath(path, p.fg, style = Stroke(2.dp.toPx() / f.s))
@@ -159,23 +156,24 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
     }
 }
 
-/** The map's key in one line: a swatch from untrained to fully shaded, and the sets the full shade stands for. */
+/** The map's key in one line: a swatch from untrained to fully shaded, and the sets the full shade stands for; with no sets, just that. */
 @Composable
 fun MuscleScale(work: Map<Muscle, MuscleWork>, days: Long, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
+    val none = work.values.none { it.sets > 0 }
     val full = Muscles.full(work, days).roundToInt().coerceAtLeast(1)
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
-        Box(Modifier.size(48.dp, 8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(muscleBase(p), muscleFill(p, 1f)))))
-        Txt("0 to ${sets(full)}", Type.footnote.tabular(), color = p.fg2)
+        if (!none) Box(Modifier.size(48.dp, 8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(p.muscle, muscleFill(p, 1f)))))
+        Txt(if (none) sets(0) else "0 to ${sets(full)}", Type.footnote.tabular(), color = p.fg2)
     }
 }
 
 private fun sets(n: Int) = when (n) { 0 -> "No sets"; 1 -> "1 set"; else -> "$n sets" }
 
 /** Side [i] of the chart (0 front, 1 rear) fitted into its half of a [w] by [h] canvas: its scale and offset. */
-private class Fit(val s: Float, val dx: Float, val dy: Float)
+internal class Fit(val s: Float, val dx: Float, val dy: Float)
 
-private fun fit(v: BodyView, i: Int, w: Float, h: Float, gap: Float): Fit {
+internal fun fit(v: BodyView, i: Int, w: Float, h: Float, gap: Float): Fit {
     val half = (w - gap) / 2
     val s = min(half / v.w, h / v.h)
     return Fit(s, i * (half + gap) + (half - v.w * s) / 2, (h - v.h * s) / 2)

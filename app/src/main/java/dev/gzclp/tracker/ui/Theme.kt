@@ -140,6 +140,13 @@ data class Palette(
         fun reads(a: Int) = fg.copy(alpha = a / 100f).let { c -> surfaces.all { contrast(c.compositeOver(it), it) >= 4.5f } }
         if (reads(100)) fg.copy(alpha = least(42, 100, ::reads) / 100f) else fg
     }
+    /**
+     * An untrained muscle on the muscle map, and skin: a step from [bg] toward [fg]. In a dark theme it is the faintest step at 3:1
+     * on [bg], as a figure has to be, since a fainter one sinks into the page.
+     */
+    val muscle: Color by lazy {
+        if (!dark) lerp(bg, fg, 0.12f) else lerp(bg, fg, least(16, 100) { contrast(lerp(bg, fg, it / 100f), bg) >= 3f } / 100f)
+    }
     /** Day marks for lifting, cardio and stretching, fitted to this theme's surfaces. */
     val kinds: KindColors by lazy { kindColors(bg, elevated, fg) }
     /**

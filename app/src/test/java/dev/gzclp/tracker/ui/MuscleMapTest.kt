@@ -42,6 +42,24 @@ class MuscleMapTest {
         assertEquals(Tab.Workout, homeTab(idle.copy(cardioActive = CardioRun("c", "run", "Run", Demo.now))))
     }
 
+    @Test fun frontAndBackFiguresShareScaleAndBaseline() {
+        for (g in listOf("m", "f")) {
+            val (front, back) = listOf("${g}f", "${g}b").mapIndexed { i, id ->
+                val v = BodyPaths.views.getValue(id)
+                val f = fit(v, i, 1080f, 900f, 40f)
+                val b = (v.parts.map { it.second } + v.outline).map { it.getBounds() }
+                listOf((b.minOf { it.top } - v.y) * f.s + f.dy, (b.maxOf { it.bottom } - v.y) * f.s + f.dy, (b.maxOf { it.right } - b.minOf { it.left }) * f.s)
+            }
+            for ((k, what) in listOf("top", "bottom", "width").withIndex()) assertEquals("$g $what", front[k], back[k], 2f)
+        }
+    }
+
+    @Test fun aDayWithNoSetsKeysAsNoSets() {
+        rule.setContent { GzTheme(Palettes.tokyo) { MuscleScale(emptyMap(), 1) } }
+        rule.onNodeWithText("No sets").assertExists()
+        rule.onAllNodesWithText("0 to", substring = true).assertCountEquals(0)
+    }
+
     @Test fun tappingAMuscleShowsItsNameAndSets() {
         val week = muscleWindow(sunday, MuscleSpan.Week)
         val chest = idle.muscleWork(week.first, week.second).getValue(Muscle.CHEST).sets
