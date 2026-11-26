@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -189,6 +190,8 @@ fun Pressable(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
+            // In Liquid Glass every filled control is a lit pane.
+            .then(if (p.glass && fill.alpha > 0f && shape != RectangleShape) Modifier.glassEdge(shape) else Modifier)
             .then(if (ring != null) Modifier.border(2.dp, ring, shape) else Modifier)
             .alpha(if (enabled) 1f else 0.4f)
             .combinedClickable(
@@ -223,7 +226,7 @@ fun PillButton(
     val fill = when {
         primary -> p.accent
         onSurface -> p.fill
-        else -> p.elevated
+        else -> p.card
     }
     val fg = if (primary) p.onAccent else p.fg
     Pressable(
@@ -258,15 +261,21 @@ fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
     Box(modifier.padding(start = start).fillMaxWidth().height(1.dp).background(LocalPalette.current.separator))
 
 @Composable
-fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) =
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(LocalPalette.current.elevated), content = content)
+fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val p = LocalPalette.current
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.card).cardRim(p, Radius.lg), content = content)
+}
 
 /** Row [i] of [count] in a [Group] split across lazy items: the first and last carry its rounded corners. */
 @Composable
 fun GroupSlice(i: Int, count: Int, content: @Composable ColumnScope.() -> Unit) {
     val top = if (i == 0) Radius.lg else 0.dp
     val end = if (i == count - 1) Radius.lg else 0.dp
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(top, top, end, end)).background(LocalPalette.current.elevated), content = content)
+    val p = LocalPalette.current
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(top, top, end, end)).background(p.card).cardRim(p, Radius.lg, i == 0, i == count - 1),
+        content = content,
+    )
 }
 
 @Composable
@@ -466,7 +475,7 @@ private val SheetEase = androidx.compose.animation.core.CubicBezierEasing(0.32f,
 
 /** Bottom sheet over a scrim; tapping the scrim dismisses. */
 @Composable
-fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBackdrop.current, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
     // Back closes the sheet, never the screen or the app beneath it.
     androidx.activity.compose.BackHandler(visible, onDismiss)
@@ -496,8 +505,9 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
                             else androidx.compose.animation.core.animate(drag.floatValue, 0f, animationSpec = tween(200, easing = SheetEase)) { x, _ -> drag.floatValue = x }
                         },
                     )
-                    .clip(RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl))
-                    .background(p.elevated)
+                    .then(
+                        RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl).let { if (p.glass) Modifier.glassPane(it, backdrop) else Modifier.clip(it).background(p.elevated) },
+                    )
                     .clickable(remember { MutableInteractionSource() }, null) {},
             ) {
                 Column(
@@ -516,7 +526,7 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
 
 /** A floating "[text] · Undo" bar that rises while [text] is set; the caller clears it to let it go. */
 @Composable
-fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Modifier) {
+fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Modifier, backdrop: Backdrop? = LocalBackdrop.current) {
     val p = LocalPalette.current
     // Keeps the last text on screen while the bar slides away.
     val last = remember { arrayOf("") }
@@ -527,9 +537,10 @@ fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Mod
         exit = slideOutVertically(tween(200, easing = SheetEase)) { it } + fadeOut(tween(160)),
     ) {
         Row(
-            Modifier.padding(horizontal = Space.lg).fillMaxWidth().shadow(8.dp, CircleShape).clip(CircleShape).background(p.elevated)
+            Modifier.padding(horizontal = Space.lg).fillMaxWidth().shadow(8.dp, CircleShape)
+                .then(if (p.glass) Modifier.glassPane(CircleShape, backdrop) else Modifier.clip(CircleShape).background(p.elevated))
                 // In a dark theme the bar steps above the cards it floats over, or it melts into them.
-                .then(if (p.dark) Modifier.background(p.fillPressed) else Modifier)
+                .then(if (p.dark && !p.glass) Modifier.background(p.fillPressed) else Modifier)
                 .padding(start = Space.xl, end = Space.xs).height(52.dp).semantics { liveRegion = LiveRegionMode.Polite },
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -541,10 +552,11 @@ fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** Two equal pills on a hairline, pinned to the bottom of a screen. */
+/** Two equal pills on a hairline, pinned to the bottom of a screen; in Liquid Glass the screen's frame draws the glass under them. */
 @Composable
 fun BottomBar(content: @Composable RowScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().background(LocalPalette.current.bg)) {
+    val p = LocalPalette.current
+    Column(Modifier.fillMaxWidth().then(if (p.glass) Modifier else Modifier.background(p.bg))) {
         Hairline()
         Row(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.exclude(WindowInsets.ime)).padding(Space.lg),
@@ -563,32 +575,52 @@ private fun Tab.icon(): ImageVector = when (this) {
     Tab.Food -> Icons.utensils
 }
 
-/** The app's bottom tab bar: five destinations, the current one in the accent. */
+/** The app's bottom tab bar: five destinations, the current one in the accent. In Liquid Glass it floats as a capsule, the current tab in a lens. */
 @Composable
-fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
+fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxWidth().background(p.bg)) {
-        Hairline()
-        Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp)) {
-            Tab.entries.forEach { t ->
-                val c = if (t == selected) p.accent else p.fg2
-                Pressable({ onSelect(t) }, Modifier.weight(1f).fillMaxHeight().semantics { this.selected = t == selected }, RectangleShape, role = Role.Tab) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Icon(t.icon(), c, 24.dp)
-                        Txt(t.label, Type.caption.copy(fontWeight = if (t == selected) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
-                    }
+    val tabs: @Composable RowScope.() -> Unit = {
+        Tab.entries.forEach { t ->
+            val c = if (t == selected) p.accent else p.fg2
+            Pressable(
+                { onSelect(t) }, Modifier.weight(1f).fillMaxHeight().semantics { this.selected = t == selected },
+                if (p.glass) CircleShape else RectangleShape, if (p.glass && t == selected) p.fill else Color.Transparent, role = Role.Tab,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Icon(t.icon(), c, 24.dp)
+                    Txt(t.label, Type.caption.copy(fontWeight = if (t == selected) FontWeight.SemiBold else FontWeight.Normal), color = c, maxLines = 1)
                 }
             }
         }
     }
+    if (p.glass) Row(
+        modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs)
+            .fillMaxWidth().height(GlassTabBar).shadow(8.dp, CircleShape).glassPane(CircleShape).padding(Space.xs),
+        content = tabs,
+    ) else Column(modifier.fillMaxWidth().background(p.bg)) {
+        Hairline()
+        Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(56.dp), content = tabs)
+    }
 }
 
-/** A tab's screen above the tab bar; the bar steps aside while the keyboard is up. */
+/** The floating glass tab bar's height, above its [Space.xs] margin and the navigation bar. */
+val GlassTabBar = 60.dp
+
+/** A tab's screen above the tab bar; the bar steps aside while the keyboard is up. In Liquid Glass the screen runs under the floating bar. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TabFrame(tab: Tab, onSelect: (Tab) -> Unit, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
+    val bar = !WindowInsets.isImeVisible
+    if (!LocalPalette.current.glass) return Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).consumeWindowInsets(WindowInsets.navigationBars)) { content() }
-        if (!WindowInsets.isImeVisible) TabBar(tab, onSelect)
+        if (bar) TabBar(tab, onSelect = onSelect)
+    }
+    val b = rememberBackdrop()
+    val nav = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().consumeWindowInsets(WindowInsets.navigationBars).backdropSource(b)) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalBottomInset provides if (bar) GlassTabBar + Space.xs + nav else 0.dp, content = content)
+        }
+        if (bar) androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides b) { TabBar(tab, Modifier.align(Alignment.BottomCenter), onSelect) }
     }
 }

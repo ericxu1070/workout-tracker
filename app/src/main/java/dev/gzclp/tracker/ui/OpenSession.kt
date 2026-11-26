@@ -490,7 +490,7 @@ fun OpenSessionScreen(
         if (OpenSessionManager.exercises.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.elevated).padding(Space.xl),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.card).cardRim(p, Radius.lg).padding(Space.xl),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Txt("No exercises added yet", Type.headline)
@@ -564,7 +564,7 @@ fun OpenExerciseCard(
     val plates = LocalPlates.current
 
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.elevated).padding(Space.lg),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.card).cardRim(p, Radius.lg).padding(Space.lg),
     ) {
         // Exercise header
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -598,7 +598,7 @@ fun OpenExerciseCard(
                         onClick = { onUpdateWeight(openEx.targetWeight - 5) },
                         modifier = Modifier.size(36.dp),
                         shape = CircleShape,
-                        fill = p.elevated,
+                        fill = p.card,
                         label = "Decrease weight",
                         repeat = true,
                     ) {
@@ -608,7 +608,7 @@ fun OpenExerciseCard(
                         onClick = { onUpdateWeight(openEx.targetWeight + 5) },
                         modifier = Modifier.size(36.dp),
                         shape = CircleShape,
-                        fill = p.elevated,
+                        fill = p.card,
                         label = "Increase weight",
                         repeat = true,
                     ) {
@@ -631,7 +631,7 @@ fun OpenExerciseCard(
                         onClick = { onUpdateReps(openEx.targetReps - 1) },
                         modifier = Modifier.size(36.dp),
                         shape = CircleShape,
-                        fill = p.elevated,
+                        fill = p.card,
                         label = "Decrease reps",
                         repeat = true,
                     ) {
@@ -641,7 +641,7 @@ fun OpenExerciseCard(
                         onClick = { onUpdateReps(openEx.targetReps + 1) },
                         modifier = Modifier.size(36.dp),
                         shape = CircleShape,
-                        fill = p.elevated,
+                        fill = p.card,
                         label = "Increase reps",
                         repeat = true,
                     ) {
