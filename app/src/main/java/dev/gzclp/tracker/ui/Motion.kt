@@ -76,14 +76,14 @@ class Motion(val effects: Set<Effect>, val ripples: RippleField? = null, val fee
 
     operator fun contains(e: Effect) = e in effects
 
-    /** The last tap as a pivot for a box at [topLeft] of [size] in the window; its center without a tap. */
-    fun pivot(topLeft: Offset, size: IntSize): TransformOrigin {
-        if (tap == Offset.Unspecified || size.width == 0 || size.height == 0) return TransformOrigin.Center
-        return TransformOrigin((tap.x - topLeft.x) / size.width, (tap.y - topLeft.y) / size.height)
-    }
-
     companion object {
         val Off = Motion(emptySet())
+
+        /** [tap] as a pivot for a box at [topLeft] of [size], all in the window: what rises from the tap scales about it. Its center without a tap. */
+        fun pivot(tap: Offset, topLeft: Offset, size: androidx.compose.ui.geometry.Size): TransformOrigin {
+            if (tap == Offset.Unspecified || size.width <= 0f || size.height <= 0f) return TransformOrigin.Center
+            return TransformOrigin((tap.x - topLeft.x) / size.width, (tap.y - topLeft.y) / size.height)
+        }
     }
 }
 
@@ -93,6 +93,18 @@ val LocalMotion = staticCompositionLocalOf { Motion.Off }
 @Composable
 @ReadOnlyComposable
 fun loaded(e: Effect): Boolean = e in LocalMotion.current
+
+/** A whoosh's rise: fast out of the gate and just past full size, as something lifted toward the viewer. */
+fun <T> riseSpring() = spring<T>(dampingRatio = 0.72f, stiffness = 380f)
+
+/** A drop back onto the screen: falling, it shrinks past where it lands, then settles a hair back up as it fades. */
+val DropScale = androidx.compose.animation.core.keyframes<Float> {
+    durationMillis = 260
+    0.86f at 200 using androidx.compose.animation.core.EaseIn
+}
+
+/** How long a drop takes to land, when its ripple starts. */
+const val DROP_LAND_MS = 200L
 
 /** A landing's spring: quick, with one small overshoot, for things set down rather than tapped. */
 fun <T> landSpring() = spring<T>(dampingRatio = 0.6f, stiffness = 500f)
