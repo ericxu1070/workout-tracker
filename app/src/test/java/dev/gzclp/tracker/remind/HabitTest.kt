@@ -157,6 +157,9 @@ class HabitTest {
         // 22 days later (Jan 27): more than 21 days with no hit -> expired and dropped!
         val pastExpiry = monday1.plusDays(22)
         assertEquals(emptyList<LocalTime>(), tracker.predict(pastExpiry))
+        // A meal on day 21 keeps both slots and adds one; a week later they are pruned.
+        assertEquals(3, tracker.addMeal(monday4, 180.0).slots[DayOfWeek.MONDAY]?.size)
+        assertEquals(1, tracker.addMeal(monday1.plusDays(28), 180.0).slots[DayOfWeek.MONDAY]?.size)
 
         // 5. Max 4 slots per weekday: adding 5 distinct slots drops the oldest
         var cappedTracker = MealTracker()
@@ -261,7 +264,9 @@ class HabitTest {
     @Test
     fun aLearnedSlotAfterMidnightFiresThatNightNotADayLate() {
         val mondayEvening = java.time.ZonedDateTime.of(2026, 11, 23, 21, 0, 0, 0, ZoneOffset.UTC)
-        val next = HabitAlarm.nextTime(mondayEvening, 20) { listOf(LocalTime.of(0, 30)) }
+        // Only Monday's logical day has the slot, so it must land on Tuesday's calendar date.
+        val monday = mondayEvening.toLocalDate()
+        val next = HabitAlarm.nextTime(mondayEvening, 20) { d -> if (d == monday) listOf(LocalTime.of(0, 30)) else emptyList() }
         assertEquals(java.time.ZonedDateTime.of(2026, 11, 24, 0, 50, 0, 0, ZoneOffset.UTC), next)
         val afternoon = HabitAlarm.nextTime(mondayEvening) { listOf(LocalTime.of(14, 0)) }
         assertEquals(java.time.ZonedDateTime.of(2026, 11, 24, 14, 0, 0, 0, ZoneOffset.UTC), afternoon)

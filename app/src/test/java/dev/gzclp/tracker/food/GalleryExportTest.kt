@@ -78,17 +78,13 @@ class GalleryExportTest {
     @Test
     fun defaultPrefsSettingDistinguishesNewFromExistingInstalls() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        // Fresh prefs (empty) -> defaults to true
-        val freshFile = File(dir, "fresh_prefs.xml")
-        val freshPrefs = context.getSharedPreferences("fresh_prefs", Context.MODE_PRIVATE).apply { edit().clear().commit() }
-        val fresh = Prefs(context)
-        // Accessing through reflective or custom SharedPreferences context
-        val sp = context.getSharedPreferences("test_new", Context.MODE_PRIVATE)
+        val sp = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE)
         sp.edit().clear().commit()
-        assertTrue("New install with empty prefs defaults to true", sp.all.isEmpty())
-
-        sp.edit().putString("theme", "jade").commit()
-        assertFalse("Existing install with prefs defaults to false until opt-in", sp.contains("save_to_gallery"))
+        assertTrue("a fresh install saves meals to the gallery", Prefs(context).saveToGallery)
+        sp.edit().clear().putString("theme", "jade").commit()
+        assertFalse("an existing install waits for the opt-in", Prefs(context).saveToGallery)
+        Prefs(context).saveToGallery = true
+        assertTrue("the opt-in sticks", Prefs(context).saveToGallery)
     }
 
     @Test

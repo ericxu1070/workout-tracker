@@ -101,6 +101,8 @@ class StretchTest {
         val squatState = AppState(sessions = listOf(squatSession))
         val squatRoutine = StretchRoutines.afterWorkout(squatState)
         val squatAreas = squatRoutine.moves.map { it.targetArea }.toSet()
+        // Every program day folds in too, so only the order shows the session: its lift's areas come first.
+        assertEquals(BodyArea.HIPS, squatRoutine.moves.first().targetArea)
         assertTrue("Squat session must include HIPS", squatAreas.contains(BodyArea.HIPS))
         assertTrue("Squat session must include QUADS", squatAreas.contains(BodyArea.QUADS))
         assertTrue("Squat session must include HAMSTRINGS", squatAreas.contains(BodyArea.HAMSTRINGS))
@@ -123,6 +125,7 @@ class StretchTest {
         val benchState = AppState(sessions = listOf(benchSession))
         val benchRoutine = StretchRoutines.afterWorkout(benchState)
         val benchAreas = benchRoutine.moves.map { it.targetArea }.toSet()
+        assertEquals(BodyArea.CHEST, benchRoutine.moves.first().targetArea)
         assertTrue("Bench session must include CHEST", benchAreas.contains(BodyArea.CHEST))
         assertTrue("Bench session must include SHOULDERS", benchAreas.contains(BodyArea.SHOULDERS))
         assertTrue(
@@ -144,6 +147,7 @@ class StretchTest {
         val deadliftState = AppState(sessions = listOf(deadliftSession))
         val deadliftRoutine = StretchRoutines.afterWorkout(deadliftState)
         val deadliftAreas = deadliftRoutine.moves.map { it.targetArea }.toSet()
+        assertEquals(BodyArea.HAMSTRINGS, deadliftRoutine.moves.first().targetArea)
         assertTrue("Deadlift session must include HAMSTRINGS", deadliftAreas.contains(BodyArea.HAMSTRINGS))
         assertTrue("Deadlift session must include SPINE", deadliftAreas.contains(BodyArea.SPINE))
         assertTrue(
@@ -356,18 +360,10 @@ class StretchTest {
         assertNotNull(decoded)
         assertEquals(event, decoded?.event)
 
-        // Test AppState handles stretch and stretch_clear
-        val baseState = AppState()
-        assertEquals(0, baseState.stretches.size)
-
-        // Apply event
-        val stateWithStretch = baseState.copy(stretches = baseState.stretches + (event.id to event))
-        assertEquals(1, stateWithStretch.stretches.size)
-        assertEquals(event, stateWithStretch.stretches["st100"])
-
-        // Apply clear
-        val clearEvent = StretchCleared("st100")
-        val stateCleared = stateWithStretch.copy(stretches = stateWithStretch.stretches - clearEvent.id)
+        // The fold handles stretch and stretch_clear
+        val stateWithStretch = AppState.fold(listOf(entry))
+        assertEquals(mapOf("st100" to event), stateWithStretch.stretches)
+        val stateCleared = stateWithStretch.apply(Entry(2, entry.ts, StretchCleared("st100")))
         assertEquals(0, stateCleared.stretches.size)
     }
 
