@@ -89,4 +89,12 @@ class ThumbTest {
         for (f in 1..30) m.step(f * 4f / 60f, 1 / 60f)
         assertTrue("lag ${2f - m.x}", 2f - m.x < 0.25f)
     }
+
+    @Test fun aCorneredThumbIsARoundedRectThatGrowsWithIt() {
+        assertEquals(18f, thumbPill(50f, 18f, 100f, 36f, 0f, 0f).topLeftCornerRadius.x, 1e-4f)
+        assertEquals(14f, thumbPill(50f, 28f, 100f, 56f, 0f, 0f, corner = 14f).topLeftCornerRadius.x, 1e-4f)
+        val lifted = thumbPill(50f, 28f, 100f, 56f, 1f, 0f, corner = 14f)
+        assertEquals(14f * lifted.height / 56f, lifted.topLeftCornerRadius.x, 1e-3f)
+        assertEquals(18f, thumbPill(50f, 18f, 100f, 36f, 0f, 0f, corner = 40f).topLeftCornerRadius.x, 1e-4f)
+    }
 }

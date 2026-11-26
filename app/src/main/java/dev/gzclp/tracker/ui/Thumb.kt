@@ -68,12 +68,15 @@ const val MAX_STRETCH = 0.18f
 const val LIFT_GROW_X = 0.06f
 const val LIFT_GROW_Y = 0.6f
 
-/** The pill for a thumb centered at [cx], [cy] in a [w] by [h] segment, at [lift] and [stretch]. */
-fun thumbPill(cx: Float, cy: Float, w: Float, h: Float, lift: Float, stretch: Float): RoundRect {
+/**
+ * The pill for a thumb centered at [cx], [cy] in a [w] by [h] segment, at [lift] and [stretch]: a capsule, or given a [corner] radius at
+ * rest, a rounded rectangle whose corners grow with it.
+ */
+fun thumbPill(cx: Float, cy: Float, w: Float, h: Float, lift: Float, stretch: Float, corner: Float? = null): RoundRect {
     val (sx, sy) = thumbScale(stretch)
     val pw = w * (1f + LIFT_GROW_X * lift) * sx
     val ph = h * (1f + LIFT_GROW_Y * lift) * sy
-    return RoundRect(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2, CornerRadius(ph / 2))
+    return RoundRect(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2, CornerRadius(corner?.let { (it * ph / h).coerceAtMost(ph / 2) } ?: (ph / 2)))
 }
 
 /** One step of a damped spring ([stiffness], [damping] ratio) pulling [x], moving at [v], toward [to] over [dt] seconds. */

@@ -105,6 +105,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -359,12 +360,12 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
  * Given a [pager], the thumb follows a swipe of the pages, and dragging it snaps the pages to the segment under it; otherwise it springs to
  * [selected], and a drag selects the segment it is let go over. Only a finger that lands on the thumb holds or drags it: held, the bar
  * swells a little; held or swiped, the thumb lifts past the bar, springs after the finger, and squashes with its speed ([ThumbMotion]). [cell] sizes a segment; [content] draws segment i on the bar, and
- * again on the thumb when its second argument is true.
+ * again on the thumb when its second argument is true. The thumb is a capsule unless given a [corner] radius.
  */
 @Composable
 fun ThumbRow(
     count: Int, selected: Int, onSelect: (Int) -> Unit, thumb: Color, modifier: Modifier, pager: PagerState? = null,
-    frame: Modifier, cell: Modifier, content: @Composable (Int, Boolean) -> Unit,
+    frame: Modifier, cell: Modifier, corner: Dp? = null, content: @Composable (Int, Boolean) -> Unit,
 ) {
     val p = LocalPalette.current
     val scope = rememberCoroutineScope()
@@ -457,7 +458,8 @@ fun ThumbRow(
             val on by remember(pager) { derivedStateOf { motion.x.roundToInt() } }
             var area by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
             // The thumb's spring overshoots its target; at an end segment it stops at the bar's end instead of running off it.
-            fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / count).let { w -> thumbPill((motion.x.coerceIn(0f, count - 1f) + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch) }
+            val radius = corner?.let { with(LocalDensity.current) { it.toPx() } }
+            fun pill(s: androidx.compose.ui.geometry.Size) = (s.width / count).let { w -> thumbPill((motion.x.coerceIn(0f, count - 1f) + 0.5f) * w, s.height / 2, w, s.height, motion.lift.value, motion.stretch, radius) }
             // In Liquid Glass a lifted thumb is clear glass: the labels under it show through it, bent at its rim.
             val clear = { if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f }
             Row(Modifier.onSizeChanged { area = it.toSize() }.glassLens({ pill(area) }, clear)) {
@@ -663,14 +665,14 @@ private fun Tab.icon(): ImageVector = when (this) {
 
 /**
  * The app's bottom tab bar: five destinations on a [ThumbRow], the current one on a raised pill in the accent; tap a tab, or drag the pill
- * along the bar and let go over one. In Liquid Glass it floats as a capsule, and the held pill turns to glass.
+ * along the bar and let go over one. In Liquid Glass it floats as a rounded pane, and the held pill turns to glass.
  */
 @Composable
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
         // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight(), corner = Radius.lg) { i, thumb ->
             val t = Tab.entries[i]
             val c = if (thumb) p.accent else p.fg2
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -681,19 +683,23 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
     }
     if (p.glass) bar(
         modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs).fillMaxWidth().height(GlassTabBar),
-        Modifier.shadow(8.dp, CircleShape).glassPane(CircleShape),
+        // Concentric with the pill's corners, so an end tab's pill stays inside the bar.
+        RoundedCornerShape(Radius.lg + Space.xs).let { Modifier.shadow(8.dp, it).glassPane(it) },
     ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
         // Inset so the end tabs' pills keep the screen's 16 dp gutter.
-        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(56.dp), Modifier)
+        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(TabBarHeight), Modifier)
     }
 }
 
-/** A tab's label: iOS's 10 pt medium, small enough that the longest ("Upcoming") clears the rounded ends of its pill at 115% text size. */
+/** A tab's label: iOS's 10 pt medium, small enough that the longest ("Upcoming") clears the rounded corners of its pill at 115% text size. */
 private val TabLabel = Type.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Medium)
 
 /** The floating glass tab bar's height, above its [Space.xs] margin and the navigation bar. */
-val GlassTabBar = 60.dp
+val GlassTabBar = 68.dp
+
+/** The opaque tab bar's height, above the navigation bar. */
+val TabBarHeight = 64.dp
 
 /** A tab's screen above the tab bar; the bar steps aside while the keyboard is up. In Liquid Glass the screen runs under the floating bar. */
 @OptIn(ExperimentalLayoutApi::class)

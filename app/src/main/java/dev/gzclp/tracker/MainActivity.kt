@@ -86,6 +86,7 @@ import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.GlassTabBar
+import dev.gzclp.tracker.ui.TabBarHeight
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -544,7 +545,7 @@ private fun App(model: AppModel) {
             },
             // Clears the tab bar where there is one.
             Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = if (route != null) Space.lg else if (LocalPalette.current.glass) GlassTabBar + Space.xs + Space.sm else 64.dp),
+                .padding(bottom = if (route != null) Space.lg else if (LocalPalette.current.glass) GlassTabBar + Space.xs + Space.sm else TabBarHeight + Space.sm),
             backdrop,
         )
         Sheet(sheet != null, ::close, backdrop) {
