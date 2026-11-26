@@ -25,7 +25,11 @@ import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.swipe
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
@@ -108,5 +112,24 @@ class FixedHeaderTest {
         rule.waitForIdle()
         assertEquals(HistoryView.Month, view)
         assertEquals(start, header())
+    }
+
+    /** In Liquid Glass the header floats over the pages: a page starts right under it and scrolls on up beneath it. */
+    @Test fun inLiquidGlassThePagesScrollUnderTheHeader() {
+        rule.setContent {
+            GzTheme(Palettes.glass) {
+                TabFrame(Tab.Workout, {}) {
+                    WorkoutPages(0, {}, {}) { page -> ScreenFrame { Txt("Page $page", Type.body); Spacer(Modifier.height(3000.dp)) } }
+                }
+            }
+        }
+        val switch = bounds("Stretching")
+        assertTrue("the page starts under the header", bounds("Page 0").top >= switch.bottom)
+        // Slow, so it stops where the finger does: the title just under the switch, which a page clipped below the header would hide.
+        rule.onRoot().performTouchInput { swipe(Offset(centerX, bottom * 0.7f), Offset(centerX, bottom * 0.62f), 1000) }
+        rule.waitForIdle()
+        assertTrue("the page ran on up under the header", bounds("Page 0").top < switch.bottom)
+        rule.onNodeWithText("Page 0").assertIsDisplayed()
+        assertEquals(switch, bounds("Stretching"))
     }
 }

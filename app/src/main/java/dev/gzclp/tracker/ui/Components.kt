@@ -193,8 +193,8 @@ fun Pressable(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
-            // In Liquid Glass every filled control is a lit pane.
-            .then(if (p.glass && fill.alpha > 0f && shape != RectangleShape) Modifier.glassEdge(shape) else Modifier)
+            // In Liquid Glass every filled control is a lit pane, but on a glass sheet, where it would be glass on glass.
+            .then(if (p.glass && !LocalOnGlass.current && fill.alpha > 0f && shape != RectangleShape) Modifier.glassEdge(shape) else Modifier)
             .then(if (ring != null) Modifier.border(2.dp, ring, shape) else Modifier)
             .alpha(if (enabled) 1f else 0.4f)
             .combinedClickable(
@@ -227,12 +227,13 @@ fun PillButton(
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
-    // In Liquid Glass the primary and destructive are stained glass, the rest clear glass.
+    // In Liquid Glass the primary and destructive are stained glass, the rest clear glass; on a glass sheet they are solid, as off glass.
+    val onGlass = LocalOnGlass.current
     val fill = when {
-        destructive -> p.redStain
-        primary -> p.stain
+        destructive -> if (onGlass) p.red else p.redStain
+        primary -> if (onGlass) p.accent else p.stain
+        onSurface || onGlass -> p.fill
         p.glass -> p.thumb
-        onSurface -> p.fill
         else -> p.card
     }
     val fg = if (destructive) p.onRed else if (primary) p.onAccent else p.fg
@@ -350,8 +351,13 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
     val p = LocalPalette.current
     // The thumb takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
-    // In Liquid Glass it and its track are clear glass instead, with the selected label in semibold fg ([Palette.onThumb]).
-    val track = Modifier.background(p.fill, CircleShape).then(if (p.glass) Modifier.glassEdge(CircleShape) else Modifier)
+    // In Liquid Glass it and its track are clear glass instead, with the selected label in semibold fg ([Palette.onThumb]);
+    // over a backdrop (a header floating over its pages) the track is a glass pane, so what scrolls under it blurs.
+    val track = when {
+        p.glass && LocalBackdrop.current != null -> Modifier.glassPane(CircleShape).background(p.fill)
+        p.glass -> Modifier.background(p.fill, CircleShape).glassEdge(CircleShape)
+        else -> Modifier.background(p.fill, CircleShape)
+    }
     ThumbRow(options.size, selected, onSelect, p.thumb, modifier.fillMaxWidth(), pager, track, Modifier.height(36.dp)) { i, thumb ->
         if (thumb) Txt(options[i], Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onThumb, maxLines = 1)
         else Txt(options[i], Type.subhead, color = p.fg, maxLines = 1)
@@ -600,14 +606,16 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
                     )
                     .clickable(remember { MutableInteractionSource() }, null) {},
             ) {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .imePadding()
-                        .padding(Space.xl),
-                    verticalArrangement = Arrangement.spacedBy(Space.lg),
-                    content = content,
-                )
+                androidx.compose.runtime.CompositionLocalProvider(LocalOnGlass provides p.glass) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .imePadding()
+                            .padding(Space.xl),
+                        verticalArrangement = Arrangement.spacedBy(Space.lg),
+                        content = content,
+                    )
+                }
                 Box(Modifier.align(Alignment.TopCenter).padding(top = Space.sm).size(36.dp, 5.dp).clip(CircleShape).background(p.fg3))
             }
         }
@@ -642,12 +650,13 @@ fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** Two equal pills on a hairline, pinned to the bottom of a screen; in Liquid Glass the screen's frame draws the glass under them. */
+/** Two equal pills on a hairline, pinned to the bottom of a screen; in Liquid Glass the screen's frame draws a scroll edge under them instead. */
 @Composable
 fun BottomBar(content: @Composable RowScope.() -> Unit) {
     val p = LocalPalette.current
     Column(Modifier.fillMaxWidth().then(if (p.glass) Modifier else Modifier.background(p.bg))) {
-        Hairline()
+        // In Liquid Glass the frame's scroll edge stands in for the hairline.
+        if (!p.glass) Hairline()
         Row(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.exclude(WindowInsets.ime)).padding(Space.lg),
             horizontalArrangement = Arrangement.spacedBy(Space.md), content = content,

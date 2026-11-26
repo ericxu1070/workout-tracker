@@ -91,13 +91,33 @@ class SwipeShots {
         repeat(10) { rule.mainClock.advanceTimeBy(32); snap() }
     }
 
-    @Test fun historyMidSwipe() = midSwipe(Palettes.light, "30-history-mid-swipe") {
+    @Test fun historyMidSwipe() = midSwipe(Palettes.light, "30-history-mid-swipe") { history() }
+
+    @androidx.compose.runtime.Composable private fun history() {
         TabFrame(Tab.History, {}) {
             HistoryScreen(state, HistoryView.Week, {}, {}, {}, now.toLocalDate()) {
                 WeekView(state, emptyList(), mondayOf(now.toLocalDate()).minusDays(7), now.toLocalDate(), {}, {})
             }
         }
     }
+
+    /** Liquid Glass with the week held part way up: its rows pass under the floating header's switch and the tab bar, bent at their rims. */
+    private fun scrolled(p: Palette) {
+        val out = System.getProperty("gzclp.shots")
+        assumeNotNull(out)
+        rule.setContent { GzTheme(p) { history() } }
+        rule.onRoot().performTouchInput {
+            down(center)
+            for (i in 1..10) moveBy(Offset(0f, -height * 0.025f))
+        }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-32-history-scrolled.png").path)
+        rule.onRoot().performTouchInput { up() }
+    }
+
+    @Test fun glassScrolled() = scrolled(Palettes.glass)
+
+    @Test fun lightGlassScrolled() = scrolled(Palettes.light.glassed)
 
     /**
      * Swipes the row showing [rowText] open and shoots it, then taps its trash and shoots the question over it, as the

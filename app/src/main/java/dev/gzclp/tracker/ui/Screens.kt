@@ -86,7 +86,7 @@ import java.time.OffsetDateTime
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) = Frame(bottom) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.lg).padding(bottom = Space.x3 + LocalBottomInset.current),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.lg).padding(top = LocalTopInset.current, bottom = Space.x3 + LocalBottomInset.current),
         content = content,
     )
 }
@@ -94,7 +94,7 @@ fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable C
 /** A [ScreenFrame] whose items compose only as they scroll into view, for a page with a long list below the fold. */
 @Composable
 fun LazyScreenFrame(bottom: (@Composable () -> Unit)? = null, content: LazyListScope.() -> Unit) = Frame(bottom) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, bottom = Space.x3 + LocalBottomInset.current), content = content)
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, top = LocalTopInset.current, end = Space.lg, bottom = Space.x3 + LocalBottomInset.current), content = content)
 }
 
 @Composable
@@ -123,17 +123,20 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
                 // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it;
                 // not in a page of [Pages], whose fixed header above already holds the screen's bar.
                 androidx.compose.animation.AnimatedVisibility(inline && LocalPages.current == null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-                    Column(Modifier.fillMaxWidth().then(if (b != null) Modifier.glassPane(androidx.compose.ui.graphics.RectangleShape) else Modifier.background(p.bg))) {
+                    Column(Modifier.fillMaxWidth().then(if (b != null) Modifier.scrollEdge() else Modifier.background(p.bg))) {
                         Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = Space.x4), contentAlignment = Alignment.Center) {
                             Txt(title.text, Type.headline, maxLines = 1)
                         }
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(p.separator))
+                        // In Liquid Glass a scroll edge fades the page out under the bar instead of a hairline.
+                        if (b != null) Spacer(Modifier.height(ScrollEdgeFade)) else Box(Modifier.fillMaxWidth().height(1.dp).background(p.separator))
                     }
                 }
-                // One glass pane from the bar down to the screen's edge, so nothing peeks between it and a floating tab bar.
+                // One scroll edge from above the bar down to the screen's edge: the page fades out above the bar's glass buttons, and the
+                // floating tab bar sits on the wallpaper, not on a second pane of glass.
                 if (b != null && bottom != null) Column(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { bar = it.height }.glassPane(androidx.compose.ui.graphics.RectangleShape),
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { bar = it.height }.scrollEdge(up = true),
                 ) {
+                    Spacer(Modifier.height(ScrollEdgeFade))
                     bottom()
                     Spacer(Modifier.height(below))
                 }

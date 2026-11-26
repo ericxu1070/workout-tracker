@@ -15,7 +15,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -56,6 +58,15 @@ val LocalBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 /** Space at the bottom of a page that floating glass covers; a page's scroller pads its end by it so its last row clears the glass. */
 val LocalBottomInset = staticCompositionLocalOf { 0.dp }
 
+/** Space at the top of a page that a floating header covers; a page's scroller pads its start by it. */
+val LocalTopInset = staticCompositionLocalOf { 0.dp }
+
+/** True inside a glass sheet: its controls drop their own glass, since glass never sits on glass. */
+val LocalOnGlass = staticCompositionLocalOf { false }
+
+/** How far a [scrollEdge] fades: about a switch's height. */
+val ScrollEdgeFade = 36.dp
+
 /** A backdrop to record content into, in Liquid Glass only. */
 @Composable
 fun rememberBackdrop(): Backdrop? {
@@ -83,13 +94,15 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 
 /**
  * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: its patch of wallpaper and the backdrop over it,
- * blurred and tinted with [Palette.chrome], lit by a sheen and a rim. Where no backdrop is recorded it is solid, so text never sits on sharp content.
+ * blurred and tinted with [Palette.chrome], its rim bending the content just past it ([RimBend]), lit by a sheen and a rim.
+ * Where no backdrop is recorded it is solid, so text never sits on sharp content.
  */
 @Composable
 fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modifier {
     val p = LocalPalette.current
     val window = LocalWindowInfo.current.containerSize
     val blur = rememberGraphicsLayer()
+    val bend = rememberRimBend()
     var at by remember { mutableStateOf(Offset.Zero) }
     return onGloballyPositioned { at = it.positionInRoot() }.clip(shape).drawWithContent {
         if (b != null) {
@@ -107,9 +120,34 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modi
             }
             drawLayer(blur)
             drawRect(p.chrome)
+            if (bend != null) with(bend) { draw(b, at, shape) }
         } else drawRect(p.chrome.copy(alpha = 1f))
         drawContent()
     }.then(if (shape == RectangleShape) Modifier else Modifier.glassEdge(shape))
+}
+
+/**
+ * iOS's scroll edge behind chrome floating over a page, in place of a hairline: the page's wallpaper, solid but for [fade] along its
+ * bottom edge (its top edge if [up]) where it fades out, so what scrolls under the chrome's text is hidden and slips out of sight softly.
+ */
+@Composable
+fun Modifier.scrollEdge(fade: Dp = ScrollEdgeFade, up: Boolean = false): Modifier {
+    val p = LocalPalette.current
+    val window = LocalWindowInfo.current.containerSize
+    val layer = rememberGraphicsLayer()
+    var at by remember { mutableStateOf(Offset.Zero) }
+    return onGloballyPositioned { at = it.positionInRoot() }.drawBehind {
+        layer.compositingStrategy = CompositingStrategy.Offscreen
+        // Read outside the recording: in it, density loops back to this scope's own.
+        val f = fade.toPx()
+        val mask = if (up) Brush.verticalGradient(listOf(Color.Transparent, Color.Black), 0f, f)
+        else Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - f, size.height)
+        layer.record {
+            wallpaper(p, at, window)
+            drawRect(mask, blendMode = BlendMode.DstIn)
+        }
+        drawLayer(layer)
+    }
 }
 
 /** Liquid Glass's lit edge on a control or pane, inside a clip to [shape]: a sheen down from the top under the content, a rim over it. */
