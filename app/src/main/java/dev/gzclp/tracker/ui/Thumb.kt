@@ -11,19 +11,17 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
  * How a theme paints the segmented control's thumb, a pill [lift] of the way (0 to 1) from resting in the bar to held up
- * under the finger. A theme can show a material only while lifted; at rest every theme draws the plain pill it always had.
+ * under the finger.
  */
 fun interface ThumbPainter {
     fun DrawScope.paint(pill: RoundRect, color: Color, lift: Float)
@@ -33,18 +31,14 @@ fun interface ThumbPainter {
 val SolidThumb = ThumbPainter { pill, color, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
 
 /**
- * Liquid Glass: the solid pill at rest; lifted, it turns to clear glass, catching Liquid Glass's sheen and rim ([glassSheen], [glassRim])
- * in proportion to [lift], as a held iOS 26 thumb does. The labels under it show through, bent by [glassLens].
+ * Liquid Glass: a pill of clear glass ([color], the theme's [clearGlass]) with Liquid Glass's sheen and rim ([glassSheen], [glassRim]).
+ * Lifted, it clears to a faint frost, as a held iOS 26 thumb does, and the labels under it show through, bent by [glassLens].
  */
 val GlassThumb = ThumbPainter { pill, color, lift ->
     val outline = Outline.Rounded(pill)
     drawOutline(outline, lerp(color, GlassFill, lift))
-    if (lift > 0f) drawContext.canvas.run {
-        saveLayer(androidx.compose.ui.geometry.Rect(pill.left, pill.top, pill.right, pill.bottom).inflate(2.dp.toPx()), Paint().apply { alpha = lift })
-        glassSheen(outline)
-        glassRim(outline)
-        restore()
-    }
+    glassSheen(outline)
+    glassRim(outline)
 }
 
 /** A fully lifted glass thumb: a faint frost, so the labels it bends read through it. */

@@ -29,13 +29,13 @@ data class Palette(
     val accent: Color,
     val onAccent: Color,
     val red: Color,
-    /** The segmented control's selection thumb, which [onAccent] labels sit on; a theme may restyle it. */
+    /** The segmented control's selection thumb, which [onThumb] labels sit on; in Liquid Glass, the clear glass every neutral control is made of. */
     val thumb: Color = accent,
     /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
     val glows: List<Color> = emptyList(),
     /** Liquid Glass bars' and sheets' alpha, fitted by [glassed]. */
     val chromeAlpha: Float = 1f,
-    /** How [thumb] is painted, resting and lifted under a finger; a theme with a material shows it only while lifted. */
+    /** How [thumb] is painted, resting and lifted under a finger. */
     val thumbPainter: ThumbPainter = SolidThumb,
 ) {
     val glass: Boolean get() = glows.isNotEmpty()
@@ -57,30 +57,61 @@ data class Palette(
         }
         fun attempt(k: Int, a: Int): Palette? {
             val lit = copy(id = "$id-glass", glows = glowsFor(accent, k / 10f), chromeAlpha = a / 100f, thumbPainter = GlassThumb)
-            val on = lit.surfaces
-            val lums = on.map { it.luminance() }
-            // A filled control's label sits under its sheen.
-            val sheened = on.map { Color.White.copy(alpha = SHEEN).compositeOver(it).luminance() }
+            val sheen = Color.White.copy(alpha = SHEEN)
+            val clear = clearGlass(dark)
             val tertiary = maxOf(fg3.alpha, 0.75f)
-            val f = lift(fg) { c -> reads(c, sheened) && on.all { contrast(c.copy(alpha = tertiary).compositeOver(it), it) >= 4.5f } } ?: return null
+            // fg tints the fills it sits on, so each candidate is held to the surfaces it makes: as tertiary text, and as a label under
+            // a control's sheen on its own fill or on clear glass.
+            val f = lift(fg) { c ->
+                val l = c.luminance()
+                lit.copy(fg = c).surfaces.all { s ->
+                    val ls = s.luminance()
+                    ratio(l, sheen.compositeOver(s).luminance()) >= 4.5f && ratio(l, sheen.compositeOver(clear.compositeOver(s)).luminance()) >= 4.5f &&
+                        ratio(c.copy(alpha = tertiary).compositeOver(s).luminance(), ls) >= 4.5f
+                }
+            } ?: return null
+            val lums = lit.copy(fg = f).surfaces.map { it.luminance() }
             val f2 = lift(fg2) { reads(it, lums) } ?: return null
             val ac = lift(accent) { reads(it, lums) } ?: return null
-            val r = lift(red) { reads(it, lums) } ?: return null
+            // A destructive button's label reads on its red at the top of the sheen.
+            val r = lift(red) { reads(it, lums) && contrast(lit.onRed, sheen.compositeOver(it)) >= 4.5f } ?: return null
             return lit.copy(
-                fg = f, fg2 = f2, accent = ac, red = r, thumb = if (thumb == accent) ac else thumb,
+                fg = f, fg2 = f2, accent = ac, red = r, thumb = clear,
                 onAccent = if (contrast(Color.Black, ac) >= contrast(Color.White, ac)) Color.Black else Color.White,
             ).takeIf { it.textReads() }
         }
         // The strongest glow that reads with opaque bars, then the clearest bars that read under it.
-        if (attempt(0, 100) == null) return@lazy copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumbPainter = GlassThumb)
+        if (attempt(0, 100) == null) return@lazy copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumb = clearGlass(dark), thumbPainter = GlassThumb)
         val k = 10 - least(0, 10) { attempt(10 - it, 100) != null }
         attempt(k, least(CLEAREST_CHROME, 100) { attempt(k, it) != null })!!
     }
     fun withGlass(on: Boolean) = if (on) glassed else this
-    /** Text reads on every glass surface, a filled control's label under its sheen too, and a switch stands off its track. */
-    private fun textReads() = contrast(onAccent, Color.White.copy(alpha = SHEEN).compositeOver(accent)) >= 4.5f && surfaces.all { s ->
+    /**
+     * Text reads on every glass surface, a filled control's label under its sheen too (on its own fill, on clear glass, and on
+     * a [stain]ed or [redStain]ed button), and a switch stands off its track.
+     */
+    private fun textReads() = surfaces.all { s ->
+        val sheen = Color.White.copy(alpha = SHEEN)
         listOf(fg, fg2, fg3, accent, red).all { contrast(it.compositeOver(s), s) >= 4.5f } &&
-            contrast(fg, Color.White.copy(alpha = SHEEN).compositeOver(s)) >= 4.5f && contrast(accent, fillPressed.compositeOver(s)) >= 3f
+            contrast(fg, sheen.compositeOver(s)) >= 4.5f && contrast(accent, fillPressed.compositeOver(s)) >= 3f &&
+            contrast(fg, sheen.compositeOver(thumb.compositeOver(s))) >= 4.5f &&
+            contrast(onAccent, sheen.compositeOver(stain.compositeOver(s))) >= 4.5f && contrast(onRed, sheen.compositeOver(redStain.compositeOver(s))) >= 4.5f
+    }
+    /**
+     * Labels on [thumb]: [onAccent] on a flat theme's accent pill; [fg] on Liquid Glass's clear one, which no colored label clears
+     * 4.5:1 on over bright content, so glass selections and tabs go monochrome, as Apple has tab bars do over colorful content.
+     */
+    val onThumb: Color get() = if (glass) fg else onAccent
+    /** A primary button's fill: the accent, or in Liquid Glass the accent stained into the glass ([stained]). */
+    val stain: Color by lazy { stained(accent, onAccent) }
+    /** A destructive button's fill: [red], stained into the glass in Liquid Glass. */
+    val redStain: Color by lazy { stained(red, onRed) }
+    /** [c] at the lowest alpha down to [CLEAREST_STAIN] on which [label] under the sheen reads at 4.5:1 over every one of [surfaces]. */
+    private fun stained(c: Color, label: Color): Color {
+        if (!glass) return c
+        val l = label.luminance()
+        fun reads(a: Int) = c.copy(alpha = a / 100f).let { t -> surfaces.all { ratio(l, Color.White.copy(alpha = SHEEN).compositeOver(t.compositeOver(it)).luminance()) >= 4.5f } }
+        return if (reads(100)) c.copy(alpha = least(CLEAREST_STAIN, 100, ::reads) / 100f) else c
     }
 
     /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper. */
@@ -195,6 +226,12 @@ object Palettes {
 
 /** The clearest Liquid Glass bars get, in percent: the alpha the Liquid Glass theme was tuned with. */
 const val CLEAREST_CHROME = 82
+
+/** The clearest a primary button's [Palette.stain] gets: past this it reads as a tinted outline rather than a button. */
+const val CLEAREST_STAIN = 70
+
+/** Liquid Glass's clear control, a frost over whatever is behind it: faint on dark glass, a brighter sheet on light glass, as iOS's. */
+fun clearGlass(dark: Boolean) = Color.White.copy(alpha = if (dark) 0.14f else 0.6f)
 
 /**
  * Liquid Glass's three wallpaper glows for a theme with [accent]: the accent, a neighbor a little warmer and one a little cooler on the

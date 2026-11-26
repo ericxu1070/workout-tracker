@@ -227,9 +227,11 @@ fun PillButton(
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
+    // In Liquid Glass the primary and destructive are stained glass, the rest clear glass.
     val fill = when {
-        destructive -> p.red
-        primary -> p.accent
+        destructive -> p.redStain
+        primary -> p.stain
+        p.glass -> p.thumb
         onSurface -> p.fill
         else -> p.card
     }
@@ -348,8 +350,10 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
     val p = LocalPalette.current
     // The thumb takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
-    ThumbRow(options.size, selected, onSelect, p.thumb, modifier.fillMaxWidth(), pager, Modifier.background(p.fill, CircleShape), Modifier.height(36.dp)) { i, thumb ->
-        if (thumb) Txt(options[i], Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onAccent, maxLines = 1)
+    // In Liquid Glass it and its track are clear glass instead, with the selected label in semibold fg ([Palette.onThumb]).
+    val track = Modifier.background(p.fill, CircleShape).then(if (p.glass) Modifier.glassEdge(CircleShape) else Modifier)
+    ThumbRow(options.size, selected, onSelect, p.thumb, modifier.fillMaxWidth(), pager, track, Modifier.height(36.dp)) { i, thumb ->
+        if (thumb) Txt(options[i], Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onThumb, maxLines = 1)
         else Txt(options[i], Type.subhead, color = p.fg, maxLines = 1)
     }
 }
@@ -672,10 +676,11 @@ private fun Tab.icon(): ImageVector = when (this) {
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
-        // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+        // In Liquid Glass the pill is clear glass, the current tab on it in fg as Apple's tab bars go monochrome over colorful content;
+        // one label weight keeps the bar's label hidden under the pill's.
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.thumb else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
             val t = Tab.entries[i]
-            val c = if (thumb) p.accent else p.fg2
+            val c = if (!thumb) p.fg2 else if (p.glass) p.onThumb else p.accent
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Icon(t.icon(), c, 24.dp)
                 Txt(t.label, TabLabel, color = c, maxLines = 1)
