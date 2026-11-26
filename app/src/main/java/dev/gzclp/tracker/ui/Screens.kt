@@ -1,5 +1,11 @@
 package dev.gzclp.tracker.ui
 
+import dev.gzclp.tracker.log.bestSoFar
+import dev.gzclp.tracker.log.pastBest
+import dev.gzclp.tracker.log.isRecord
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -445,6 +451,8 @@ private fun ExerciseBlock(
         if (warmups && ex.warmsUp() && ex.weight != null) Warmup.sets(ex.weight).map { (w, r) -> allPlates.round(w) to r }.distinctBy { it.first }.forEachIndexed { i, (w, r) ->
             WarmupRow(state.active?.id.orEmpty(), "${ex.name} warm-up ${i + 1}", w, r, allPlates)
         }
+        // Only Loaded asks for the lift's best, so Performance never scans the log on the session's quarter-second tick.
+        val past = if (loaded(Effect.PrSplash)) remember(state.sessions, ex.id) { state.pastBest(ex.id) } else null
         for (i in 1..ex.scheme.sets) {
             val key = SetKey(ex.id, ex.tier, i)
             SetRow(
@@ -459,6 +467,8 @@ private fun ExerciseBlock(
                 plateWeight = ex.weight,
                 onLog = { w, r, rpe -> onLog(ex, i, w, r, rpe) },
                 onClear = { onClear(ex, i) },
+                last = i == ex.scheme.sets,
+                best = past?.let { bestSoFar(it, sets, ex.id, key) },
             )
         }
     }
@@ -506,10 +516,15 @@ fun SetRow(
     plateWeight: Int?,
     onLog: (weight: Int, reps: Int, rpe: Double?) -> Unit,
     onClear: () -> Unit,
+    last: Boolean = false,
+    best: Int? = null,
 ) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
+    val motion = LocalMotion.current
+    val scope = rememberCoroutineScope()
+    val landing = remember { Landing() }
     var w by remember(logged?.weight, defaultWeight) { mutableStateOf((logged?.weight ?: defaultWeight)?.toString() ?: "") }
     val weightFocus = remember { FocusRequester() }
     var r by remember(logged?.actualReps) { mutableStateOf(logged?.actualReps?.toString() ?: if (amrap) "" else targetReps.toString()) }
@@ -520,7 +535,7 @@ fun SetRow(
     val short = logged != null && logged.actualReps < targetReps
     val name = "$exName set $index"
     val fieldFill = pillFill(current)
-    Row(Modifier.fillMaxWidth().stepPill(current), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+    Row(Modifier.fillMaxWidth().stepPill(current).then(if (motion.effects.isEmpty()) Modifier else Modifier.landingRing(landing, p.accent, 44.dp)), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         Txt(if (amrap) "$index+" else "$index", Type.headline.tabular(), Modifier.width(SET_COL), if (current) p.fg else p.fg2)
         // No weight known (a first-time substitute) leaves the field empty; the check then asks for one instead of logging 0.
         NumberField(
@@ -548,12 +563,19 @@ fun SetRow(
                     }
                     wt == null -> weightFocus.requestFocus()
                     else -> {
-                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        val record = Effect.PrSplash in motion && isRecord(best, wt, reps())
+                        if (record || Effect.PlateDrop in motion) scope.launch { landing.play(record, last) }
+                        val feel = motion.feel
+                        when {
+                            feel == null -> haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                            record -> feel.double()
+                            else -> feel.land(if (last) 0.45f else 0.3f)
+                        }
                         onLog(wt, reps(), e.toDoubleOrNull())
                     }
                 }
             },
-            Modifier.size(44.dp).semantics { contentDescription = if (logged != null) "Clear $name" else "Log $name" }, CircleShape,
+            Modifier.landingSquash(landing).size(44.dp).semantics { contentDescription = if (logged != null) "Clear $name" else "Log $name" }, CircleShape,
             fill = when {
                 hit -> p.accent
                 short -> p.red.copy(alpha = 0.18f)
