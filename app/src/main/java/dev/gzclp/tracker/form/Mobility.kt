@@ -151,29 +151,35 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
     "shoulders_foam_roll_rear" to {
         // On the left side with the roller in the armpit and the body turned back a little, the bottom arm long overhead:
         // the top hand and foot push the body in short passes along the back of the shoulder.
+        var found: Double? = null
         Motion(ROLLING, yaw = 20f) { d ->
+            // The bottom arm reaches long along the floor from wherever the shoulder is; it goes in with the trunk so a mesh's armpit sits where it will.
+            fun reach() { val bottom = shoulder(L); grip(L, bottom + V(sqrt(sq(Build.ARM - 0.01) - sq(bottom.y - 0.05)), 0.05 - bottom.y, 0.0), V.UP, V.FWD) }
             fun trunk(roll: Double, slide: Double) {
                 pelvis(Frame.WORLD.moved(V(slide, 0.3, 0.0)).tilt(roll).twist(-20.0))
                 spine(side = -6.0)
                 head(tilt = 20.0)
+                reach()
             }
-            // The trunk tips up from the floor just enough that the hips stay down while the armpit rides on the roller.
-            var lo = 60.0
-            var hi = 90.0
-            repeat(16) {
-                val roll = (lo + hi) / 2
-                trunk(roll, 0.0)
-                rest(2 * ROLLER, listOf(Bone.CHEST))
-                if (lowest(listOf(Bone.PELVIS, Bone.WAIST)) > 0.005) lo = roll else hi = roll
-            }
-            val roll = (lo + hi) / 2
+            // The trunk tips up from the floor just enough that the hips stay down while the armpit rides on the roller. That
+            // roll is the same at every d, so it is found once (at rest, breath held), not on every frame.
+            val roll = found ?: run {
+                var lo = 60.0
+                var hi = 90.0
+                repeat(16) {
+                    val roll = (lo + hi) / 2
+                    trunk(roll, 0.0)
+                    rest(2 * ROLLER, listOf(Bone.CHEST))
+                    if (lowest(listOf(Bone.PELVIS, Bone.WAIST)) > 0.005) lo = roll else hi = roll
+                }
+                (lo + hi) / 2
+            }.also { found = it }
             trunk(roll, 0.0)
             val lift = 2 * ROLLER - lowest(listOf(Bone.CHEST))
             val pit = shoulder(L) + V(-0.07, 0.0, 0.0)
             trunk(roll, lerp(-0.045, 0.045, d))
             nudge(V(0.0, lift, 0.0))
-            val bottom = shoulder(L)
-            grip(L, bottom + V(sqrt(sq(Build.ARM - 0.01) - sq(bottom.y - 0.05)), 0.05 - bottom.y, 0.0), V.UP, V.FWD)
+            reach()
             leg(L, raise = 8.0, knee = 8.0)
             palm(R, V(0.42, 0.0, 0.2), V(1.0, 0.0, 0.3), V(0.3, 1.0, 0.3))
             plant(R, V(-0.36, 0.0, 0.3), 30.0, knee = V(0.0, 0.6, 1.0))

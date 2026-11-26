@@ -73,6 +73,15 @@ class Profile(mesh: Mesh) {
         az = levels.map { if (it.size > 1) (c(it[1], 2) - c(it[0], 2)) / sin(step) else 0.0 }.toDoubleArray()
     }
 
+    /** The ellipse at height [y] (held at the ends): its half-width, half-depth and centre's z. */
+    fun ellipse(y: Double): DoubleArray {
+        var i = ys.binarySearch(y)
+        if (i < 0) i = -i - 2
+        i = i.coerceIn(0, ys.size - 2)
+        val t = ((y - ys[i]) / (ys[i + 1] - ys[i])).coerceIn(0.0, 1.0)
+        return doubleArrayOf(lerp(ax[i], ax[i + 1], t), lerp(az[i], az[i + 1], t), lerp(cz[i], cz[i + 1], t))
+    }
+
     /** Below 0 inside the surface, 0 on it and above 0 outside (as a share of its radius there), for a point in the loft's coordinates. */
     fun inside(x: Double, y: Double, z: Double): Double {
         if (y <= ys[0] || y >= ys[ys.size - 1]) return 1.0

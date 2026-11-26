@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
-class FormTest {
+open class FormTest {
     @Test fun pitchNeverGoesBelowTheFloorOrPastStraightDown() {
         val o = Orbit()
         for (dy in listOf(-5000f, -90f, 0f, 90f, 5000f)) {
@@ -76,9 +76,12 @@ class FormTest {
         assertTrue(bad.joinToString("\n"), bad.isEmpty())
     }
 
-    @Test fun noPartOfTheBodyEverGoesBelowTheFloor() = everyPose { _, _, p, _ ->
-        p.lowest().takeIf { it < -0.005 }?.let { "y=$it" }
+    @Test fun noPartOfTheBodyEverGoesBelowTheFloor() = everyPose { id, _, p, _ ->
+        p.lowest().takeIf { it < -sink(id) }?.let { "y=$it" }
     }
+
+    /** How far the body of [id] may sink into the floor. */
+    protected open fun sink(id: String) = 0.005
 
     /** The viewer fits this sphere into the card at every angle, so a plate poking out of it is cut off somewhere. */
     @Test fun theBodyAndWhatItLiftsStayInsideTheCameraSphere() = everyPose { _, m, p, _ ->
@@ -87,9 +90,12 @@ class FormTest {
         (far - m.radius).takeIf { it > 0 }?.let { "reaches ${"%.3f".format(it)} m outside the camera sphere" }
     }
 
-    @Test fun handsAndFeetReachWhatTheyHoldOrStandOn() = everyPose { _, _, p, _ ->
-        p.strain.takeIf { it > 0.01 }?.let { "a limb falls ${"%.3f".format(it)} m short" }
+    @Test fun handsAndFeetReachWhatTheyHoldOrStandOn() = everyPose { id, _, p, _ ->
+        p.strain.takeIf { it > short(id) }?.let { "a limb falls ${"%.3f".format(it)} m short" }
     }
+
+    /** How far a hand or foot of [id] may fall short of what it holds or stands on. */
+    protected open fun short(id: String) = 0.01
 
     @Test fun standingMovesKeepTheirWeightOverTheFeet() = everyPose { _, m, p, _ ->
         if (!m.balance || p.feet == 0) return@everyPose null

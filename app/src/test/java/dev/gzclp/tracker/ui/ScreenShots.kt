@@ -179,6 +179,32 @@ class ScreenShots {
         RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
     }
 
+    /** The pieces and the full-body mesh trial in the same poses, one sheet per figure and theme, from the side and three-quarters. */
+    @Test fun formFigure() {
+        val poses = listOf("squat" to 1f, "squat" to 0.6f, "deadlift" to 0f, "ohp" to 1f, "pull_up" to 0f, "push_up" to 1f, "bench" to 0f, "hips_pigeon" to 1f, "upper_back_foam_roll" to 0.5f)
+        RuntimeEnvironment.setQualifiers("w450dp-h1350dp-420dpi")
+        try {
+            for (p in listOf(Palettes.jade, Palettes.light)) for (mesh in listOf(false, true)) {
+                dev.gzclp.tracker.form.Figure.on = mesh
+                captureRoboImage(File(out, "figure/${p.id}-${if (mesh) "mesh" else "pieces"}.png").path) {
+                    GzTheme(p) {
+                        Column(Modifier.fillMaxSize().background(p.bg)) {
+                            for ((id, t) in poses) Row(Modifier.weight(1f)) {
+                                val focus = StretchMoves.ALL.firstOrNull { it.id == id }?.focus
+                                for ((yaw, pitch) in listOf(90f to 4f, 35f to 15f, 200f to 15f)) {
+                                    FormView(Motions.of(id), Modifier.weight(1f).fillMaxHeight(), focus = focus, still = t, orbit = Orbit().apply { this.yaw = yaw; this.pitch = pitch })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            dev.gzclp.tracker.form.Figure.on = false
+            RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+        }
+    }
+
     /** One sheet per theme of every color pairing PaletteContrastTest checks: text levels, controls on and off, chart series. */
     @Test fun paletteSheets() {
         val pts = (0..5).map { t0.plusWeeks(it.toLong()) }

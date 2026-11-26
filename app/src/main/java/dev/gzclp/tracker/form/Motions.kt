@@ -170,14 +170,15 @@ internal fun Poser.rest(y: Double, bones: List<Bone> = Bone.TRUNK) = nudge(V(0.0
 object Motions {
     private val defs: Map<String, () -> Motion> = LIFTS + ACCESSORIES + BODYWEIGHT + STRETCHES
 
-    private val generic = Motion(Tempo(1.4, 0.6, 1.4, 0.8), balance = true) { d ->
+    private fun generic() = Motion(Tempo(1.4, 0.6, 1.4, 0.8), balance = true) { d ->
         pelvis(V(0.0, STAND, 0.0), pitch = 4.0)
         spine(waist = -8.0, chest = 5.0)
         for (s in SIDES) arm(s, raise = 10 + 70 * d, plane = 90.0, elbow = 10.0)
         feet()
     }
 
-    private val made = HashMap<String, Motion>()
+    /** Solved per figure, since the [Figure] mesh rests on the floor and fills the camera's view differently from the pieces. */
+    private val made = HashMap<Pair<String, Boolean>, Motion>()
 
     /** True when [id] has its own motion rather than the generic one. */
     fun known(id: String) = id in defs
@@ -191,7 +192,7 @@ object Motions {
     fun resolve(id: String): String? = id.takeIf { it in defs } ?: folded[fold(id)]
 
     /** The motion for an exercise or stretch id; an unknown id gets a generic arm raise. */
-    fun of(id: String): Motion = made.getOrPut(id) { defs[id]?.invoke() ?: generic }
+    fun of(id: String): Motion = made.getOrPut(id to Figure.on) { defs[id]?.invoke() ?: generic() }
 
     /** The motion for a stretch. */
     fun of(move: StretchMove): Motion = of(move.id)

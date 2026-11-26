@@ -362,10 +362,19 @@ class Poser {
         (if (closed(L)) Body.fist else Body.flat) to ARMS[0], (if (closed(R)) Body.fist else Body.flat) to ARMS[1],
     )
 
+    /** The [Figure] posed, for [skin]. */
+    internal val posed by lazy { FloatArray(Figure.mesh.verts * 3) }
+
     internal val bent = FloatArray(maxOf(Body.torso.mesh.verts, Body.leg.mesh.verts, Body.fist.mesh.verts, Body.flat.mesh.verts) * 3)
 
     /** Every point of the skin of [bones] in world space; a bone in a [Skin] gives the part of it that follows that bone most. */
     internal inline fun skin(bones: List<Bone>, block: (Double, Double, Double) -> Unit) {
+        if (Figure.on) {
+            val p = posed
+            Figure.pose(this, p, only = bones)
+            for (i in 0 until Figure.mesh.verts) if (!p[i * 3].isNaN() && Bone.entries[Figure.lead[i]] in bones) block(p[i * 3].toDouble(), p[i * 3 + 1].toDouble(), p[i * 3 + 2].toDouble())
+            return
+        }
         for (b in bones) if (has(b)) Body.of(b)?.each(this[b], block = block)
         for ((s, chain) in chains()) {
             if (chain.none { it in bones } || !chain.all { has(it) }) continue
