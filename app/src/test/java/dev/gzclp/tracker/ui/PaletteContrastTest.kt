@@ -39,6 +39,20 @@ class PaletteContrastTest {
         }
     }
 
+    @Test fun currentSetReadsOnItsPill() {
+        for (p in themes) {
+            // Accent-tinted in every theme, never the plain fill it falls back to.
+            assertTrue("${p.id} step pill falls back to fill", p.stepPill != p.fill)
+            for (s in p.surfaces) {
+                val pill = p.stepPill.compositeOver(s)
+                // The set number; the fields and check on the pill are opaque fill over the page or card, which textReadsOnEverySurface covers.
+                p.check("fg on the step pill", p.fg, pill, 4.5f)
+                // The current set's check keeps its accent ring.
+                p.check("accent ring on the step pill", p.accent, pill, 3f)
+            }
+        }
+    }
+
     @Test fun controlStatesAndChartMarksClearThreeToOne() {
         for (p in themes) for (s in listOf(p.bg, p.elevated)) {
             // The accent marks the selected segment, a switch that is on, a slider's fill, and the current chart series;

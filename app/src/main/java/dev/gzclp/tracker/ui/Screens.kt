@@ -230,6 +230,7 @@ fun NumberField(
     onCommit: () -> Unit = {},
     label: String? = null,
     keyboardType: KeyboardType = KeyboardType.Number,
+    fill: Color = LocalPalette.current.fill,
 ) {
     val p = LocalPalette.current
     val focus = LocalFocusManager.current
@@ -238,7 +239,7 @@ fun NumberField(
     val bring = remember { BringIntoViewRequester() }
     val ime = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(focused, ime) { if (focused) bring.bringIntoView() }
-    Box(modifier.bringIntoViewRequester(bring).width(width).height(44.dp).clip(RoundedCornerShape(Radius.md)).background(p.fill).padding(horizontal = Space.md), contentAlignment = Alignment.CenterEnd) {
+    Box(modifier.bringIntoViewRequester(bring).width(width).height(44.dp).clip(RoundedCornerShape(Radius.md)).background(fill).padding(horizontal = Space.md), contentAlignment = Alignment.CenterEnd) {
         if (value.isEmpty()) Txt(placeholder, Type.body.tabular(), color = p.fg3, align = TextAlign.End)
         BasicTextField(
             value, onChange,
@@ -372,9 +373,14 @@ fun WorkoutScreen(
         Txt(Fmt.minutes(Duration.between(a.startedAt, now).seconds), Type.subhead.tabular(), color = p.fg2)
         val exercises = state.sessionExercises().map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
-        exercises.forEach { ex ->
-            Spacer(Modifier.height(Space.x3))
-            ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups, onUseSuggestion)
+        // One pill for the whole session, so it springs from the last set of one exercise to the first of the next.
+        StepPillHost(p.bg, Modifier.fillMaxWidth()) {
+            Column {
+                exercises.forEach { ex ->
+                    Spacer(Modifier.height(Space.x3))
+                    ExerciseBlock(state, ex, next, onLog, onClear, onEditWeight, onSwap, warmups, onUseSuggestion)
+                }
+            }
         }
     }
 }
@@ -540,20 +546,21 @@ fun SetRow(
     val commit = { if (logged != null) onLog(weight() ?: logged.weight, reps(), e.toDoubleOrNull()) }
     val short = logged != null && logged.actualReps < targetReps
     val name = "$exName set $index"
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+    val fieldFill = pillFill(current)
+    Row(Modifier.fillMaxWidth().stepPill(current), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         Txt(if (amrap) "$index+" else "$index", Type.headline.tabular(), Modifier.width(SET_COL), if (current) p.fg else p.fg2)
         // No weight known (a first-time substitute) leaves the field empty; the check then asks for one instead of logging 0.
         NumberField(
             w, { w = it.filter(Char::isDigit).take(4) }, last = false, Modifier.focusRequester(weightFocus), placeholder = "",
-            width = WEIGHT_COL, onCommit = commit, label = "$name weight",
+            width = WEIGHT_COL, onCommit = commit, label = "$name weight", fill = fieldFill,
         )
         NumberField(
             r, { r = it.filter(Char::isDigit).take(3) }, width = REPS_COL, placeholder = if (amrap) "$targetReps+" else "$targetReps",
-            color = if (short) p.red else p.fg, onCommit = commit, label = "$name reps",
+            color = if (short) p.red else p.fg, onCommit = commit, label = "$name reps", fill = fieldFill,
         )
         NumberField(
             e, { if (RPE_INPUT.matches(it)) e = it }, width = RPE_COL, placeholder = "",
-            onCommit = commit, label = "$name RPE", keyboardType = KeyboardType.Decimal,
+            onCommit = commit, label = "$name RPE", keyboardType = KeyboardType.Decimal, fill = fieldFill,
         )
         Spacer(Modifier.weight(1f))
         val hit = logged != null && !short
@@ -577,7 +584,7 @@ fun SetRow(
             fill = when {
                 hit -> p.accent
                 short -> p.red.copy(alpha = 0.18f)
-                else -> p.fill
+                else -> fieldFill
             },
             pressedFill = if (hit) Color.Black.copy(alpha = 0.14f) else p.fillPressed,
             border = if (current) p.accent else null,
