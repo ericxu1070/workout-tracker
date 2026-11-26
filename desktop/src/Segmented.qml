@@ -30,8 +30,9 @@ Item {
     activeFocusOnTab: true
     Keys.onLeftPressed: pick(index - 1)
     Keys.onRightPressed: pick(index + 1)
-    scale: area.pressed ? 1.04 : 1
-    Behavior on scale { NumberAnimation { duration: area.pressed ? 100 : 200; easing.type: Easing.OutCubic } }
+    readonly property bool held: area.pressed && area.onThumb
+    scale: held ? 1.04 : 1
+    Behavior on scale { NumberAnimation { duration: seg.held ? 100 : 200; easing.type: Easing.OutCubic } }
 
     GlassPane { visible: seg.floating; anchors.fill: parent; backdrop: seg.backdrop }
     Rectangle {
@@ -51,7 +52,7 @@ Item {
     Item {
         id: thumb
         // 0 resting in the bar, 1 held up under the pointer.
-        property real lift: area.pressed ? 1 : 0
+        property real lift: seg.held ? 1 : 0
         Behavior on lift { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         readonly property real cx: area.dragging ? seg.clamp(area.mouseX - area.grab, seg.center(0), seg.center(seg.count - 1)) : seg.center(seg.index)
         property real px: cx
@@ -130,16 +131,25 @@ Item {
         property bool onThumb: false
         property real grab: 0
         property real pressX: 0
+        property bool moved: false
+        // As on the phone: only a press that lands on the pill holds it; elsewhere it is a tap on that segment, which the
+        // floating switch takes as the button goes down and an inline control on release, unless the pointer moved off.
         onPressed: mouse => {
             pressX = mouse.x
-            onThumb = Math.abs(mouse.x - thumb.px) < thumb.baseW / 2
+            moved = false
+            onThumb = Math.abs(mouse.x - thumb.px) < thumb.baseW / 2 + 8
             grab = mouse.x - thumb.px
+            if (!onThumb && seg.floating) seg.pick(seg.at(mouse.x))
         }
-        onPositionChanged: mouse => { if (pressed && onThumb && Math.abs(mouse.x - pressX) > 4) dragging = true }
+        onPositionChanged: mouse => {
+            if (!pressed || Math.abs(mouse.x - pressX) <= 4) return
+            moved = true
+            if (onThumb) dragging = true
+        }
         onReleased: mouse => {
-            const target = dragging ? seg.at(thumb.px) : seg.at(mouse.x)
+            if (dragging) seg.pick(seg.at(thumb.px))
+            else if (!onThumb && !moved) seg.pick(seg.at(mouse.x))
             dragging = false
-            seg.pick(target)
         }
         onCanceled: dragging = false
     }

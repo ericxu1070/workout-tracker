@@ -1,5 +1,5 @@
 // Renders the dashboard offscreen to a PNG, for review and PR screenshots from the fixture, never the real log.
-// Usage: gzclp-desk-shots LOG THEME_DIR OUT.png WIDTH HEIGHT [prop=value | hover=x,y | click=x,y | press=x,y | key=K | scroll=y]...
+// Usage: gzclp-desk-shots LOG THEME_DIR OUT.png WIDTH HEIGHT [prop=value | hover=x,y | click=x,y | press=x,y | drag=x,y | release=x,y | key=K | scroll=y]...
 // THEME_DIR holds theme/colors.toml, as ~/.local/state/omarchy/current does. Steps run in order, 300 ms apart.
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -55,8 +55,12 @@ int main(int argc, char *argv[]) {
             QTest::mouseMove(win, at);
         else if (key == "click")
             QTest::mouseClick(win, Qt::LeftButton, {}, at);
-        else if (key == "press")  // held down through the grab
+        else if (key == "press")  // held down until a release step, or through the grab
             QTest::mousePress(win, Qt::LeftButton, {}, at);
+        else if (key == "drag")  // a move with the button held
+            QTest::mouseMove(win, at);
+        else if (key == "release")
+            QTest::mouseRelease(win, Qt::LeftButton, {}, at);
         else if (key == "key")
             QTest::keyClick(win, QKeySequence(value)[0].key());
         else if (key == "scroll")

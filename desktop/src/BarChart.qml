@@ -44,6 +44,13 @@ Item {
                   width: chart.x0 - pal.space.sm; horizontalAlignment: Text.AlignRight; y: -height / 2 }
         }
     }
+    // The picked week's line, down to its bar's top, as the line charts draw one.
+    Rectangle {
+        visible: chart.shown >= 0
+        x: Math.round(chart.x0 + (chart.shown + 0.5) * chart.slot); y: chart.y0
+        width: 1; height: chart.shown >= 0 ? Math.max(0, chart.py(chart.values[chart.shown]) - chart.y0 - 2) : 0
+        color: pal.labelTertiary
+    }
     Repeater {
         model: chart.values.length
         Item {
@@ -60,7 +67,7 @@ Item {
                 width: chart.barW; x: (bar.width - width) / 2
                 y: chart.y0 + chart.plotH - h; height: h
                 radius: Math.min(4, width / 4)
-                color: bar.latest ? pal.tint : pal.neutralMark
+                color: bar.latest ? pal.tint : chart.shown === bar.index ? pal.labelSecondary : pal.neutralMark
                 opacity: chart.shown >= 0 && chart.shown !== bar.index ? 0.35 : 1
                 Behavior on opacity { NumberAnimation { duration: 150 } }
             }
