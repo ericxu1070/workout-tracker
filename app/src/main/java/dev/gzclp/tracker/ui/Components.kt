@@ -78,6 +78,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -366,15 +367,16 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
 
 /**
  * [count] equal segments on a bar ([frame], drawn behind them) with one [thumb] pill that slides under them: tap a segment or drag the thumb.
- * Given a [pager], the thumb follows a swipe of the pages, and dragging it snaps the pages to the segment under it; otherwise it springs to
- * [selected], and a drag selects the segment it is let go over. Only a finger that lands on the thumb holds or drags it: held, the bar
+ * Given a [pager], the thumb follows a swipe of the pages, and a tap or a drag of the thumb turns the pages to the segment at once, while the
+ * thumb springs after; otherwise it springs to [selected], and a drag selects the segment it is let go over. With [onDown] (the default
+ * given a [pager]) a segment is chosen as the finger lands, not as it lifts; a bar inside a scroller leaves it off, so a scroll can start there. Only a finger that lands on the thumb holds or drags it: held, the bar
  * swells a little; held or swiped, the thumb lifts past the bar, springs after the finger, and squashes with its speed ([ThumbMotion]). [cell] sizes a segment; [content] draws segment i on the bar, and
  * again on the thumb when its second argument is true.
  */
 @Composable
 fun ThumbRow(
     count: Int, selected: Int, onSelect: (Int) -> Unit, thumb: Color, modifier: Modifier, pager: PagerState? = null,
-    frame: Modifier, cell: Modifier, content: @Composable (Int, Boolean) -> Unit,
+    frame: Modifier, cell: Modifier, onDown: Boolean = pager != null, content: @Composable (Int, Boolean) -> Unit,
 ) {
     val p = LocalPalette.current
     val scope = rememberCoroutineScope()
@@ -387,14 +389,15 @@ fun ThumbRow(
     // Where the thumb heads: the finger while it drags the thumb; the pages' position while a finger swipes them; else the page
     // they are headed to, so after a tap or a fling the thumb leads the pages instead of trailing them.
     var drag by remember { androidx.compose.runtime.mutableStateOf<Float?>(null) }
-    // A tapped segment, aimed at on the tap itself so the thumb moves on the next frame along with the pages.
+    // A tapped segment, aimed at on the tap itself so the thumb moves on the next frame.
     var aim by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
     val at = { drag ?: aim?.toFloat() ?: pager?.let { if (swiped) it.position else it.targetPage.toFloat() } ?: own.value }
     fun tap(i: Int) {
         aim = i
         scope.launch {
             try {
-                pager?.springTo(i)
+                // The page shows on the next frame; only the thumb animates, as a UISegmentedControl's content changes at once.
+                pager?.scrollToPage(i)
             } finally {
                 if (aim == i) aim = null
             }
@@ -424,7 +427,11 @@ fun ThumbRow(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         // Only a finger that lands on the thumb holds or drags it; elsewhere on the bar a touch is a tap on that segment.
-                        if (abs(down.position.x - (motion.x.coerceIn(0f, count - 1f) + 0.5f) * segment) > segment / 2 + grab) return@awaitEachGesture
+                        if (abs(down.position.x - (motion.x.coerceIn(0f, count - 1f) + 0.5f) * segment) > segment / 2 + grab) {
+                            // Chosen as the finger lands, so a tab or page shows a whole tap sooner; the lift's click then picks it again, a no-op.
+                            if (onDown) (down.position.x / segment).toInt().coerceIn(0, count - 1).let { if (pager != null) tap(it) else select(it) }
+                            return@awaitEachGesture
+                        }
                         held = true
                         try {
                             val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() }
@@ -443,7 +450,7 @@ fun ThumbRow(
                                 val over = spot.roundToInt()
                                 if (pager != null && over != shown) {
                                     shown = over
-                                    scope.launch { pager.springTo(over) }
+                                    scope.launch { pager.scrollToPage(over) }
                                 }
                             }
                             try {
@@ -455,7 +462,7 @@ fun ThumbRow(
                                 if (pager == null) {
                                     scope.launch { own.snapTo(to.toFloat()) }
                                     select(to)
-                                } else if (to != shown) scope.launch { pager.springTo(to) }
+                                } else if (to != shown) scope.launch { pager.scrollToPage(to) }
                             }
                         } finally {
                             held = false
@@ -686,7 +693,7 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
         // In Liquid Glass the pill is the accent, as the header's switch is, until held; one label weight keeps the bar's label hidden under the pill's.
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.accent else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.accent else p.elevated, m, onDown = true, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
             val t = Tab.entries[i]
             val c = if (!thumb) p.fg2 else if (p.glass) p.onAccent else p.accent
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -727,5 +734,57 @@ fun TabFrame(tab: Tab, onSelect: (Tab) -> Unit, content: @Composable () -> Unit)
             androidx.compose.runtime.CompositionLocalProvider(LocalBottomInset provides if (bar) GlassTabBar + Space.xs + nav else 0.dp, content = content)
         }
         if (bar) androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides b) { TabBar(tab, Modifier.align(Alignment.BottomCenter), onSelect) }
+    }
+}
+
+/**
+ * Whether the caller's tab is the one showing; always true outside [TabScreens]. Kept tabs stay composed, so a handler only the shown tab
+ * should own waits on this. A state, not a value: a changed local recomposes everything under it, which a tab switch must not.
+ */
+val LocalTabShown = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.runtime.State<Boolean>> { androidx.compose.runtime.mutableStateOf(true) }
+
+/**
+ * Every tab's screen, kept composed as a UITabBarController keeps its tabs: switching to one costs no composition and finds it as it was
+ * left. The other tabs are composed one a frame once the first has opened, so a first visit is as quick. Only [tab]'s screen is placed and drawn.
+ */
+@Composable
+fun TabScreens(tab: Tab, content: @Composable (Tab) -> Unit) {
+    val kept = remember { androidx.compose.runtime.mutableStateListOf(tab) }
+    if (tab !in kept) kept += tab
+    // Read only where it matters (placing, and each tab's shown state), so a switch recomposes nothing in the screens.
+    val current = androidx.compose.runtime.rememberUpdatedState(tab)
+    // 400 ms clears the first screen's opening frames, as [Pages] waits for its neighbors.
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(400)
+        for (t in Tab.entries) if (t !in kept) androidx.compose.runtime.withFrameNanos { kept += t }
+    }
+    androidx.compose.ui.layout.Layout({
+        for (t in kept) androidx.compose.runtime.key(t) {
+            val shown = remember { androidx.compose.runtime.derivedStateOf { current.value == t } }
+            KeptTab(t, shown, content)
+        }
+    }) { all, c ->
+        // Each kept screen is measured, so a switch finds it laid out too; unchanged ones cost nothing to measure again.
+        val screens = all.map { it.layoutId to it.measure(c) }
+        layout(c.maxWidth, c.maxHeight) { screens.first { it.first == current.value }.second.place(0, 0) }
+    }
+}
+
+/**
+ * The tab bar over every tab's screen ([TabFrame] around [TabScreens]). The tab is read here alone, so a switch recomposes this and the bar:
+ * the caller, and the [content] it built, are left as they were, and no kept screen runs again.
+ */
+@Composable
+fun TabHost(tab: () -> Tab, onSelect: (Tab) -> Unit, content: @Composable (Tab) -> Unit) {
+    val t = tab()
+    TabFrame(t, onSelect) { TabScreens(t, content) }
+}
+
+/** One kept tab: skipped when [TabScreens] recomposes, as its arguments stay the same. Out of sight, it is out of the accessibility tree too. */
+@Composable
+private fun KeptTab(t: Tab, shown: androidx.compose.runtime.State<Boolean>, content: @Composable (Tab) -> Unit) {
+    val hidden = if (shown.value) Modifier else Modifier.clearAndSetSemantics {}
+    Box(Modifier.layoutId(t).fillMaxSize().then(hidden), propagateMinConstraints = true) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides shown) { content(t) }
     }
 }

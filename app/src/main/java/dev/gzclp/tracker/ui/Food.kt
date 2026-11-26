@@ -66,7 +66,7 @@ fun FoodScreen(
     val storeState = model?.store?.state?.collectAsState()?.value
     var showWaterTracker by rememberSaveable { mutableStateOf(false) }
     if (showWaterTracker && model != null && storeState != null) {
-        BackHandler { showWaterTracker = false }
+        BackHandler(LocalTabShown.current.value) { showWaterTracker = false }
         WaterScreen(
             state = storeState,
             day = day,
