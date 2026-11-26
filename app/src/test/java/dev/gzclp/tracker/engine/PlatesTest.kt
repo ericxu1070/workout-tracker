@@ -24,6 +24,7 @@ class PlatesTest {
         assertNull(gym.perSide(137))
         assertEquals(135, gym.round(137))
         val noSmalls = Plates(pairs = mapOf(45.0 to 2, 10.0 to 1))
+        assertEquals(135, noSmalls.round(140)) // nearest: 135, not 155
         assertEquals(135, noSmalls.round(145)) // tie between 135 and 155 goes lighter
         assertEquals(155, noSmalls.round(150 + 3))
     }

@@ -1,4 +1,5 @@
 # Every pull request and every push to main: unit, Robolectric and Compose UI tests, then the debug APK.
+# The release-variant unit tests run too, since the tag build runs `./gradlew test`.
 # Screenshots are recorded, never compared: no baselines are committed, and renders differ between hosts (fonts).
 # The renders are attached to the run so a reviewer can look at them. Needs no secrets.
 name: CI
@@ -29,7 +30,7 @@ jobs:
       - name: Install Android platform
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
       - name: Test and build
-        run: ./gradlew --console=plain recordRoborazziDebug assembleDebug -PgzclpShots="$RUNNER_TEMP/shots"
+        run: ./gradlew --console=plain recordRoborazziDebug testReleaseUnitTest assembleDebug -PgzclpShots="$RUNNER_TEMP/shots"
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
