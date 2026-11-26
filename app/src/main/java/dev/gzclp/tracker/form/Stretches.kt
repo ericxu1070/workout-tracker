@@ -48,9 +48,22 @@ internal fun pitchTo(hip: V, p: V, y: Double): Double {
 internal fun Poser.reachFloor(s: Int, dir: V, arm: Double, elbow: V) {
     val sh = shoulder(s)
     val u = dir.across(V.UP).unit()
-    val drop = sh.y - 0.022
-    val wrist = V(sh.x, 0.022, sh.z) + u * sqrt(max(0.0, arm * arm - drop * drop))
-    palm(s, wrist + u * 0.075 - V(0.0, 0.022, 0.0), u, elbow)
+    var floor = 0.0
+    // The wrist sits at the pieces' height; a mesh's fuller forearm lying along the floor lifts the hand until it rests on it.
+    for (k in 0 until if (Figure.on) 6 else 1) {
+        val drop = sh.y - floor - 0.022
+        val wrist = V(sh.x, floor + 0.022, sh.z) + u * sqrt(max(0.0, arm * arm - drop * drop))
+        palm(s, wrist + u * 0.075 - V(0.0, 0.022, 0.0), u, elbow)
+        val lo = if (Figure.on) lowest(listOf(Bone.forearm(s))) else 0.0
+        if (lo > -0.0002) return
+        floor -= lo
+    }
+}
+
+/** The [s] fist [grip]ped resting on the floor at [at]; a mesh's fist, fuller than the pieces' it was set on, rises to rest on its knuckles. */
+internal fun Poser.fistOnFloor(s: Int, at: V, elbow: V, palm: V) {
+    grip(s, at, elbow, palm)
+    if (Figure.on) lowest(listOf(Bone.hand(s))).let { if (it < 0) grip(s, at - V(0.0, it, 0.0), elbow, palm) }
 }
 
 /** All fours, from the tabletop. */
@@ -353,13 +366,22 @@ internal fun Poser.sit(pitch: Double, waist: Double = 0.0, chest: Double = 0.0, 
 }
 
 /** The [s] leg straight out ahead of a pelvis tipped [pitch] forward, the knee soft and the foot [ankle] degrees up from square, lowered until it rests on the floor. */
-internal fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) {
-    var raise = 88.0 + pitch
-    repeat(2) {
-        leg(s, raise, knee = 4.0, ankle = ankle)
-        raise -= asin((lowest(listOf(Bone.shin(s), Bone.foot(s))) / 0.9).coerceIn(-1.0, 1.0)) / DEG
+internal fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) = lower(s, 88.0 + pitch, 2) { leg(s, it, knee = 4.0, ankle = ankle) }
+
+/**
+ * Swings the [s] leg, posed by [leg] at a raise, down from [raise] until its shin and foot rest on the floor, a step at a time
+ * as though they touched it 0.9 m from the hip: [steps] steps for the pieces. A mesh's fuller calf touches nearer the hip, so
+ * it steps on until it rests within a fraction of a millimetre.
+ */
+internal fun Poser.lower(s: Int, raise: Double, steps: Int, leg: Poser.(Double) -> Unit) {
+    var r = raise
+    for (k in 0 until if (Figure.on) 12 else steps) {
+        leg(r)
+        val lo = lowest(listOf(Bone.shin(s), Bone.foot(s)))
+        if (k >= steps && kotlin.math.abs(lo) < 0.0002) return
+        r -= asin((lo / 0.9).coerceIn(-1.0, 1.0)) / DEG
     }
-    leg(s, raise, knee = 4.0, ankle = ankle)
+    leg(r)
 }
 
 /** Sitting or lying on the floor. */
@@ -412,7 +434,7 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
             outstretched(R, 4.0, -25.0)
             plant(L, V(-0.23, 0.0, 0.55), knee = V(-0.25, 0.8, 0.5))
             grip(R, this[Bone.SHIN_L].o + V(0.08, -0.02, 0.0), V(-0.3, -0.5, 1.0), V(-1.0, 0.0, 0.0))
-            grip(L, V(0.16, 0.045, -0.24), V(0.5, 0.0, -1.0), V(-1.0, 0.0, 0.3))
+            fistOnFloor(L, V(0.16, 0.045, -0.24), V(0.5, 0.0, -1.0), V(-1.0, 0.0, 0.3))
         }
     },
     "spine_supine_twist" to {
@@ -459,9 +481,7 @@ internal fun Poser.supineTwist(fall: Double, a: Double) {
         // The top knee crosses further to rest on the bottom one; each thigh turns back as it swings so the shins stay level.
         val k = (if (s == top) 36.0 else 26.0) * a
         leg(s, raise = 92.0, plane = 90.0 + s * k, twist = -s * k, knee = 95.0, ankle = -20.0)
-        val sh = shoulder(s)
-        val wrist = V(sh.x + s * sqrt(sq(0.545) - sq(sh.y - 0.022)), 0.022, sh.z)
-        palm(s, wrist + V(s * 0.075, -0.022, 0.0), V(s * 1.0, 0.0, 0.0), V(0.0, -0.2, 1.0))
+        reachFloor(s, V(s * 1.0, 0.0, 0.0), 0.545, V(0.0, -0.2, 1.0))
     }
 }
 
