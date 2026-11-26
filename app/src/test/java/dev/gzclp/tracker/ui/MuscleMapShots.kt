@@ -24,7 +24,8 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
 class MuscleMapShots {
-    @get:Rule val rule = createComposeRule()
+    @get:Rule(order = 0) val activity = ComposeActivity()
+    @get:Rule(order = 1) val rule = createComposeRule()
     private val out = File(System.getProperty("gzclp.shots") ?: "build/shots")
 
     @Test fun styles() {

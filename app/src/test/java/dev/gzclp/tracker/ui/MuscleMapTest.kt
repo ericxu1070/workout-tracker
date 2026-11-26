@@ -24,7 +24,8 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
 class MuscleMapTest {
-    @get:Rule val rule = createComposeRule()
+    @get:Rule(order = 0) val activity = ComposeActivity()
+    @get:Rule(order = 1) val rule = createComposeRule()
     private val sunday = Demo.today.minusDays(1)
     private val idle = Demo.state.copy(active = null)
 
