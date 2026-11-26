@@ -41,6 +41,7 @@ import dev.gzclp.tracker.engine.Activity
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.ui.ActivitiesScreen
 import dev.gzclp.tracker.ui.CardioRunScreen
+import dev.gzclp.tracker.ui.cardioClock
 import dev.gzclp.tracker.ui.CardioScreen
 import dev.gzclp.tracker.ui.cardioEdit
 import dev.gzclp.tracker.ui.cardioPast
@@ -81,7 +82,7 @@ import dev.gzclp.tracker.ui.TabHost
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.BackStack
 import dev.gzclp.tracker.ui.GzTheme
-import dev.gzclp.tracker.ui.GlassTabBar
+import dev.gzclp.tracker.ui.tabBarHeight
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
 import dev.gzclp.tracker.ui.rememberBackdrop
@@ -287,7 +288,7 @@ private fun App(model: AppModel) {
     /** Opens the stop sheet with the running session's time frozen at this tap. */
     fun stopCardio() {
         val run = model.store.state.value.cardioActive ?: return
-        open(SheetState.CardioStop(run, Duration.between(run.startedAt, model.now()).seconds.coerceAtMost(Commands.CARDIO_DURATION_SEC.last)))
+        open(SheetState.CardioStop(run, Duration.between(run.startedAt, model.now()).seconds.coerceIn(Commands.CARDIO_DURATION_SEC)))
     }
     fun pickCardioEnd(s: SheetState.CardioStop) {
         val end = s.run.startedAt.plusSeconds(s.durationSec)
@@ -451,7 +452,7 @@ private fun App(model: AppModel) {
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
                     stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
                     onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
-                    sound = model.stretchSound, haptics = model.stretchHaptics,
+                    sound = model.stretchSound, haptics = model.stretchHaptics, onLeave = { logged -> model.dispatch { listOf(logged) } },
                 )
                 shown == Route.StretchRoutine && routine != null -> StretchRoutineScreen(
                     routine, onBack = { route = null }, onStart = { playerFromPage = true; push(Route.Stretch, routine.key) },
@@ -470,7 +471,7 @@ private fun App(model: AppModel) {
                 else -> TabHost({ tab }, { tab = it }) { t ->
                         when (t) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
-                                run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+                                run, cardioClock(run, sheet, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime()),
                                 onSettings = { push(Route.Settings) }, onDiscard = { open(SheetState.CardioDiscard(run)) }, onStop = ::stopCardio,
                             ) else WorkoutPages(model.workoutMode, model::chooseWorkoutMode, onSettings = { push(Route.Settings) }) { page ->
                                 when (page) {
@@ -541,7 +542,7 @@ private fun App(model: AppModel) {
             }
         }
         LaunchedEffect(weighUndo) {
-            delay(4000)
+            delay(8000)
             weighUndo = null
         }
         UndoBar(
@@ -550,9 +551,8 @@ private fun App(model: AppModel) {
                 weighUndo?.let { u -> model.dispatch { Commands.undoBodyWeight(it, u.id, u.before) } }
                 weighUndo = null
             },
-            // Clears the tab bar where there is one.
-            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = if (route != null) Space.lg else if (LocalPalette.current.glass) GlassTabBar + Space.xs + Space.sm else 64.dp),
+            // Over the bottom bar's pill, above the tab bar where there is one.
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = tabBarHeight(route == null) + Space.lg),
             backdrop,
         )
         Sheet(sheet != null, ::close, backdrop) {

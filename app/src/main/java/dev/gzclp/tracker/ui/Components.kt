@@ -81,6 +81,7 @@ import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -350,12 +351,12 @@ fun ShowMoreRow(open: Boolean, onClick: () -> Unit, lead: Dp = 0.dp) {
 fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier, unit: String? = null, repeat: Boolean = false) {
     val p = LocalPalette.current
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Pressable(onMinus, Modifier.size(64.dp), CircleShape, p.fill, label = "Decrease", repeat = repeat) { Icon(Icons.minus, p.fg, 24.dp) }
+        Pressable(onMinus, Modifier.size(64.dp).semantics { contentDescription = "Decrease" }, CircleShape, p.fill, label = "Decrease", repeat = repeat) { Icon(Icons.minus, p.fg, 24.dp) }
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(value, Type.display)
             if (unit != null) Txt(" $unit", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
         }
-        Pressable(onPlus, Modifier.size(64.dp), CircleShape, p.fill, label = "Increase", repeat = repeat) { Icon(Icons.plus, p.fg, 24.dp) }
+        Pressable(onPlus, Modifier.size(64.dp).semantics { contentDescription = "Increase" }, CircleShape, p.fill, label = "Increase", repeat = repeat) { Icon(Icons.plus, p.fg, 24.dp) }
     }
 }
 
@@ -653,7 +654,10 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
     }
 }
 
-/** A floating "[text] · Undo" bar that rises while [text] is set; the caller clears it to let it go. */
+/**
+ * A floating "[text] · Undo" bar that rises while [text] is set; the caller clears it to let it go. It lands on a screen's [BottomBar]
+ * pill and covers it, and a tap anywhere on it stays on it, so a tap meant for Undo never reaches the button underneath.
+ */
 @Composable
 fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Modifier, backdrop: Backdrop? = LocalBackdrop.current) {
     val p = LocalPalette.current
@@ -670,6 +674,7 @@ fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Mod
                 .then(if (p.glass) Modifier.glassPane(CircleShape, backdrop) else Modifier.clip(CircleShape).background(p.elevated))
                 // In a dark theme the bar steps above the cards it floats over, or it melts into them.
                 .then(if (p.dark && !p.glass) Modifier.background(p.fillPressed) else Modifier)
+                .pointerInput(Unit) { detectTapGestures() }
                 .padding(start = Space.xl, end = Space.xs).height(52.dp).semantics { liveRegion = LiveRegionMode.Polite },
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -733,7 +738,7 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
     ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
         // Inset so the end tabs' pills keep the screen's 16 dp gutter.
-        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(56.dp), Modifier)
+        bar(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = Space.md).height(TabBarRow), Modifier)
     }
 }
 
@@ -742,6 +747,13 @@ private val TabLabel = Type.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, f
 
 /** The floating glass tab bar's height, above its [Space.xs] margin and the navigation bar. */
 val GlassTabBar = 60.dp
+
+/** The flat tab bar's row, under its hairline. */
+private val TabBarRow = 56.dp
+
+/** The tab bar's height above the navigation bar, as the screens above it see it; 0 when there is none. */
+@Composable
+fun tabBarHeight(shown: Boolean): Dp = if (!shown) 0.dp else if (LocalPalette.current.glass) GlassTabBar + Space.xs else TabBarRow + 1.dp
 
 /** A tab's screen above the tab bar; the bar steps aside while the keyboard is up. In Liquid Glass the screen runs under the floating bar. */
 @OptIn(ExperimentalLayoutApi::class)

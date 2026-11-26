@@ -540,7 +540,7 @@ class ScreenShots {
             shot(p, "16-weigh-in-undo") {
                 Box(Modifier.fillMaxSize()) {
                     TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) }
-                    UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = 64.dp))
+                    UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = tabBarHeight(true) + Space.lg))
                 }
             }
             shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}, today) {} } }

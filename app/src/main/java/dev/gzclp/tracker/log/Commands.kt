@@ -472,7 +472,7 @@ object Commands {
         )
     }
 
-    val CARDIO_DURATION_SEC = 60L..86_400L
+    val CARDIO_DURATION_SEC = 1L..86_400L
     val SESSION_DURATION_SEC = 60L..86_400L
     val CARDIO_DISTANCE_M = 1..1_000_000
     const val CARDIO_NOTES_MAX = 200

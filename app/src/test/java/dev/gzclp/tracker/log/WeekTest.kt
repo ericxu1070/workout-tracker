@@ -4,7 +4,9 @@ import dev.gzclp.tracker.engine.Program
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Tier
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -81,7 +83,22 @@ class WeekTest {
         val (bench, sub) = s.week(monday).lifts
         assertEquals(190 to 185, bench.now.topWeight to bench.prev?.topWeight)
         assertEquals("incline_db_press", sub.exercise)
-        assertNull("First time", sub.prev)
+        assertNull(sub.prev)
+        assertTrue("First time", sub.first)
+    }
+
+    @Test fun aLiftDoneBeforeOnlyAtAnotherStageIsNotFirstTime() {
+        val s = AppState(sessions = listOf(
+            session("2026-11-03T18:00:00-08:00", 3600, set("bench", Tier.CYCLE, "3x12", 165, 12), program = ppl),
+            session("2026-11-10T18:00:00-08:00", 3600, set("bench", Tier.CYCLE, "3x10", 175, 10), program = ppl),
+            session("2026-11-12T18:00:00-08:00", 3600, set("bench", Tier.CYCLE, "3x8", 185, 8), program = ppl),
+        ))
+        val lifts = s.week(monday).lifts
+        assertEquals(listOf("3x10", "3x8"), lifts.map { it.stage })
+        for (l in lifts) {
+            assertNull(l.prev)
+            assertFalse("${l.stage} is not the first time", l.first)
+        }
     }
 
     @Test fun twiceInOneWeekComparesTheLatestWithTheEarlier() {

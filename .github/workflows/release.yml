@@ -45,4 +45,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
           REPO: ${{ vars.RELEASE_REPO || github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" "plateline-$GITHUB_REF_NAME.apk" --repo "$REPO" --title "$GITHUB_REF_NAME" --notes "Plateline $GITHUB_REF_NAME"
+        # The notes are docs/release-notes/<tag>.md when that file exists. The APK keeps its plateline- name, which Obtainium may match on.
+        run: |
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          if [ ! -f "$notes" ]; then
+            notes="$RUNNER_TEMP/notes.md"
+            echo "Repsilon $GITHUB_REF_NAME" > "$notes"
+          fi
+          gh release create "$GITHUB_REF_NAME" "plateline-$GITHUB_REF_NAME.apk" --repo "$REPO" --title "Repsilon $GITHUB_REF_NAME" --notes-file "$notes"

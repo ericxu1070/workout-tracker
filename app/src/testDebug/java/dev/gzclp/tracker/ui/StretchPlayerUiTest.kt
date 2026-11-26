@@ -6,9 +6,14 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import dev.gzclp.tracker.log.StretchLogged
 import dev.gzclp.tracker.stretch.StretchMoves
 import dev.gzclp.tracker.stretch.StretchPlayerState
 import dev.gzclp.tracker.stretch.StretchRoutine
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,6 +44,29 @@ class StretchPlayerUiTest {
         rule.onNodeWithText(second.name).assertExists()
         rule.onAllNodesWithText(first.name).assertCountEquals(0)
         rule.onNodeWithText("Get ready").assertExists()
+    }
+
+    @Test fun leavingMidRoutineLogsTheMovesHeld() {
+        var shown by mutableStateOf(true)
+        val left = mutableListOf<StretchLogged>()
+        rule.mainClock.autoAdvance = false
+        rule.setContent { if (shown) GuidedStretchPlayerScreen(routine, {}, {}, onLeave = { left += it }) }
+        // Into the second move's hold: the first is done and the second has begun.
+        rule.mainClock.advanceTimeBy((2 * StretchPlayerState.READY_SEC + first.holdSec + 1) * 1000L + 500)
+        shown = false
+        rule.mainClock.advanceTimeByFrame()
+        assertEquals(listOf(first.id, second.id), left.single().moves)
+    }
+
+    @Test fun leavingBeforeAnyHoldLogsNothing() {
+        var shown by mutableStateOf(true)
+        val left = mutableListOf<StretchLogged>()
+        rule.mainClock.autoAdvance = false
+        rule.setContent { if (shown) GuidedStretchPlayerScreen(routine, {}, {}, onLeave = { left += it }) }
+        rule.mainClock.advanceTimeBy(1000L)
+        shown = false
+        rule.mainClock.advanceTimeByFrame()
+        assertEquals(emptyList<StretchLogged>(), left)
     }
 
     @Test fun pauseStopsTheTimer() {

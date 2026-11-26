@@ -47,7 +47,9 @@ def normalize(d: str) -> str:
 views = {
     "mf": ("bodyFront", "SvgMaleWrapper", "front", "0 0 724 1448"),
     "mb": ("bodyBack", "SvgMaleWrapper", "back", "724 0 724 1448"),
-    "ff": ("bodyFemaleFront", "SvgFemaleWrapper", "front", "-50 -40 734 1538"),
+    # The package frames the female front in a larger box than the back, which draws it smaller and lower; this is the back's box
+    # moved onto the front, whose paths are the back's shifted 822 units left, so the pair lines up as the male pair does.
+    "ff": ("bodyFemaleFront", "SvgFemaleWrapper", "front", "-66 0 774 1448"),
     "fb": ("bodyFemaleBack", "SvgFemaleWrapper", "back", "756 0 774 1448"),
 }
 lines = []

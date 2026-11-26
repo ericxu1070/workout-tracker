@@ -115,7 +115,9 @@ fun ColumnScope.WeekView(state: AppState, meals: List<Meal>, monday: LocalDate, 
                         Txt(top(l.now) + (l.prev?.let { " vs ${top(it)}, ${Fmt.shortDate(it.at)}" } ?: ""), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
                     }
                     val d = l.prev?.let { l.now.e1rm - it.e1rm }
-                    Txt(if (d == null) "First time" else signed(d.toLong()) + " lb", Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                    // Done before only at another tier or stage: no delta, since that is not this slot's first time.
+                    (if (d != null) signed(d.toLong()) + " lb" else if (l.first) "First time" else null)
+                        ?.let { Txt(it, Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2) }
                     Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
                 }
             }

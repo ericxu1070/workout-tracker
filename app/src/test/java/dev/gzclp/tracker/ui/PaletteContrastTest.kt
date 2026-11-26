@@ -30,6 +30,10 @@ class PaletteContrastTest {
         }
     }
 
+    @Test fun untrainedMusclesStandOffADarkPage() {
+        for (p in themes.filter { it.dark }) p.check("untrained muscle", p.muscle, p.bg, 3f)
+    }
+
     @Test fun textReadsOnFilledControls() {
         for (p in themes) {
             // Primary pills, the selected segment, active week days, and stretch chips.

@@ -11,8 +11,11 @@ fun mondayOf(day: LocalDate): LocalDate = day.with(TemporalAdjusters.previousOrS
 /** One activity's cardio in a week; [distanceM] is null when no session gave one. */
 data class ActivityTotal(val activity: String, val name: String, val sessions: Int, val sec: Long, val distanceM: Int?)
 
-/** A lift done this week, its latest best against the latest earlier best of the same slot; [prev] is null the first time. */
-data class LiftChange(val exercise: String, val tier: Tier, val stage: String, val now: SessionBest, val prev: SessionBest?)
+/**
+ * A lift done this week, its latest best against the latest earlier best of the same slot; [prev] is null when the slot has none.
+ * [first] is whether the exercise was never done before, at any tier or stage.
+ */
+data class LiftChange(val exercise: String, val tier: Tier, val stage: String, val now: SessionBest, val prev: SessionBest?, val first: Boolean)
 
 data class WeekSummary(
     val monday: LocalDate,
@@ -55,7 +58,9 @@ fun AppState.week(monday: LocalDate): WeekSummary {
         val i = history.indexOfLast { it.first.startedAt.toLocalDate().inWeek(monday) }.takeIf { it >= 0 } ?: return@mapNotNull null
         val (session, now) = history[i]
         val stage = session.sets.first { slot(it) == key }.stage
-        LiftChange(key.first, Tier.of(key.second) ?: return@mapNotNull null, stage, now, history.getOrNull(i - 1)?.second)
+        val prev = history.getOrNull(i - 1)?.second
+        val first = prev == null && lifted.none { s -> s.startedAt.isBefore(session.startedAt) && s.sets.any { it.exercise == key.first } }
+        LiftChange(key.first, Tier.of(key.second) ?: return@mapNotNull null, stage, now, prev, first)
     }
 
     return WeekSummary(
