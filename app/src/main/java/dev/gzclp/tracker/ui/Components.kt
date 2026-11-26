@@ -780,10 +780,11 @@ fun TabHost(tab: () -> Tab, onSelect: (Tab) -> Unit, content: @Composable (Tab) 
     TabFrame(t, onSelect) { TabScreens(t, content) }
 }
 
-/** One kept tab: skipped when [TabScreens] recomposes, as its arguments stay the same. */
+/** One kept tab: skipped when [TabScreens] recomposes, as its arguments stay the same. Out of sight, it is out of the accessibility tree too. */
 @Composable
 private fun KeptTab(t: Tab, shown: androidx.compose.runtime.State<Boolean>, content: @Composable (Tab) -> Unit) {
-    Box(Modifier.layoutId(t).fillMaxSize(), propagateMinConstraints = true) {
+    val hidden = if (shown.value) Modifier else Modifier.clearAndSetSemantics {}
+    Box(Modifier.layoutId(t).fillMaxSize().then(hidden), propagateMinConstraints = true) {
         androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides shown) { content(t) }
     }
 }

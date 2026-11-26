@@ -566,7 +566,8 @@ fun FormView(
     val scene = remember { Scene() }
     val tones = remember(p) { Tones(p) }
     var clock by remember { mutableLongStateOf(0L) }
-    if (still == null) LaunchedEffect(motion, orbit) {
+    // A kept tab out of sight stops the clock, so it runs no frames there.
+    if (still == null && LocalTabShown.current.value) LaunchedEffect(motion, orbit) {
         val start = withFrameNanos { it }
         var last = start
         while (true) withFrameNanos {

@@ -42,6 +42,8 @@ class TabSpeedTest {
             tab = t
             rule.waitForIdle()
             rule.onNodeWithText("${t.label} screen").assertExists()
+            // The kept tabs out of sight are out of the accessibility tree too.
+            for (o in Tab.entries - t) rule.onNodeWithText("${o.label} screen").assertDoesNotExist()
         }
         assertEquals(Tab.entries.associateWith { 1 }, composed)
     }
