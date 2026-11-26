@@ -52,14 +52,38 @@ class SwipeShots {
 
     @Test fun workoutMidSwipe() = midSwipe(Palettes.jade, "30-workout-mid-swipe") {
         TabFrame(Tab.Workout, {}) {
-            WorkoutPages(0, {}) { page ->
+            WorkoutPages(0, {}, {}) { page ->
                 when (page) {
-                    1 -> CardioScreen(state, now.toLocalDate(), 150, {}, {}, {}, {}, {}, {})
-                    2 -> StretchScreen(state, "after_workout", {}, {}, {}, {}, {})
-                    else -> HomeScreen(state, {}, {}, {}, onMode = {})
+                    1 -> CardioScreen(state, now.toLocalDate(), 150, {}, {}, {}, {})
+                    2 -> StretchScreen(state, "after_workout", {}, {}, {})
+                    else -> HomeScreen(state, {}, {})
                 }
             }
         }
+    }
+
+    /** Frames 32 ms apart of a fast swipe from Lifting and its release: the thumb lifts, trails, squashes, and settles. */
+    @Test fun thumbFrames() {
+        val out = System.getProperty("gzclp.shots")
+        assumeNotNull(out)
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            var mode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            GzTheme(Palettes.dark) {
+                TabFrame(Tab.Workout, {}) { WorkoutPages(mode, { mode = it }, {}) { page -> if (page == 1) CardioScreen(state, now.toLocalDate(), 150, {}, {}, {}, {}) else HomeScreen(state, {}, {}) } }
+            }
+        }
+        rule.mainClock.advanceTimeBy(500)
+        var k = 0
+        fun snap() = rule.onRoot().captureRoboImage(File(out, "dark-31-thumb-%02d.png".format(k++)).path)
+        rule.onRoot().performTouchInput { down(Offset(width * 0.85f, height * 0.5f)) }
+        repeat(6) {
+            rule.onRoot().performTouchInput { moveBy(Offset(-width * 0.1f, 0f)) }
+            rule.mainClock.advanceTimeBy(32)
+            snap()
+        }
+        rule.onRoot().performTouchInput { up() }
+        repeat(10) { rule.mainClock.advanceTimeBy(32); snap() }
     }
 
     @Test fun historyMidSwipe() = midSwipe(Palettes.light, "30-history-mid-swipe") {

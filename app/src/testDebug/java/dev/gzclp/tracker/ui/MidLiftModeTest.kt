@@ -41,14 +41,16 @@ class MidLiftModeTest {
 
     @Test fun workoutShowsTheModeSwitchDuringALift() {
         var mode = 0
-        rule.setContent { WorkoutScreen(lifting(), t0, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}, onMode = { mode = it }) }
+        val state = lifting()
+        rule.setContent { WorkoutPages(0, { mode = it }, {}) { if (it == 0) WorkoutScreen(state, t0, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) } }
         rule.onNodeWithText("Cardio").performClick()
+        rule.waitForIdle()
         assertEquals(1, mode)
     }
 
     @Test fun cardioDuringALiftOnlyLogsPastSessions() {
         val state = lifting()
-        rule.setContent { CardioScreen(state, t0.toLocalDate(), 150, {}, {}, {}, {}, {}, {}, lifting = true) }
+        rule.setContent { CardioScreen(state, t0.toLocalDate(), 150, {}, {}, {}, {}, lifting = true) }
         rule.onNodeWithText("Lift in progress").assertIsNotEnabled()
         rule.onAllNodesWithText("Quick start").assertCountEquals(0)
     }

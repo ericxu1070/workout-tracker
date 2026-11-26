@@ -21,18 +21,32 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** The spring every segment change rides, tapped, swiped or dragged: damped so it settles with at most a slight overshoot. */
-val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+/** The spring every segment change rides, tapped, swiped or dragged: quick (settled in about 150 ms) with at most a slight overshoot. */
+val SegmentSpring: AnimationSpec<Float> = spring(dampingRatio = 0.86f, stiffness = 1000f)
 
-/** The pager whose pages hold the composition; a [WorkoutSwitch] in a page follows it. */
+/** The pager whose pages hold the composition. */
 val LocalPages = compositionLocalOf<PagerState?> { null }
 
 /** Which of the [LocalPages] holds the composition. */
@@ -52,16 +66,19 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
     val current by rememberUpdatedState(selected)
     val select by rememberUpdatedState(onSelect)
     LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect { if (it != current) select(it) } }
-    LaunchedEffect(selected) { if (pager.targetPage != selected) pager.animateScrollToPage(selected, animationSpec = SegmentSpring) }
+    // Never fights a scroll already under way: its settled page is reported when it lands.
+    LaunchedEffect(selected) { if (!pager.isScrollInProgress && pager.currentPage != selected) pager.animateScrollToPage(selected, animationSpec = SegmentSpring) }
     return pager
 }
 
 /**
- * Swipeable pages that settle on [SegmentSpring]; a [Segmented] given the same [pager] follows the swipe.
- * [beyond] pages on each side stay composed, added one a frame once the pages have opened, so opening costs only the page shown.
+ * A screen of swipeable pages under a fixed [header] (which holds a [Segmented] given the same [pager]); the pages settle on [SegmentSpring].
+ * The header stays put while the pages slide or scroll beneath it. [beyond] pages on each side stay composed,
+ * added one a frame once the pages have opened, so opening costs only the page shown.
  */
 @Composable
-fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, page: @Composable (Int) -> Unit) {
+fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.() -> Unit, page: @Composable (Int) -> Unit) {
+    val p = LocalPalette.current
     val holds = remember { mutableIntStateOf(0) }
     var near by remember { mutableIntStateOf(0) }
     // 400 ms clears the 300 ms screen transition, so the neighbors' first frames don't land on it; a swipe or drag before then can't wait.
@@ -69,32 +86,41 @@ fun Pages(pager: PagerState, modifier: Modifier = Modifier, beyond: Int = 0, pag
         withTimeoutOrNull(400) { snapshotFlow { pager.isScrollInProgress }.first { it } }
         for (n in 1..beyond) withFrameNanos { near = n }
     }
-    CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
-        HorizontalPager(
-            pager, modifier, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
-            flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
-        ) { CompositionLocalProvider(LocalPage provides it) { page(it) } }
+    // The header takes the status bar inset, so the pages' frames start right under it.
+    Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars)) {
+        // Drawn over the pages, so a lifted thumb can grow past the header's bottom edge.
+        Box(Modifier.zIndex(1f)) {
+            Column(Modifier.underSheets().padding(horizontal = Space.lg), content = header)
+            // An overlay held open over a page dims and holds the header too, as it did when the header sat in the page.
+            val dim by animateFloatAsState(if (holds.intValue > 0) 1f else 0f, tween(if (holds.intValue > 0) 240 else 160), label = "dim")
+            if (dim > 0f) Box(Modifier.matchParentSize().graphicsLayer { alpha = dim }.background(p.scrim).clickable(remember { MutableInteractionSource() }, null) {})
+        }
+        CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
+            HorizontalPager(
+                pager, Modifier.weight(1f), verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
+                flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
+            ) { i ->
+                // Only the page past halfway blurs: the one being left stays sharp until the middle, then the arriving one is.
+                // Clipped: a blur spreads past its layer, and would paint the page's background over the header.
+                Box(Modifier.graphicsLayer { renderEffect = pageBlur(abs(pager.position - i), PageBlur.toPx()); clip = true }) {
+                    CompositionLocalProvider(LocalPage provides i) { page(i) }
+                }
+            }
+        }
     }
 }
+
+/** The most a page blurs, a whole page away from resting. */
+val PageBlur = 24.dp
 
 /**
- * Holds [page]'s copy of a control still while the page slides. Each page draws only the part over itself,
- * so the copies on two neighboring pages meet as one control. The control must be centered in its page.
+ * The blur for a page [away] pages from resting, at most [max] px: none up to halfway, so of two pages at most one is blurred and the
+ * middle of a swipe stays readable, then easing in (smoothstep) to [max] by three quarters of the way.
  */
-fun Modifier.pinned(pager: PagerState, page: Int): Modifier {
-    fun shift() = (pager.position - page) * (pager.layoutInfo.pageSize + pager.layoutInfo.pageSpacing)
-    return graphicsLayer { translationX = shift() }.drawWithContent {
-        val w = pager.layoutInfo.pageSize.toFloat()
-        val left = -(w - size.width) / 2 - shift()
-        clipRect(left, 0f, left + w, size.height) { this@drawWithContent.drawContent() }
-    }
-}
-
-/** Widens a pager past its column's side padding [x] so pages slide edge to edge; each page pads itself back in. */
-fun Modifier.bleed(x: Dp) = layout { m, c ->
-    val extra = (x * 2).roundToPx()
-    val placeable = m.measure(c.copy(minWidth = c.minWidth + extra, maxWidth = c.maxWidth + extra))
-    layout(placeable.width - extra, placeable.height) { placeable.place(-extra / 2, 0) }
+fun pageBlur(away: Float, max: Float): RenderEffect? {
+    val t = ((away - 0.5f) / 0.25f).coerceIn(0f, 1f)
+    val r = max * t * t * (3 - 2 * t)
+    return if (r < 0.5f) null else BlurEffect(r, r)
 }
 
 /** How many overlays are open over the [Pages] around them; while any is, the pages don't swipe. */

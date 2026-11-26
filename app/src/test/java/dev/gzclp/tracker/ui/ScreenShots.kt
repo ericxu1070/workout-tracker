@@ -115,6 +115,10 @@ class ScreenShots {
     }
 
     /** [tall] renders the whole scrolling page on a very tall screen, to review everything below the fold. */
+    /** [screen] as the Workout tab's [mode] page, under the tab's fixed gear and switch. */
+    @Composable
+    private fun workoutTab(mode: Int, screen: @Composable () -> Unit) = TabFrame(Tab.Workout, {}) { WorkoutPages(mode, {}, {}) { if (it == mode) screen() } }
+
     private fun shot(p: Palette, name: String, tall: Boolean = false, content: @Composable () -> Unit) {
         out.mkdirs()
         if (tall) RuntimeEnvironment.setQualifiers("w411dp-h3000dp-420dpi")
@@ -221,11 +225,11 @@ class ScreenShots {
             val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
             val file = p.copy(id = "laptop-$name")
             shot(file, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(file, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, now.toLocalDate(), now.toLocalDate(), null, {}, {}, {}, {}) } }
             shot(file, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
@@ -244,13 +248,13 @@ class ScreenShots {
         val run = running.cardioActive!!
         val today = now.toLocalDate()
         for (p in Palettes.all + Palettes.glass) {
-            shot(p, "19-cardio") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
-            shot(p, "19-cardio-full", tall = true) { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) } }
-            shot(p, "19-cardio-mid-lift") { TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}, lifting = true) } }
+            shot(p, "19-cardio") { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-full", tall = true) { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-mid-lift") { workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}, lifting = true) } }
             shot(p, "03-workout-switch") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}, onMode = {}) }
+                workoutTab(0) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
-            shot(p, "19-cardio-empty") { TabFrame(Tab.Workout, {}) { CardioScreen(week.copy(cardio = emptyMap()), today, 150, {}, {}, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-empty") { workoutTab(1) { CardioScreen(week.copy(cardio = emptyMap()), today, 150, {}, {}, {}, {}) } }
             shot(p, "20-cardio-running") { TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) } }
             shot(p, "20-cardio-stop-sheet") {
                 Box(Modifier.fillMaxSize()) {
@@ -267,20 +271,20 @@ class ScreenShots {
             val past = cardioPast(Activities.of("running")!!, now).let { it.copy(run = it.run.copy(startedAt = it.run.startedAt.minusDays(1))) }
             shot(p, "22-cardio-log-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) }
+                    workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(past, week, {}, {}, {}) }
                 }
             }
             val last = week.cardioWeek(mondayOf(today)).first()
             shot(p, "22-cardio-edit-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) }
+                    workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(cardioEdit(last, now), week, {}, {}, {}) }
                 }
             }
             shot(p, "22-cardio-delete-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { CardioScreen(week, today, 180, {}, {}, {}, {}, {}, {}) }
+                    workoutTab(1) { CardioScreen(week, today, 180, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.CardioDiscard(cardioEdit(last, now).run), week, {}, {}, {}) }
                 }
             }
@@ -355,33 +359,33 @@ class ScreenShots {
                     Sheet(true, {}) { SheetContent(SheetState.SplitName(ppl.id, null, "", add = true), mine, {}, {}, {}) }
                 }
             }
-            shot(p, "27-split-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(mine, {}, {}, {}) } }
+            shot(p, "27-split-next-workout") { workoutTab(0) { HomeScreen(mine, {}, {}) } }
             shot(p, "27-split-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(mineLive, splitNow.plusMinutes(3), null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(mineLive, splitNow.plusMinutes(3), null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(p, "27-split-exercise-detail") { ExerciseScreen(mine, mine.exerciseLogs().first { it.id == "bench" }, {}, {}) }
             shot(p, "01-setup") {
                 SetupScreen({ _, _ -> }, {}, null, mapOf(Lift.SQUAT to "245", Lift.BENCH to "175", Lift.DEADLIFT to "295"), initialProgram = "ppl")
             }
-            shot(p, "02-next-workout") { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
+            shot(p, "02-next-workout") { workoutTab(0) { HomeScreen(idle, {}, {}) } }
             shot(p, "02-open-session-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) }
+                    workoutTab(0) { HomeScreen(idle, {}, {}) }
                     Sheet(true, {}) { OpenSessionStartSheet(idle, {}, {}, {}) }
                 }
             }
             OpenSessionManager.reset()
-            shot(p, "02-open-session-empty") { TabFrame(Tab.Workout, {}) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}) } }
+            shot(p, "02-open-session-empty") { workoutTab(0) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}) } }
             shot(p, "02-open-session-count-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}) }
+                    workoutTab(0) { OpenSessionScreen(idle, now, { _, _, _, _, _ -> }, { _, _ -> }, {}) }
                     Sheet(true, {}) { OpenSessionCountSheet({}, {}, {}) }
                 }
             }
-            shot(p, "02-stretching") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}, {}, {}) } }
-            shot(p, "02-stretching-full", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, evening.id, {}, {}, {}, {}, {}) } }
-            shot(p, "02-stretching-about") { TabFrame(Tab.Workout, {}) { StretchScreen(idle, "after_workout", {}, {}, {}, {}, {}, initialAbout = StretchRoutines.popular.first().key) } }
-            shot(p, "02-stretching-library", tall = true) { TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, "throwers-shoulder", {}, {}, {}, {}, {}, initialAbout = "Thrower's shoulder") } }
+            shot(p, "02-stretching") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
+            shot(p, "02-stretching-full", tall = true) { workoutTab(2) { StretchScreen(stretchy, evening.id, {}, {}, {}) } }
+            shot(p, "02-stretching-about") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}, initialAbout = StretchRoutines.popular.first().key) } }
+            shot(p, "02-stretching-library", tall = true) { workoutTab(2) { StretchScreen(stretchy, "throwers-shoulder", {}, {}, {}, initialAbout = "Thrower's shoulder") } }
             shot(p, "28-stretch-routine") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}) }
             shot(p, "28-stretch-routine-edit") { StretchRoutineScreen(evening, {}, {}, {}, {}, {}, initialEditing = true) }
             shot(p, "28-stretch-routine-builtin") { StretchRoutineScreen(StretchRoutines.flexibilityRest(), {}, {}, {}, {}, {}) }
@@ -399,20 +403,20 @@ class ScreenShots {
             }
             shot(p, "28-stretch-new-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { StretchScreen(stretchy, "after_workout", {}, {}, {}, {}, {}) }
+                    workoutTab(2) { StretchScreen(stretchy, "after_workout", {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.StretchName(null, "Morning"), stretchy, {}, {}, {}) }
                 }
             }
             shot(p, "03-workout-rest") {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(live, now, RestUi(67, 90, restLabel(ex[1], 1)), { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
-            shot(p, "04-gzclp-next") { TabFrame(Tab.Workout, {}) { HomeScreen(gz, {}, {}, {}) } }
+            shot(p, "04-gzclp-next") { workoutTab(0) { HomeScreen(gz, {}, {}) } }
             for (tall in listOf(false, true)) shot(p, if (tall) "04-gzclp-warmups-full" else "04-gzclp-warmups", tall) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(gzLive, gzNow, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(p, "05-starting-weight-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) }
+                    workoutTab(0) { HomeScreen(idle, {}, {}) }
                     val missing = idle.exercise(dev.gzclp.tracker.engine.Slot("face_pull_new", Tier.CYCLE)).copy(name = "Cable crunch")
                     Sheet(true, {}) { SheetContent(SheetState.Weight(missing, 45), idle, {}, {}, {}) }
                 }
@@ -486,23 +490,23 @@ class ScreenShots {
             shot(p, "13-days") { DaysScreen(idle, {}, {}, { _, _ -> }) }
             shot(p, "13-days-edit") { DaysScreen(idle, {}, {}, { _, _ -> }, initialEditing = true) }
             shot(p, "14-workout-full", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(p, "17-workout-swapped", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(p, "17-swap-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    workoutTab(0) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "fly"), swapped, {}, {}, {}) }
                 }
             }
             shot(p, "17-workout-new-substitute", tall = true) {
-                TabFrame(Tab.Workout, {}) { WorkoutScreen(newSub, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                workoutTab(0) { WorkoutScreen(newSub, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
             }
             shot(p, "17-swap-create-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    workoutTab(0) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[2], "Incl", create = true), swapped, {}, {}, {}) }
                 }
             }
@@ -530,7 +534,7 @@ class ScreenShots {
             }
             shot(p, "17-swap-back-sheet") {
                 Box(Modifier.fillMaxSize()) {
-                    TabFrame(Tab.Workout, {}) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}) }
+                    workoutTab(0) { WorkoutScreen(swapped, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}) }
                     Sheet(true, {}) { SheetContent(SheetState.Swap(swapped.sessionExercises()[3], ""), swapped, {}, {}, {}) }
                 }
             }
@@ -539,7 +543,7 @@ class ScreenShots {
         shot(Palettes.glass, "05-starting-weight-sheet-blur") {
             val b = rememberBackdrop()
             Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().backdropSource(b)) { TabFrame(Tab.Workout, {}) { HomeScreen(idle, {}, {}, {}) } }
+                Box(Modifier.fillMaxSize().backdropSource(b)) { workoutTab(0) { HomeScreen(idle, {}, {}) } }
                 val missing = idle.exercise(dev.gzclp.tracker.engine.Slot("face_pull_new", Tier.CYCLE)).copy(name = "Cable crunch")
                 Sheet(true, {}, b) { SheetContent(SheetState.Weight(missing, 45), idle, {}, {}, {}) }
             }

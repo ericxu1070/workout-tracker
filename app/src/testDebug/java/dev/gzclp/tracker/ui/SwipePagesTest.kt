@@ -46,9 +46,8 @@ class SwipePagesTest {
     private var mode by mutableIntStateOf(0)
 
     private fun workout(sheet: Boolean = false) = rule.setContent {
-        WorkoutPages(mode, { mode = it }) { page ->
+        WorkoutPages(mode, { mode = it }, {}) { page ->
             ScreenFrame {
-                WorkoutSwitch(page) { mode = it }
                 Txt("${modes[page]} page", Type.body)
                 Spacer(Modifier.height(400.dp))
             }
@@ -94,8 +93,8 @@ class SwipePagesTest {
         val state = demo(now)
         mode = 1
         rule.setContent {
-            WorkoutPages(mode, { mode = it }) { page ->
-                if (page == 1) CardioScreen(state, now.toLocalDate(), 150, { mode = it }, {}, {}, {}, {}, {}) else ScreenFrame { WorkoutSwitch(page) { mode = it } }
+            WorkoutPages(mode, { mode = it }, {}) { page ->
+                if (page == 1) CardioScreen(state, now.toLocalDate(), 150, {}, {}, {}, {}) else ScreenFrame {}
             }
         }
         rule.onNodeWithContentDescription("This week", substring = true).performTouchInput { swipeLeft() }
@@ -107,9 +106,9 @@ class SwipePagesTest {
     @Test fun onlyTheShownPageIsSettled() {
         val shown = BooleanArray(3)
         rule.setContent {
-            WorkoutPages(mode, { mode = it }) { page ->
+            WorkoutPages(mode, { mode = it }, {}) { page ->
                 shown[page] = settledHere()
-                ScreenFrame { WorkoutSwitch(page) { mode = it } }
+                ScreenFrame {}
             }
         }
         rule.waitForIdle()
@@ -140,5 +139,25 @@ class SwipePagesTest {
         rule.waitForIdle()
         assertEquals(HistoryView.Month, view)
         selected("Month")
+    }
+
+    /** A fast drag of History's thumb from Week to All left it behind; the thumb ends under the finger, before it lets go. */
+    @Test fun aFastDragKeepsTheThumbUnderTheFinger() {
+        val state = demo(OffsetDateTime.parse("2026-11-25T18:00:00-08:00"))
+        var view by mutableStateOf(HistoryView.Week)
+        rule.setContent { HistoryScreen(state, view, { view = it }, {}, {}, LocalDate.of(2026, 11, 25)) { Txt("Week page", Type.body) } }
+        rule.mainClock.autoAdvance = false
+        val week = rule.onNodeWithText("Week").fetchSemanticsNode().boundsInRoot.center
+        val all = rule.onNodeWithText("All").fetchSemanticsNode().boundsInRoot.center
+        rule.onRoot().performTouchInput {
+            down(week)
+            for (i in 1..6) { moveTo(week + (all - week) * (i / 6f)); advanceEventTime(8) }
+        }
+        rule.mainClock.advanceTimeBy(250)
+        selected("All")
+        rule.onRoot().performTouchInput { up() }
+        rule.mainClock.autoAdvance = true
+        rule.waitForIdle()
+        assertEquals(HistoryView.All, view)
     }
 }

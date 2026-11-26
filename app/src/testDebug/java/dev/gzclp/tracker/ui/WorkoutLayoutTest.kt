@@ -58,7 +58,7 @@ class WorkoutLayoutTest {
                     state = store.state.value
                     rest = RestUi(90, 90, restLabel(e, i))
                 },
-                onClear = { _, _ -> }, onEditWeight = {}, onSwap = {}, onSkipRest = { rest = null }, onSettings = {}, onEnd = {}, warmups = false,
+                onClear = { _, _ -> }, onEditWeight = {}, onSwap = {}, onSkipRest = { rest = null }, onEnd = {}, warmups = false,
             )
         }
         rule.onNodeWithText("End workout").assertExists()
