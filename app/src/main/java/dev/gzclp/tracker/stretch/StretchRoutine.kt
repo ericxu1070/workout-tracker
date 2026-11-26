@@ -322,7 +322,7 @@ object StretchRoutines {
     private val limber = preset(
         "limber-11", "Limber 11", "Joe DeFranco's lower-body warm-up: three foam-roll drills, then eight mobility moves.",
         "Loosen the hips and legs before squats, deadlifts or sprints.",
-        "Before a lower-body day, about 11 minutes; a foam roller, a lacrosse ball and a bench.",
+        "Before a lower-body day, about 12 minutes; a foam roller, a lacrosse ball and a bench.",
         move(StretchMoves.FOAM_ROLL_IT_BAND, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_ADDUCTORS, 60, dynamic = true),
         move(StretchMoves.GLUTE_BALL, 60, dynamic = true), move(StretchMoves.IRON_CROSS, 60, dynamic = true),
         move(StretchMoves.ROLLOVER_V_SIT, 50, dynamic = true), move(StretchMoves.ROCKING_FROG, 50, dynamic = true),
@@ -341,7 +341,7 @@ object StretchRoutines {
             preset(
                 "starting-to-stretch", "Starting to Stretch", "r/flexibility's beginner routine: five upper-body and five lower-body stretches.",
                 "Whole-body flexibility for beginners: 10 bumps, hold 10 s; 10 bumps, hold 20 s; 10 bumps, hold 30 s.",
-                "2–3 times a week, about 30 minutes; a chair, a wall and a towel.",
+                "2–3 times a week, about 25 minutes; a chair, a wall and a towel.",
                 move(StretchMoves.SHOULDER_BACKBEND, 90), move(StretchMoves.STANDING_BACKBEND, 90), move(StretchMoves.REAR_HAND_CLASP, 180),
                 move(StretchMoves.THREAD_THE_NEEDLE, 180), move(StretchMoves.WRIST_BICEPS, 180), move(StretchMoves.ONE_LEG_PIKE, 180),
                 move(StretchMoves.KNEELING_LUNGE, 180), move(StretchMoves.PANCAKE, 90), move(StretchMoves.BUTTERFLY_STRETCH, 90),
@@ -357,7 +357,7 @@ object StretchRoutines {
             preset(
                 "simple-6", "Simple 6", "Joe DeFranco's upper-body warm-up: two foam-roll drills, then four shoulder stretches.",
                 "Free up the upper back and shoulders before pressing or pulling.",
-                "Before an upper-body day, about 8 minutes; a foam roller, a band and a rack.",
+                "Before an upper-body day, about 7 minutes; a foam roller, a band and a rack.",
                 move(StretchMoves.FOAM_ROLL_UPPER_BACK, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_REAR_SHOULDER, 60, dynamic = true),
                 move(StretchMoves.SHOULDER_CAPSULE, 60), move(StretchMoves.BAND_PEC, 60), move(StretchMoves.RACK_LAT, 60),
                 move(StretchMoves.BAND_DISLOCATES, 80, dynamic = true),
