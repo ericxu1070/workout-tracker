@@ -312,10 +312,10 @@ object StretchRoutines {
         move(StretchMoves.CHILDS_POSE_LAT, 40),
     )
     private val bedtime = preset(
-        "bedtime-wind-down", "Bedtime wind-down", "Slow floor holds: child's pose, forward fold, butterfly and a twist.",
-        "Long, easy holds to settle down before sleep.", "In the evening; works on the bed.",
+        "bedtime-wind-down", "Bedtime wind-down", "Slow floor holds: child's pose, forward fold, butterfly, a twist, then legs up the wall.",
+        "Long, easy holds to settle down before sleep.", "In the evening; works on the bed, by the headboard.",
         move(StretchMoves.CAT_COW_STRETCH, 30), move(StretchMoves.CHILDS_POSE_LAT, 60), move(StretchMoves.SEATED_SINGLE_LEG, 60),
-        move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60),
+        move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60), move(StretchMoves.LEGS_UP_THE_WALL, 120),
     )
 
     /** The few routines listed right under After workout. */

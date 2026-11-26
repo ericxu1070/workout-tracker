@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.stretch
 
+import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.StretchRoutineDefine
@@ -33,11 +34,12 @@ class StretchLibraryTest {
         }
     }
 
-    @Test fun everyMoveIsInTheCatalogAndEveryHoldFitsTheEditor() {
+    @Test fun everyMoveIsInTheCatalogWithItsOwnMotionAndEveryHoldFitsTheEditor() {
         for (r in builtIns) {
             assertTrue(r.name, r.moves.isNotEmpty())
             for (m in r.moves) {
                 assertTrue("${r.name}: ${m.id}", StretchMoves.of(m.id) != null)
+                assertTrue("${r.name}: ${m.id} has no motion", Motions.known(m.id))
                 assertTrue("${r.name}: ${m.id} ${m.holdSec}", m.holdSec in StretchRoutines.HOLD_SEC && m.holdSec % StretchRoutines.HOLD_STEP == 0)
             }
         }

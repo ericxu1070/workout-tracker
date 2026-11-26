@@ -9,16 +9,16 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** A stretch eases in, holds, eases out and rests, slowly enough to follow while the player is paused. */
-private fun stretch(balance: Boolean = false, ground: Boolean = false, yaw: Float? = null, build: Poser.(Double) -> Unit) =
+internal fun stretch(balance: Boolean = false, ground: Boolean = false, yaw: Float? = null, build: Poser.(Double) -> Unit) =
     Motion(Tempo(2.5, 2.0, 2.0, 1.0), balance, ground, yaw, build)
 
-private fun sq(x: Double) = x * x
+internal fun sq(x: Double) = x * x
 
 /** The knee joint's height kneeling on the floor, the front of the knee just touching it. */
-private const val KNEE = 0.056
+internal const val KNEE = 0.056
 
 /** The hips' midpoint over knees [width] apart kneeling at [z], the thighs [lean] degrees back from upright; [kneel] then lands each knee exactly. */
-private fun kneeling(width: Double, z: Double, lean: Double): V {
+internal fun kneeling(width: Double, z: Double, lean: Double): V {
     val out = width / 2 - Build.HIP
     val r = sqrt(Build.THIGH * Build.THIGH - out * out)
     return V(0.0, KNEE + r * cos(lean * DEG), z - r * sin(lean * DEG))
@@ -28,7 +28,7 @@ private fun kneeling(width: Double, z: Double, lean: Double): V {
  * Pitches the trunk up from hips at [hip] so the shoulders land [arm] (side on) from the wrists at [wrists], the spine bent
  * as given and bowing toward [pole]. A side bend carries the shoulders over by its own amount; the wrists' x is free.
  */
-private fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, chest: Double = 0.0, side: Double = 0.0, pole: V = V.UP) {
+internal fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, chest: Double = 0.0, side: Double = 0.0, pole: V = V.UP) {
     pelvis(V.ZERO)
     spine(waist, chest, side)
     val q = shoulders() - this[Bone.PELVIS].o
@@ -37,13 +37,13 @@ private fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, ch
 }
 
 /** The forward pitch about the hips at [hip] that brings [p], posed with the pelvis upright, to height [y]. */
-private fun pitchTo(hip: V, p: V, y: Double): Double {
+internal fun pitchTo(hip: V, p: V, y: Double): Double {
     val v = p - hip
     return (acos(((y - hip.y) / sqrt(v.y * v.y + v.z * v.z)).coerceIn(-1.0, 1.0)) - atan2(v.z, v.y)) / DEG
 }
 
 /** The [s] palm flat on the floor along [dir] from its shoulder, [arm] from it, the elbow pointing toward [elbow]. */
-private fun Poser.reachFloor(s: Int, dir: V, arm: Double, elbow: V) {
+internal fun Poser.reachFloor(s: Int, dir: V, arm: Double, elbow: V) {
     val sh = shoulder(s)
     val u = dir.across(V.UP).unit()
     val drop = sh.y - 0.022
@@ -341,14 +341,14 @@ private val STANDING: Map<String, () -> Motion> = mapOf(
 )
 
 /** Sits on the floor, the pelvis tipped [pitch] forward and the spine bent and turned as given; place the legs after it. */
-private fun Poser.sit(pitch: Double, waist: Double = 0.0, chest: Double = 0.0, twist: Double = 0.0) {
+internal fun Poser.sit(pitch: Double, waist: Double = 0.0, chest: Double = 0.0, twist: Double = 0.0) {
     pelvis(V(0.0, 0.2, 0.0), pitch = pitch)
     spine(waist, chest, twist = twist)
     rest(0.0, listOf(Bone.PELVIS))
 }
 
 /** The [s] leg straight out ahead of a pelvis tipped [pitch] forward, the knee soft and the foot [ankle] degrees up from square, lowered until it rests on the floor. */
-private fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) {
+internal fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) {
     var raise = 88.0 + pitch
     repeat(2) {
         leg(s, raise, knee = 4.0, ankle = ankle)
@@ -472,4 +472,4 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
     },
 )
 
-internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR
+internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR + MOBILITY

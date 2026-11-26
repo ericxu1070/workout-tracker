@@ -273,7 +273,17 @@ object StretchMoves {
         isUnilateral = true,
     )
 
-    /** Complete list of all 26 moves across 10 body areas. */
+    // The moves the famous routines (Limber 11, Simple 6, Starting to Stretch, Sun salutation A) add, after the first 26.
+    val LEGS_UP_THE_WALL = StretchMove(
+        id = "hamstrings_legs_up_wall",
+        name = "Legs up the wall",
+        targetArea = BodyArea.HAMSTRINGS,
+        holdSec = 45,
+        cue = "Rest your legs straight up the wall and let your back sink into the floor.",
+        focus = Focus.both(0.32, Spot(Bone.THIGH_L, V(0.0, 0.24, -0.07))),
+    )
+
+    /** Every move, by body area within the first 26 and the ones the famous routines added after them. */
     val ALL: List<StretchMove> = listOf(
         PIGEON_POSE, BUTTERFLY_STRETCH, LIZARD_LUNGE,
         STANDING_FORWARD_FOLD, SEATED_SINGLE_LEG, DOWNWARD_DOG,
@@ -285,6 +295,7 @@ object StretchMoves {
         CROSS_BODY_SHOULDER, OVERHEAD_TRICEPS, SLEEPER_STRETCH,
         CHILDS_POSE_LAT, OVERHEAD_SIDE_BEND,
         SUPINE_SPINAL_TWIST, COBRA_POSE, SEATED_SPINAL_TWIST,
+        LEGS_UP_THE_WALL,
     )
 
     fun of(id: String): StretchMove? = ALL.firstOrNull { it.id == id }
