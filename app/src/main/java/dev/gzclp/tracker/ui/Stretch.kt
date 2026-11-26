@@ -112,13 +112,13 @@ fun StretchScreen(
                             Txt(routineMeta(routine), Type.footnote, color = p.fg2)
                         }
                         if (selected) Icon(Icons.check, p.accent, size = 18.dp)
-                        // A built-in routine's info button opens what it is for in place; a custom one's opens its page to edit, as a Wi-Fi network's does.
+                        // A built-in routine's eye button opens what it is for in place; a custom one's opens its page to edit, as a Wi-Fi network's does.
                         val label = if (routine.custom) "${routine.name} moves" else "About ${routine.name}"
                         Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
                             Pressable(
                                 { if (routine.custom) onOpenRoutine(routine) else aboutKey = if (about) null else routine.key },
                                 m.semantics { contentDescription = label }, CircleShape, label = label,
-                            ) { Icon(Icons.info, p.accent, 22.dp) }
+                            ) { Icon(if (routine.custom) Icons.info else Icons.eye, p.accent, 22.dp) }
                         }
                     }
                     if (!routine.custom) Disclosed(about) { RoutineAbout(routine) { onOpenRoutine(routine) } }
