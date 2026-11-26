@@ -9,8 +9,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** A stretch eases in, holds, eases out and rests, slowly enough to follow while the player is paused. */
+internal val HOLD_TEMPO = Tempo(2.5, 2.0, 2.0, 1.0)
+
 internal fun stretch(balance: Boolean = false, ground: Boolean = false, yaw: Float? = null, build: Poser.(Double) -> Unit) =
-    Motion(Tempo(2.5, 2.0, 2.0, 1.0), balance, ground, yaw, build)
+    Motion(HOLD_TEMPO, balance, ground, yaw, build)
 
 internal fun sq(x: Double) = x * x
 

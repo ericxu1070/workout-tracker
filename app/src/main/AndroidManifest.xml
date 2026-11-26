@@ -13,6 +13,10 @@
     <!-- Finds the Health Connect app on Android 13 and older. -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Finds the on-device text-to-speech engine that voices the stretch player. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application

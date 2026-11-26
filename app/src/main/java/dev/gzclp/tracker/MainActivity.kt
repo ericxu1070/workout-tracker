@@ -409,6 +409,8 @@ private fun App(model: AppModel) {
                     stretchReminder = model.stretchReminder, stretchReminderMinutes = model.stretchReminderMinutes,
                     onStretchReminder = { model.chooseStretchReminder(it); if (it) requestNotifications() }, onStretchReminderTime = model::chooseStretchReminderTime,
                     stretchRoutine = model.stretchRoutine, onStretchRoutine = model::chooseStretchRoutine, customStretches = state.customStretches.values.toList(),
+                    stretchSound = model.stretchSound, onStretchSound = model::chooseStretchSound,
+                    stretchHaptics = model.stretchHaptics, onStretchHaptics = model::chooseStretchHaptics,
                     waterReminder = model.waterReminder, onWaterReminder = { model.chooseWaterReminder(it); if (it) requestNotifications() },
                     saveToGallery = model.saveToGallery, onSaveToGallery = model::chooseSaveToGallery,
                     waterGoalMl = model.waterGoalMl(state, LocalDate.now()), onWaterGoal = model::chooseWaterGoal,
@@ -438,6 +440,7 @@ private fun App(model: AppModel) {
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
                     stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
                     onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
+                    sound = model.stretchSound, haptics = model.stretchHaptics,
                 )
                 shown == Route.StretchRoutine && routine != null -> StretchRoutineScreen(
                     routine, onBack = { route = null }, onStart = { playerFromPage = true; push(Route.Stretch, routine.key) },
