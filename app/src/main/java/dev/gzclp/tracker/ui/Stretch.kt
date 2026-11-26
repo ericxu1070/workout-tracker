@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,84 +70,88 @@ fun StretchScreen(
     var selectedAreaFilter by remember { mutableStateOf<BodyArea?>(null) }
     var previewMove by remember { mutableStateOf<StretchMove?>(null) }
 
-    ScreenFrame(bottom = {
+    val displayedMoves = remember(selectedAreaFilter) {
+        selectedAreaFilter?.let { StretchMoves.forArea(it) } ?: StretchMoves.ALL
+    }
+
+    // Lazy, so the move library below the fold, a 3D figure per row, composes only as it scrolls in.
+    LazyScreenFrame(bottom = {
         BottomBar { PillButton("Start routine", { onStartRoutine(currentRoutine) }, Modifier.weight(1f), primary = true, enabled = currentRoutine.moves.isNotEmpty()) }
     }) {
-        NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
-        WorkoutSwitch(2, onMode)
-        Spacer(Modifier.height(Space.xxl))
-        Txt(currentRoutine.name, Type.largeTitle)
-        Spacer(Modifier.height(Space.xs))
-        Txt(routineMeta(currentRoutine), Type.subhead, color = p.fg2)
+        item { Column {
+            NavRow { IconButton(Icons.settings, "Settings", onSettings, tint = p.fg2) }
+            WorkoutSwitch(2, onMode)
+            Spacer(Modifier.height(Space.xxl))
+            Txt(currentRoutine.name, Type.largeTitle)
+            Spacer(Modifier.height(Space.xs))
+            Txt(routineMeta(currentRoutine), Type.subhead, color = p.fg2)
 
-        GroupHeader("Routines")
-        Group {
-            routines.forEachIndexed { i, routine ->
-                val selected = routine.key == currentRoutine.key
-                GroupRow(first = i == 0, onClick = { selectedKey = routine.key }) {
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
-                            if (routine.key == defaultKey) {
-                                Spacer(Modifier.width(Space.xs))
-                                Txt("Default", Type.footnote, color = p.fg2)
+            GroupHeader("Routines")
+            Group {
+                routines.forEachIndexed { i, routine ->
+                    val selected = routine.key == currentRoutine.key
+                    GroupRow(first = i == 0, onClick = { selectedKey = routine.key }) {
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Txt(routine.name, if (selected) Type.body.copy(fontWeight = FontWeight.SemiBold) else Type.body, Modifier.weight(1f, fill = false), maxLines = 1)
+                                if (routine.key == defaultKey) {
+                                    Spacer(Modifier.width(Space.xs))
+                                    Txt("Default", Type.footnote, color = p.fg2)
+                                }
                             }
+                            Txt(routineMeta(routine), Type.footnote, color = p.fg2)
                         }
-                        Txt(routineMeta(routine), Type.footnote, color = p.fg2)
-                    }
-                    if (selected) Icon(Icons.check, p.accent, size = 18.dp)
-                    // The row picks the routine; the info button opens its page, as a Wi-Fi network's does.
-                    Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
-                        Pressable({ onOpenRoutine(routine) }, m.semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
-                            Icon(Icons.info, p.accent, 22.dp)
+                        if (selected) Icon(Icons.check, p.accent, size = 18.dp)
+                        // The row picks the routine; the info button opens its page, as a Wi-Fi network's does.
+                        Snug(28.dp, Modifier.padding(start = Space.sm)) { m ->
+                            Pressable({ onOpenRoutine(routine) }, m.semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
+                                Icon(Icons.info, p.accent, 22.dp)
+                            }
                         }
                     }
                 }
+                AddRow("New routine", first = false, onClick = onNewRoutine)
             }
-            AddRow("New routine", first = false, onClick = onNewRoutine)
-        }
 
-        GroupHeader("Moves")
+            GroupHeader("Moves")
 
-        // Area Filter Chips
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(vertical = Space.xs),
-            horizontalArrangement = Arrangement.spacedBy(Space.xs),
-        ) {
-            val allSelected = selectedAreaFilter == null
-            Box(
+            // Area Filter Chips
+            Row(
                 Modifier
-                    .clip(CircleShape)
-                    .background(if (allSelected) p.accent else p.fill)
-                    .clickable { selectedAreaFilter = null }
-                    .padding(horizontal = Space.sm, vertical = 6.dp),
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(vertical = Space.xs),
+                horizontalArrangement = Arrangement.spacedBy(Space.xs),
             ) {
-                Txt("All", Type.subhead, color = if (allSelected) p.onAccent else p.fg)
-            }
-            BodyArea.entries.forEach { area ->
-                val isSelected = selectedAreaFilter == area
+                val allSelected = selectedAreaFilter == null
                 Box(
                     Modifier
                         .clip(CircleShape)
-                        .background(if (isSelected) p.accent else p.fill)
-                        .clickable { selectedAreaFilter = if (isSelected) null else area }
+                        .background(if (allSelected) p.accent else p.fill)
+                        .clickable { selectedAreaFilter = null }
                         .padding(horizontal = Space.sm, vertical = 6.dp),
                 ) {
-                    Txt(area.displayName, Type.subhead, color = if (isSelected) p.onAccent else p.fg)
+                    Txt("All", Type.subhead, color = if (allSelected) p.onAccent else p.fg)
+                }
+                BodyArea.entries.forEach { area ->
+                    val isSelected = selectedAreaFilter == area
+                    Box(
+                        Modifier
+                            .clip(CircleShape)
+                            .background(if (isSelected) p.accent else p.fill)
+                            .clickable { selectedAreaFilter = if (isSelected) null else area }
+                            .padding(horizontal = Space.sm, vertical = 6.dp),
+                    ) {
+                        Txt(area.displayName, Type.subhead, color = if (isSelected) p.onAccent else p.fg)
+                    }
                 }
             }
-        }
 
-        Spacer(Modifier.height(Space.xs))
-        val displayedMoves = remember(selectedAreaFilter) {
-            selectedAreaFilter?.let { StretchMoves.forArea(it) } ?: StretchMoves.ALL
-        }
+            Spacer(Modifier.height(Space.xs))
+        } }
 
-        Group {
-            displayedMoves.forEachIndexed { i, move ->
+        itemsIndexed(displayedMoves, key = { _, move -> move.id }) { i, move ->
+            GroupSlice(i, displayedMoves.size) {
                 GroupRow(first = i == 0, onClick = { previewMove = move }) {
                     MoveThumb(move)
                     Spacer(Modifier.width(Space.sm))

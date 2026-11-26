@@ -241,6 +241,14 @@ fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
 fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) =
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(LocalPalette.current.elevated), content = content)
 
+/** Row [i] of [count] in a [Group] split across lazy items: the first and last carry its rounded corners. */
+@Composable
+fun GroupSlice(i: Int, count: Int, content: @Composable ColumnScope.() -> Unit) {
+    val top = if (i == 0) Radius.lg else 0.dp
+    val end = if (i == count - 1) Radius.lg else 0.dp
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(top, top, end, end)).background(LocalPalette.current.elevated), content = content)
+}
+
 @Composable
 fun GroupHeader(text: String, modifier: Modifier = Modifier) =
     Txt(text, Type.footnote, modifier.padding(start = Space.lg, top = Space.xxl, bottom = Space.sm), LocalPalette.current.fg2)
