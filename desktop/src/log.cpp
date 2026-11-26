@@ -32,6 +32,11 @@ bool remap(QJsonObject &o, const QJsonObject &r) {
     return true;
 }
 
+// One exercise at one tier in one session.
+QString slotKey(const QString &session, const QString &exercise, const QString &tier) {
+    return session + '\x1f' + exercise + '\x1f' + tier;
+}
+
 QString setKey(const QJsonObject &o) {
     return o["session_id"].toString() + '\x1f' + o["exercise"].toString() + '\x1f' + o["tier"].toString() + '\x1f'
            + QString::number(o["set_index"].toInt());
@@ -85,6 +90,7 @@ Log parseLog(const QByteArray &bytes) {
 
     Log log;
     QHash<QString, LoggedSet> sets;
+    QSet<QString> loggedSlots;
     QHash<QString, QJsonObject> weighIns;
     QHash<QString, Session> ended;
     QHash<QString, Cardio> cardio;
@@ -105,6 +111,7 @@ Log parseLog(const QByteArray &bytes) {
             log.meta.insert(m.exercise, m);
         } else if (type == "set") {
             const QString key = setKey(o);
+            loggedSlots.insert(slotKey(o["session_id"].toString(), o["exercise"].toString(), o["tier"].toString()));
             LoggedSet s;
             s.session = o["session_id"].toString();
             s.exercise = o["exercise"].toString();
@@ -144,6 +151,7 @@ Log parseLog(const QByteArray &bytes) {
                 it->durationSec = o["duration_sec"].toInt();
         } else if (type == "progression") {
             ProgressionEvent e;
+            e.session = o["session_id"].toString();
             e.exercise = o["exercise"].toString();
             e.tier = o["tier"].toString();
             e.kind = o["kind"].toString();
@@ -187,6 +195,15 @@ Log parseLog(const QByteArray &bytes) {
         ended[s.session].sets++;
     }
     std::sort(log.sets.begin(), log.sets.end(), [](const LoggedSet &a, const LoggedSet &b) { return a.order < b.order; });
+
+    // An exercise deleted from a workout (every set cleared) takes back the progression it earned there.
+    QSet<QString> leftSlots;
+    for (const LoggedSet &s : std::as_const(log.sets))
+        leftSlots.insert(slotKey(s.session, s.exercise, s.tier));
+    log.events.removeIf([&](const ProgressionEvent &e) {
+        const QString k = slotKey(e.session, e.exercise, e.tier);
+        return !e.session.isEmpty() && loggedSlots.contains(k) && !leftSlots.contains(k);
+    });
 
     log.sessions = ended.values().toVector();
     std::sort(log.sessions.begin(), log.sessions.end(),

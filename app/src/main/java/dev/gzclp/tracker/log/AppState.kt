@@ -44,6 +44,12 @@ data class SessionRecord(
             Triple(p.first.exercise, p.first.tier, p.first.setIndex) to Duration.between(if (i == 0) startedAt else setTimes[i - 1], p.second).seconds
         }
 
+    /** This workout without the set [c] clears. */
+    fun without(c: SetCleared): SessionRecord {
+        val keep = sets.indices.filterNot { sets[it].let { x -> x.exercise == c.exercise && x.tier == c.tier && x.setIndex == c.setIndex } }
+        return copy(sets = keep.map(sets::get), setTimes = keep.mapNotNull(setTimes::getOrNull))
+    }
+
     /** Seconds the workout ran after its last set was logged; null with no sets. */
     val afterLastSet: Long?
         get() = setTimes.maxOrNull()?.let { Duration.between(it, startedAt.plusSeconds(durationSec)).seconds.coerceAtLeast(0) }
@@ -217,8 +223,10 @@ data class AppState(
                 s.copy(active = a.copy(swaps = if (e.substitute == null) a.swaps - key else a.swaps + (key to e.substitute)))
             }
             is SetCleared -> {
-                val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val tier = Tier.of(e.tier) ?: return s
+                val a = active?.takeIf { it.id == e.sessionId }
+                    // Deleted from a finished workout: [fold] rebuilds without it, this keeps an incremental reader in step.
+                    ?: return s.copy(sessions = sessions.map { if (it.id == e.sessionId) it.without(e) else it })
                 s.copy(active = a.copy(sets = a.sets - SetKey(e.exercise, tier, e.setIndex)))
             }
             is BodyWeightLogged -> s.copy(bodyWeights = bodyWeights + (e.entryId to BodyWeight(e.entryId, OffsetDateTime.parse(e.at, LogCodec.TS), e.weight)))
@@ -293,6 +301,6 @@ data class AppState(
     }
 
     companion object {
-        fun fold(entries: Iterable<Entry>): AppState = remapped(entries.toList()).fold(AppState()) { s, e -> s.apply(e) }
+        fun fold(entries: Iterable<Entry>): AppState = withoutDeleted(remapped(entries.toList())).fold(AppState()) { s, e -> s.apply(e) }
     }
 }

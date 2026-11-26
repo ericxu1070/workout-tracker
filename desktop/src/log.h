@@ -33,7 +33,7 @@ struct Session {
 };
 
 struct ProgressionEvent {
-    QString exercise, tier, kind, fromStage, toStage;
+    QString session, exercise, tier, kind, fromStage, toStage;  // session empty when absent
     int fromWeight = 0, toWeight = 0;
     QDateTime ts;
 };

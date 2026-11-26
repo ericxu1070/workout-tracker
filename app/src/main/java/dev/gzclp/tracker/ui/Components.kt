@@ -220,18 +220,20 @@ fun PillButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     onSurface: Boolean = false,
+    destructive: Boolean = false,
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
     val fill = when {
+        destructive -> p.red
         primary -> p.accent
         onSurface -> p.fill
         else -> p.card
     }
-    val fg = if (primary) p.onAccent else p.fg
+    val fg = if (destructive) p.onRed else if (primary) p.onAccent else p.fg
     Pressable(
         onClick, modifier.heightIn(min = 52.dp), CircleShape, fill,
-        pressedFill = if (primary) Color.Black.copy(alpha = 0.14f) else p.fillPressed, enabled = enabled,
+        pressedFill = if (primary || destructive) Color.Black.copy(alpha = 0.14f) else p.fillPressed, enabled = enabled,
     ) {
         Row(Modifier.padding(horizontal = Space.xl), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {

@@ -1,6 +1,17 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.swipe
+import dev.gzclp.tracker.log.Deletion
+import dev.gzclp.tracker.log.weighIns
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
@@ -58,4 +69,52 @@ class SwipeShots {
             }
         }
     }
+
+    /**
+     * Swipes the row showing [rowText] open and shoots it, then taps its trash and shoots the question over it, as the
+     * app does: the row held open under a sheet that blurs the screen.
+     */
+    private fun swipeDelete(p: Palette, name: String, rowText: String, screen: @androidx.compose.runtime.Composable (Deletion?, (Deletion) -> Unit) -> Unit) {
+        val out = System.getProperty("gzclp.shots")
+        assumeNotNull(out)
+        var deleting by mutableStateOf<Deletion?>(null)
+        rule.setContent {
+            GzTheme(p) {
+                val b = rememberBackdrop()
+                Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().backdropSource(b)) { screen(deleting) { deleting = it } }
+                    Sheet(deleting != null, { deleting = null }, b) { deleting?.let { SheetContent(SheetState.Delete(it), state, { deleting = null }, {}, {}) } }
+                }
+            }
+        }
+        val y = rule.onAllNodesWithText(rowText, useUnmergedTree = true)[0].fetchSemanticsNode().boundsInRoot.center.y
+        rule.onRoot().performTouchInput { swipe(Offset(width * 0.9f, y), Offset(width * 0.75f, y), 300) }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-$name-open.png").path)
+        rule.onRoot().performTouchInput { click(Offset(width - 80f, y)) }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-$name-confirm.png").path)
+    }
+
+    private val today = now.toLocalDate()
+
+    private fun weighIn(p: Palette) = swipeDelete(p, "31-weigh-in-delete", Fmt.weighInTime(state.weighIns().last().at, today)) { d, on ->
+        BodyWeightScreen(state, today, {}, {}, {}, d, on)
+    }
+
+    private val workout get() = state.sessions.last { it.sets.isNotEmpty() }
+
+    private fun history(p: Palette) = swipeDelete(p, "31-history-delete", "${workout.day.title} · ${Fmt.date(workout.startedAt)}") { d, on ->
+        TabFrame(Tab.History, {}) { HistoryScreen(state, HistoryView.All, {}, {}, {}, today, d, on) {} }
+    }
+
+    private fun exercise(p: Palette) = swipeDelete(p, "31-exercise-delete", "Set 2") { d, on -> SessionScreen(state, workout, {}, {}, d, on) }
+
+    // One render per test: a compose rule takes one setContent.
+    @Test fun weighInDeleteLight() = weighIn(Palettes.light)
+    @Test fun weighInDeleteGlass() = weighIn(Palettes.glass)
+    @Test fun historyDeleteJade() = history(Palettes.jade)
+    @Test fun historyDeleteGlass() = history(Palettes.glass)
+    @Test fun exerciseDeleteLight() = exercise(Palettes.light)
+    @Test fun exerciseDeleteGlass() = exercise(Palettes.glass)
 }

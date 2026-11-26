@@ -33,6 +33,9 @@ object Icons {
     val x = lucide("x", "M18 6 6 18", "m6 6 12 12")
     val grip = lucide("equal", "M5 9h14", "M5 15h14")
     val check = lucide("check", "M20 6 9 17l-5-5")
+    val trash = lucide(
+        "trash-2", "M10 11v6", "M14 11v6", "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6", "M3 6h18", "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+    )
     val eye = lucide(
         "eye",
         "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",

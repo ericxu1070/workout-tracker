@@ -113,6 +113,17 @@ object Commands {
         return listOf(SetCleared(a.id, ex.id, ex.tier.id, setIndex))
     }
 
+    /** Clears every set of [target] (a whole finished workout, or one exercise of it), a cardio session or a weigh-in. */
+    fun delete(state: AppState, target: Deletion): List<Event> = when (target) {
+        is Deletion.Workout -> clearSets(state, target.id) { true }
+        is Deletion.Exercise -> clearSets(state, target.sessionId) { it.exercise == target.exercise && it.tier == target.tier }
+        is Deletion.Cardio -> if (target.id in state.cardio) clearCardio(state, target.id) else emptyList()
+        is Deletion.WeighIn -> clearBodyWeight(state, target.id)
+    }
+
+    private fun clearSets(state: AppState, id: String, which: (SetLogged) -> Boolean): List<Event> =
+        state.sessions.firstOrNull { it.id == id }?.sets.orEmpty().filter(which).map { SetCleared(id, it.exercise, it.tier, it.setIndex) }
+
     /** The weight to prefill for an unlogged set: the latest weight logged for this exercise this session, else the prescription; null when neither exists (a first-time substitute). */
     fun setWeight(state: AppState, ex: Exercise, setIndex: Int): Int? {
         val sets = state.active?.sets.orEmpty()
@@ -465,4 +476,12 @@ object Commands {
     val SESSION_DURATION_SEC = 60L..86_400L
     val CARDIO_DISTANCE_M = 1..1_000_000
     const val CARDIO_NOTES_MAX = 200
+}
+
+/** Something a History or Body weight row swipes away. */
+sealed interface Deletion {
+    data class Workout(val id: String) : Deletion
+    data class Exercise(val sessionId: String, val exercise: String, val tier: String) : Deletion
+    data class Cardio(val id: String) : Deletion
+    data class WeighIn(val id: String) : Deletion
 }

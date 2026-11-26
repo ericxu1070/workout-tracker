@@ -77,6 +77,8 @@ private slots:
         QCOMPARE(find(rows, "id", "squat")["events"].toList().size(), 0);  // cycle_up is not a stall
         QCOMPARE(find(rows, "id", "leg_curl")["events"].toList().value(0).toMap()["kind"].toString(),
                  QString("cycle_repeat"));
+        // The Dec 3 workout was deleted from History: no workout, and the stall it caused is taken back.
+        QVERIFY(find(rows, "id", "ohp")["events"].toList().isEmpty());
 
         // Cleared water and one cleared stretch; the custom routine's stretch counts after its routine is deleted.
         QCOMPARE(log.water.size(), 0);

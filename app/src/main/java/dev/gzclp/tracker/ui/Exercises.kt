@@ -25,6 +25,8 @@ import dev.gzclp.tracker.log.ExerciseLog
 import dev.gzclp.tracker.log.ExerciseMeta
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.BodyWeight
+import dev.gzclp.tracker.log.Deletion
+import androidx.compose.runtime.key
 import dev.gzclp.tracker.log.SessionBest
 import dev.gzclp.tracker.log.bodyweightFactor
 import dev.gzclp.tracker.log.calisthenicsBests
@@ -291,7 +293,10 @@ fun AddRow(text: String, first: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun BodyWeightScreen(state: AppState, today: LocalDate, onBack: () -> Unit, onLog: () -> Unit, onEdit: (BodyWeight) -> Unit) {
+fun BodyWeightScreen(
+    state: AppState, today: LocalDate, onBack: () -> Unit, onLog: () -> Unit, onEdit: (BodyWeight) -> Unit,
+    deleting: Deletion? = null, onDelete: (Deletion) -> Unit = {},
+) {
     val p = LocalPalette.current
     val entries = state.weighIns()
     val daily = state.dailyBodyWeight()
@@ -342,13 +347,18 @@ fun BodyWeightScreen(state: AppState, today: LocalDate, onBack: () -> Unit, onLo
         Group {
             entries.asReversed().forEachIndexed { i, w ->
                 val counted = dayAt[w.at.toLocalDate()] == w.at
-                GroupRow(first = i == 0, onClick = { onEdit(w) }) {
-                    Column(Modifier.weight(1f)) {
-                        Txt(Fmt.weighInTime(w.at, today), Type.body, maxLines = 1)
-                        if (!counted) Txt("Later that day, not counted", Type.footnote, color = p.fg2, maxLines = 1)
+                val target = Deletion.WeighIn(w.id)
+                key(target) {
+                    SwipeToDelete("Delete", deleting == target, { onDelete(target) }) {
+                        GroupRow(first = i == 0, onClick = { onEdit(w) }) {
+                            Column(Modifier.weight(1f)) {
+                                Txt(Fmt.weighInTime(w.at, today), Type.body, maxLines = 1)
+                                if (!counted) Txt("Later that day, not counted", Type.footnote, color = p.fg2, maxLines = 1)
+                            }
+                            Txt(Fmt.lb(w.lb), Type.body.tabular(), Modifier.padding(start = Space.sm))
+                            Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                        }
                     }
-                    Txt(Fmt.lb(w.lb), Type.body.tabular(), Modifier.padding(start = Space.sm))
-                    Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
                 }
             }
         }

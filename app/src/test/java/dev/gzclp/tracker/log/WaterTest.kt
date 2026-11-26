@@ -129,10 +129,13 @@ class WaterTest {
         assertEquals(8000, WaterLog.recommendedMl(900.0, 0, 0))
 
         val base = AppState(bodyWeights = mapOf("b" to BodyWeight("b", t0.minusDays(3), kg80)))
-        val lift = SessionRecord("s", base.program, base.nextDay, t0, 3600, emptyList())
+        val set = SetLogged("s", "squat", "t1", "5x3+", 1, 3, 3, 200, 200, false)
+        val lift = SessionRecord("s", base.program, base.nextDay, t0, 3600, listOf(set))
         val run = Cardio("c", "run", "Run", t0.withHour(18), 1800)
-        val yesterday = SessionRecord("y", base.program, base.nextDay, t0.minusDays(1), 3600, emptyList())
-        val state = base.copy(sessions = listOf(lift, yesterday), cardio = mapOf("c" to run))
+        val yesterday = SessionRecord("y", base.program, base.nextDay, t0.minusDays(1), 3600, listOf(set))
+        // A workout whose sets were all deleted is not a workout.
+        val deleted = SessionRecord("d", base.program, base.nextDay, t0, 3600, emptyList())
+        val state = base.copy(sessions = listOf(lift, yesterday, deleted), cardio = mapOf("c" to run))
         assertEquals(2400, WaterLog.recommendedMl(base, day))
         assertEquals(3400, WaterLog.recommendedMl(state, day))
         assertEquals(2500, WaterLog.recommendedMl(state, day.minusDays(4)))
