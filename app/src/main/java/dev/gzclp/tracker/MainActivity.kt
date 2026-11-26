@@ -84,7 +84,7 @@ import dev.gzclp.tracker.ui.SessionScreen
 import dev.gzclp.tracker.ui.Tab
 import dev.gzclp.tracker.ui.homeTab
 import dev.gzclp.tracker.ui.TabFrame
-import dev.gzclp.tracker.ui.TabScreens
+import dev.gzclp.tracker.ui.TabHost
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.GzTheme
 import dev.gzclp.tracker.ui.GlassTabBar
@@ -154,6 +154,12 @@ private enum class Route(val depth: Int) {
 
 /** The weigh-in just saved at [lb] to entry [id]; [before] is that entry before an edit, null for a new one. */
 private data class WeighInUndo(val id: String, val before: BodyWeight?, val lb: Double)
+
+/** A [BackHandler] whose [enabled] is read in this scope alone, so a change to it recomposes only this. */
+@Composable
+private fun LazyBackHandler(enabled: () -> Boolean, onBack: () -> Unit) {
+    BackHandler(enabled(), onBack)
+}
 
 @Composable
 private fun App(model: AppModel) {
@@ -349,7 +355,8 @@ private fun App(model: AppModel) {
         if (pending != null) open(SheetState.FiveRm(pending, pending.weight ?: 0)) else finishWorkout(null)
     }
 
-    BackHandler(sheet != null || route != null || tab != Tab.Exercises) {
+    // Read in its own scope: a tab switch would otherwise recompose all of this, and every kept tab's screen with it.
+    LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }) {
         when {
             sheet != null -> close()
             route == Route.Days || route == Route.Split -> openSettings(SettingsPage.Program)
@@ -461,7 +468,7 @@ private fun App(model: AppModel) {
                     state, { closeActivities() }, ::closeActivities,
                     title = when (arg) { "log" -> "Log past session"; "change" -> "Activity"; else -> "Start cardio" },
                 )
-                else -> TabFrame(tab, { tab = it }) { TabScreens(tab) { t ->
+                else -> TabHost({ tab }, { tab = it }) { t ->
                         when (t) {
                             Tab.Workout -> if (run != null) CardioRunScreen(
                                 run, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
@@ -532,7 +539,6 @@ private fun App(model: AppModel) {
                                 )
                             }
                         } }
-                }
             }
         }
         LaunchedEffect(weighUndo) {

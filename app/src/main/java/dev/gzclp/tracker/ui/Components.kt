@@ -760,14 +760,30 @@ fun TabScreens(tab: Tab, content: @Composable (Tab) -> Unit) {
     }
     androidx.compose.ui.layout.Layout({
         for (t in kept) androidx.compose.runtime.key(t) {
-            Box(Modifier.layoutId(t).fillMaxSize(), propagateMinConstraints = true) {
-                val shown = remember { androidx.compose.runtime.derivedStateOf { current.value == t } }
-                androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides shown) { content(t) }
-            }
+            val shown = remember { androidx.compose.runtime.derivedStateOf { current.value == t } }
+            KeptTab(t, shown, content)
         }
     }) { all, c ->
         // Each kept screen is measured, so a switch finds it laid out too; unchanged ones cost nothing to measure again.
         val screens = all.map { it.layoutId to it.measure(c) }
         layout(c.maxWidth, c.maxHeight) { screens.first { it.first == current.value }.second.place(0, 0) }
+    }
+}
+
+/**
+ * The tab bar over every tab's screen ([TabFrame] around [TabScreens]). The tab is read here alone, so a switch recomposes this and the bar:
+ * the caller, and the [content] it built, are left as they were, and no kept screen runs again.
+ */
+@Composable
+fun TabHost(tab: () -> Tab, onSelect: (Tab) -> Unit, content: @Composable (Tab) -> Unit) {
+    val t = tab()
+    TabFrame(t, onSelect) { TabScreens(t, content) }
+}
+
+/** One kept tab: skipped when [TabScreens] recomposes, as its arguments stay the same. */
+@Composable
+private fun KeptTab(t: Tab, shown: androidx.compose.runtime.State<Boolean>, content: @Composable (Tab) -> Unit) {
+    Box(Modifier.layoutId(t).fillMaxSize(), propagateMinConstraints = true) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides shown) { content(t) }
     }
 }

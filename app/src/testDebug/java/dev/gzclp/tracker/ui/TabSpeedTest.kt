@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,11 +32,9 @@ class TabSpeedTest {
         val composed = mutableMapOf<Tab, Int>()
         rule.setContent {
             GzTheme(Palettes.light) {
-                TabFrame(tab, { tab = it }) {
-                    TabScreens(tab) { t ->
-                        remember { composed.merge(t, 1, Int::plus) }
-                        Txt("${t.label} screen", Type.body)
-                    }
+                TabHost({ tab }, { tab = it }) { t ->
+                    remember { composed.merge(t, 1, Int::plus) }
+                    Txt("${t.label} screen", Type.body)
                 }
             }
         }
@@ -45,6 +44,30 @@ class TabSpeedTest {
             rule.onNodeWithText("${t.label} screen").assertExists()
         }
         assertEquals(Tab.entries.associateWith { 1 }, composed)
+    }
+
+    /** Switching tabs recomposes none of the kept screens, the one left and the one shown included. */
+    @Test fun switchRecomposesNoScreen() {
+        var tab by mutableStateOf(Tab.Workout)
+        val runs = mutableMapOf<Tab, Int>()
+        rule.setContent {
+            GzTheme(Palettes.light) {
+                TabHost({ tab }, { tab = it }) { t ->
+                    SideEffect { runs.merge(t, 1, Int::plus) }
+                    Txt("${t.label} screen", Type.body)
+                }
+            }
+        }
+        // Past the other tabs' composing in the background.
+        rule.mainClock.advanceTimeBy(1000)
+        rule.waitForIdle()
+        val before = runs.toMap()
+        assertEquals(Tab.entries.associateWith { 1 }, before)
+        for (t in listOf(Tab.History, Tab.Food, Tab.Workout, Tab.Upcoming)) {
+            tab = t
+            rule.waitForIdle()
+        }
+        assertEquals(before, runs.toMap())
     }
 
     /** A tap on a segment turns the pages there by the next frame: the page sits where the first one sat. */
