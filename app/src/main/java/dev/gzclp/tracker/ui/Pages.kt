@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.first
@@ -130,7 +131,11 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
             ) { i ->
                 // Only the page past halfway blurs: the one being left stays sharp until the middle, then the arriving one is.
                 // Clipped: a blur spreads past its layer, and would paint the page's background over the header.
-                Box(Modifier.graphicsLayer { renderEffect = pageBlur(abs(pager.position - i), PageBlur.toPx()); clip = true }) {
+                // A page wholly out of view, kept composed for a tap, isn't drawn: kept pages would otherwise cost every frame of the screen.
+                Box(
+                    Modifier.drawWithContent { if (abs(pager.position - i) < 1f) drawContent() }
+                        .graphicsLayer { renderEffect = pageBlur(abs(pager.position - i), PageBlur.toPx()); clip = true },
+                ) {
                     CompositionLocalProvider(LocalPage provides i) { page(i) }
                 }
             }
