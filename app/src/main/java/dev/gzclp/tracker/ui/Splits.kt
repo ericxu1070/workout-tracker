@@ -204,8 +204,6 @@ fun SplitDayScreen(
     ScreenFrame {
         NavRow(onBack) { EditButton(editing) { editing = !editing } }
         Txt(day.title, Type.largeTitle, maxLines = 2)
-        Spacer(Modifier.height(Space.xs))
-        Txt(split.name, Type.subhead, color = p.fg2, maxLines = 1)
         Spacer(Modifier.height(Space.xxl))
         if (editing) {
             if (day.slots.isNotEmpty()) Group {

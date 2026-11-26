@@ -237,7 +237,6 @@ fun HomeScreen(
     val p = LocalPalette.current
     val day = state.nextDay
     val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
-    val missing = exercises.count { it.weight == null }
     var showOpenSessionSheet by remember { mutableStateOf(false) }
     ScreenFrame(bottom = {
         BottomBar {
@@ -250,12 +249,6 @@ fun HomeScreen(
         WorkoutSwitch(0, onMode)
         Spacer(Modifier.height(Space.xxl))
         Txt(day.title, Type.largeTitle)
-        Spacer(Modifier.height(Space.xs))
-        val last = state.sessions.lastOrNull { it.sets.isNotEmpty() }
-        Txt(
-            state.program.name + " · " + if (last == null) "your first workout" else "last: ${last.day.title} on ${Fmt.date(last.startedAt)}",
-            Type.subhead, color = p.fg2,
-        )
         Spacer(Modifier.height(Space.xxl))
         Group {
             exercises.forEachIndexed { i, ex ->
@@ -274,7 +267,6 @@ fun HomeScreen(
                 }
             }
         }
-        if (missing > 0) GroupFooter(if (missing == 1) "One exercise needs a starting weight." else "$missing exercises need a starting weight.")
     }
     Sheet(showOpenSessionSheet, { showOpenSessionSheet = false }) {
         OpenSessionStartSheet(
@@ -341,7 +333,7 @@ fun WorkoutScreen(
         onMode?.let { WorkoutSwitch(0, it); Spacer(Modifier.height(Space.xxl)) }
         Txt(a.day.title, Type.largeTitle, maxLines = 1)
         Spacer(Modifier.height(Space.xs))
-        Txt("${a.program.name} · ${Fmt.minutes(Duration.between(a.startedAt, now).seconds)}", Type.subhead.tabular(), color = p.fg2)
+        Txt(Fmt.minutes(Duration.between(a.startedAt, now).seconds), Type.subhead.tabular(), color = p.fg2)
         val exercises = state.sessionExercises().map(LocalPlates.current::prescribe)
         val next = exercises.firstNotNullOfOrNull { ex -> (1..ex.scheme.sets).map { SetKey(ex.id, ex.tier, it) }.firstOrNull { it !in a.sets } }
         exercises.forEach { ex ->
