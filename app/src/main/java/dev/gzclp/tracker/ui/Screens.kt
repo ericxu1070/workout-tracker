@@ -553,7 +553,7 @@ fun SetRow(
                     }
                 }
             },
-            Modifier.size(44.dp), CircleShape,
+            Modifier.size(44.dp).semantics { contentDescription = if (logged != null) "Clear $name" else "Log $name" }, CircleShape,
             fill = when {
                 hit -> p.accent
                 short -> p.red.copy(alpha = 0.18f)
@@ -588,7 +588,7 @@ private fun WarmupRow(sessionId: String, name: String, weight: Int, reps: Int, p
             plateLine?.let { Txt(it, Type.footnote.tabular(), Modifier.padding(start = SET_COL + Space.md), p.fg2, maxLines = 1) }
         }
         Pressable(
-            { done = !done }, Modifier.size(44.dp), CircleShape,
+            { done = !done }, Modifier.size(44.dp).semantics { contentDescription = if (done) "Undo $name" else "Done $name" }, CircleShape,
             fill = if (done) p.accent.copy(alpha = 0.18f) else p.fill,
             label = if (done) "Undo $name" else "Done $name",
             scale = SMALL_PRESS,

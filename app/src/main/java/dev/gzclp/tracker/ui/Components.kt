@@ -350,12 +350,12 @@ fun ShowMoreRow(open: Boolean, onClick: () -> Unit, lead: Dp = 0.dp) {
 fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier, unit: String? = null, repeat: Boolean = false) {
     val p = LocalPalette.current
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Pressable(onMinus, Modifier.size(64.dp), CircleShape, p.fill, label = "Decrease", repeat = repeat) { Icon(Icons.minus, p.fg, 24.dp) }
+        Pressable(onMinus, Modifier.size(64.dp).semantics { contentDescription = "Decrease" }, CircleShape, p.fill, label = "Decrease", repeat = repeat) { Icon(Icons.minus, p.fg, 24.dp) }
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(value, Type.display)
             if (unit != null) Txt(" $unit", Type.title3, Modifier.padding(bottom = 12.dp), p.fg2)
         }
-        Pressable(onPlus, Modifier.size(64.dp), CircleShape, p.fill, label = "Increase", repeat = repeat) { Icon(Icons.plus, p.fg, 24.dp) }
+        Pressable(onPlus, Modifier.size(64.dp).semantics { contentDescription = "Increase" }, CircleShape, p.fill, label = "Increase", repeat = repeat) { Icon(Icons.plus, p.fg, 24.dp) }
     }
 }
 

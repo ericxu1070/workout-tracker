@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.AppModel
 import dev.gzclp.tracker.engine.Catalog
@@ -553,7 +555,7 @@ fun OpenExerciseCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                     Pressable(
                         onClick = { onUpdateWeight(openEx.targetWeight - 5) },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(36.dp).semantics { contentDescription = "Decrease weight" },
                         shape = CircleShape,
                         scale = SMALL_PRESS,
                         fill = p.card,
@@ -564,7 +566,7 @@ fun OpenExerciseCard(
                     }
                     Pressable(
                         onClick = { onUpdateWeight(openEx.targetWeight + 5) },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(36.dp).semantics { contentDescription = "Increase weight" },
                         shape = CircleShape,
                         scale = SMALL_PRESS,
                         fill = p.card,
@@ -588,7 +590,7 @@ fun OpenExerciseCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                     Pressable(
                         onClick = { onUpdateReps(openEx.targetReps - 1) },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(36.dp).semantics { contentDescription = "Decrease reps" },
                         shape = CircleShape,
                         scale = SMALL_PRESS,
                         fill = p.card,
@@ -599,7 +601,7 @@ fun OpenExerciseCard(
                     }
                     Pressable(
                         onClick = { onUpdateReps(openEx.targetReps + 1) },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(36.dp).semantics { contentDescription = "Increase reps" },
                         shape = CircleShape,
                         scale = SMALL_PRESS,
                         fill = p.card,
