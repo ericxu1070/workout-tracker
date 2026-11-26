@@ -351,7 +351,7 @@ object StretchRoutines {
                 move(StretchMoves.DOORWAY_PEC_STRETCH, 60), move(StretchMoves.OVERHEAD_TRICEPS, 50), move(StretchMoves.COBRA_POSE, 30),
             ),
             preset(
-                "deep-squat-prep", "Deep squat prep", "Moving holds for ankles, calves, groin and hips.",
+                "deep-squat-prep", "Deep squat prep", "Short holds for ankles, calves, groin and hips.",
                 "Squat deeper with heels down and chest up.", "Before squats, when heels lift or depth runs short.",
                 move(StretchMoves.KNEELING_ANKLE_DORSI, 40, dynamic = true), move(StretchMoves.WALL_CALF_STRETCH, 40, dynamic = true),
                 move(StretchMoves.BUTTERFLY_STRETCH, 20, dynamic = true), move(StretchMoves.LIZARD_LUNGE, 40, dynamic = true),
@@ -377,7 +377,7 @@ object StretchRoutines {
                 move(StretchMoves.OVERHEAD_TRICEPS, 50), move(StretchMoves.THREAD_THE_NEEDLE, 60), move(StretchMoves.CHILDS_POSE_LAT, 60),
             ),
             preset(
-                "golf-warm-up", "Golf warm-up", "Moving turns for the upper back, then hips and shoulders.",
+                "golf-warm-up", "Golf warm-up", "Short twists for the upper back, then hips and shoulders.",
                 "Free up rotation before the first tee.", "Before a round or a range session.",
                 move(StretchMoves.CAT_COW_STRETCH, 20, dynamic = true), move(StretchMoves.THREAD_THE_NEEDLE, 40, dynamic = true),
                 move(StretchMoves.SEATED_SPINAL_TWIST, 40, dynamic = true), move(StretchMoves.OVERHEAD_SIDE_BEND, 40, dynamic = true),

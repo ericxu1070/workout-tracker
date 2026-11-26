@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -183,14 +184,14 @@ fun StretchScreen(
 @Composable
 private fun RoutineAbout(routine: StretchRoutine, onMoves: () -> Unit) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxWidth().padding(start = Space.lg, end = Space.lg, bottom = Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+    Column(Modifier.fillMaxWidth().padding(start = Space.lg, end = Space.lg, bottom = Space.xs), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         Txt(routine.description, Type.subhead)
         for ((label, text) in listOf("Goal" to routine.goal, "When" to routine.pick)) Row {
             Txt(label, Type.subhead.copy(fontWeight = FontWeight.SemiBold), Modifier.width(56.dp), p.fg2)
             Txt(text, Type.subhead, Modifier.weight(1f))
         }
-        Pressable(onMoves, Modifier.semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
-            Row(Modifier.padding(vertical = Space.xs), verticalAlignment = Alignment.CenterVertically) {
+        Pressable(onMoves, Modifier.heightIn(min = 44.dp).semantics { contentDescription = "${routine.name} moves" }, CircleShape, label = "${routine.name} moves") {
+            Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
                 Txt("See moves", Type.subhead, color = p.accent)
                 Icon(Icons.chevronRight, p.accent, 16.dp)
             }

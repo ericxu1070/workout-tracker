@@ -6,6 +6,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Store
+import dev.gzclp.tracker.stretch.StretchMoves
 import dev.gzclp.tracker.stretch.StretchRoutine
 import dev.gzclp.tracker.stretch.StretchRoutines
 import org.junit.Assert.assertEquals
@@ -14,6 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
+import java.time.OffsetDateTime
 
 /** The routine list: After workout and a few popular ones, the library behind Show more, and each preset's info in place. */
 @RunWith(RobolectricTestRunner::class)
@@ -41,6 +46,18 @@ class StretchLibraryUiTest {
     @Test fun aDefaultFromTheLibraryOpensTheLibrary() {
         show(library.id)
         rule.onNodeWithText("Show less").assertExists()
+    }
+
+    @Test fun aCustomRoutineStaysInSightAndItsInfoOpensItsPage() {
+        val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
+        store.dispatch(OffsetDateTime.parse("2026-11-25T20:00:00-08:00")) { Commands.newStretchRoutine(it, "Evening", listOf(StretchMoves.PIGEON_POSE)) }
+        val state = store.state.value
+        var opened: StretchRoutine? = null
+        rule.setContent { StretchScreen(state, StretchRoutines.ID_AFTER_WORKOUT, {}, {}, {}, { opened = it }, {}) }
+        rule.onNodeWithText("Show more").assertExists()
+        rule.onNodeWithText("Evening").assertExists()
+        rule.onNodeWithContentDescription("Evening moves").performClick()
+        assertEquals("Evening", opened?.name)
     }
 
     @Test fun infoOpensTheGoalInPlaceAndLeadsToTheMoves() {
