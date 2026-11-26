@@ -24,6 +24,7 @@ import dev.gzclp.tracker.stretch.StretchRoutines
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextAlign
 import dev.gzclp.tracker.log.Commands
+import dev.gzclp.tracker.log.Deletion
 import dev.gzclp.tracker.log.WeighInScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -116,6 +117,8 @@ sealed interface SheetState {
         val rpeValue: Double? get() = if (rpe == 0) null else 0.5 + rpe * 0.5
     }
     data class CardioDiscard(val run: CardioRun) : SheetState
+    /** Confirms deleting [target], swiped away from History or Body weight; its row stays open until this closes. */
+    data class Delete(val target: Deletion) : SheetState
     /**
      * Correcting finished lifting session [id]'s duration, from its fixed start [startedAt]. [hours] and [minutes] hold the
      * typed fields; [durationSec] keeps its seconds until one is typed, so opening and saving changes nothing.
@@ -170,12 +173,12 @@ private fun Suggestions(items: List<Pair<String, String>>, onPick: (String) -> U
     }
 }
 
-/** Cancel beside a primary [action], for a sheet's confirm step. */
+/** Cancel beside a primary [action], for a sheet's confirm step; red when [destructive]. */
 @Composable
-private fun CancelOr(action: String, onCancel: () -> Unit, onAction: () -> Unit) {
+private fun CancelOr(action: String, onCancel: () -> Unit, destructive: Boolean = false, onAction: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         PillButton("Cancel", onCancel, Modifier.weight(1f), onSurface = true)
-        PillButton(action, onAction, Modifier.weight(1f), primary = true)
+        PillButton(action, onAction, Modifier.weight(1f), primary = true, destructive = destructive)
     }
 }
 
@@ -288,6 +291,18 @@ fun ColumnScope.SheetContent(
             val finished = s.run.id in state.cardio
             SheetTitle(if (finished) "Delete this session?" else "Discard this session?", null)
             CancelOr(if (finished) "Delete" else "Discard", onDismiss) { onConfirm(s) }
+        }
+        is SheetState.Delete -> {
+            SheetTitle(
+                when (val t = s.target) {
+                    is Deletion.Workout -> "Delete this workout?"
+                    is Deletion.Exercise -> "Delete ${state.name(t.exercise)} from this workout?"
+                    is Deletion.Cardio -> "Delete this session?"
+                    is Deletion.WeighIn -> "Delete this weigh-in?"
+                },
+                null,
+            )
+            CancelOr("Delete", onDismiss, destructive = true) { onConfirm(s) }
         }
         is SheetState.AddExercise -> {
             SheetTitle("Add to ${s.day.title}", null)

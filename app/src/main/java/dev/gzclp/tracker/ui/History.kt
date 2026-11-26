@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +44,7 @@ import dev.gzclp.tracker.engine.DistanceUnit
 import dev.gzclp.tracker.health.HealthRecords
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Cardio
+import dev.gzclp.tracker.log.Deletion
 import dev.gzclp.tracker.log.SessionRecord
 import dev.gzclp.tracker.log.SetLogged
 import dev.gzclp.tracker.ui.Type.tabular
@@ -58,6 +61,7 @@ enum class HistoryView { Week, Month, All }
 fun HistoryScreen(
     state: AppState, view: HistoryView, onView: (HistoryView) -> Unit, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit,
     today: java.time.LocalDate = java.time.LocalDate.now(),
+    deleting: Deletion? = null, onDelete: (Deletion) -> Unit = {},
     week: @Composable ColumnScope.() -> Unit,
 ) {
     val pager = rememberPages(view.ordinal, HistoryView.entries.size) { onView(HistoryView.entries[it]) }
@@ -77,16 +81,16 @@ fun HistoryScreen(
                         Spacer(Modifier.height(Space.lg))
                         MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
                     }
-                    HistoryView.All -> AllHistory(state, onOpen, onCardio)
+                    HistoryView.All -> AllHistory(state, onOpen, onCardio, deleting, onDelete)
                 }
             }
         }
     }
 }
 
-/** Every finished lift and cardio session, newest first, under the average workout and the last 16 lifts' bars. */
+/** Every finished lift and cardio session, newest first, under the average workout and the last 16 lifts' bars; a row swipes away. */
 @Composable
-private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit) {
+private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, onCardio: (Cardio) -> Unit, deleting: Deletion?, onDelete: (Deletion) -> Unit) {
     val p = LocalPalette.current
     val done = state.sessions.filter { it.sets.isNotEmpty() }
     val cardio = state.cardio.values
@@ -110,6 +114,8 @@ private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, on
     GroupHeader(if (cardio.isEmpty()) "${done.size} ${if (done.size == 1) "workout" else "workouts"}" else "${done.size} lifting · ${cardio.size} cardio")
     Group {
         (done.map { it.startedAt to it } + cardio.map { it.startedAt to it }).sortedByDescending { it.first }.forEachIndexed { i, (_, s) ->
+            val target = if (s is Cardio) Deletion.Cardio(s.id) else Deletion.Workout((s as SessionRecord).id)
+            key(target) { SwipeToDelete("Delete", deleting == target, { onDelete(target) }) {
             if (s is Cardio) GroupRow(first = i == 0, onClick = { onCardio(s) }) {
                 val unit = Activities.of(s.activity)?.unit ?: DistanceUnit.MI
                 Column(Modifier.weight(1f)) {
@@ -130,13 +136,16 @@ private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, on
                 Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
+            } }
         }
     }
 }
 
-/** One finished workout: its time, which [onEditTime] corrects, then every logged set with its own weight and reps. */
+/** One finished workout: its time, which [onEditTime] corrects, then every logged set with its own weight and reps; an exercise's card swipes away. */
 @Composable
-fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditTime: () -> Unit) {
+fun SessionScreen(
+    state: AppState, s: SessionRecord, onBack: () -> Unit, onEditTime: () -> Unit, deleting: Deletion? = null, onDelete: (Deletion) -> Unit = {},
+) {
     val p = LocalPalette.current
     ScreenFrame {
         NavRow(onBack)
@@ -164,7 +173,12 @@ fun SessionScreen(state: AppState, s: SessionRecord, onBack: () -> Unit, onEditT
         s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
             val first = sets.first()
             GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
-            SetList(sets.sortedBy { it.setIndex }) { gaps[Triple(it.exercise, it.tier, it.setIndex)] }
+            val target = Deletion.Exercise(s.id, key.first, key.second)
+            key(target) {
+                SwipeToDelete("Delete ${state.name(key.first)}", deleting == target, { onDelete(target) }, shape = RoundedCornerShape(Radius.lg)) {
+                    SetList(sets.sortedBy { it.setIndex }) { gaps[Triple(it.exercise, it.tier, it.setIndex)] }
+                }
+            }
         }
     }
 }

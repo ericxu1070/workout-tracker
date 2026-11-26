@@ -56,6 +56,7 @@ import dev.gzclp.tracker.ui.withActivity
 import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.BodyWeightLogged
+import dev.gzclp.tracker.log.Deletion
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
@@ -162,6 +163,8 @@ private fun App(model: AppModel) {
     var settingsPage by rememberSaveable { mutableStateOf(SettingsPage.Program) }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
     var lastSheet by remember { mutableStateOf<SheetState?>(null) }
+    // The row a Delete question is about stays swiped open until the sheet closes.
+    val deleting = (sheet as? SheetState.Delete)?.target
     var weighUndo by remember { mutableStateOf<WeighInUndo?>(null) }
     var restoreAfterPick by remember { mutableStateOf(false) }
     var foodDay by rememberSaveable { mutableStateOf<LocalDate?>(null) } // null follows today across midnight
@@ -426,11 +429,12 @@ private fun App(model: AppModel) {
                 shown == Route.SplitDay && split != null && splitDay != null -> SplitDayScreen(
                     state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
                 )
-                shown == Route.Session && session != null -> SessionScreen(state, session, { route = null }) {
-                    open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec))
-                }
+                shown == Route.Session && session != null -> SessionScreen(
+                    state, session, { route = null }, { open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec)) },
+                    deleting, { open(SheetState.Delete(it)) },
+                )
                 shown == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } })
-                shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight)
+                shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight, deleting) { open(SheetState.Delete(it)) }
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
                     stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
                     onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
@@ -505,6 +509,7 @@ private fun App(model: AppModel) {
                             Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() })
                             Tab.History -> HistoryScreen(
                                 state, historyView, { historyView = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
+                                deleting = deleting, onDelete = { open(SheetState.Delete(it)) },
                             ) {
                                 val today = LocalDate.now()
                                 val thisWeek = mondayOf(today)
@@ -562,6 +567,13 @@ private fun App(model: AppModel) {
                             }
                             close()
                             if (model.weighInReminder) requestNotifications()
+                        }
+                        is SheetState.Delete -> {
+                            val t = c.target
+                            // Its last exercise gone, the workout's page has nothing left to show.
+                            if (t is Deletion.Exercise && state.sessions.firstOrNull { it.id == t.sessionId }?.sets?.all { it.exercise == t.exercise && it.tier == t.tier } == true) route = null
+                            model.dispatch { Commands.delete(it, t) }
+                            close()
                         }
                         is SheetState.Swap -> {
                             model.dispatch { Commands.swap(it, c.ex, c.name) }
