@@ -72,6 +72,18 @@ class TabSpeedTest {
         assertEquals(before, runs.toMap())
     }
 
+    /** History's other views are composed before they are tapped, so a tap only turns to them. */
+    @Test fun historyViewsWaitComposed() {
+        rule.setContent {
+            GzTheme(Palettes.light) {
+                HistoryScreen(Demo.state, HistoryView.All, {}, {}, {}, Demo.today) { Txt("Week page", Type.body) }
+            }
+        }
+        rule.mainClock.advanceTimeBy(1000)
+        rule.waitForIdle()
+        rule.onNodeWithText("Week page").assertExists()
+    }
+
     /** A tap on a segment turns the pages there by the next frame: the page sits where the first one sat. */
     @Test fun tappedPageShowsOnTheNextFrame() {
         var mode by mutableStateOf(0)
