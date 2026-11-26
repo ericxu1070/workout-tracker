@@ -6,12 +6,17 @@ import dev.gzclp.tracker.ui.Orbit
 import dev.gzclp.tracker.ui.Projector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 open class FormTest {
+    @Before fun asPieces() { Figure.on = false }
+    @After fun asMesh() { Figure.on = true }
+
     @Test fun pitchNeverGoesBelowTheFloorOrPastStraightDown() {
         val o = Orbit()
         for (dy in listOf(-5000f, -90f, 0f, 90f, 5000f)) {

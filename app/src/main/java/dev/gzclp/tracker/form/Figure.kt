@@ -11,8 +11,8 @@ import java.nio.ByteOrder
  * swaps in a fist. Each body ([shape]) is the same vertices, triangles and weights in another shape.
  */
 object Figure {
-    /** Draws and solves the figure as this mesh rather than the pieces; off by default while it is on trial. */
-    var on = false
+    /** Draws and solves the figure as this mesh rather than the pieces; on by default. */
+    var on = true
 
     /** figure-<body>.bin's layout, which FigureBake writes. */
     internal const val FIGURE_VERSION = 1

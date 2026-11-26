@@ -13,7 +13,7 @@ import org.robolectric.ParameterizedRobolectricTestRunner
 @RunWith(ParameterizedRobolectricTestRunner::class)
 class FigureFormTest(private val body: String) : FormTest() {
     @Before fun mesh() { Figure.on = true; Figure.shape = body }
-    @After fun pieces() { Figure.on = false; Figure.shape = "male" }
+    @After fun pieces() { Figure.on = true; Figure.shape = "male" }
 
     override fun sink(id: String) = SINKS[body]?.get(id) ?: super.sink(id)
     override fun clear() = CLEAR[body] ?: super.clear()
