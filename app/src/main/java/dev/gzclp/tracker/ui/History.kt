@@ -61,7 +61,8 @@ fun HistoryScreen(
     week: @Composable ColumnScope.() -> Unit,
 ) {
     val pager = rememberPages(view.ordinal, HistoryView.entries.size) { onView(HistoryView.entries[it]) }
-    Pages(pager, header = {
+    // All three kept composed, as the Workout pages are, so a tapped view shows on the next frame instead of composing first.
+    Pages(pager, beyond = 2, header = {
         Spacer(Modifier.height(52.dp))
         Txt("History", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
