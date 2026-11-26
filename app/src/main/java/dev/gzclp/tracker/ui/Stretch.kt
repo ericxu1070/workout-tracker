@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +74,9 @@ fun StretchScreen(
     val displayedMoves = remember(selectedAreaFilter) {
         selectedAreaFilter?.let { StretchMoves.forArea(it) } ?: StretchMoves.ALL
     }
+
+    // Each move's figure solves its balance once per launch: one a frame now, not mid-scroll on the first fling into the library.
+    LaunchedEffect(Unit) { for (move in StretchMoves.ALL) withFrameNanos { Motions.of(move) } }
 
     // Lazy, so the move library below the fold, a 3D figure per row, composes only as it scrolls in.
     LazyScreenFrame(bottom = {
