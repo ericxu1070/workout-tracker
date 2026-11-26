@@ -86,6 +86,7 @@ class FoodLogTest {
         ExifInterface(f.path).apply {
             setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2026:11:10 12:30:05")
             setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, "-08:00")
+            setAttribute(ExifInterface.TAG_DATETIME, "2026:11:12 08:00:00") // edited later: capture time, not edit time
             saveAttributes()
         }
         assertEquals(noon, FoodLog.takenAt(f, la))

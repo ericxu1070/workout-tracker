@@ -140,17 +140,14 @@ class StrengthTest {
         val model = dev.gzclp.tracker.log.AppState.fold(entries).strengthModel()
 
         // T1 sibling (reps = 3, targetRir = 2.0)
-        val t1Suggest = model.suggest("bench", reps = 3, targetRir = 2.0)
-        assertNotNull(t1Suggest)
-        assertTrue(t1Suggest!! > 155)
+        // e1RM = 155 × (1 + (8 + 2) / 30) ≈ 206.7
+        assertEquals(175, model.suggest("bench", reps = 3, targetRir = 2.0)) // 206.7 / (1 + 5/30) ≈ 177
 
         // Cycle week sibling (reps = 10, targetRir = 3.0)
-        val cycleSuggest = model.suggest("bench", reps = 10, targetRir = 3.0)
-        assertNotNull(cycleSuggest)
+        assertEquals(145, model.suggest("bench", reps = 10, targetRir = 3.0)) // 206.7 / (1 + 13/30) ≈ 144
 
         // T3 sibling (reps = 15, targetRir = 3.0)
-        val t3Suggest = model.suggest("bench", reps = 15, targetRir = 3.0)
-        assertNotNull(t3Suggest)
+        assertEquals(130, model.suggest("bench", reps = 15, targetRir = 3.0)) // 206.7 / (1 + 18/30) ≈ 129
     }
 
     @Test

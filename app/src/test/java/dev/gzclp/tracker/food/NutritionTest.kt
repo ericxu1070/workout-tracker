@@ -8,9 +8,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE) // the legacy shadow decodes any path, even a missing file
 @Config(sdk = [35])
 class NutritionTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
@@ -31,6 +33,7 @@ class NutritionTest {
 
     @Test
     fun anUnreadablePhotoGetsNoMadeUpEstimate() {
-        assertTrue(Classifier.classifySync(context, File("does_not_exist.jpg")).isEmpty())
+        val empty = File.createTempFile("unreadable", ".jpg").apply { deleteOnExit() }
+        assertTrue(Classifier.classifySync(context, empty).isEmpty())
     }
 }
