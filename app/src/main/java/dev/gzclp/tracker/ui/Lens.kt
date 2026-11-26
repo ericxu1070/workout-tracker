@@ -3,6 +3,8 @@ package dev.gzclp.tracker.ui
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.RoundRect
@@ -17,18 +19,23 @@ import androidx.compose.ui.unit.dp
 /**
  * A Liquid Glass lens over this content: inside [pill] (in this content's coordinates) the content magnifies a little and bends
  * outward along the rim, as content under a held iOS 26 control does; [amount] (0 to 1) fades it in, and at 0 nothing changes.
- * On API 33 and up it is an AGSL shader ([LENS]); below, the content inside the pill is only magnified.
+ * On API 33 and up it is an AGSL shader ([LENS]), compiled once per lens; below, the content inside the pill is only magnified.
  */
+@Composable
 fun Modifier.glassLens(pill: () -> RoundRect?, amount: () -> Float): Modifier =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) graphicsLayer {
-        val a = amount()
-        val r = pill()
-        renderEffect = if (a <= 0f || r == null) null else RuntimeShader(LENS).run {
-            setFloatUniform("box", r.left, r.top, r.right, r.bottom)
-            setFloatUniform("radius", r.bottomRightCornerRadius.y)
-            setFloatUniform("amount", a)
-            setFloatUniform("rim", LensRim.toPx())
-            RenderEffect.createRuntimeShaderEffect(this, "content").asComposeRenderEffect()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val shader = remember { RuntimeShader(LENS) }
+        graphicsLayer {
+            val a = amount()
+            val r = pill()
+            // Each effect takes the uniforms as they are when it is made, so one shader serves every frame.
+            renderEffect = if (a <= 0f || r == null) null else shader.run {
+                setFloatUniform("box", r.left, r.top, r.right, r.bottom)
+                setFloatUniform("radius", r.bottomRightCornerRadius.y)
+                setFloatUniform("amount", a)
+                setFloatUniform("rim", LensRim.toPx())
+                RenderEffect.createRuntimeShaderEffect(this, "content").asComposeRenderEffect()
+            }
         }
     } else drawWithContent {
         val a = amount()
