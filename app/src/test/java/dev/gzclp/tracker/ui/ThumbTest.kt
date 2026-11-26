@@ -1,6 +1,9 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.ui.MotionDurationScale
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,7 +46,7 @@ class ThumbTest {
 
     /** A thumb flung at a segment lags, stretches wide while fast, overshoots into tall and narrow as it stops, then rests exactly on it. */
     @Test fun aStopBouncesThroughTallAndNarrowThenRests() {
-        val m = ThumbMotion(0f)
+        val m = ThumbMotion(0f).apply { momentum = true }
         val xs = mutableListOf<Float>()
         val stretches = mutableListOf<Float>()
         var frames = 0
@@ -57,6 +60,41 @@ class ThumbTest {
         assertTrue("tall as it stops: ${stretches.min()}", stretches.min() < -0.02f)
         assertEquals(1f, m.x, 0f)
         assertEquals(0f, m.stretch, 0f)
+    }
+
+    /** A tap carries no momentum: the thumb glides to the segment and stops, never past it and never squashed. */
+    @Test fun aTapGlidesWithoutBounceOrSquash() {
+        val m = ThumbMotion(0f)
+        var frames = 0
+        while (!m.step(2f, 1 / 60f)) {
+            assertTrue("past the segment at frame $frames: ${m.x}", m.x <= 2f + 1e-4f)
+            assertEquals("squash at frame $frames", 0f, m.stretch, 1e-4f)
+            assertTrue("never settles", ++frames < 300)
+        }
+        assertTrue("settles in ${frames} frames", frames < 30)
+    }
+
+    /** With the system's Remove animations on, the thumb lands at once, waiting on no frame. */
+    @Test fun removedAnimationsLandTheThumbAtOnce() {
+        val m = ThumbMotion(0f)
+        runBlocking(object : MotionDurationScale { override val scaleFactor = 0f }) { m.chase { 2f } }
+        assertEquals(2f, m.x, 0f)
+        assertEquals(0f, m.stretch, 0f)
+    }
+
+    @Test fun aSlowShortPullLeavesASheetOpenAndAFlickClosesIt() {
+        // The weigh-in sheet's slow 220 px pull, about a fifth of it.
+        assertFalse(sheetCloses(0.22f, 0.1f))
+        assertFalse(sheetCloses(0.4f, 0f))
+        assertTrue(sheetCloses(0.05f, 3f))
+        assertTrue(sheetCloses(0.6f, 0f))
+        // A flick back up keeps it open from far down.
+        assertFalse(sheetCloses(0.7f, -2f))
+    }
+
+    @Test fun aSheetPulledUpGivesAThird() {
+        assertEquals(-0.1f, sheetBand(-0.3f), 1e-6f)
+        assertEquals(0.3f, sheetBand(0.3f), 1e-6f)
     }
 
     @Test fun squashKeepsTheArea() {
@@ -75,7 +113,7 @@ class ThumbTest {
 
     /** Close behind a finger moving 4 segments a second: under 0.25 segment of lag once it has caught up. */
     @Test fun theThumbKeepsUpWithAFinger() {
-        val m = ThumbMotion(0f)
+        val m = ThumbMotion(0f).apply { momentum = true }
         for (f in 1..30) m.step(f * 4f / 60f, 1 / 60f)
         assertTrue("lag ${2f - m.x}", 2f - m.x < 0.25f)
     }

@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
+import kotlinx.coroutines.currentCoroutineContext
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -83,6 +85,12 @@ fun thumbPill(cx: Float, cy: Float, w: Float, h: Float, lift: Float, stretch: Fl
     return RoundRect(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2, CornerRadius(ph / 2))
 }
 
+/**
+ * The system's animator duration scale, as Compose's own animations read it: 0 when Remove animations is on.
+ * Hand-stepped frame loops use it so they cut when everything else cuts.
+ */
+suspend fun motionScale(): Float = currentCoroutineContext()[MotionDurationScale]?.scaleFactor ?: 1f
+
 /** One step of a damped spring ([stiffness], [damping] ratio) pulling [x], moving at [v], toward [to] over [dt] seconds. */
 fun springStep(x: Float, v: Float, to: Float, dt: Float, stiffness: Float, damping: Float): Pair<Float, Float> {
     var nx = x
@@ -97,8 +105,9 @@ fun springStep(x: Float, v: Float, to: Float, dt: Float, stiffness: Float, dampi
 }
 
 /**
- * A segmented thumb's motion: [x] follows its target on a stiff, lightly underdamped spring, so it arrives just after the finger with a small bounce;
- * [stretch] chases [stretchFor] the thumb's speed on a bouncier one, so stopping overshoots into tall and narrow; [lift] grows it while held.
+ * A segmented thumb's motion: [x] follows its target on a stiff spring. Moved by a gesture with [momentum] (a drag or a swipe), the spring is
+ * lightly underdamped, so the thumb arrives just after the finger with a small bounce, and [stretch] chases [stretchFor] its speed on a bouncier
+ * one, so stopping overshoots into tall and narrow. Moved by a tap, it glides there critically damped, no squash. [lift] grows it while held.
  * Both springs step in one frame loop ([chase]): restarting an animation each frame would hold the thumb still while its target moves.
  */
 class ThumbMotion(start: Float) {
@@ -110,10 +119,13 @@ class ThumbMotion(start: Float) {
     private var sv = 0f
     val lift = Animatable(0f)
 
+    /** Whether a drag or a swipe moved the thumb, so it may bounce; a tap clears it. */
+    var momentum = false
+
     /** Advances [dt] seconds toward [to]; true once it rests there. */
     fun step(to: Float, dt: Float): Boolean {
-        springStep(x, v, to, dt, FOLLOW_STIFFNESS, FOLLOW_DAMPING).let { (a, b) -> x = a; v = b }
-        springStep(stretch, sv, stretchFor(v), dt, SQUASH_STIFFNESS, SQUASH_DAMPING).let { (a, b) -> stretch = a; sv = b }
+        springStep(x, v, to, dt, FOLLOW_STIFFNESS, if (momentum) FOLLOW_DAMPING else 1f).let { (a, b) -> x = a; v = b }
+        springStep(stretch, sv, if (momentum) stretchFor(v) else 0f, dt, SQUASH_STIFFNESS, if (momentum) SQUASH_DAMPING else 1f).let { (a, b) -> stretch = a; sv = b }
         val rest = abs(x - to) < 1e-3f && abs(v) < 1e-2f && abs(stretch) < 1e-3f && abs(sv) < 1e-2f
         if (rest) {
             x = to; v = 0f; stretch = 0f; sv = 0f
@@ -121,12 +133,20 @@ class ThumbMotion(start: Float) {
         return rest
     }
 
-    /** Steps every frame toward [to], wherever it moves meanwhile, until the thumb rests on it. */
+    /**
+     * Steps every frame toward [to], wherever it moves meanwhile, until the thumb rests on it. Paced by the system's animation
+     * scale ([motionScale]); with animations removed it lands at once.
+     */
     suspend fun chase(to: () -> Float) {
+        val scale = motionScale()
+        if (scale == 0f) {
+            x = to(); v = 0f; stretch = 0f; sv = 0f
+            return
+        }
         var last = 0L
         do {
             val now = withFrameNanos { it }
-            val dt = if (last == 0L) 1 / 60f else ((now - last) / 1e9f).coerceAtMost(1 / 20f)
+            val dt = (if (last == 0L) 1 / 60f else ((now - last) / 1e9f).coerceAtMost(1 / 20f)) / scale
             last = now
         } while (!step(to(), dt))
     }
@@ -137,6 +157,6 @@ class ThumbMotion(start: Float) {
         const val FOLLOW_DAMPING = 0.7f
         const val SQUASH_STIFFNESS = Spring.StiffnessMedium
         const val SQUASH_DAMPING = 0.4f
-        val Lift = spring<Float>(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow)
+        val Lift = spring<Float>(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
     }
 }

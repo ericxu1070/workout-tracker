@@ -66,12 +66,18 @@ val PagerState.position: Float get() = currentPage + currentPageOffsetFraction
  */
 suspend fun PagerState.springTo(page: Int) = scroll {
     val span = (layoutInfo.pageSize + layoutInfo.pageSpacing).toFloat()
+    val scale = motionScale()
+    // Animations removed: the pages cut, as a push does.
+    if (scale == 0f) {
+        scrollBy((page - position) * span)
+        return@scroll
+    }
     var x = position
     var v = 0f
     var last = 0L
     while (true) {
         val now = withFrameNanos { it }
-        val dt = if (last == 0L) 1 / 60f else ((now - last) / 1e9f).coerceAtMost(1 / 20f)
+        val dt = (if (last == 0L) 1 / 60f else ((now - last) / 1e9f).coerceAtMost(1 / 20f)) / scale
         last = now
         val (nx, nv) = springStep(x, v, page.toFloat(), dt, PAGE_STIFFNESS, PAGE_DAMPING)
         x = nx
