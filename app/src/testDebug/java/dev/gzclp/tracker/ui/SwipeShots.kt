@@ -5,11 +5,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.captureRoboImage
-import dev.gzclp.tracker.engine.Activities
-import dev.gzclp.tracker.engine.Lift
-import dev.gzclp.tracker.engine.Programs
-import dev.gzclp.tracker.log.Commands
-import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.mondayOf
 import org.junit.Assume.assumeNotNull
 import org.junit.Rule
@@ -19,7 +14,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
-import java.time.OffsetDateTime
 
 /** Renders, from demo data, the Workout and History pages caught mid-swipe; runs only when -PgzclpShots is set. */
 @RunWith(RobolectricTestRunner::class)
@@ -28,16 +22,8 @@ import java.time.OffsetDateTime
 class SwipeShots {
     @get:Rule val rule = createComposeRule()
 
-    private val now = OffsetDateTime.parse("2026-11-25T18:00:00-08:00")
-    private val state = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() }).run {
-        dispatch(now) { Commands.setup(Lift.entries.associateWith { 135 }, Programs.GZCLP) }
-        while (true) {
-            val missing = Commands.missingWeight(state.value) ?: break
-            dispatch(now) { Commands.startingWeight(it, missing, 50) }
-        }
-        for (d in 1..3L) dispatch(now) { Commands.logCardio(it, null, Activities.all[d.toInt() % 2], now.minusDays(d), 1800 + d * 300, null, null, null, now) }
-        state.value
-    }
+    private val now = Demo.now
+    private val state = Demo.state
 
     /** Holds a finger 40% of the way across, so the thumb sits between two segments. */
     private fun midSwipe(p: Palette, name: String, content: @androidx.compose.runtime.Composable () -> Unit) {
@@ -68,7 +54,7 @@ class SwipeShots {
     @Test fun historyMidSwipe() = midSwipe(Palettes.light, "30-history-mid-swipe") {
         TabFrame(Tab.History, {}) {
             HistoryScreen(state, HistoryView.Week, {}, {}, {}, now.toLocalDate()) {
-                WeekView(state, emptyList(), mondayOf(now.toLocalDate()), now.toLocalDate(), {}, {})
+                WeekView(state, emptyList(), mondayOf(now.toLocalDate()).minusDays(7), now.toLocalDate(), {}, {})
             }
         }
     }
