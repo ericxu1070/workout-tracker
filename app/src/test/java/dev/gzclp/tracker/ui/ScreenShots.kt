@@ -36,9 +36,7 @@ import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.weighIns
 import dev.gzclp.tracker.log.weighInScale
-import dev.gzclp.tracker.log.Cardio
-import dev.gzclp.tracker.log.LogCodec
-import dev.gzclp.tracker.log.StretchLogged
+import dev.gzclp.tracker.log.WaterLog
 import dev.gzclp.tracker.log.mondayOf
 import dev.gzclp.tracker.engine.Activities
 import org.junit.Test
@@ -58,55 +56,8 @@ class ScreenShots {
     private val out = File(System.getProperty("gzclp.shots") ?: "build/shots")
     private val rest = Tier.entries.associateWith { it.defaultRestSec }
     private val t0 = OffsetDateTime.parse("2026-09-28T18:00:00-07:00")
-    private val startWeights = mapOf("lat_pulldown" to 100, "dumbbell_row" to 50, "incline_db_press" to 50, "lateral_raise" to 15, "tricep_pushdown" to 40,
-        "seated_cable_row" to 100, "face_pull" to 35, "barbell_curl" to 50, "romanian_deadlift" to 135, "leg_curl" to 70, "calf_raise" to 90,
-        "chest_fly" to 25, "overhead_tricep_extension" to 40, "barbell_row" to 115, "rear_delt_fly" to 15, "hammer_curl" to 25, "leg_press" to 230, "leg_extension" to 70)
-
-    private fun Store.workout(start: OffsetDateTime, k: Int, end: Boolean = true) {
-        while (true) {
-            val ex = Commands.missingWeight(state.value) ?: break
-            dispatch(start) { Commands.startingWeight(it, ex, startWeights[ex.id] ?: 45) }
-        }
-        dispatch(start) { Commands.start(it, start) }
-        var t = start
-        val a = state.value.active!!
-        for (ex in state.value.exercises(a.program, a.day)) for (i in 1..ex.scheme.sets) {
-            if (!end && t > start.plusMinutes(10)) return
-            val amrap = ex.scheme.amrap && i == ex.scheme.sets
-            val miss = (k == 4 && ex.tier == Tier.T1 && i == 4) || (k == 9 && i == 3 && ex.week == 2 && ex.id == "lat_pulldown")
-            val reps = when {
-                miss -> ex.scheme.reps - 1
-                amrap && ex.tier == Tier.T3 -> 18 + k
-                amrap -> ex.scheme.reps + 3 - k % 3
-                else -> ex.scheme.reps
-            }
-            val w = (ex.weight ?: 0) + if (k == 7 && i == 3 && ex.tier == Tier.CYCLE) 5 else 0
-            t = t.plusSeconds(rest.getValue(ex.tier) + 25L + (k * 13 + i * 7) % 40)
-            // RPE on last sets only, like a lifter who rates just the hard ones.
-            val rpe = if (i == ex.scheme.sets) 8.0 + (k + i) % 4 * 0.5 else null
-            dispatch(t) { Commands.logSet(it, ex, i, reps, w, t, rest, rpe) }
-        }
-        if (end) t.plusSeconds(90).let { e -> dispatch(e) { Commands.end(it, e, null) } }
-    }
-
-    /** Five GZCLP workouts, then push/pull/legs, then a push day in progress. */
-    private fun history(): Pair<AppState, OffsetDateTime> {
-        val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
-        store.dispatch(t0) { Commands.setup(mapOf(Lift.SQUAT to 245, Lift.BENCH to 175, Lift.DEADLIFT to 295, Lift.OHP to 115), Programs.GZCLP) }
-        var day = 0L
-        for (k in 0 until 5) store.workout(t0.plusDays(day).also { day += 2 }.plusMinutes(k * 17L), k)
-        store.dispatch(t0) { Commands.chooseProgram(it, "ppl") }
-        for (k in 5 until 17) store.workout(t0.plusDays(day).also { day += if (k % 6 == 5) 2 else 1 }.plusMinutes(k * 11L % 50), k)
-        // Morning weigh-ins from day 4: a slow drift down with day-to-day noise, plus one evening weigh-in.
-        for (d in 4L..day) {
-            val at = t0.plusDays(d).withHour(6).withMinute(40 + (d * 7 % 15).toInt())
-            store.dispatch(at) { Commands.logBodyWeight(it, null, at, 184.6 - d * 0.12 + listOf(0.0, 0.8, -0.4, 0.5, -0.6, 0.2, 0.9)[(d % 7).toInt()]) }
-        }
-        t0.plusDays(day - 1).withHour(21).let { at -> store.dispatch(at) { Commands.logBodyWeight(it, null, at, 183.8) } }
-        val start = t0.plusDays(day).withHour(18).withMinute(42)
-        store.workout(start, 17, end = false)
-        return store.state.value to start.plusMinutes(14).plusSeconds(18)
-    }
+    /** The demo November, ten minutes into Monday's workout. */
+    private fun history(): Pair<AppState, OffsetDateTime> = Demo.state to Demo.now
 
     private fun AppState.then(at: OffsetDateTime, build: (AppState) -> List<dev.gzclp.tracker.log.Event>): AppState =
         build(this).fold(this) { s, e -> s.apply(Entry(s.lastSeq + 1, at, e)) }
@@ -136,18 +87,18 @@ class ScreenShots {
     private fun gzclpLive(): Pair<AppState, OffsetDateTime> {
         val store = Store(File.createTempFile("gzclp", ".jsonl").apply { delete(); deleteOnExit() })
         store.dispatch(t0) { Commands.setup(mapOf(Lift.SQUAT to 245, Lift.BENCH to 175, Lift.DEADLIFT to 295, Lift.OHP to 115), Programs.GZCLP) }
-        store.workout(t0, 0, end = false)
+        with(Demo) { store.workout(t0, 0, end = false) }
         return store.state.value to t0.plusMinutes(11)
     }
 
-    /** Four meals on [day], drawn as plates on a table, saved the way the camera flow saves them. */
-    private fun meals(day: java.time.LocalDate): List<dev.gzclp.tracker.food.Meal> {
+    /** Four meals on each of [days], drawn as plates on a table, saved the way the camera flow saves them. */
+    private fun meals(days: List<java.time.LocalDate>): List<dev.gzclp.tracker.food.Meal> {
         val log = dev.gzclp.tracker.food.FoodLog(java.nio.file.Files.createTempDirectory("food").toFile().apply { deleteOnExit() })
         val foods = listOf(
             listOf(0xFFF2C14E, 0xFFE07A5F, 0xFF8D6E63), listOf(0xFF81B29A, 0xFFF4A261, 0xFFE9C46A),
             listOf(0xFFD4A373, 0xFF6A994E, 0xFFBC4749), listOf(0xFFE76F51, 0xFF2A9D8F, 0xFFF4F1DE),
         )
-        return listOf(7 to 48, 12 to 31, 15 to 52, 19 to 14).mapIndexed { i, (h, m) ->
+        return days.flatMap { day -> listOf(7 to 48, 12 to 31, 15 to 52, 19 to 14).mapIndexed { i, (h, m) ->
             val bmp = android.graphics.Bitmap.createBitmap(1280, 960, android.graphics.Bitmap.Config.ARGB_8888)
             val c = android.graphics.Canvas(bmp)
             val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
@@ -159,8 +110,8 @@ class ScreenShots {
                 c.drawCircle(520f + k * 120f, 420f + (k % 2) * 140f, 150f - k * 20f, paint)
             }
             val cam = File.createTempFile("cam", ".jpg").apply { outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) } }
-            log.add(cam, day.atTime(h, m).atOffset(t0.offset))
-        }
+            log.add(cam, day.atTime(h, m).plusMinutes(day.dayOfMonth % 5 * 6L).atOffset(Demo.now.offset))
+        } }
     }
 
     /** [tall] renders the whole scrolling page on a very tall screen, to review everything below the fold. */
@@ -264,7 +215,7 @@ class ScreenShots {
         val (live, now) = history()
         val idle = live.copy(active = null)
         val ex = live.exercises(live.active!!.program, live.active!!.day)
-        val food = meals(now.toLocalDate())
+        val food = meals(listOf(now.toLocalDate()))
         val themes = File(javaClass.getResource("/themes")!!.toURI()).list()!!.filter { it.endsWith(".raw.toml") }.map { it.removeSuffix(".raw.toml") }
         for (name in themes.sorted()) {
             val p = LaptopTheme.parse(javaClass.getResource("/themes/$name.toml")!!.readText())!!
@@ -278,35 +229,16 @@ class ScreenShots {
             }
             for (tall in listOf(false, true)) shot(file, if (tall) "12-settings-full" else "12-settings", tall) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    true, idle.programId, idle.increments, LaptopTheme.ID, p, rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
         }
     }
 
-    /** [base] plus four weeks of cardio ending on Thursday [now], the week's last session at 6:42 AM. */
-    private fun cardio(base: AppState, now: OffsetDateTime): AppState {
-        val monday = now.toLocalDate().with(java.time.DayOfWeek.MONDAY)
-        // (days after this Monday, hour, minute, activity, minutes, meters)
-        val sessions = listOf(
-            Triple(-21, "running", 50) to (7 to 8851), Triple(-19, "stationary_bike", 30) to (18 to null), Triple(-16, "running", 40) to (7 to 7081),
-            Triple(-14, "running", 40) to (7 to 7242), Triple(-12, "basketball", 70) to (18 to null), Triple(-10, "running", 25) to (7 to 4506),
-            Triple(-7, "running", 45) to (7 to 8368), Triple(-6, "basketball", 60) to (18 to null), Triple(-4, "stationary_bike", 40) to (17 to null),
-            Triple(0, "running", 42) to (7 to 8047), Triple(1, "basketball", 65) to (18 to null), Triple(2, "stationary_bike", 20) to (17 to null),
-            Triple(3, "running", 28) to (6 to 4989),
-        )
-        return sessions.fold(base) { s, (what, at) ->
-            val (day, id, min) = what
-            val start = monday.plusDays(day.toLong()).atTime(at.first, if (day == 3) 42 else 5).atOffset(now.offset)
-            val events = Commands.logCardio(s, null, Activities.of(id)!!, start, min * 60L, at.second, if (id == "running") 7.0 else null, null, now)
-            events.fold(s) { st, e -> st.apply(Entry(st.lastSeq + 1, start.plusMinutes(min.toLong()), e)) }
-        }
-    }
-
     @Test fun cardioScreens() {
         val (live, now) = history()
-        val week = cardio(live.copy(active = null), now)
+        val week = live.copy(active = null)
         val start = now.minusSeconds(41 * 60 + 30)
         val running = Commands.startCardio(week, Activities.of("running")!!, start).fold(week) { s, e -> s.apply(Entry(s.lastSeq + 1, start, e)) }
         val run = running.cardioActive!!
@@ -318,7 +250,7 @@ class ScreenShots {
             shot(p, "03-workout-switch") {
                 TabFrame(Tab.Workout, {}) { WorkoutScreen(live, now, null, { _, _, _, _, _ -> }, { _, _ -> }, {}, {}, {}, {}, {}, onMode = {}) }
             }
-            shot(p, "19-cardio-empty") { TabFrame(Tab.Workout, {}) { CardioScreen(live.copy(active = null), today, 150, {}, {}, {}, {}, {}, {}) } }
+            shot(p, "19-cardio-empty") { TabFrame(Tab.Workout, {}) { CardioScreen(week.copy(cardio = emptyMap()), today, 150, {}, {}, {}, {}, {}, {}) } }
             shot(p, "20-cardio-running") { TabFrame(Tab.Workout, {}) { CardioRunScreen(run, now, {}, {}, {}) } }
             shot(p, "20-cardio-stop-sheet") {
                 Box(Modifier.fillMaxSize()) {
@@ -365,22 +297,13 @@ class ScreenShots {
         val gz = idle.copy(programId = Programs.GZCLP)
         val today = now.toLocalDate()
         val bench = live.exerciseLogs().first { it.id == "bench" }
-        val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "overhead_tricep_extension")))
-        val newSub = live.apply(Entry(live.lastSeq + 1, now, ExerciseDefine("cable_kickback", "Cable kickback", false)))
-            .let { it.apply(Entry(it.lastSeq + 1, now, ExerciseSwap(workout.id, "tricep_pushdown", Tier.CYCLE.id, "cable_kickback"))) }
+        val swapped = live.apply(Entry(live.lastSeq + 1, now, ExerciseSwap(workout.id, "face_pull", Tier.T3.id, "rear_delt_fly")))
+        val newSub = live.apply(Entry(live.lastSeq + 1, now, ExerciseDefine("band_pull_apart", "Band pull-apart", false)))
+            .let { it.apply(Entry(it.lastSeq + 1, now, ExerciseSwap(workout.id, "face_pull", Tier.T3.id, "band_pull_apart"))) }
         val (gzLive, gzNow) = gzclpLive()
-        val food = meals(today)
-        // Cardio this week and last, by days before today.
-        val withCardio = idle.copy(cardio = listOf(
-            Triple("running", 3L, 32), Triple("cycling", 2L, 48), Triple("running", 0L, 41), Triple("running", 8L, 30), Triple("yoga", 5L, 55),
-        ).mapIndexed { i, (a, back, min) ->
-            val at = today.minusDays(back).atTime(7, 5 + i).atOffset(t0.offset)
-            "c$i" to Cardio("c$i", a, Activities.of(a)!!.name, at, min * 60L + 17, if (a == "yoga") null else (min * 160.9 + i * 300).toInt() * if (a == "cycling") 3 else 1)
-        }.toMap())
-        // Stretches on top: days of one, two and three kinds, by days before today and minutes.
-        val mixed = withCardio.copy(stretches = listOf(0L to 12, 2L to 25, 5L to 10, 6L to 30, 9L to 15, 13L to 20, 16L to 6).mapIndexed { i, (back, min) ->
-            "x$i" to StretchLogged("x$i", LogCodec.TS.format(today.minusDays(back).atTime(20, 0).atOffset(t0.offset)), "after_workout", min * 60L)
-        }.toMap())
+        // Today's meals, and every day of last week, the week the Week shots show.
+        val food = meals(listOf(today) + (7 downTo 1).map { today.minusDays(it.toLong()) })
+        val lastWeek = mondayOf(today).minusDays(7)
         val mine = split(idle, now.plusDays(1))
         val splitNow = now.plusDays(7)
         val mineLive = mine.then(splitNow) { Commands.start(it, splitNow) }
@@ -392,13 +315,13 @@ class ScreenShots {
         val evening = stretchy.customStretches.values.last()
         fun settings(p: Palette) = @Composable {
             SettingsScreen(
-                true, mine.programId, mine.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                true, mine.programId, mine.increments, p.id, null, rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, splits = mine.customPrograms.values.toList(), page = SettingsPage.Program,
             )
         }
         for (p in listOf(Palettes.light, Palettes.tokyo)) for (more in listOf(false, true)) shot(p, "27-appearance${if (more) "-more" else ""}", tall = more) {
             SettingsScreen(
-                true, mine.programId, mine.increments, p.id, Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                true, mine.programId, mine.increments, p.id, Palettes.of("gruvbox").copy(id = LaptopTheme.ID, name = "gruvbox"), rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                 {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, initialShowMore = more,
             )
         }
@@ -528,16 +451,16 @@ class ScreenShots {
                     UndoBar("Saved ${Fmt.lb(lastWeight.lb)}", {}, Modifier.padding(bottom = 64.dp))
                 }
             }
-            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}) {} } }
-            for (tall in listOf(false, true)) shot(p, if (tall) "10-history-month-full" else "10-history-month", tall) { TabFrame(Tab.History, {}) { HistoryScreen(mixed, HistoryView.Month, {}, {}, {}, today) {} } }
+            shot(p, "10-history") { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}, today) {} } }
+            for (tall in listOf(false, true)) shot(p, if (tall) "10-history-month-full" else "10-history-month", tall) { TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.Month, {}, {}, {}, today) {} } }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-week-full" else "10-history-week", tall) {
-                TabFrame(Tab.History, {}) { HistoryScreen(mixed, HistoryView.Week, {}, {}, {}) { WeekView(mixed, food, mondayOf(today), today, {}, {}) } }
+                TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.Week, {}, {}, {}, today) { WeekView(idle, food, lastWeek, today, {}, {}) } }
             }
             shot(p, "10-history-week-empty") {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.Week, {}, {}, {}) { WeekView(withCardio, food, mondayOf(today).minusDays(70), today, {}, {}) } }
+                TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.Week, {}, {}, {}, today) { WeekView(idle, food, mondayOf(today).minusDays(70), today, {}, {}) } }
             }
             for (tall in listOf(false, true)) shot(p, if (tall) "10-history-cardio-full" else "10-history-cardio", tall) {
-                TabFrame(Tab.History, {}) { HistoryScreen(withCardio, HistoryView.All, {}, {}, {}) {} }
+                TabFrame(Tab.History, {}) { HistoryScreen(idle, HistoryView.All, {}, {}, {}, today) {} }
             }
             shot(p, "11-session") { SessionScreen(idle, idle.sessions.last(), {}, {}) }
             shot(p, "11-session-time-sheet") {
@@ -550,13 +473,13 @@ class ScreenShots {
             shot(p, "11-session-left-running") { SessionScreen(idle, idle.sessions.last().let { it.copy(durationSec = 22 * 3600L) }, {}, {}) }
             shot(p, "12-settings") {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
             for (page in SettingsPage.entries) shot(p, "12-settings-${page.name.lowercase()}", tall = page == SettingsPage.Lifting) {
                 SettingsScreen(
-                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Fri, Oct 30, 7:42 PM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
+                    true, idle.programId, idle.increments, p.id, null, rest, SyncUi("GZCLP", "Mon, Nov 30, 7:42 AM", null), false, true, 7 * 60, HealthUi(true, null), Plates(),
                     {}, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, stretchReminder = true, page = page,
                 )
             }
@@ -584,6 +507,8 @@ class ScreenShots {
                 }
             }
             shot(p, "18-food") { TabFrame(Tab.Food, {}) { FoodScreen(food, today, today, null, {}, {}, {}, {}) } }
+            shot(p, "29-water") { WaterScreen(idle, today, WaterLog.goalMl(idle, today, null), pace = false) }
+            shot(p, "29-water-rest-day") { today.minusDays(8).let { d -> WaterScreen(idle, d, WaterLog.goalMl(idle, d, null), pace = false) } }
             shot(p, "18-food-empty") { TabFrame(Tab.Food, {}) { FoodScreen(food, today.minusDays(1), today, null, {}, {}, {}, {}) } }
             shot(p, "18-meal-sheet") {
                 Box(Modifier.fillMaxSize()) {
