@@ -209,8 +209,8 @@ object Motions {
         feet()
     }
 
-    /** Solved per figure, since the [Figure] mesh rests on the floor and fills the camera's view differently from the pieces. */
-    private val made = java.util.concurrent.ConcurrentHashMap<Pair<String, Boolean>, Motion>()
+    /** Solved per figure and body, since the [Figure] mesh rests on the floor and fills the camera's view differently from the pieces. */
+    private val made = java.util.concurrent.ConcurrentHashMap<Pair<String, String?>, Motion>()
 
     /** True when [id] has its own motion rather than the generic one. */
     fun known(id: String) = id in defs
@@ -224,7 +224,7 @@ object Motions {
     fun resolve(id: String): String? = id.takeIf { it in defs } ?: folded[fold(id)]
 
     /** The motion for an exercise or stretch id; an unknown id gets a generic arm raise. Safe off the main thread: two callers may both solve one, and the first kept wins. */
-    fun of(id: String): Motion = (id to Figure.on).let { k -> made[k] ?: (defs[id]?.invoke() ?: generic()).let { made.putIfAbsent(k, it) ?: it } }
+    fun of(id: String): Motion = (id to Figure.shape.takeIf { Figure.on }).let { k -> made[k] ?: (defs[id]?.invoke() ?: generic()).let { made.putIfAbsent(k, it) ?: it } }
 
     /** The motion for a stretch. */
     fun of(move: StretchMove): Motion = of(move.id)

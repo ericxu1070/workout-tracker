@@ -182,6 +182,62 @@ class ScreenShots {
         RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
     }
 
+    /** Each body of the full-body mesh standing from the front, side and back, and from behind at the bottom of a squat, one sheet per body and theme. */
+    @Test fun formBodies() {
+        val views = listOf(Triple("stand", 0f, 0f), Triple("stand", 90f, 0f), Triple("stand", 180f, 0f), Triple("squat", 180f, 12f))
+        RuntimeEnvironment.setQualifiers("w1440dp-h400dp-420dpi")
+        try {
+            dev.gzclp.tracker.form.Figure.on = true
+            for (p in listOf(Palettes.jade, Palettes.light)) for (body in dev.gzclp.tracker.form.Figure.bodies) {
+                dev.gzclp.tracker.form.Figure.shape = body
+                captureRoboImage(File(out, "bodies/${p.id}-$body.png").path) {
+                    GzTheme(p) {
+                        Row(Modifier.fillMaxSize().background(p.bg)) {
+                            for ((id, yaw, pitch) in views) {
+                                FormView(Motions.of(id), Modifier.weight(1f).fillMaxHeight(), still = if (id == "squat") 1f else 0f, orbit = Orbit().apply { this.yaw = yaw; this.pitch = pitch })
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            dev.gzclp.tracker.form.Figure.on = false
+            dev.gzclp.tracker.form.Figure.shape = "male"
+            RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+        }
+    }
+
+    /** Each body through the lifts and some stretches (three of them lying on the back), from the side and three-quarters. */
+    @Test fun formBodyPoses() {
+        val poses = listOf(
+            "squat" to 1f, "deadlift" to 0f, "bench" to 0f, "ohp" to 1f, "pull_up" to 0f, "push_up" to 1f, "hips_pigeon" to 1f, "upper_back_foam_roll" to 0.5f,
+            "spine_supine_twist" to 0.5f, "spine_iron_cross" to 0.5f, "hamstrings_legs_up_wall" to 0.5f,
+        )
+        RuntimeEnvironment.setQualifiers("w450dp-h1850dp-420dpi")
+        try {
+            dev.gzclp.tracker.form.Figure.on = true
+            for (body in dev.gzclp.tracker.form.Figure.bodies) {
+                dev.gzclp.tracker.form.Figure.shape = body
+                captureRoboImage(File(out, "bodies/poses-$body.png").path) {
+                    GzTheme(Palettes.light) {
+                        Column(Modifier.fillMaxSize().background(Palettes.light.bg)) {
+                            for ((id, t) in poses) Row(Modifier.weight(1f)) {
+                                val focus = StretchMoves.ALL.firstOrNull { it.id == id }?.focus
+                                for ((yaw, pitch) in listOf(90f to 4f, 35f to 15f)) {
+                                    FormView(Motions.of(id), Modifier.weight(1f).fillMaxHeight(), focus = focus, still = t, orbit = Orbit().apply { this.yaw = yaw; this.pitch = pitch })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            dev.gzclp.tracker.form.Figure.on = false
+            dev.gzclp.tracker.form.Figure.shape = "male"
+            RuntimeEnvironment.setQualifiers("w411dp-h891dp-420dpi")
+        }
+    }
+
     /** The pieces and the full-body mesh trial in the same poses, one sheet per figure and theme, from the side and three-quarters. */
     @Test fun formFigure() {
         val poses = listOf("squat" to 1f, "squat" to 0.6f, "deadlift" to 0f, "ohp" to 1f, "pull_up" to 0f, "push_up" to 1f, "bench" to 0f, "hips_pigeon" to 1f, "upper_back_foam_roll" to 0.5f)

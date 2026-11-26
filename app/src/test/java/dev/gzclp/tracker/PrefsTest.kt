@@ -32,6 +32,13 @@ class PrefsTest {
         assertEquals("light", Prefs(context).theme)
     }
 
+    @Test fun theBuildDefaultsToAthleticAndKeepsAChosenOne() {
+        val prefs = Prefs(ApplicationProvider.getApplicationContext())
+        assertEquals("athletic", prefs.bodyBuild)
+        prefs.bodyBuild = "normal"
+        assertEquals("normal", Prefs(ApplicationProvider.getApplicationContext()).bodyBuild)
+    }
+
     @Test fun waterGoalSetBeforeAutoGoalsCarriesOverButTheOldDefaultDoesNot() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val raw = context.getSharedPreferences("gzclp", android.content.Context.MODE_PRIVATE)

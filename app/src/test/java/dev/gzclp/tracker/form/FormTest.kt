@@ -173,6 +173,9 @@ open class FormTest {
         val bar = p.gear.firstOrNull { it.mesh == Body.rod && it.sx == 0.014 }?.frame?.o ?: return@everyPose "no barbell"
         var worst = 1.0
         p.skin(listOf(Bone.THIGH_L, Bone.THIGH_R, Bone.SHIN_L, Bone.SHIN_R)) { _, y, z -> worst = minOf(worst, kotlin.math.hypot(y - bar.y, z - bar.z)) }
-        worst.takeIf { it < 0.009 }?.let { "bar ${"%.3f".format(it)} m from the leg's axis line" }
+        worst.takeIf { it < clear() }?.let { "bar ${"%.3f".format(it)} m from the leg's axis line" }
     }
+
+    /** How near the leg's axis line the bar may pass. */
+    protected open fun clear() = 0.009
 }

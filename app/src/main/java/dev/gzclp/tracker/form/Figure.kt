@@ -6,23 +6,86 @@ import java.nio.ByteOrder
 /**
  * The figure as one continuous mesh skinned to the 19 bones, drawn in place of [Body]'s pieces while [on]: MakeHuman's CC0
  * base mesh, made by tools/body-mesh.py (see NOTICE). It comes in the rig's own space and is fitted onto [REST], a pose close
- * to the rig's own, when it is baked into figure.bin (FigureBake): each bone's part of it moves onto that bone and stretches to
- * its length. Each frame every vertex follows its bones (up to four) by linear blend skinning, and a closed hand swaps in a fist.
+ * to the rig's own, when it is baked into figure-<body>.bin (FigureBake): each bone's part of it moves onto that bone and
+ * stretches to its length. Each frame every vertex follows its bones (up to four) by linear blend skinning, and a closed hand
+ * swaps in a fist. Each body ([shape]) is the same vertices, triangles and weights in another shape.
  */
 object Figure {
     /** Draws and solves the figure as this mesh rather than the pieces; off by default while it is on trial. */
     var on = false
 
-    /** figure.bin's layout, which FigureBake writes. */
+    /** figure-<body>.bin's layout, which FigureBake writes. */
     internal const val FIGURE_VERSION = 1
 
     /** How finely a twist runs down a twisting joint's child: in this many steps, each a bone of its own to the vertices at it. */
     internal const val TWIST_STEPS = 64
 
-    val mesh: Mesh get() = Data.mesh
+    /** Each body's name: a sex, "male" or "female", alone for the athletic build or with "-bodybuilder" or "-normal". */
+    val bodies = listOf("male", "female", "male-bodybuilder", "male-normal", "female-bodybuilder", "female-normal")
+
+    /** The body for a sex and build ("athletic", "bodybuilder" or "normal"). */
+    fun body(female: Boolean, build: String) = (if (female) "female" else "male") + if (build == "athletic") "" else "-$build"
+
+    /** The body the figure wears, one of [bodies]. */
+    var shape = "male"
+
+    /** Each body read the first time it is drawn or solved, so the pieces and the other bodies never wait on it. */
+    private val data = bodies.associateWith { lazy { Data("figure-$it.bin") } }
+    private val current: Data get() = data.getValue(shape).value
+
+    val mesh: Mesh get() = current.mesh
 
     /** Each vertex's bone it follows most, for [Poser.skin]. */
-    val lead: IntArray get() = Data.lead
+    val lead: IntArray get() = current.lead
+
+    /** The body's hair, which moves with the head: in [Bone.HEAD]'s frame, to place at its posed frame. */
+    val hair: Mesh? get() = hairs[shape]
+
+    /** Each body's hair (tools/body-mesh.py), read with the first. */
+    private val hairs by lazy {
+        val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream("hair.bin")!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+        check(buf.int == 1) { "hair.bin version" }
+        HashMap<String, Mesh>().apply {
+            repeat(buf.int) {
+                val name = String(ByteArray(buf.get().toInt()).also { buf.get(it) })
+                val hv = buf.int; val ht = buf.int
+                val p = FloatArray(hv * 3) { buf.float }
+                val t = ShortArray(ht * 3) { buf.short }
+                this[name] = Mesh(p, normals(p, t), t)
+            }
+        }
+    }
+
+    /**
+     * The hair placed at the head's posed frame [f] into [out]: rigid, except that what would reach under the floor lies
+     * on it, as a ponytail does under a head lying on its back.
+     */
+    fun placeHair(f: Frame, out: FloatArray) {
+        val p = hair!!.pos
+        for (i in 0 until p.size / 3) {
+            val x = p[i * 3].toDouble(); val y = p[i * 3 + 1].toDouble(); val z = p[i * 3 + 2].toDouble()
+            out[i * 3] = (f.o.x + f.x.x * x + f.y.x * y + f.z.x * z).toFloat()
+            out[i * 3 + 1] = maxOf(0.0, f.o.y + f.x.y * x + f.y.y * y + f.z.y * z).toFloat()
+            out[i * 3 + 2] = (f.o.z + f.x.z * x + f.y.z * y + f.z.z * z).toFloat()
+        }
+    }
+
+    /** Each vertex's normal from the faces around it, weighted by their area. */
+    internal fun normals(pos: FloatArray, tri: ShortArray): FloatArray {
+        val n = FloatArray(pos.size)
+        for (t in tri.indices step 3) {
+            val a = tri[t] * 3; val b = tri[t + 1] * 3; val c = tri[t + 2] * 3
+            val ux = pos[b] - pos[a]; val uy = pos[b + 1] - pos[a + 1]; val uz = pos[b + 2] - pos[a + 2]
+            val vx = pos[c] - pos[a]; val vy = pos[c + 1] - pos[a + 1]; val vz = pos[c + 2] - pos[a + 2]
+            val nx = uy * vz - uz * vy; val ny = uz * vx - ux * vz; val nz = ux * vy - uy * vx
+            for (k in intArrayOf(a, b, c)) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz }
+        }
+        for (i in 0 until n.size / 3) {
+            val l = kotlin.math.sqrt(n[i * 3] * n[i * 3] + n[i * 3 + 1] * n[i * 3 + 1] + n[i * 3 + 2] * n[i * 3 + 2]).coerceAtLeast(1e-12f)
+            for (k in 0..2) n[i * 3 + k] /= l
+        }
+        return n
+    }
 
     /**
      * The joints whose child's twist runs down it rather than blending linearly, parent then child: the shoulders, which twist
@@ -58,13 +121,13 @@ object Figure {
      */
     internal class Twist(val a: V, val twist: Double, val at: V)
 
-    internal fun twist(p: Poser, j: Int): Twist? = Data.twist(p, j)
+    internal fun twist(p: Poser, j: Int): Twist? = current.twist(p, j)
 
     /** How far the skin that follows [b] most reaches from it at rest: from the line between its joint and the next. */
-    internal fun reach(b: Bone) = Data.reach[b.ordinal]
+    internal fun reach(b: Bone) = current.reach[b.ordinal]
 
-    /** How many bones the mesh's vertices follow: the 19, then each step down a twisting joint's child. */
-    internal val blends get() = Bone.entries.size + Data.stepJoint.size
+    /** How many bones the mesh's vertices follow: the 19, then every step down each twisting joint's child, the same for every body. */
+    internal val blends get() = Bone.entries.size + JOINTS.size * (TWIST_STEPS + 1)
 
     /** Writes the 3×3 turn by [deg] degrees about the unit axis [k] into [out]. */
     private fun turn(k: V, deg: Double, out: FloatArray) {
@@ -84,10 +147,10 @@ object Figure {
      * way through a pose, a vertex follows only the bones [p] has placed so far, and gets NaN when it has none of them. Only
      * the vertices that follow [only] most are written; the rest keep what they had.
      */
-    fun pose(p: Poser, pos: FloatArray, norm: FloatArray? = null, only: List<Bone> = Bone.entries, height: Boolean = false) = Data.pose(p, pos, norm, only, height)
+    fun pose(p: Poser, pos: FloatArray, norm: FloatArray? = null, only: List<Bone> = Bone.entries, height: Boolean = false) = current.pose(p, pos, norm, only, height)
 
-    /** The mesh and how it bends, read the first time it is drawn or solved, so the pieces never wait on it. */
-    private object Data {
+    /** A body's mesh and how it bends, from its baked [file]. */
+    private class Data(file: String) {
         val mesh: Mesh
         val lead: IntArray
         val reach = DoubleArray(Bone.entries.size)
@@ -96,7 +159,7 @@ object Figure {
         private val bind = Array(Bone.entries.size) { REST.f[it]!! }
 
         /**
-         * Past the 19 bones, the steps down the children of [JOINTS] that vertices sit at: which joint each is on, and how far
+         * Past the 19 bones, every step down the children of [JOINTS]: which joint each is on, and how far
          * down its child at rest, from the joint (0) to the far end (1). A vertex follows its step in place of the child.
          */
         val stepJoint: ByteArray
@@ -110,9 +173,10 @@ object Figure {
 
         init {
             // Already fitted (FigureBake), so all there is to do is copy it out.
-            val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream("figure.bin")!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
-            check(buf.int == FIGURE_VERSION) { "figure.bin version" }
+            val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream(file)!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+            check(buf.int == FIGURE_VERSION) { "$file version" }
             val nv = buf.int; val nt = buf.int; val nh = buf.int; val ne = buf.int; val ns = buf.int
+            check(Bone.entries.size + ns == blends) { "$file twist steps" }
             fun floats(n: Int) = FloatArray(n).also { buf.asFloatBuffer().get(it); buf.position(buf.position() + 4 * n) }
             fun bytes(n: Int) = ByteArray(n).also { buf.get(it) }
             val pos = floats(nv * 3); val norm = floats(nv * 3)

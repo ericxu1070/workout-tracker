@@ -50,12 +50,13 @@ class Focus(val reach: Double, vararg val spots: Spot) {
         out
     }
 
-    /** Each vertex's share, 0..1, of the [Figure] mesh. */
-    val figure: FloatArray by lazy {
+    /** Each vertex's share, 0..1, of the [Figure] mesh in the body it wears. */
+    val figure: FloatArray get() = figures.getOrPut(Figure.shape) {
         val pos = FloatArray(Figure.mesh.verts * 3)
         Figure.pose(STAR, pos)
         FloatArray(Figure.mesh.verts) { at(V(pos[it * 3].toDouble(), pos[it * 3 + 1].toDouble(), pos[it * 3 + 2].toDouble())).toFloat() }
     }
+    private val figures = HashMap<String, FloatArray>()
 
     companion object {
         /** The same spot on both sides of the body, for a stretch that works both at once. */
