@@ -6,11 +6,13 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /** One rep's timing in seconds: [out] from the start position to the far end, a [pause] there, [back] again, then [rest] at the start. */
-class Tempo(val out: Double, val pause: Double, val back: Double, val rest: Double) {
+class Tempo(val out: Double, val pause: Double, val back: Double, val rest: Double, private val from: Double? = null) {
     val period = out + pause + back + rest
 
     /** How far through the movement (0 the start position, 1 the far end) at [t] seconds into the loop. */
     fun at(t: Double): Double {
+        // A flow never retraces itself: it runs straight through 0..1 once a period, starting at [from].
+        if (from != null) return ((t / period + from) % 1 + 1) % 1
         var s = ((t % period) + period) % period
         if (s < out) return jerk(s / out)
         s -= out

@@ -9,16 +9,16 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** A stretch eases in, holds, eases out and rests, slowly enough to follow while the player is paused. */
-private fun stretch(balance: Boolean = false, ground: Boolean = false, yaw: Float? = null, build: Poser.(Double) -> Unit) =
+internal fun stretch(balance: Boolean = false, ground: Boolean = false, yaw: Float? = null, build: Poser.(Double) -> Unit) =
     Motion(Tempo(2.5, 2.0, 2.0, 1.0), balance, ground, yaw, build)
 
-private fun sq(x: Double) = x * x
+internal fun sq(x: Double) = x * x
 
 /** The knee joint's height kneeling on the floor, the front of the knee just touching it. */
-private const val KNEE = 0.056
+internal const val KNEE = 0.056
 
 /** The hips' midpoint over knees [width] apart kneeling at [z], the thighs [lean] degrees back from upright; [kneel] then lands each knee exactly. */
-private fun kneeling(width: Double, z: Double, lean: Double): V {
+internal fun kneeling(width: Double, z: Double, lean: Double): V {
     val out = width / 2 - Build.HIP
     val r = sqrt(Build.THIGH * Build.THIGH - out * out)
     return V(0.0, KNEE + r * cos(lean * DEG), z - r * sin(lean * DEG))
@@ -28,7 +28,7 @@ private fun kneeling(width: Double, z: Double, lean: Double): V {
  * Pitches the trunk up from hips at [hip] so the shoulders land [arm] (side on) from the wrists at [wrists], the spine bent
  * as given and bowing toward [pole]. A side bend carries the shoulders over by its own amount; the wrists' x is free.
  */
-private fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, chest: Double = 0.0, side: Double = 0.0, pole: V = V.UP) {
+internal fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, chest: Double = 0.0, side: Double = 0.0, pole: V = V.UP) {
     pelvis(V.ZERO)
     spine(waist, chest, side)
     val q = shoulders() - this[Bone.PELVIS].o
@@ -37,13 +37,13 @@ private fun Poser.bridge(hip: V, wrists: V, arm: Double, waist: Double = 0.0, ch
 }
 
 /** The forward pitch about the hips at [hip] that brings [p], posed with the pelvis upright, to height [y]. */
-private fun pitchTo(hip: V, p: V, y: Double): Double {
+internal fun pitchTo(hip: V, p: V, y: Double): Double {
     val v = p - hip
     return (acos(((y - hip.y) / sqrt(v.y * v.y + v.z * v.z)).coerceIn(-1.0, 1.0)) - atan2(v.z, v.y)) / DEG
 }
 
 /** The [s] palm flat on the floor along [dir] from its shoulder, [arm] from it, the elbow pointing toward [elbow]. */
-private fun Poser.reachFloor(s: Int, dir: V, arm: Double, elbow: V) {
+internal fun Poser.reachFloor(s: Int, dir: V, arm: Double, elbow: V) {
     val sh = shoulder(s)
     val u = dir.across(V.UP).unit()
     val drop = sh.y - 0.022
@@ -341,14 +341,14 @@ private val STANDING: Map<String, () -> Motion> = mapOf(
 )
 
 /** Sits on the floor, the pelvis tipped [pitch] forward and the spine bent and turned as given; place the legs after it. */
-private fun Poser.sit(pitch: Double, waist: Double = 0.0, chest: Double = 0.0, twist: Double = 0.0) {
+internal fun Poser.sit(pitch: Double, waist: Double = 0.0, chest: Double = 0.0, twist: Double = 0.0) {
     pelvis(V(0.0, 0.2, 0.0), pitch = pitch)
     spine(waist, chest, twist = twist)
     rest(0.0, listOf(Bone.PELVIS))
 }
 
 /** The [s] leg straight out ahead of a pelvis tipped [pitch] forward, the knee soft and the foot [ankle] degrees up from square, lowered until it rests on the floor. */
-private fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) {
+internal fun Poser.outstretched(s: Int, pitch: Double, ankle: Double) {
     var raise = 88.0 + pitch
     repeat(2) {
         leg(s, raise, knee = 4.0, ankle = ankle)
@@ -412,28 +412,7 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
     },
     "spine_supine_twist" to {
         // On the back with the knees bent, the pelvis rolls them down to the right while the chest stays flat, the arms wide and the head turned left.
-        stretch { d ->
-            val fall = lerp(8.0, 62.0, d)
-            // The rolled pelvis reaches deeper than the flat upper back, so the body tips head down about the hips until both
-            // rest on the floor (the chest drops about 6.5 mm a degree).
-            var tip = 0.0
-            fun lie() {
-                pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).bend(-90.0 - tip).twist(-fall))
-                spine(twist = fall)
-            }
-            repeat(2) { lie(); tip += (lowest(listOf(Bone.CHEST)) - lowest(listOf(Bone.PELVIS))) / 0.0065 }
-            lie()
-            head(turn = 40 * d)
-            rest(0.0)
-            for (s in SIDES) {
-                // The top knee crosses further to rest on the bottom one; each thigh turns back as it swings so the shins stay level.
-                val k = (if (s == L) 36.0 else 26.0) * d
-                leg(s, raise = 92.0, plane = 90.0 + s * k, twist = -s * k, knee = 95.0, ankle = -20.0)
-                val sh = shoulder(s)
-                val wrist = V(sh.x + s * sqrt(sq(0.545) - sq(sh.y - 0.022)), 0.022, sh.z)
-                palm(s, wrist + V(s * 0.075, -0.022, 0.0), V(s * 1.0, 0.0, 0.0), V(0.0, -0.2, 1.0))
-            }
-        }
+        stretch { d -> supineTwist(lerp(8.0, 62.0, d), d) }
     },
     "spine_cobra" to {
         // Face down, the hands press the floor away and the chest rises on bent elbows while the hips stay down.
@@ -450,26 +429,61 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
     },
     "shoulders_sleeper" to {
         // On the left side, the bottom arm reaches forward along the floor with the elbow bent; the top hand eases its forearm down toward the hips.
-        stretch { d ->
-            pelvis(V(0.0, 0.3, 0.0), roll = 90.0)
-            spine(chest = 6.0, side = -12.0) // the shoulder stands wider than the hip, so the ribs bow up off the floor
-            val q = lerp(10.0, 58.0, d) * DEG
-            val fore = V(-sin(q), cos(q), 0.0)
-            val back = V(cos(q), sin(q), 0.0) // the back of that forearm
-            fun underneath() {
-                val wrist = shoulder(L) + V(0.0, 0.0, Build.UPPER_ARM) + fore * Build.FOREARM
-                palm(L, wrist + fore * 0.075 - back * 0.022, fore, V.FWD, back)
-                leg(L, raise = 50.0, knee = 75.0)
-            }
-            underneath()
-            rest(0.0, Bone.TRUNK + listOf(Bone.ARM_L, Bone.FOREARM_L, Bone.THIGH_L, Bone.SHIN_L, Bone.FOOT_L))
-            underneath()
-            palm(R, this[Bone.FOREARM_L].at(0.0, 0.2, 0.0) + back * 0.025, V.FWD, V(0.0, 1.0, 0.5), back)
-            leg(R, raise = 50.0, plane = 104.0, knee = 75.0)
-            val head = this[Bone.HEAD].at(0.0, 0.05, 0.0)
-            block(head.x, head.z, 0.3, lowest(listOf(Bone.HEAD)), 0.4)
-        }
+        stretch { d -> sleeper(lerp(10.0, 58.0, d), 90.0) }
     },
 )
 
-internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR
+/**
+ * On the back with the arms wide and the hips and knees bent, the pelvis rolls the knees [fall] degrees down to the right
+ * (negative: the left) while the chest stays flat; [a] (0 to 1, signed the same way) crosses the top knee over and turns the head away.
+ */
+internal fun Poser.supineTwist(fall: Double, a: Double) {
+    // The rolled pelvis reaches deeper than the flat upper back, so the body tips head down about the hips until both
+    // rest on the floor (the chest drops about 6.5 mm a degree).
+    var tip = 0.0
+    fun lie() {
+        pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).bend(-90.0 - tip).twist(-fall))
+        spine(twist = fall)
+    }
+    repeat(2) { lie(); tip += (lowest(listOf(Bone.CHEST)) - lowest(listOf(Bone.PELVIS))) / 0.0065 }
+    lie()
+    head(turn = 40 * a)
+    rest(0.0)
+    val top = if (a >= 0) L else R
+    for (s in SIDES) {
+        // The top knee crosses further to rest on the bottom one; each thigh turns back as it swings so the shins stay level.
+        val k = (if (s == top) 36.0 else 26.0) * a
+        leg(s, raise = 92.0, plane = 90.0 + s * k, twist = -s * k, knee = 95.0, ankle = -20.0)
+        val sh = shoulder(s)
+        val wrist = V(sh.x + s * sqrt(sq(0.545) - sq(sh.y - 0.022)), 0.022, sh.z)
+        palm(s, wrist + V(s * 0.075, -0.022, 0.0), V(s * 1.0, 0.0, 0.0), V(0.0, -0.2, 1.0))
+    }
+}
+
+/**
+ * On the left side with the bottom upper arm [arm] degrees from the body along the floor and the elbow bent, the forearm turned
+ * [turn] degrees down from upright by the top hand pressing it toward the hips.
+ */
+internal fun Poser.sleeper(turn: Double, arm: Double) {
+    pelvis(V(0.0, 0.3, 0.0), roll = 90.0)
+    spine(chest = 6.0, side = -12.0) // the shoulder stands wider than the hip, so the ribs bow up off the floor
+    val a = V(-cos(arm * DEG), 0.0, sin(arm * DEG)) // the upper arm, from straight down the body (0) to straight ahead (90)
+    val w = a cross V.UP // where the forearm turns down to
+    val q = turn * DEG
+    val fore = V.UP * cos(q) + w * sin(q)
+    val back = V.UP * sin(q) - w * cos(q) // the back of that forearm
+    fun underneath() {
+        val wrist = shoulder(L) + a * Build.UPPER_ARM + fore * Build.FOREARM
+        palm(L, wrist + fore * 0.075 - back * 0.022, fore, a, back)
+        leg(L, raise = 50.0, knee = 75.0)
+    }
+    underneath()
+    rest(0.0, Bone.TRUNK + listOf(Bone.ARM_L, Bone.FOREARM_L, Bone.THIGH_L, Bone.SHIN_L, Bone.FOOT_L))
+    underneath()
+    palm(R, this[Bone.FOREARM_L].at(0.0, 0.2, 0.0) + back * 0.025, a, V(0.0, 1.0, 0.5), back)
+    leg(R, raise = 50.0, plane = 104.0, knee = 75.0)
+    val head = this[Bone.HEAD].at(0.0, 0.05, 0.0)
+    block(head.x, head.z, 0.3, lowest(listOf(Bone.HEAD)), 0.4)
+}
+
+internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR + MOBILITY + LIMBER

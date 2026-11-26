@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.stretch
 
+import dev.gzclp.tracker.form.Motions
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Store
 import dev.gzclp.tracker.log.StretchRoutineDefine
@@ -33,14 +34,37 @@ class StretchLibraryTest {
         }
     }
 
-    @Test fun everyMoveIsInTheCatalogAndEveryHoldFitsTheEditor() {
+    @Test fun everyMoveIsInTheCatalogWithItsOwnMotionAndEveryHoldFitsTheEditor() {
         for (r in builtIns) {
             assertTrue(r.name, r.moves.isNotEmpty())
             for (m in r.moves) {
                 assertTrue("${r.name}: ${m.id}", StretchMoves.of(m.id) != null)
+                assertTrue("${r.name}: ${m.id} has no motion", Motions.known(m.id))
                 assertTrue("${r.name}: ${m.id} ${m.holdSec}", m.holdSec in StretchRoutines.HOLD_SEC && m.holdSec % StretchRoutines.HOLD_STEP == 0)
             }
         }
+    }
+
+    @Test fun famousRoutinesKeepTheirSourcesMovesInOrder() {
+        val sources = mapOf(
+            "starting-to-stretch" to listOf(
+                "shoulders_backbend", "spine_standing_backbend", "shoulders_rear_hand_clasp", "upper_back_thread_needle",
+                "shoulders_wall_wrist_biceps", "hamstrings_one_leg_pike", "hips_kneeling_lunge", "hamstrings_pancake", "hips_butterfly",
+                "calves_wall_drive",
+            ),
+            "sun-salutation-a" to listOf("spine_sun_salutation_a"),
+            "simple-6" to listOf(
+                "upper_back_foam_roll", "shoulders_foam_roll_rear", "shoulders_capsule", "chest_band_pec", "lats_rack_lean",
+                "shoulders_band_dislocates",
+            ),
+            "limber-11" to listOf(
+                "hips_foam_roll_it_band", "hips_foam_roll_adductors", "hips_glute_ball", "spine_iron_cross", "hamstrings_rollover_v_sit",
+                "hips_rocking_frog", "hips_fire_hydrant_circles", "hips_mountain_climber", "hips_cossack_squat", "hips_seated_piriformis",
+                "hips_rfe_hip_flexor",
+            ),
+        )
+        for ((id, moves) in sources) assertEquals(id, moves, builtIns.single { it.id == id }.moves.map { it.id })
+        assertEquals("hamstrings_legs_up_wall", builtIns.single { it.id == "bedtime-wind-down" }.moves.last().id)
     }
 
     @Test fun everyLibraryIdOpensItsOwnRoutine() {

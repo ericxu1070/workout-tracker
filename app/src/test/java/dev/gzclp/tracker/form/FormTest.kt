@@ -99,10 +99,13 @@ class FormTest {
         off.takeIf { it > 0.03 }?.let { "centre of mass ${"%.3f".format(it)} m off the feet" }
     }
 
+    /** On a foam roller or ball the whole body travels over the floor, so the legs drag or ride along with it. */
+    private val ROLLING = setOf("shoulders_foam_roll_rear", "hips_foam_roll_it_band", "hips_foam_roll_adductors")
+
     @Test fun feetOnTheFloorNeverSlide() {
         val p = Poser()
         val bad = mutableListOf<String>()
-        for (id in all) {
+        for (id in all - ROLLING) {
             val m = Motions.of(id)
             for (b in listOf(Bone.TOES_L, Bone.TOES_R)) {
                 val at = (0..20).map { m.pose(p, it / 20.0); p[b].o }

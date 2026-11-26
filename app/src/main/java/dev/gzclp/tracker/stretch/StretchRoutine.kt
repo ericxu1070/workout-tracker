@@ -312,18 +312,56 @@ object StretchRoutines {
         move(StretchMoves.CHILDS_POSE_LAT, 40),
     )
     private val bedtime = preset(
-        "bedtime-wind-down", "Bedtime wind-down", "Slow floor holds: child's pose, forward fold, butterfly and a twist.",
-        "Long, easy holds to settle down before sleep.", "In the evening; works on the bed.",
+        "bedtime-wind-down", "Bedtime wind-down", "Slow floor holds: child's pose, forward fold, butterfly, a twist, then legs up the wall.",
+        "Long, easy holds to settle down before sleep.", "In the evening; works on the bed, by the headboard.",
         move(StretchMoves.CAT_COW_STRETCH, 30), move(StretchMoves.CHILDS_POSE_LAT, 60), move(StretchMoves.SEATED_SINGLE_LEG, 60),
-        move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60),
+        move(StretchMoves.BUTTERFLY_STRETCH, 60), move(StretchMoves.SUPINE_SPINAL_TWIST, 60), move(StretchMoves.LEGS_UP_THE_WALL, 120),
+    )
+    // Joe DeFranco's Limber 11: roll 10–15 passes a leg, 30–60 s on the ball, then 5–10 reps a side of each drill, 10 circles each way
+    // for the hydrants, 20–30 s a side on the piriformis and 5–10 reps a side of the hip flexor stretch, each held 3 s.
+    private val limber = preset(
+        "limber-11", "Limber 11", "Joe DeFranco's lower-body warm-up: three foam-roll drills, then eight mobility moves.",
+        "Loosen the hips and legs before squats, deadlifts or sprints.",
+        "Before a lower-body day, about 12 minutes; a foam roller, a lacrosse ball and a bench.",
+        move(StretchMoves.FOAM_ROLL_IT_BAND, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_ADDUCTORS, 60, dynamic = true),
+        move(StretchMoves.GLUTE_BALL, 60, dynamic = true), move(StretchMoves.IRON_CROSS, 60, dynamic = true),
+        move(StretchMoves.ROLLOVER_V_SIT, 50, dynamic = true), move(StretchMoves.ROCKING_FROG, 50, dynamic = true),
+        move(StretchMoves.FIRE_HYDRANT_CIRCLES, 120, dynamic = true), move(StretchMoves.MOUNTAIN_CLIMBERS, 40, dynamic = true),
+        move(StretchMoves.COSSACK_SQUAT, 60, dynamic = true), move(StretchMoves.SEATED_PIRIFORMIS, 60),
+        move(StretchMoves.RFE_HIP_FLEXOR, 80, dynamic = true),
     )
 
     /** The few routines listed right under After workout. */
-    val popular: List<StretchRoutine> by lazy { listOf(desk, runners, morning, bedtime) }
+    val popular: List<StretchRoutine> by lazy { listOf(desk, runners, morning, bedtime, limber) }
 
     /** The rest of the built-in library, behind Show more. */
     val more: List<StretchRoutine> by lazy {
         listOf(
+            // r/flexibility's Starting to Stretch: per stretch 10 bumps, hold 10 s, 10 bumps, hold 20 s, 10 bumps, hold 30 s, so 90 s a side.
+            preset(
+                "starting-to-stretch", "Starting to Stretch", "r/flexibility's beginner routine: five upper-body and five lower-body stretches.",
+                "Whole-body flexibility for beginners: 10 bumps, hold 10 s; 10 bumps, hold 20 s; 10 bumps, hold 30 s.",
+                "2–3 times a week, about 25 minutes; a chair, a wall and a towel.",
+                move(StretchMoves.SHOULDER_BACKBEND, 90), move(StretchMoves.STANDING_BACKBEND, 90), move(StretchMoves.REAR_HAND_CLASP, 180),
+                move(StretchMoves.THREAD_THE_NEEDLE, 180), move(StretchMoves.WRIST_BICEPS, 180), move(StretchMoves.ONE_LEG_PIKE, 180),
+                move(StretchMoves.KNEELING_LUNGE, 180), move(StretchMoves.PANCAKE, 90), move(StretchMoves.BUTTERFLY_STRETCH, 90),
+                move(StretchMoves.WALL_CALF_STRETCH, 180),
+            ),
+            // Ashtanga's Surya Namaskara A: one loop of the move is one round of about a minute, five breaths in down dog.
+            preset(
+                "sun-salutation-a", "Sun salutation A", "Ashtanga's Surya Namaskara A, five rounds, one breath a count.",
+                "Warm the whole body and tie each movement to a breath.", "To open a yoga practice, or as a 5-minute morning warm-up.",
+                move(StretchMoves.SUN_SALUTATION_A, 300),
+            ),
+            // Joe DeFranco's Simple 6: roll 10 passes a spot, hold 30–45 s a side, two sets of 8–10 dislocations.
+            preset(
+                "simple-6", "Simple 6", "Joe DeFranco's upper-body warm-up: two foam-roll drills, then four shoulder stretches.",
+                "Free up the upper back and shoulders before pressing or pulling.",
+                "Before an upper-body day, about 7 minutes; a foam roller, a band and a rack.",
+                move(StretchMoves.FOAM_ROLL_UPPER_BACK, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_REAR_SHOULDER, 60, dynamic = true),
+                move(StretchMoves.SHOULDER_CAPSULE, 60), move(StretchMoves.BAND_PEC, 60), move(StretchMoves.RACK_LAT, 60),
+                move(StretchMoves.BAND_DISLOCATES, 80, dynamic = true),
+            ),
             preset(
                 "low-back-relief", "Low back relief", "Cat, child's pose, a knees-to-side twist and cobra.",
                 "Ease a stiff low back with gentle bending, turning and arching.", "Back feels tight after sitting or lifting. Stop if pain runs down a leg.",

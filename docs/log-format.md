@@ -315,7 +315,7 @@ A finished stretching session.
 |---|---|---|
 | `id` | string | Unique stretch session id, such as `st1795834800`. |
 | `at` | string | When completed, ISO-8601 string. |
-| `routine` | string | Routine id: a built-in one, `after_workout`, `flexibility`, `dance`, `athletics`, `athletics_dynamic`, `desk-reset`, `runners-cooldown`, `morning-flow`, `bedtime-wind-down`, `low-back-relief`, `hip-flexor-reset`, `front-splits`, `overhead-mobility`, `deep-squat-prep`, `calves-and-ankles`, `cyclists-cooldown`, `throwers-shoulder`, or `golf-warm-up`, or a custom routine named by a `stretch_routine_define` line. A built-in id added later has a hyphen, which a custom id never has, so it never takes over a custom routine. |
+| `routine` | string | Routine id: a built-in one, `after_workout`, `flexibility`, `dance`, `athletics`, `athletics_dynamic`, `desk-reset`, `runners-cooldown`, `morning-flow`, `bedtime-wind-down`, `low-back-relief`, `hip-flexor-reset`, `front-splits`, `overhead-mobility`, `deep-squat-prep`, `calves-and-ankles`, `cyclists-cooldown`, `throwers-shoulder`, `golf-warm-up`, `starting-to-stretch`, `sun-salutation-a`, `simple-6`, or `limber-11`, or a custom routine named by a `stretch_routine_define` line. A built-in id added later has a hyphen, which a custom id never has, so it never takes over a custom routine. |
 | `duration_sec` | int | Duration in seconds. |
 | `moves` | array of string | List of move ids performed. |
 
