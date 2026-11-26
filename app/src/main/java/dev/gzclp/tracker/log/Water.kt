@@ -48,7 +48,7 @@ object WaterLog {
     /** The goal on [day]: the user's [override] when set, otherwise [recommendedMl]. */
     fun goalMl(state: AppState, day: LocalDate, override: Int?): Int = override ?: recommendedMl(state, day)
 
-    /** A volume as "250 ml · 8.5 oz". */
+    /** A volume as "250 ml". */
     fun formatVolume(ml: Int): String = "$ml ml"
 
     /** Returns all water entries for [day] (or all if null), chronologically ordered. */

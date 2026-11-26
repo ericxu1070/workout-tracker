@@ -798,8 +798,8 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
     }
 }
 
-/** A tab's label: iOS's 10 pt medium, small enough that the longest ("Upcoming") clears the rounded ends of its pill at 115% text size. */
-private val TabLabel = Type.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Medium)
+/** A tab's label: 10 sp regular (the app's weights are 400, 600 and 700), small enough that the longest ("Upcoming") clears the rounded ends of its pill at 115% text size. */
+private val TabLabel = Type.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Normal)
 
 /** The floating glass tab bar's height, above its [Space.xs] margin and the navigation bar. */
 val GlassTabBar = 60.dp

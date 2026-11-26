@@ -173,8 +173,8 @@ fun SessionScreen(
             GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
             val target = Deletion.Exercise(s.id, key.first, key.second)
             key(target) {
-                SwipeToDelete("Delete ${state.name(key.first)}", deleting == target, { onDelete(target) }, shape = RoundedCornerShape(Radius.lg)) {
-                    SetList(sets.sortedBy { it.setIndex }) { gaps[Triple(it.exercise, it.tier, it.setIndex)] }
+                SetList(sets.sortedBy { it.setIndex }, { gaps[Triple(it.exercise, it.tier, it.setIndex)] }) { rows ->
+                    SwipeToDelete("Delete ${state.name(key.first)}", deleting == target, { onDelete(target) }, shape = RoundedCornerShape(Radius.lg)) { rows() }
                 }
             }
         }
@@ -187,9 +187,10 @@ private const val LONG_AFTER_LAST_SEC = 15 * 60L
 /**
  * Logged sets as rows: "Set 1", its rest before it ([gap]) under a Rest header when given, then weight × reps right-aligned, short
  * sets in red. Sets that all match (one weight, every rep made, no RPE) fold into one "4 × 3 at 270 lb" row that a tap opens.
+ * [wrap] holds the rows' group (a swipe to delete) and not the header, which a wrapping Box would stack under the group.
  */
 @Composable
-fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }) {
+fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }, wrap: @Composable (@Composable () -> Unit) -> Unit = { it() }) {
     val p = LocalPalette.current
     val same = sets.size > 1 && sets.all { it.weight == sets[0].weight && it.actualReps == sets[0].actualReps && it.actualReps >= it.targetReps && it.rpe == null && it.tier == sets[0].tier }
     var open by rememberSaveable { mutableStateOf(false) }
@@ -198,7 +199,7 @@ fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }) {
         Spacer(Modifier.width(SET_LABEL))
         Txt("Rest", Type.footnote, color = p.fg2)
     }
-    Group {
+    wrap { Group {
         if (same) {
             val s0 = sets[0]
             GroupRow(first = true, onClick = { open = !open }) {
@@ -218,7 +219,7 @@ fun SetList(sets: List<SetLogged>, gap: (SetLogged) -> Long? = { null }) {
                 }
             }
         }
-    }
+    } }
 }
 
 /** The set label's column, so each rest time lines up under its header. */
