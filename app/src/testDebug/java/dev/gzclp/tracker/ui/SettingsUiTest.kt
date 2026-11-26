@@ -12,6 +12,7 @@ import dev.gzclp.tracker.engine.Lift
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.form.Figure
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
@@ -45,11 +46,11 @@ class SettingsUiTest {
         assertEquals(SettingsPage.Lifting, opened)
     }
 
-    private fun appearance(themeId: String, onTheme: (String) -> Unit = {}) = rule.setContent {
+    private fun appearance(themeId: String, onBuild: (String) -> Unit = {}, onTheme: (String) -> Unit = {}) = rule.setContent {
         SettingsScreen(
             true, Programs.GZCLP, Increments(), themeId, null, Tier.entries.associateWith { it.defaultRestSec },
             SyncUi(null, null, null), true, true, 7 * 60, HealthUi(false, null), Plates(),
-            {}, onTheme, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance,
+            {}, onTheme, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, page = SettingsPage.Appearance, onBodyBuild = onBuild,
         )
     }
 
@@ -70,6 +71,23 @@ class SettingsUiTest {
         rule.onNodeWithText("Gender").performScrollTo().assertExists()
         rule.onAllNodesWithText("Muscle map body").assertCountEquals(0)
         rule.onNodeWithText("Female").assertExists()
+    }
+
+    @Test fun theBuildIsAskedOnlyWhileTheMeshFigureIsOn() {
+        var chosen: String? = null
+        Figure.on = true
+        try {
+            appearance("light", onBuild = { chosen = it })
+            rule.onNodeWithText("Bodybuilder").performScrollTo().performClick()
+            assertEquals("bodybuilder", chosen)
+        } finally {
+            Figure.on = false
+        }
+    }
+
+    @Test fun theBuildHidesWhileTheFigureIsPieces() {
+        appearance("light")
+        rule.onAllNodesWithText("Build").assertCountEquals(0)
     }
 
     @Test fun aCustomThemeOpensExpanded() {

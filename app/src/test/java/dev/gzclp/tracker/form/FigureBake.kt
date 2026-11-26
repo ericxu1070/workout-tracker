@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.form
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -9,20 +10,24 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 /**
- * Fits tools/body-mesh.py's body.bin onto the pieces and writes all [Figure] reads at runtime to figure.bin, so the app
- * loads the mesh with bulk reads alone. Rebake after changing body.bin, this fit, or the pieces it is fitted to:
+ * Fits each body tools/body-mesh.py made (the man in body.bin, the others in shapes.bin) onto the pieces and writes all
+ * [Figure] reads at runtime to figure-<body>.bin, so the app loads a body with bulk reads alone. Rebake after changing
+ * body.bin or shapes.bin, this fit, or the pieces it is fitted to:
  * BAKE=1 ./gradlew testDebugUnitTest --tests 'dev.gzclp.tracker.form.FigureBake'
  */
 class FigureBake {
-    @Test fun theAppsFigureIsTheMeshFittedNow() {
-        val baked = bake()
-        val out = File("src/main/resources/dev/gzclp/tracker/form/figure.bin")
-        if (System.getenv("BAKE") != null) return out.writeBytes(baked)
-        val shipped = Figure::class.java.getResourceAsStream("figure.bin")!!.use { it.readBytes() }
-        assertTrue("figure.bin is stale: rebake it (see FigureBake)", shipped.contentEquals(baked))
+    @Test fun theAppsFiguresAreTheMeshesFittedNow() {
+        val bodies = read()
+        assertEquals(Figure.bodies, bodies.keys.toList())
+        for ((name, body) in bodies) {
+            val baked = bake(body.first, body.second, body.third)
+            val file = "figure-$name.bin"
+            if (System.getenv("BAKE") != null) { File("src/main/resources/dev/gzclp/tracker/form/$file").writeBytes(baked); continue }
+            val shipped = Figure::class.java.getResourceAsStream(file)!!.use { it.readBytes() }
+            assertTrue("$file is stale: rebake it (see FigureBake)", shipped.contentEquals(baked))
+        }
     }
 
     /** Which of a loft's surfaces [wear] moves a part's flesh onto. */
@@ -30,25 +35,48 @@ class FigureBake {
         FRONT_AND_BACK,
         /** The front only, where the back is flesh of its own (the glutes over the top of a thigh). */
         FRONT,
+        /** The back only, where the front is the body's own (its chest and belly). */
+        BACK,
         SIDES,
     }
 
     private lateinit var bones: ByteArray
     private lateinit var weights: FloatArray
     private lateinit var lead: IntArray
+    private lateinit var tri: ShortArray
+    private lateinit var hand: IntArray
 
-    private fun bake(): ByteArray {
-        val buf = ByteBuffer.wrap(Figure::class.java.getResourceAsStream("body.bin")!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+    /** Each body by name: the rig's frames and bone lengths in its space, its positions, and its fist positions. */
+    private fun read(): Map<String, Triple<Array<Pair<Frame, Double>>, FloatArray, FloatArray>> {
+        fun open(name: String) = ByteBuffer.wrap(Figure::class.java.getResourceAsStream(name)!!.use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+        fun ByteBuffer.frames() = Array(Bone.entries.size) {
+            fun v() = V(float.toDouble(), float.toDouble(), float.toDouble())
+            Frame(v(), v(), v(), v()) to float.toDouble()
+        }
+        val buf = open("body.bin")
         check(buf.int == 1) { "body.bin version" }
         val nv = buf.int; val nt = buf.int; val nh = buf.int
-        fun v() = V(buf.float.toDouble(), buf.float.toDouble(), buf.float.toDouble())
-        val src = Array(Bone.entries.size) { Frame(v(), v(), v(), v()) to buf.float.toDouble() }
+        val bodies = LinkedHashMap<String, Triple<Array<Pair<Frame, Double>>, FloatArray, FloatArray>>()
+        val src = buf.frames()
         val raw = FloatArray(nv * 3) { buf.float }
         bones = ByteArray(nv * 4).also { buf.get(it) }
         weights = FloatArray(nv * 4) { (buf.get().toInt() and 0xFF) / 255f }
-        val tri = ShortArray(nt * 3) { buf.short }
-        val hand = IntArray(nh) { buf.short.toInt() and 0xFFFF }
-        val rawFist = FloatArray(nh * 3) { buf.float }
+        tri = ShortArray(nt * 3) { buf.short }
+        hand = IntArray(nh) { buf.short.toInt() and 0xFFFF }
+        bodies["male"] = Triple(src, raw, FloatArray(nh * 3) { buf.float })
+        val more = open("shapes.bin")
+        check(more.int == 1) { "shapes.bin version" }
+        repeat(more.int) {
+            val name = String(ByteArray(more.get().toInt()).also { more.get(it) })
+            val s = more.frames()
+            bodies[name] = Triple(s, FloatArray(nv * 3) { more.float }, FloatArray(nh * 3) { more.float })
+        }
+        return bodies
+    }
+
+    /** One body, from the rig's frames [src], its positions [raw] and its fist positions [rawFist]. */
+    private fun bake(src: Array<Pair<Frame, Double>>, raw: FloatArray, rawFist: FloatArray): ByteArray {
+        val nv = raw.size / 3; val nt = tri.size / 3; val nh = hand.size
         val bind = Array(Bone.entries.size) { Figure.REST.f[it]!! }
 
         /** Where the rig's point [i] of [from] lands once each of its bones' parts sits on that bone of [Figure.REST]. */
@@ -72,13 +100,16 @@ class FigureBake {
         val pos = FloatArray(nv * 3)
         for (i in 0 until nv) fit(raw, i, i, pos)
         lead = IntArray(nv) { i -> bones[i * 4 + (0..3).maxBy { weights[i * 4 + it] }].toInt() }
-        wear(pos, Bone.TRUNK.take(3), Bone.PELVIS, Body.torso.mesh.profile, -0.03, 0.53)
+        val fitted = pos.copyOf()
+        // The back only: the chest, belly and glutes keep the body's own shape.
+        wear(pos, Bone.TRUNK.take(3), Bone.PELVIS, Body.torso.mesh.profile, -0.03, 0.53, Onto.BACK)
         for (s in SIDES) {
             // Twice for the thigh: the second pass pulls its front back onto the loft's, which a deadlift's bar clears by a hair.
             wear(pos, listOf(Bone.thigh(s)), Bone.thigh(s), Body.leg.mesh.profile, 0.04, 0.5)
             wear(pos, listOf(Bone.thigh(s)), Bone.thigh(s), Body.leg.mesh.profile, 0.04, 0.5, Onto.FRONT)
             wear(pos, listOf(Bone.shin(s)), Bone.shin(s), Body.leg.mesh.profile, 0.04, 0.4, Onto.SIDES, along = Build.THIGH)
         }
+        relax(pos, fitted)
         val mesh = Mesh(pos, normals(pos, tri), tri)
         fun at(i: Int) = V(pos[i * 3].toDouble(), pos[i * 3 + 1].toDouble(), pos[i * 3 + 2].toDouble())
         val reach = DoubleArray(Bone.entries.size)
@@ -102,9 +133,10 @@ class FigureBake {
         val n = normals(closed, tri)
         val fistNorm = FloatArray(nh * 3) { n[hand[it / 3] * 3 + it % 3] }
 
-        // Each step a twisting joint's vertices sit at down its child becomes a bone of its own, which they follow in place of the child.
+        // Each step down a twisting joint's child is a bone of its own, which the vertices at it follow in place of the child;
+        // every step, whether or not a vertex sits at it, so every body has the same bones.
         val step = IntArray(nv) { (along[it] * Figure.TWIST_STEPS).roundToInt() }
-        val steps = (0 until nv).filter { joint[it] >= 0 }.map { joint[it] to step[it] }.distinct().sortedWith(compareBy({ it.first }, { it.second }))
+        val steps = Figure.JOINTS.indices.flatMap { j -> (0..Figure.TWIST_STEPS).map { j to it } }
         val nb = Bone.entries.size
         check(nb + steps.size <= 256) { "more twist steps than a byte holds" }
         val skinned = bones.copyOf()
@@ -154,6 +186,9 @@ class FigureBake {
         for ((i, p) in local.withIndex()) if (lead[i] in ids) for (k in 0 until n) if (abs(p.y - from - k * STEP) < STEP) {
             low[k] = min(low[k], across(p)); high[k] = max(high[k], across(p))
         }
+        // Each level's extremes come from a few vertices and jump from one level to the next; evened out along the part,
+        // so the flesh moved onto the loft does not come out in ridges.
+        repeat(2) { for (e in listOf(low, high)) { val c = e.copyOf(); for (k in 1 until n - 1) if (abs(c[k - 1]) < 1e9 && abs(c[k]) < 1e9 && abs(c[k + 1]) < 1e9) e[k] = (c[k - 1] + 2 * c[k] + c[k + 1]) / 4 } }
         for ((i, p) in local.withIndex()) {
             val share = (0..3).sumOf { if (bones[i * 4 + it].toInt() in ids) weights[i * 4 + it].toDouble() else 0.0 } *
                 ((p.y - from) / FADE).coerceIn(0.0, 1.0) * ((to - p.y) / FADE).coerceIn(0.0, 1.0)
@@ -163,32 +198,34 @@ class FigureBake {
             if (low[k] > high[k] || low[k + 1] > high[k + 1]) continue // a level past the group's own flesh
             val lo = lerp(low[k], low[k + 1], u - k); val hi = lerp(high[k], high[k + 1], u - k)
             val (a, b, cz) = loft.ellipse(p.y + along)
-            val t = (across(p) - lo) / (hi - lo)
-            val c = when (onto) { Onto.FRONT_AND_BACK -> lerp(cz - b, cz + b, t); Onto.FRONT -> lerp(lo, cz + b, t); Onto.SIDES -> lerp(-a, a, t) }
+            // Held to the level's extremes: where few vertices lead the group (its lowest level on the woman) they span less
+            // than the flesh around them, and mapping past them would throw that flesh out beyond the loft.
+            val t = ((across(p) - lo) / (hi - lo)).coerceIn(0.0, 1.0)
+            val c = when (onto) { Onto.FRONT_AND_BACK -> lerp(cz - b, cz + b, t); Onto.FRONT -> lerp(lo, cz + b, t); Onto.BACK -> lerp(cz - b, hi, t); Onto.SIDES -> lerp(-a, a, t) }
             val q = if (sides) f.at(p.x + share * (c - p.x), p.y, p.z) else f.at(p.x, p.y, p.z + share * (c - p.z))
             pos[i * 3] = q.x.toFloat(); pos[i * 3 + 1] = q.y.toFloat(); pos[i * 3 + 2] = q.z.toFloat()
         }
     }
 
-    /** Each vertex's normal from the faces around it, weighted by their area. */
-    private fun normals(pos: FloatArray, tri: ShortArray): FloatArray {
-        val n = FloatArray(pos.size)
-        for (t in tri.indices step 3) {
-            val a = tri[t] * 3; val b = tri[t + 1] * 3; val c = tri[t + 2] * 3
-            val ux = pos[b] - pos[a]; val uy = pos[b + 1] - pos[a + 1]; val uz = pos[b + 2] - pos[a + 2]
-            val vx = pos[c] - pos[a]; val vy = pos[c + 1] - pos[a + 1]; val vz = pos[c + 2] - pos[a + 2]
-            val nx = uy * vz - uz * vy; val ny = uz * vx - ux * vz; val nz = ux * vy - uy * vx
-            for (k in intArrayOf(a, b, c)) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz }
+    /** Evens out how far [wear] moved each vertex of [pos] from [fitted] over [RELAX] rounds with its neighbours, so the move leaves no ripples. */
+    private fun relax(pos: FloatArray, fitted: FloatArray) {
+        val nv = pos.size / 3
+        val near = Array(nv) { HashSet<Int>() }
+        for (t in tri.indices step 3) for (a in 0..2) for (b in 0..2) if (a != b) near[tri[t + a].toInt()] += tri[t + b].toInt()
+        var d = FloatArray(pos.size) { pos[it] - fitted[it] }
+        repeat(RELAX) {
+            val e = FloatArray(d.size)
+            for (i in 0 until nv) for (c in 0..2) e[i * 3 + c] = (d[i * 3 + c] + near[i].sumOf { d[it * 3 + c].toDouble() }.toFloat() / near[i].size) / 2
+            d = e
         }
-        for (i in 0 until n.size / 3) {
-            val l = sqrt(n[i * 3] * n[i * 3] + n[i * 3 + 1] * n[i * 3 + 1] + n[i * 3 + 2] * n[i * 3 + 2]).coerceAtLeast(1e-12f)
-            for (k in 0..2) n[i * 3 + k] /= l
-        }
-        return n
+        for (k in pos.indices) pos[k] = fitted[k] + d[k]
     }
+
+    private fun normals(pos: FloatArray, tri: ShortArray) = Figure.normals(pos, tri)
 
     private companion object {
         const val STEP = 0.02
         const val FADE = 0.06
+        const val RELAX = 8
     }
 }

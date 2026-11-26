@@ -33,6 +33,7 @@ import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.engine.Slot
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.engine.Tier
+import dev.gzclp.tracker.form.Figure
 import dev.gzclp.tracker.log.AppState
 import dev.gzclp.tracker.stretch.StretchRoutines
 import dev.gzclp.tracker.ui.Type.tabular
@@ -81,6 +82,8 @@ fun SettingsScreen(
     onBodyFemale: (Boolean) -> Unit = {},
     glass: Boolean = false,
     onGlass: (Boolean) -> Unit = {},
+    bodyBuild: String = "athletic",
+    onBodyBuild: (String) -> Unit = {},
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
     cardioGoalMin: Int = 150,
@@ -398,6 +401,16 @@ fun SettingsScreen(
                     for ((female, name) in listOf(false to "Male", true to "Female")) GroupRow(first = !female, onClick = { onBodyFemale(female) }) {
                         Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
                         if (female == bodyFemale) Icon(Icons.check, p.accent, 20.dp)
+                    }
+                }
+                // The build shapes only the mesh figure, so it shows once the mesh is on.
+                if (Figure.on) {
+                    GroupHeader("Build")
+                    Group {
+                        for ((build, name) in listOf("athletic" to "Athletic", "bodybuilder" to "Bodybuilder", "normal" to "Normal")) GroupRow(first = build == "athletic", onClick = { onBodyBuild(build) }) {
+                            Txt(name, Type.body, Modifier.weight(1f), maxLines = 1)
+                            if (build == bodyBuild) Icon(Icons.check, p.accent, 20.dp)
+                        }
                     }
                 }
             }

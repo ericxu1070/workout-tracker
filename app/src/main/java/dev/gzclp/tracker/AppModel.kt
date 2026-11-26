@@ -15,6 +15,7 @@ import dev.gzclp.tracker.cardio.CardioNotice
 import dev.gzclp.tracker.engine.Plates
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.food.FoodLog
+import dev.gzclp.tracker.form.Figure
 import dev.gzclp.tracker.food.GalleryExport
 import dev.gzclp.tracker.food.Meal
 import dev.gzclp.tracker.health.HealthRecords
@@ -85,6 +86,12 @@ class AppModel private constructor(private val context: Context) {
         private set
     var bodyFemale by mutableStateOf(prefs.bodyFemale)
         private set
+    var bodyBuild by mutableStateOf(prefs.bodyBuild)
+        private set
+
+    init {
+        Figure.shape = Figure.body(bodyFemale, bodyBuild)
+    }
     var sync by mutableStateOf(syncUi())
         private set
     var notice by mutableStateOf<String?>(null)
@@ -268,6 +275,13 @@ class AppModel private constructor(private val context: Context) {
     fun chooseBodyFemale(on: Boolean) {
         prefs.bodyFemale = on
         bodyFemale = on
+        Figure.shape = Figure.body(bodyFemale, bodyBuild)
+    }
+
+    fun chooseBodyBuild(build: String) {
+        prefs.bodyBuild = build
+        bodyBuild = build
+        Figure.shape = Figure.body(bodyFemale, bodyBuild)
     }
 
     fun choosePlates(v: Plates) {

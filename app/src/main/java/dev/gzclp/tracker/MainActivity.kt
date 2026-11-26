@@ -412,7 +412,7 @@ private fun App(model: AppModel) {
                         if (it) requestNotifications()
                     },
                     onWeighInTime = model::chooseWeighInTime, onPlates = model::choosePlates,
-                    showPlates = model.showPlates, onShowPlates = model::chooseShowPlates, bodyFemale = model.bodyFemale, onBodyFemale = model::chooseBodyFemale,
+                    showPlates = model.showPlates, onShowPlates = model::chooseShowPlates, bodyFemale = model.bodyFemale, onBodyFemale = model::chooseBodyFemale, bodyBuild = model.bodyBuild, onBodyBuild = model::chooseBodyBuild,
                     warmups = model.warmups, onWarmups = model::chooseWarmups,
                     cardioGoalMin = model.cardioGoalMin, onCardioGoal = model::chooseCardioGoal,
                     splits = state.customPrograms.values.toList(), onOpenSplit = { push(Route.Split, it) }, onNewSplit = { open(SheetState.NewSplit()) },

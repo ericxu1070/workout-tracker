@@ -78,6 +78,9 @@ private const val SPIN_DEG_PER_SEC = 12f
 /** One breath at rest, in seconds (about 14 a minute). */
 private const val BREATH_SEC = 4.2
 
+/** How much nearer the hair sorts than it is, in metres: more than the scalp under it is behind, less than a hand on it is in front. */
+private const val HAIR_LIFT = 0.02f
+
 /** How far each silhouette fades out past its edge, in pixels: the figure's anti-aliasing. */
 private const val FRINGE = 1.2f
 
@@ -162,6 +165,7 @@ class Projector {
 private class Tones(p: Palette) {
     val body: IntArray
     val accent: IntArray
+    val hair: IntArray
     private val metal: IntArray
     private val rubber: IntArray
     private val pad: IntArray
@@ -174,12 +178,14 @@ private class Tones(p: Palette) {
         if (p.dark) {
             body = ramp(lerp(fg, bg, 0.66f), fg)
             accent = ramp(lerp(a, bg, 0.62f), lerp(a, Color.White, 0.2f))
+            hair = ramp(lerp(fg, bg, 0.92f), lerp(fg, bg, 0.72f))
             metal = ramp(lerp(g, bg, 0.72f), lerp(g, Color.White, 0.15f))
             rubber = ramp(lerp(g, bg, 0.9f), lerp(g, bg, 0.55f))
             pad = ramp(lerp(g, bg, 0.86f), lerp(g, bg, 0.45f))
         } else {
             body = ramp(lerp(fg, bg, 0.3f), lerp(fg, bg, 0.8f))
             accent = ramp(lerp(a, fg, 0.4f), lerp(a, bg, 0.45f))
+            hair = ramp(lerp(fg, bg, 0.04f), lerp(fg, bg, 0.36f))
             metal = ramp(lerp(g, fg, 0.3f), lerp(g, bg, 0.7f))
             rubber = ramp(lerp(fg, bg, 0.08f), lerp(fg, bg, 0.42f))
             pad = ramp(lerp(fg, bg, 0.15f), lerp(fg, bg, 0.5f))
@@ -224,6 +230,8 @@ private class Scene {
     private val over = NativePaint().apply { color = android.graphics.Color.WHITE; xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC) }
     private val m = Matrix()
     private val mv = FloatArray(9)
+    /** The hair's posed points, as [Figure.placeHair] lays them. */
+    private var hairAt = FloatArray(0)
     private var xy = FloatArray(4096)
     private var dep = FloatArray(2048)
     private var col = IntArray(2048)
@@ -350,7 +358,7 @@ private class Scene {
     }
 
     /** Projects and lights one mesh placed by [f] and stretched by [sx], [sy], [sz]; [bone] is the body part it is, if any, and [glow] each vertex's share of the accent. */
-    private fun part(mesh: Mesh, f: Frame, sx: Double, sy: Double, sz: Double, ramp: IntArray, metal: Boolean, bone: Bone? = null, glow: FloatArray? = null) {
+    private fun part(mesh: Mesh, f: Frame, sx: Double, sy: Double, sz: Double, ramp: IntArray, metal: Boolean, bone: Bone? = null, glow: FloatArray? = null, at: FloatArray? = null) {
         if (!place(mesh)) return
         if (bone != null) { meshOf[bone.ordinal] = mesh; startOf[bone.ordinal] = nv; originOf[bone.ordinal] = V.ZERO }
         val p = mesh.pos
@@ -361,7 +369,9 @@ private class Scene {
             val ax = n[i * 3] / sx; val ay = n[i * 3 + 1] / sy; val az = n[i * 3 + 2] / sz
             vertex(
                 nv + i,
-                (o.x + fx.x * lx + fy.x * ly + fz.x * lz).toFloat(), (o.y + fx.y * lx + fy.y * ly + fz.y * lz).toFloat(), (o.z + fx.z * lx + fy.z * ly + fz.z * lz).toFloat(),
+                if (at != null) at[i * 3] else (o.x + fx.x * lx + fy.x * ly + fz.x * lz).toFloat(),
+                if (at != null) at[i * 3 + 1] else (o.y + fx.y * lx + fy.y * ly + fz.y * lz).toFloat(),
+                if (at != null) at[i * 3 + 2] else (o.z + fx.z * lx + fy.z * ly + fz.z * lz).toFloat(),
                 (fx.x * ax + fy.x * ay + fz.x * az).toFloat(), (fx.y * ax + fy.y * ay + fz.y * az).toFloat(), (fx.z * ax + fy.z * ay + fz.z * az).toFloat(),
                 ramp, metal, glow?.get(i) ?: 0f,
             )
@@ -384,7 +394,7 @@ private class Scene {
     private val fig by lazy { FloatArray(Figure.mesh.verts * 3) }
     private val figNormal by lazy { FloatArray(Figure.mesh.verts * 3) }
 
-    /** The [Figure] mesh bent to the pose, in one piece with no joints to cut; each vertex takes its [glow] share of the accent. */
+    /** The [Figure] mesh bent to the pose, in one piece with no joints to cut, and its hair on the head; each vertex takes its [glow] share of the accent. */
     private fun figure(tones: Tones, glow: FloatArray?) {
         val mesh = Figure.mesh
         if (!place(mesh)) return
@@ -393,6 +403,11 @@ private class Scene {
             vertex(nv + i, fig[i * 3], fig[i * 3 + 1], fig[i * 3 + 2], figNormal[i * 3], figNormal[i * 3 + 1], figNormal[i * 3 + 2], tones.body, false, glow?.get(i) ?: 0f)
         }
         nv += mesh.verts
+        Figure.hair?.let {
+            if (hairAt.size < it.verts * 3) hairAt = FloatArray(it.verts * 3)
+            Figure.placeHair(pose[Bone.HEAD], hairAt)
+            part(it, pose[Bone.HEAD], 1.0, 1.0, 1.0, tones.hair, false, at = hairAt)
+        }
     }
 
     /** Moves each item of fixed gear that hides some of the body (a post, a step) out of the solid pass into [shade]; false if none does. */
@@ -472,6 +487,8 @@ private class Scene {
         // A cut triangle can add two vertices; a mesh nothing cuts (the Figure) needs no room for them.
         var cuts = false
         for (v in base until base + mesh.verts) cuts = cuts || cut[v] < 0f
+        // The hair sorts as if a little nearer, so it wins over the scalp it lies on (and that its edge tucks under).
+        val lift = if (mesh === Figure.hair) HAIR_LIFT else 0f
         val more = !cuts || nv + 2 * mesh.tris <= Short.MAX_VALUE
         grow(if (cuts && more) 2 * mesh.tris else 0, 3 * mesh.tris)
         if (front.size < mesh.tris) front = BooleanArray(mesh.tris)
@@ -483,7 +500,7 @@ private class Scene {
             front[k] = area < 0f
             if (area >= 0f) continue
             val kept = (if (cut[a] >= 0f) 1 else 0) + (if (cut[b] >= 0f) 1 else 0) + (if (cut[c] >= 0f) 1 else 0)
-            if (kept == 3 || (kept > 0 && !more)) { add(a, b, c, (dep[a] + dep[b] + dep[c]) / 3); continue }
+            if (kept == 3 || (kept > 0 && !more)) { add(a, b, c, (dep[a] + dep[b] + dep[c]) / 3 - lift); continue }
             // What the cut hides is drawn too, behind everything: inside the body's outline, it shows only through the pinholes
             // where the cut's straight edges fall short of the crease.
             add(a, b, c, Float.MAX_VALUE)
