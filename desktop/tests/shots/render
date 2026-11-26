@@ -1,0 +1,14 @@
+#!/bin/sh
+# Builds the offscreen renderer and grabs the dashboard from the fixture: render OUT.png THEME [WIDTH HEIGHT] [steps...]
+# THEME is an Omarchy theme name under /usr/share/omarchy/themes; the live theme is never switched.
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
+mkdir -p "$ROOT/build/shots"
+python3 "$ROOT/tests/make_fixture.py" "$ROOT/build/shots/fixture.jsonl"
+( cd "$ROOT/build/shots" && qmake6 "$ROOT/tests/shots/shots.pro" >/dev/null && make -j"$(nproc)" >/dev/null )
+OUT="$1"; THEME="$2"; shift 2
+W="${1:-1280}"; H="${2:-900}"; [ $# -ge 2 ] && shift 2 || shift $#
+DIR="$ROOT/build/shots/themes/$THEME"
+mkdir -p "$DIR/theme"
+cp "/usr/share/omarchy/themes/$THEME/colors.toml" "$DIR/theme/colors.toml"
+"$ROOT/build/shots/gzclp-desk-shots" "$ROOT/build/shots/fixture.jsonl" "$DIR" "$OUT" "$W" "$H" "$@"

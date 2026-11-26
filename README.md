@@ -78,9 +78,9 @@ More themes: Jade, Dark, Light, Light with Liquid Glass, and Gruvbox (an Omarchy
 | :---: | :---: | :---: | :---: | :---: |
 | <img src="docs/images/themes/jade.webp" width="150" alt="Workout in the Jade theme"> | <img src="docs/images/themes/dark.webp" width="150" alt="Workout in the Dark theme"> | <img src="docs/images/themes/light.webp" width="150" alt="Workout in the Light theme"> | <img src="docs/images/themes/light-glass.webp" width="150" alt="Workout in Light with Liquid Glass"> | <img src="docs/images/themes/gruvbox-glass.webp" width="150" alt="Cardio in Gruvbox with Liquid Glass"> |
 
-The desktop analysis app (`desktop/`) reads the synced log:
+The desktop app (`desktop/`) reads the synced log, in the phone's themes and Liquid Glass:
 
-<img src="docs/images/desktop.png" alt="Desktop analysis app: strength, weekly volume, stalls, sessions, rest, and body weight charts">
+<img src="docs/images/desktop.png" alt="Repsilon on the desktop: the Lifting tab with estimated 1RM, weekly volume, stalls, and workout charts under a frosted tab bar">
 
 ## Build
 
@@ -162,4 +162,4 @@ Version 2 reads only version 2 logs. On first launch it sets an older local log 
 - `stretch/` holds the procedural 2D stick-figure animation engine, 52 keyframed stretching moves, routines, and audio chimes.
 - `health/` turns finished workouts, cardio sessions, and weigh-ins into Health Connect records, and holds the privacy note Health Connect shows.
 - `ui/` holds the Compose screens (workouts, open sessions, water tracker canvas, guided stretching player, history, food log, settings) and the four color themes.
-- `desktop/` holds the standalone Qt6/QML desktop analysis app for strength, volume, stalls, sessions, cardio, rest, body weight, water, and stretching metrics.
+- `desktop/` holds the standalone Qt6/QML desktop app, with Lifting, Cardio, Stretching, and Body tabs.

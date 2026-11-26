@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Training
-Comment=Strength, volume, stalls, sessions, rest, and body weight from the Repsilon log
+Name=Repsilon
+GenericName=Training dashboard
+Comment=Lifting, cardio, stretching, and body charts from the Repsilon phone log
 Exec=gzclp-desk
 Icon=gzclp-desk
 Terminal=false

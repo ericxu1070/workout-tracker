@@ -1,5 +1,6 @@
 // Theme watching follows Omacut (MIT, David Heinemeier Hansson).
 #include "theme.h"
+#include "palette.h"
 
 #include <QColor>
 #include <QDir>
@@ -104,10 +105,16 @@ void Theme::reload() {
             m_watcher.addPath(path);
 
     QVariantMap colors = readColors(m_directory + "/theme/colors.toml");
+    Palette palette = Palette::parse(colors);
+    if (!palette.bg.isValid())  // no theme: Apple's dark system colors
+        palette = Palette::parse({{"background", "#1c1c1e"}, {"lighter_background", "#2c2c2e"}, {"foreground", "#f5f5f7"},
+                                  {"dark_foreground", "#a1a1a6"}, {"accent", colors.value("accent", "#FFD60A")}, {"red", "#ff453a"}});
     const bool light = colors.take("mode").toString() == "light";
-    if (colors != m_colors || light != m_light) {
+    if (colors != m_colors || light != m_light || m_flat.isEmpty()) {
         m_colors = colors;
         m_light = light;
+        m_flat = palette.toMap();
+        m_glass = palette.glassed().toMap();
         emit changed();
     }
 }

@@ -1,18 +1,17 @@
-# Training (gzclp-desk)
+# Repsilon desktop (gzclp-desk)
 
 A desktop dashboard for the Repsilon phone app. It reads the log the phone mirrors to `~/GZCLP/gzclp-log.jsonl` through Syncthing and redraws whenever Syncthing replaces the file. It never writes to the folder.
 
-One scrolling page, top to bottom:
+Four tabs, switched from a floating segmented control at the top:
 
-1. Strength. Estimated 1RM per main lift and calisthenics movements (Epley), using effective load (bodyweight factor × body weight + added weight) for bodyweight exercises, from GZCLP T1 AMRAP sets and the best set of each cycle-program or custom-split session, with the latest value and its multiple of body weight at each line's end.
-2. Weekly volume. Tonnage or reps per ISO week, filtered by tier (T1, T2, T3, Cycle, Custom) and lift.
-3. Stalls and resets. GZCLP stage changes and resets, and repeated cycles of cycle programs and custom splits, per lift on one timeline.
-4. Sessions. Duration per workout and workouts per week.
-5. Cardio. Cardio minutes per week, and sessions, time, and distance per activity over the last 8 weeks.
-6. Rest. Median rest taken against the timer's target, by the tier of the set before.
-7. Body weight. The day's morning weigh-in and the 7-day average.
-8. Water. Daily water intake in ml and the 7-day average.
-9. Stretching. Stretching sessions per week and total completed routines.
+1. Lifting. Estimated 1RM per main lift and calisthenics movement (Epley), using effective load (bodyweight factor × body weight + added weight) for bodyweight exercises, from GZCLP T1 AMRAP sets and the best set of each cycle-program or custom-split session, with the latest value and its multiple of body weight at each line's end. Weekly tonnage or reps, filtered by tier and lift. GZCLP stage changes and resets, and repeated cycles, per lift on one timeline. Workout length, workouts per week, and median rest against the timer's target by tier.
+2. Cardio. Minutes per week, and sessions, time, and distance per activity over the last 8 weeks.
+3. Stretching. Sessions per week, and sessions and time per routine over the last 8 weeks, with custom routines by their own names.
+4. Body. The morning weigh-in and daily water, each with its 7-day average.
+
+Hover a chart to read the week or day under the pointer; click to pin it, click again to let go.
+
+The colors are the phone's palette for the live Omarchy theme, in Liquid Glass (a soft wallpaper glow under a blurred, frosted tab bar whose pill turns to clear glass while held) or flat. Press G to switch; the choice and the last tab are remembered. The bar's blur is real, but it does not bend the page behind it the way the phone's lens does.
 
 The log format is the contract in [`../docs/log-format.md`](../docs/log-format.md). The colors follow the live Omarchy theme.
 
@@ -34,6 +33,8 @@ cd pkgbuild && makepkg -f          # builds the package; install it with pacman 
 
 | Key | Action |
 |---|---|
+| 1, 2, 3, 4 | Lifting, Cardio, Stretching, Body |
+| G | Liquid Glass or flat |
 | Up, Down, J, K | Scroll |
 | Space, Shift+Space, Page Up, Page Down | Scroll a page |
 | Home, End | Top, bottom |

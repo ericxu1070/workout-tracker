@@ -1,7 +1,10 @@
 import QtQuick
 
-// The Apple roles in the live Omarchy theme's colors; every other file uses these.
+// The phone's palette for the live Omarchy theme (palette.cpp), flat or in Liquid Glass; every other file uses these.
 QtObject {
+    property bool glass: true
+    readonly property var p: glass ? theme.glass : theme.flat
+
     // Themes spell some roles two ways (background or bg); the first key present wins.
     function c(keys, fallback) {
         for (const k of [].concat(keys)) if (theme.colors[k] !== undefined) return theme.colors[k]
@@ -10,19 +13,23 @@ QtObject {
     function dist(x, y) { return Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b) }
     function a(col, alpha) { return Qt.rgba(col.r, col.g, col.b, alpha) }
 
-    readonly property color bg:             c(["background", "bg"], "#1c1c1e")
-    readonly property color bgRecessed:     c(["dark_background", "dark_bg"], "#161618")
-    readonly property color bgElevated:     c(["lighter_background", "lighter_bg"], "#2c2c2e")
-    readonly property color label:          c(["foreground", "fg"], "#f5f5f7")
-    readonly property color labelSecondary: c(["readable_muted", "dark_foreground", "dark_fg"], "#a1a1a6")
-    readonly property color labelTertiary:  c("muted", "#6e6e73")
-    readonly property color tint:           theme.accent
-    readonly property color tintText:       theme.accentForeground
-    readonly property color separator:      a(label, 0.10)
-    readonly property color fill:           a(label, 0.06)
-    readonly property color fillPressed:    a(label, 0.12)
-    readonly property color neutralMark:    a(label, 0.22)
-    readonly property color danger:         c("red", "#ff453a")
+    readonly property color bg:             p.bg
+    readonly property color bgElevated:     p.elevated
+    readonly property color card:           p.card
+    readonly property color label:          p.fg
+    readonly property color labelSecondary: p.fg2
+    readonly property color labelTertiary:  p.fg3
+    readonly property color tint:           p.accent
+    readonly property color tintText:       p.onAccent
+    readonly property color separator:      p.separator
+    readonly property color fill:           p.fill
+    readonly property color fillPressed:    p.fillPressed
+    readonly property color neutralMark:    a(label, 0.24)  // bars that are not the one in the accent
+    readonly property color pill:           p.pill   // a segmented control's resting thumb
+    readonly property color bar:            p.bar    // the floating switch's tint over the blurred page
+    readonly property color clear:          p.clear  // a held thumb in Liquid Glass
+    readonly property var glows:            p.glows
+    readonly property color danger:         p.red
     readonly property color warning:        c("yellow", "#ffd60a")
     // One hue per main lift, the same in every chart.
     // Theme hues taken in order, skipping any too close to the accent, the
