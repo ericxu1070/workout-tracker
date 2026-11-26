@@ -16,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -194,16 +193,6 @@ fun DrawScope.glassRim(o: Outline, alpha: Float = 1f) = drawOutline(
     alpha = alpha,
     style = Stroke(2.dp.toPx()),
 )
-
-/** A glass card's hairline edge inside its clip; a slice of a card split across lazy items draws only its own [top] and [bottom]. */
-fun Modifier.cardRim(p: Palette, radius: Dp, top: Boolean = true, bottom: Boolean = true) = if (!p.glass) this else drawWithContent {
-    drawContent()
-    val w = 1.dp.toPx()
-    val r = radius.toPx()
-    val t = if (top) w / 2 else -r
-    val b = if (bottom) size.height - w / 2 else size.height + r
-    drawRoundRect(Color.White.copy(alpha = 0.10f), Offset(w / 2, t), Size(size.width - w, b - t), CornerRadius(r - w / 2), style = Stroke(w))
-}
 
 private val BlurRadius = 24.dp
 

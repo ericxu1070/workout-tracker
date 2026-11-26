@@ -114,7 +114,7 @@ data class Palette(
         return if (reads(100)) c.copy(alpha = least(CLEAREST_STAIN, 100, ::reads) / 100f) else c
     }
 
-    /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper. */
+    /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper, with no lit edge, since glass is not the content. */
     val card: Color get() = if (glass) elevated.copy(alpha = 0.6f) else elevated
     /** Liquid Glass sheets and the undo bar, which carry running text: [bg] at [chromeAlpha], over whatever is blurred behind them. */
     val chrome: Color get() = bg.copy(alpha = chromeAlpha)

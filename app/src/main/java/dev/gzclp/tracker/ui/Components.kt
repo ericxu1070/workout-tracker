@@ -272,7 +272,7 @@ fun Hairline(modifier: Modifier = Modifier, start: Dp = 0.dp) =
 @Composable
 fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.card).cardRim(p, Radius.lg), content = content)
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(p.card), content = content)
 }
 
 /** Row [i] of [count] in a [Group] split across lazy items: the first and last carry its rounded corners. */
@@ -282,7 +282,7 @@ fun GroupSlice(i: Int, count: Int, content: @Composable ColumnScope.() -> Unit) 
     val end = if (i == count - 1) Radius.lg else 0.dp
     val p = LocalPalette.current
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(top, top, end, end)).background(p.card).cardRim(p, Radius.lg, i == 0, i == count - 1),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(top, top, end, end)).background(p.card),
         content = content,
     )
 }
