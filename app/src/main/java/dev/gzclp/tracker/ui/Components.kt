@@ -665,26 +665,25 @@ private fun Tab.icon(): ImageVector = when (this) {
 
 /**
  * The app's bottom tab bar: five destinations on a [ThumbRow], the current one on a raised pill in the accent; tap a tab, or drag the pill
- * along the bar and let go over one. In Liquid Glass it floats as a rounded pane, and the held pill turns to glass.
+ * along the bar and let go over one. In Liquid Glass it floats as a capsule, and the held pill turns to glass.
  */
 @Composable
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
         // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight(), corner = Radius.lg) { i, thumb ->
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight(), corner = TabPillCorner) { i, thumb ->
             val t = Tab.entries[i]
             val c = if (thumb) p.accent else p.fg2
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Icon(t.icon(), c, 24.dp)
+                Icon(t.icon(), c, 22.dp)
                 Txt(t.label, TabLabel, color = c, maxLines = 1)
             }
         }
     }
     if (p.glass) bar(
         modifier.windowInsetsPadding(WindowInsets.navigationBars).padding(start = Space.lg, end = Space.lg, bottom = Space.xs).fillMaxWidth().height(GlassTabBar),
-        // Concentric with the pill's corners, so an end tab's pill stays inside the bar.
-        RoundedCornerShape(Radius.lg + Space.xs).let { Modifier.shadow(8.dp, it).glassPane(it) },
+        Modifier.shadow(8.dp, CircleShape).glassPane(CircleShape),
     ) else Column(modifier.fillMaxWidth().background(p.bg)) {
         Hairline()
         // Inset so the end tabs' pills keep the screen's 16 dp gutter.
@@ -694,6 +693,9 @@ fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit
 
 /** A tab's label: iOS's 10 pt medium, small enough that the longest ("Upcoming") clears the rounded corners of its pill at 115% text size. */
 private val TabLabel = Type.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Medium)
+
+/** Rounder than [Radius.xl], short of a capsule: the labels clear its corners, and in Liquid Glass an end tab's pill stays inside the capsule bar. */
+private val TabPillCorner = 22.dp
 
 /** The floating glass tab bar's height, above its [Space.xs] margin and the navigation bar. */
 val GlassTabBar = 68.dp
