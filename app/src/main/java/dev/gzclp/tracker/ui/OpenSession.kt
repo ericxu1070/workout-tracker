@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -498,11 +499,16 @@ fun OpenSessionScreen(
                 PillButton("Add exercise", { showAddExercise = true }, primary = true)
             }
         } else {
+            val logged = a?.sets.orEmpty()
+            val next = OpenSessionManager.exercises.firstNotNullOfOrNull { o ->
+                (1..o.setsCount).map { SetKey(o.exercise.id, o.exercise.tier, it) }.firstOrNull { it !in logged }
+            }
             OpenSessionManager.exercises.forEach { openEx ->
                 Spacer(Modifier.height(Space.x3))
                 OpenExerciseCard(
                     state = state,
                     openEx = openEx,
+                    next = next,
                     onLog = onLog,
                     onClear = onClear,
                     onUpdateReps = { newReps -> OpenSessionManager.updateReps(state, openEx.exercise.id, newReps) },
@@ -550,6 +556,7 @@ fun OpenSessionScreen(
 fun OpenExerciseCard(
     state: AppState,
     openEx: OpenExercise,
+    next: SetKey?,
     onLog: (Exercise, Int, Int, Int, Double?) -> Unit,
     onClear: (Exercise, Int) -> Unit,
     onUpdateReps: (Int) -> Unit,
@@ -654,8 +661,8 @@ fun OpenExerciseCard(
         if (ex.id in Catalog.barbell) PlateLine(plates, openEx.targetWeight, Modifier.padding(top = Space.sm))
         Spacer(Modifier.height(Space.md))
 
-        // Sets column
-        Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+        // Sets column; each card has its own pill, since the card's surface would hide one drawn under the whole list.
+        StepPillHost(p.card.compositeOver(p.bg), Modifier.fillMaxWidth()) { Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             for (i in 1..openEx.setsCount) {
                 val key = SetKey(ex.id, ex.tier, i)
                 val logged = sets[key]?.event
@@ -665,7 +672,7 @@ fun OpenExerciseCard(
                     targetReps = openEx.targetReps,
                     defaultWeight = openEx.targetWeight,
                     logged = logged,
-                    current = logged == null,
+                    current = key == next,
                     exName = ex.name,
                     plates = plates.takeIf { ex.id in Catalog.barbell },
                     plateWeight = openEx.targetWeight,
@@ -673,7 +680,7 @@ fun OpenExerciseCard(
                     onClear = { onClear(ex, i) },
                 )
             }
-        }
+        } }
 
         Spacer(Modifier.height(Space.sm))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -33,8 +35,8 @@ class WorkoutLayoutTest {
 
     private val t0 = OffsetDateTime.parse("2026-11-25T18:00:00-08:00")
 
-    private fun check(label: String) =
-        rule.onNode(SemanticsMatcher("click label $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label })
+    private fun clickLabel(label: String) = SemanticsMatcher("click label $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
+    private fun check(label: String) = rule.onNode(clickLabel(label))
 
     /** Logging a set starts the rest timer; the set rows must stay where the thumb is. */
     @Test fun loggingASetMovesNoSetRow() {
@@ -60,10 +62,16 @@ class WorkoutLayoutTest {
             )
         }
         rule.onNodeWithText("End workout").assertExists()
+        // The step pill sits on set 1 and, once it is logged, on set 2: one current row at a time.
+        val current = rule.onAllNodes(isSelected())
+        current.assertCountEquals(1)
+        rule.onNode(isSelected() and hasAnyDescendant(clickLabel("Log ${ex.name} set 1"))).assertExists()
         val before = check("Log ${ex.name} set 2").fetchSemanticsNode().boundsInRoot
         check("Log ${ex.name} set 1").performClick()
         rule.waitForIdle()
         assertEquals(before, check("Log ${ex.name} set 2").fetchSemanticsNode().boundsInRoot)
+        rule.onAllNodes(isSelected()).assertCountEquals(1)
+        rule.onNode(isSelected() and hasAnyDescendant(clickLabel("Log ${ex.name} set 2"))).assertExists()
         rule.onNodeWithText(restLabel(ex, 1)).assertExists()
         rule.onAllNodesWithText("End workout").assertCountEquals(0)
         check("Clear ${ex.name} set 1").assertExists()

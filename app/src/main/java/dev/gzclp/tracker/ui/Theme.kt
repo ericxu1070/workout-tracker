@@ -46,6 +46,15 @@ data class Palette(
     }
     /** Day marks for lifting, cardio and stretching, fitted to this theme's surfaces. */
     val kinds: KindColors by lazy { kindColors(bg, elevated, fg) }
+    /**
+     * The pill behind the set being worked on: the strongest accent tint up to 18% on which fg reads at 4.5:1
+     * and the accent ring at 3:1, over every one of [surfaces]. Controls on it stay opaque, so their text keeps its contrast.
+     */
+    val stepPill: Color by lazy {
+        (18 downTo 6).map { accent.copy(alpha = it / 100f) }.firstOrNull { tint ->
+            surfaces.all { s -> tint.compositeOver(s).let { contrast(fg, it) >= 4.5f && contrast(accent, it) >= 3f } }
+        } ?: fill
+    }
     /** Text and icons on a [red] fill; red reads at 4.5:1 on both, so either reads on red. */
     val onRed: Color get() = if (dark) bg else elevated
     /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each; in Liquid Glass, the worst case behind each pane. */
