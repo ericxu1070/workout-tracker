@@ -37,7 +37,7 @@ class WeekTest {
         assertEquals(5400L, w.gymSec)
         assertEquals(2, w.workouts)
         assertEquals(3000L, w.prevGymSec)
-        assertEquals(setOf(monday, LocalDate.parse("2026-11-15")), w.activeDays)
+        assertEquals(setOf(monday, LocalDate.parse("2026-11-15")), w.days.keys)
         assertEquals(LocalDate.parse("2026-11-08"), s.firstDay())
     }
 
@@ -53,7 +53,7 @@ class WeekTest {
         assertEquals(2000L, w.prevCardioSec)
         assertEquals(3, w.cardioSessions)
         assertEquals(listOf(ActivityTotal("running", "Running", 2, 4200, 4828), ActivityTotal("yoga", "Yoga", 1, 3600, null)), w.byActivity)
-        assertEquals(3, w.activeDays.size)
+        assertEquals(3, w.days.size)
     }
 
     @Test fun gzclpComparesWithTheLastTimeAtThatTierAcrossStages() {
@@ -106,6 +106,6 @@ class WeekTest {
         assertEquals(181.5, w.bodyWeight!!, 1e-9)
         assertEquals(182.2, w.prevBodyWeight!!, 1e-9)
         assertNull(s.week(monday.plusDays(7)).bodyWeight)
-        assertEquals(emptySet<LocalDate>(), w.activeDays)
+        assertEquals(emptySet<LocalDate>(), w.days.keys)
     }
 }

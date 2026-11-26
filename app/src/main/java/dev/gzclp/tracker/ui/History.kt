@@ -67,7 +67,7 @@ fun HistoryScreen(
             HistoryView.Week -> { week(); return@ScreenFrame }
             HistoryView.Month -> {
                 Spacer(Modifier.height(Space.lg))
-                MonthGrid(state, today, java.time.YearMonth.from(today), onOpen)
+                MonthGrid(state, today, java.time.YearMonth.from(today), onOpen, onCardio)
                 return@ScreenFrame
             }
             HistoryView.All -> {}

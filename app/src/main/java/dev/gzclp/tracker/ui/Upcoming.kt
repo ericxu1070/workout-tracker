@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +20,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.gzclp.tracker.log.AppState
+import dev.gzclp.tracker.log.Cardio
+import dev.gzclp.tracker.log.Kind
+import dev.gzclp.tracker.log.bouts
+import dev.gzclp.tracker.log.dayMix
+import dev.gzclp.tracker.log.monthStats
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Exercise
 import dev.gzclp.tracker.log.shouldSuggest
@@ -74,20 +83,23 @@ fun UpcomingScreen(
 
 private val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
 
-/** A month of days; days with a finished workout are filled and open that workout. */
+/**
+ * A month of days, each day with training marked by what it held, then the month's numbers. A day opens its workout,
+ * or its cardio when that is all it held.
+ */
 @Composable
-fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpenSession: (String) -> Unit) {
+fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpenSession: (String) -> Unit, onCardio: (Cardio) -> Unit = {}) {
     val p = LocalPalette.current
+    val kinds = p.kinds
     var month by remember { mutableStateOf(initialMonth) }
-    val byDay = state.sessions.filter { it.sets.isNotEmpty() }.associateBy { it.startedAt.toLocalDate() }
-    val count = byDay.keys.count { YearMonth.from(it) == month }
+    val bouts = remember(state) { state.bouts() }
+    val mixes = remember(bouts) { dayMix(bouts) }
+    val sessionOn = state.sessions.filter { it.sets.isNotEmpty() }.associateBy { it.startedAt.toLocalDate() }
+    val cardioOn = state.cardio.values.associateBy { it.startedAt.toLocalDate() }
     Group {
         Column(Modifier.padding(Space.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Txt(monthFmt.format(month), Type.headline)
-                    Txt(if (count == 1) "1 workout" else "$count workouts", Type.footnote, color = p.fg2)
-                }
+                Txt(monthFmt.format(month), Type.headline, Modifier.weight(1f))
                 IconButton(Icons.chevronLeft, "Previous month", { month = month.minusMonths(1) }, tint = p.accent)
                 IconButton(Icons.chevronRight, "Next month", { month = month.plusMonths(1) }, tint = p.accent)
             }
@@ -107,22 +119,51 @@ fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpen
                         Box(Modifier.weight(1f).aspectRatio(1f), contentAlignment = Alignment.Center) {
                             if (d in 1..month.lengthOfMonth()) {
                                 val date = month.atDay(d)
-                                val session = byDay[date]
+                                val mix = mixes[date]
                                 val isToday = date == today
-                                val style = Type.subhead.tabular().copy(fontWeight = if (isToday || session != null) FontWeight.SemiBold else FontWeight.Normal)
-                                if (session != null) {
-                                    Pressable({ onOpenSession(session.id) }, Modifier.size(40.dp), CircleShape, p.fg, p.fg2, label = "${session.day.title} on ${Fmt.date(session.startedAt)}") {
-                                        Txt("$d", style, color = p.bg)
+                                val style = Type.subhead.tabular().copy(fontWeight = if (isToday || mix != null) FontWeight.SemiBold else FontWeight.Normal)
+                                val open = sessionOn[date]?.let { s -> { onOpenSession(s.id) } } ?: cardioOn[date]?.let { c -> { onCardio(c) } }
+                                if (mix != null && open != null) {
+                                    Pressable(open, Modifier.size(40.dp), CircleShape, label = "${dayLabel(mix)} on ${Fmt.shortDate(date)}") {
+                                        Box(Modifier.matchParentSize().dayMarker(mix, kinds))
+                                        Txt("$d", style, color = kinds.on)
                                     }
                                 } else {
-                                    Box(Modifier.size(40.dp).then(if (isToday) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier), contentAlignment = Alignment.Center) {
-                                        Txt("$d", style, color = if (date > today) p.fg2 else p.fg)
+                                    Box(
+                                        Modifier.size(40.dp).clip(CircleShape)
+                                            .then(if (mix != null) Modifier.dayMarker(mix, kinds).semantics { contentDescription = "${dayLabel(mix)} on ${Fmt.shortDate(date)}" } else Modifier)
+                                            .then(if (isToday && mix == null) Modifier.border(1.5.dp, p.fg, CircleShape) else Modifier),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Txt("$d", style, color = if (mix != null) kinds.on else if (date > today) p.fg2 else p.fg)
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+    val stats = monthStats(bouts, month, today)
+    Spacer(Modifier.height(Space.xxl))
+    Group {
+        GroupRow(first = true) {
+            Txt("Sessions", Type.body, Modifier.weight(1f))
+            Txt("${stats.sessions}", Type.body.tabular(), color = p.fg2)
+        }
+        GroupRow(first = false) {
+            Txt("Per week", Type.body, Modifier.weight(1f))
+            Txt(String.format(Locale.US, "%.1f", stats.perWeek), Type.body.tabular(), color = p.fg2)
+        }
+    }
+    GroupHeader("Average session")
+    Group {
+        listOf(Kind.LIFT to stats.liftSec, Kind.CARDIO to stats.cardioSec, Kind.STRETCH to stats.stretchSec).forEachIndexed { i, (kind, sec) ->
+            GroupRow(first = i == 0) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(kinds.of(kind)))
+                Txt(kind.label, Type.body, Modifier.weight(1f).padding(start = Space.md))
+                Txt(sec?.let(Fmt::minutes) ?: "None", Type.body.tabular(), color = p.fg2)
             }
         }
     }

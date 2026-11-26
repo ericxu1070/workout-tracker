@@ -18,16 +18,17 @@ data class WeekSummary(
     val monday: LocalDate,
     val gymSec: Long, val prevGymSec: Long, val workouts: Int,
     val cardioSec: Long, val prevCardioSec: Long, val cardioSessions: Int,
+    val stretchSec: Long, val prevStretchSec: Long, val stretches: Int,
     val byActivity: List<ActivityTotal>,
-    val activeDays: Set<LocalDate>,
+    /** Each day with training, as its day marker shows it. */
+    val days: Map<LocalDate, List<Segment>>,
     val lifts: List<LiftChange>,
     val bodyWeight: Double?, val prevBodyWeight: Double?,
 )
 
-/** The first day anything was logged: a workout with sets, a cardio session, or a weigh-in. */
+/** The first day anything was logged: a workout with sets, a cardio session, a stretch, or a weigh-in. */
 fun AppState.firstDay(): LocalDate? =
-    (sessions.filter { it.sets.isNotEmpty() }.map { it.startedAt.toLocalDate() } +
-        cardio.values.map { it.startedAt.toLocalDate() } + bodyWeights.values.map { it.at.toLocalDate() }).minOrNull()
+    (bouts().map { it.day } + bodyWeights.values.map { it.at.toLocalDate() }).minOrNull()
 
 /**
  * The Monday to Sunday week from [monday]. Each record counts on its own local date. A lift's slot is
@@ -42,6 +43,9 @@ fun AppState.week(monday: LocalDate): WeekSummary {
     fun runs(m: LocalDate) = cardio.values.filter { it.startedAt.toLocalDate().inWeek(m) }.sortedBy { it.startedAt }
     val gym = gym(monday)
     val runs = runs(monday)
+    val bouts = bouts()
+    fun stretched(m: LocalDate) = bouts.filter { it.kind == Kind.STRETCH && it.day.inWeek(m) }
+    val stretched = stretched(monday)
     val daily = dailyBodyWeight()
     fun mean(m: LocalDate) = daily.subMap(m, true, m.plusDays(6), true).values.takeIf { it.isNotEmpty() }?.average()
 
@@ -58,10 +62,11 @@ fun AppState.week(monday: LocalDate): WeekSummary {
         monday,
         gym.sumOf { it.durationSec }, gym(prevMonday).sumOf { it.durationSec }, gym.size,
         runs.sumOf { it.durationSec }, runs(prevMonday).sumOf { it.durationSec }, runs.size,
+        stretched.sumOf { it.sec }, stretched(prevMonday).sumOf { it.sec }, stretched.size,
         runs.groupBy { it.activity }.map { (id, cs) ->
             ActivityTotal(id, cs.last().name, cs.size, cs.sumOf { it.durationSec }, cs.mapNotNull { it.distanceM }.takeIf { it.isNotEmpty() }?.sum())
         }.sortedByDescending { it.sec },
-        (gym.map { it.startedAt.toLocalDate() } + runs.map { it.startedAt.toLocalDate() }).toSet(),
+        dayMix(bouts.filter { it.day.inWeek(monday) }),
         lifts,
         mean(monday), mean(prevMonday),
     )
