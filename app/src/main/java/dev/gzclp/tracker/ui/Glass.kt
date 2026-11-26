@@ -94,7 +94,7 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 
 /**
  * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: its patch of wallpaper and the backdrop over it,
- * blurred and tinted with [Palette.chrome], its rim bending the content just past it ([RimBend]), lit by a sheen and a rim.
+ * blurred and frosted with [Palette.chrome], lit by a sheen and a rim. Only a held thumb refracts ([glassLens]): a pane at rest is frosted.
  * Where no backdrop is recorded it is solid, so text never sits on sharp content.
  */
 @Composable
@@ -102,7 +102,6 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modi
     val p = LocalPalette.current
     val window = LocalWindowInfo.current.containerSize
     val blur = rememberGraphicsLayer()
-    val bend = rememberRimBend()
     var at by remember { mutableStateOf(Offset.Zero) }
     return onGloballyPositioned { at = it.positionInRoot() }.clip(shape).drawWithContent {
         if (b != null) {
@@ -120,7 +119,6 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modi
             }
             drawLayer(blur)
             drawRect(p.chrome)
-            if (bend != null) with(bend) { draw(b, at, shape) }
         } else drawRect(p.chrome.copy(alpha = 1f))
         drawContent()
     }.then(if (shape == RectangleShape) Modifier else Modifier.glassEdge(shape))
@@ -163,16 +161,17 @@ fun Modifier.glassEdge(shape: Shape) = drawWithCache {
 /** The strongest the sheen gets, at the top edge; PaletteContrastTest holds text on controls to 4.5:1 under it. */
 const val SHEEN = 0.10f
 
-fun DrawScope.glassSheen(o: Outline) =
-    drawOutline(o, Brush.verticalGradient(0f to Color.White.copy(alpha = SHEEN), 0.5f to Color.Transparent, startY = o.bounds.top, endY = o.bounds.bottom))
+fun DrawScope.glassSheen(o: Outline, alpha: Float = 1f) =
+    drawOutline(o, Brush.verticalGradient(0f to Color.White.copy(alpha = SHEEN), 0.5f to Color.Transparent, startY = o.bounds.top, endY = o.bounds.bottom), alpha = alpha)
 
 /** The specular rim: brightest along the top, where light falls, dim down the sides, a little back up along the bottom. Half its stroke falls outside the clip. */
-fun DrawScope.glassRim(o: Outline) = drawOutline(
+fun DrawScope.glassRim(o: Outline, alpha: Float = 1f) = drawOutline(
     o,
     Brush.verticalGradient(
         0f to Color.White.copy(alpha = 0.42f), 0.45f to Color.White.copy(alpha = 0.06f), 1f to Color.White.copy(alpha = 0.16f),
         startY = o.bounds.top, endY = o.bounds.bottom,
     ),
+    alpha = alpha,
     style = Stroke(2.dp.toPx()),
 )
 

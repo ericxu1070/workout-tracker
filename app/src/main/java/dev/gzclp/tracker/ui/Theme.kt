@@ -29,7 +29,7 @@ data class Palette(
     val accent: Color,
     val onAccent: Color,
     val red: Color,
-    /** The segmented control's selection thumb, which [onThumb] labels sit on; in Liquid Glass, the clear glass every neutral control is made of. */
+    /** A selected chip's fill, which [onThumb] labels sit on: the accent; in Liquid Glass, the clear glass every neutral control is made of. */
     val thumb: Color = accent,
     /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
     val glows: List<Color> = emptyList(),
@@ -99,7 +99,7 @@ data class Palette(
     }
     /**
      * Labels on [thumb]: [onAccent] on a flat theme's accent pill; [fg] on Liquid Glass's clear one, which no colored label clears
-     * 4.5:1 on over bright content, so glass selections and tabs go monochrome, as Apple has tab bars do over colorful content.
+     * 4.5:1 on over bright content, so glass chips go monochrome.
      */
     val onThumb: Color get() = if (glass) fg else onAccent
     /** A primary button's fill: the accent, or in Liquid Glass the accent stained into the glass ([stained]). */

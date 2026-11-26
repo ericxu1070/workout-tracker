@@ -91,6 +91,9 @@ class PaletteContrastTest {
             p.check("onAccent on stained glass over surface $i", p.onAccent, sheen.compositeOver(p.stain.compositeOver(s)), 4.5f)
             p.check("onRed on red stained glass over surface $i", p.onRed, sheen.compositeOver(p.redStain.compositeOver(s)), 4.5f)
         }
+        // The switch's and tab bar's resting pill: a solid accent, its label in onAccent.
+        assertEquals(1f, p.accent.alpha)
+        p.check("onAccent on the resting pill", p.onAccent, p.accent, 4.5f)
     }
 
     @Test fun flatControlsKeepTheirSolidFills() = flat.forEach { p ->

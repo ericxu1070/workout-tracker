@@ -15,18 +15,6 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.annotation.RequiresApi
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.unit.IntSize
-import kotlin.math.ceil
 
 /**
  * A Liquid Glass lens over this content: inside [pill] (in this content's coordinates) the content magnifies a little and bends
@@ -101,59 +89,3 @@ half4 main(float2 p) {
     return content.eval(s);
 }
 """
-
-/** How much of the bent content shows at the very rim, over the pane's tint; it fades to none [LensRim] in. */
-private const val RIM_SHOW = 0.85f
-
-/**
- * Within [rim] of the edge, the content [rim] past it to [rim] in, squeezed into the band and fading in toward the edge;
- * nothing elsewhere. Drawn over a glass pane's tint, its rim bends what scrolls past it while the middle, where text sits, stays as it was.
- */
-private const val RIM = """
-uniform shader content;
-uniform float4 box;
-uniform float radius;
-uniform float rim;
-$EDGE
-half4 main(float2 p) {
-    float d = edge(p);
-    if (d >= 0.0 || d <= -rim) return half4(0.0);
-    float t = 1.0 + d / rim;
-    return content.eval(p + normal(p) * t * t * rim) * (t * $RIM_SHOW);
-}
-"""
-
-/** The refracting rim of a glass pane: null below API 33, where the rim stays plain. */
-@Composable
-fun rememberRimBend(): RimBend? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-    val layer = rememberGraphicsLayer()
-    remember(layer) { RimBend(layer) }
-} else null
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-class RimBend(private val layer: GraphicsLayer) {
-    private val shader = RuntimeShader(RIM)
-    private var made: Pair<Size, Float>? = null
-
-    /** Draws [b] bent at the rim of this pane, which sits at [at] in the window and is cut to [shape]. */
-    fun DrawScope.draw(b: Backdrop, at: Offset, shape: Shape) {
-        val radius = when (val o = shape.createOutline(size, layoutDirection, this)) {
-            is Outline.Rectangle -> 0f
-            is Outline.Rounded -> o.roundRect.topLeftCornerRadius.x
-            else -> return
-        }
-        // Recorded with a margin of a rim all round: the rim samples that far past the edge.
-        val m = LensRim.toPx()
-        if (made != size to radius) {
-            shader.setFloatUniform("box", m, m, m + size.width, m + size.height)
-            shader.setFloatUniform("radius", radius)
-            shader.setFloatUniform("rim", m)
-            layer.renderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
-            made = size to radius
-        }
-        layer.record(IntSize(ceil(size.width + 2 * m).toInt(), ceil(size.height + 2 * m).toInt())) {
-            translate(b.origin.x - at.x + m, b.origin.y - at.y + m) { drawLayer(b.layer) }
-        }
-        translate(-m, -m) { drawLayer(layer) }
-    }
-}
