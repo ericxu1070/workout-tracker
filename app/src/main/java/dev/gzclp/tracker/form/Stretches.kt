@@ -450,26 +450,34 @@ private val FLOOR: Map<String, () -> Motion> = mapOf(
     },
     "shoulders_sleeper" to {
         // On the left side, the bottom arm reaches forward along the floor with the elbow bent; the top hand eases its forearm down toward the hips.
-        stretch { d ->
-            pelvis(V(0.0, 0.3, 0.0), roll = 90.0)
-            spine(chest = 6.0, side = -12.0) // the shoulder stands wider than the hip, so the ribs bow up off the floor
-            val q = lerp(10.0, 58.0, d) * DEG
-            val fore = V(-sin(q), cos(q), 0.0)
-            val back = V(cos(q), sin(q), 0.0) // the back of that forearm
-            fun underneath() {
-                val wrist = shoulder(L) + V(0.0, 0.0, Build.UPPER_ARM) + fore * Build.FOREARM
-                palm(L, wrist + fore * 0.075 - back * 0.022, fore, V.FWD, back)
-                leg(L, raise = 50.0, knee = 75.0)
-            }
-            underneath()
-            rest(0.0, Bone.TRUNK + listOf(Bone.ARM_L, Bone.FOREARM_L, Bone.THIGH_L, Bone.SHIN_L, Bone.FOOT_L))
-            underneath()
-            palm(R, this[Bone.FOREARM_L].at(0.0, 0.2, 0.0) + back * 0.025, V.FWD, V(0.0, 1.0, 0.5), back)
-            leg(R, raise = 50.0, plane = 104.0, knee = 75.0)
-            val head = this[Bone.HEAD].at(0.0, 0.05, 0.0)
-            block(head.x, head.z, 0.3, lowest(listOf(Bone.HEAD)), 0.4)
-        }
+        stretch { d -> sleeper(lerp(10.0, 58.0, d), 90.0) }
     },
 )
+
+/**
+ * On the left side with the bottom upper arm [arm] degrees from the body along the floor and the elbow bent, the forearm turned
+ * [turn] degrees down from upright by the top hand pressing it toward the hips.
+ */
+internal fun Poser.sleeper(turn: Double, arm: Double) {
+    pelvis(V(0.0, 0.3, 0.0), roll = 90.0)
+    spine(chest = 6.0, side = -12.0) // the shoulder stands wider than the hip, so the ribs bow up off the floor
+    val a = V(-cos(arm * DEG), 0.0, sin(arm * DEG)) // the upper arm, from straight down the body (0) to straight ahead (90)
+    val w = a cross V.UP // where the forearm turns down to
+    val q = turn * DEG
+    val fore = V.UP * cos(q) + w * sin(q)
+    val back = V.UP * sin(q) - w * cos(q) // the back of that forearm
+    fun underneath() {
+        val wrist = shoulder(L) + a * Build.UPPER_ARM + fore * Build.FOREARM
+        palm(L, wrist + fore * 0.075 - back * 0.022, fore, a, back)
+        leg(L, raise = 50.0, knee = 75.0)
+    }
+    underneath()
+    rest(0.0, Bone.TRUNK + listOf(Bone.ARM_L, Bone.FOREARM_L, Bone.THIGH_L, Bone.SHIN_L, Bone.FOOT_L))
+    underneath()
+    palm(R, this[Bone.FOREARM_L].at(0.0, 0.2, 0.0) + back * 0.025, a, V(0.0, 1.0, 0.5), back)
+    leg(R, raise = 50.0, plane = 104.0, knee = 75.0)
+    val head = this[Bone.HEAD].at(0.0, 0.05, 0.0)
+    block(head.x, head.z, 0.3, lowest(listOf(Bone.HEAD)), 0.4)
+}
 
 internal val STRETCHES: Map<String, () -> Motion> = KNEELING + LUNGES + STANDING + FLOOR + MOBILITY

@@ -3,7 +3,9 @@ package dev.gzclp.tracker.form
 import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /** The moves the famous routines need: Limber 11, Simple 6, Starting to Stretch, Sun salutation A, and legs up the wall. */
 internal val MOBILITY: Map<String, () -> Motion> = mapOf(
@@ -131,7 +133,119 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
         }
     },
     "spine_sun_salutation_a" to { sunSalutationA() },
+    "upper_back_foam_roll" to {
+        // On the back over a roller across the shoulder blades, hands behind the head and hips up: the legs roll the upper back over it.
+        Motion(ROLLING) { d ->
+            val len = trunkLength(chest = -6.0)
+            val sh = V(0.0, 0.25, lerp(-0.24, -0.05, d))
+            trunk(sh + V(0.0, 0.07, sqrt(len * len - 0.0049)), sh, chest = -6.0)
+            rest(2 * ROLLER, listOf(Bone.CHEST, Bone.WAIST))
+            head(nod = 22.0)
+            val h = this[Bone.HEAD]
+            for (s in SIDES) palm(s, h.at(s * 0.05, 0.1, -0.1), h.x * -s.toDouble() + h.y * 0.4, h.x * s.toDouble() + h.z * 0.6, -h.z)
+            for (s in SIDES) plant(s, V(s * 0.13, 0.0, 0.78), 6.0)
+            roller(V(0.0, ROLLER, 0.0), V.LEFT)
+        }
+    },
+    "shoulders_foam_roll_rear" to {
+        // On the left side with the roller in the armpit and the body turned back a little, the bottom arm long overhead:
+        // the chest rocks back and forth so the roller works across the back of the shoulder.
+        Motion(ROLLING, yaw = 20f) { d ->
+            fun trunk(roll: Double, twist: Double) {
+                pelvis(Frame.WORLD.moved(V(0.0, 0.3, 0.0)).tilt(roll).twist(-20.0))
+                spine(side = -6.0, twist = twist)
+                head(tilt = 20.0)
+            }
+            // The trunk tips up from the floor just enough that the hips stay down while the armpit rides on the roller.
+            var lo = 60.0
+            var hi = 90.0
+            repeat(16) {
+                val roll = (lo + hi) / 2
+                trunk(roll, 0.0)
+                rest(2 * ROLLER, listOf(Bone.CHEST))
+                if (lowest(listOf(Bone.PELVIS, Bone.WAIST)) > 0.005) lo = roll else hi = roll
+            }
+            val roll = (lo + hi) / 2
+            trunk(roll, 0.0)
+            val lift = 2 * ROLLER - lowest(listOf(Bone.CHEST))
+            trunk(roll, lerp(-12.0, 12.0, d))
+            nudge(V(0.0, lift, 0.0))
+            val bottom = shoulder(L)
+            grip(L, bottom + V(sqrt(sq(Build.ARM - 0.01) - sq(bottom.y - 0.05)), 0.05 - bottom.y, 0.0), V.UP, V.FWD)
+            leg(L, raise = 8.0, knee = 8.0)
+            palm(R, V(0.42, 0.0, 0.2), V(1.0, 0.0, 0.3), V(0.3, 1.0, 0.3))
+            plant(R, V(-0.36, 0.0, 0.3), 30.0, knee = V(0.0, 0.6, 1.0))
+            roller(V(0.46, ROLLER, 0.06), V.FWD)
+        }
+    },
+    "shoulders_capsule" to {
+        // On the left side, the bottom upper arm 45 degrees from the body with the elbow bent: the top hand presses its hand toward the floor.
+        stretch { d -> sleeper(lerp(10.0, 62.0, d), 45.0) }
+    },
+    "chest_band_pec" to {
+        // A band hung from the top of a rack, held in the left hand with the arm 45 degrees above level: the chest leans forward through it.
+        stretch(yaw = 60f) { d ->
+            pelvis(V(0.0, STAND - 0.02 - 0.02 * d, 0.14 * d), pitch = 14 * d)
+            spine(waist = -2 * d, chest = -8 * d, twist = -16 * d)
+            head(turn = -10 * d)
+            plant(L, V(0.1, 0.0, -0.02), 8.0, rise = 12 * d)
+            plant(R, V(-0.12, 0.0, 0.34), 6.0)
+            arm(R, raise = 8.0, elbow = 12.0)
+            // The band pulls the straight arm back toward where it is tied, behind and above.
+            val top = V(0.45, 2.1, -0.75)
+            val sh = shoulder(L)
+            val hand = sh + (top - sh).unit() * (Build.ARM - 0.004)
+            grip(L, hand, V.DOWN, V.FWD)
+            rod(top, hand, 0.009, Tone.RUBBER)
+            rod(V(top.x, 0.0, top.z), V(top.x, 2.3, top.z), 0.035)
+        }
+    },
+    "lats_rack_lean" to {
+        // The left hand holds a rack upright at chest height, the arm straight: the hips sit back and the trunk leans away and turns down.
+        stretch(yaw = -40f) { d ->
+            val post = V(0.15, 0.0, 0.62)
+            val hand = V(post.x, 1.05 - 0.1 * d, post.z - 0.05)
+            fun pose(z: Double) {
+                pelvis(V(0.0, STAND - 0.12 * d, z), pitch = 40 * d, yaw = -8 * d)
+                spine(waist = 8 * d, chest = 6 * d, side = -18 * d, twist = -14 * d)
+            }
+            // The hips sit back just as far as keeps the arm straight on the upright.
+            pose(0.0)
+            val sh = shoulder(L)
+            val across = sq(sh.x - hand.x) + sq(sh.y - hand.y)
+            pose(hand.z - sqrt(sq(Build.ARM - 0.004) - across) - sh.z)
+            head(nod = 12 * d, turn = -10 * d)
+            feet(width = 0.3)
+            grip(L, hand, V(1.0, -0.4, -0.3), V.LEFT)
+            arm(R, raise = 20.0 + 25 * d, elbow = 30.0)
+            rod(post, post + V.UP * 2.3, 0.035)
+        }
+    },
+    "shoulders_band_dislocates" to {
+        // A band held wide in both hands, the arms straight: it travels from the front of the hips up overhead and down behind the back.
+        Motion(Tempo(1.6, 0.3, 1.6, 0.5), balance = true) { d ->
+            pelvis(V(0.0, STAND, 0.0))
+            spine(chest = -4 * phase(d, 0.3, 0.7))
+            head()
+            feet()
+            val q = lerp(25.0, 320.0, d) * DEG
+            val r = sqrt(sq(Build.ARM - 0.004) - sq(0.62 - Build.SHOULDER))
+            val mid = shoulders()
+            val hands = SIDES.map { s -> mid + V(s * 0.62, -r * cos(q), r * sin(q)) }
+            for ((s, h) in SIDES.zip(hands)) grip(s, h, V(s * 1.0, -0.5, -sin(q) * 0.5), V(0.0, cos(q), -sin(q)) * -1.0)
+            rod(hands[0], hands[1], 0.009, Tone.RUBBER)
+        }
+    },
 )
+
+/** A foam roller's radius. */
+private const val ROLLER = 0.075
+
+/** Slow, even passes back and forth over a roller or ball. */
+private val ROLLING = Tempo(1.8, 0.2, 1.8, 0.2)
+
+/** A foam roller lying on the floor centred on [c], its length along [axis]. */
+private fun Poser.roller(c: V, axis: V) = rod(c - axis * 0.3, c + axis * 0.3, ROLLER, Tone.PAD)
 
 /**
  * One position of a flow: the hips and the trunk's pitch and bend, the head, the balls of the feet [lift] up at [ball] with the
@@ -181,7 +295,7 @@ private fun sunSalutationA(): Motion {
         val ank = ankle(V(0.0, 0.0, fz), 75.0)
         val len = 0.855 + length(0.0, 0.0)
         val y = 0.22
-        val sh = V(0.0, y, ank.z + kotlin.math.sqrt(len * len - (y - ank.y) * (y - ank.y)))
+        val sh = V(0.0, y, ank.z + sqrt(len * len - (y - ank.y) * (y - ank.y)))
         val hip = reach(ank, sh, 0.855, len - 0.855, V.UP)
         Key(hip, pitch(hip, sh, 0.0, 0.0), 0.0, 0.0, -10.0, fz, 75.0, null, hop = 0.1)
     }

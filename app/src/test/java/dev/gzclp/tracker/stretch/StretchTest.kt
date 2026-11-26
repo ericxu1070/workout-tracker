@@ -202,7 +202,7 @@ class StretchTest {
     @Test
     fun everyRoutineIsListedOnceByName() {
         val names = StretchRoutines.all().map { it.name }
-        assertEquals(22, names.size)
+        assertEquals(23, names.size)
         assertEquals(names.size, names.toSet().size)
         // The default routine resolves to a listed one on every day of the Flexibility rotation.
         val d0 = LocalDate.of(2026, 11, 24)
@@ -337,6 +337,7 @@ class StretchTest {
             "shoulders_cross_body", "shoulders_overhead_triceps", "shoulders_sleeper", "lats_childs_pose", "lats_side_bend",
             "spine_supine_twist", "spine_seated_twist",
             "shoulders_rear_hand_clasp", "shoulders_wall_wrist_biceps", "hamstrings_one_leg_pike", "hips_kneeling_lunge",
+            "shoulders_foam_roll_rear", "shoulders_capsule", "chest_band_pec", "lats_rack_lean",
         )
         assertEquals(oneSided, StretchMoves.ALL.filter { it.isUnilateral }.map { it.id }.toSet())
     }

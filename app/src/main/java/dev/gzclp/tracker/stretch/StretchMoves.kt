@@ -360,6 +360,65 @@ object StretchMoves {
         focus = Focus(0.4, Spot(Bone.CHEST, V(0.0, 0.1, -0.1))),
     )
 
+    // Simple 6 (Joe DeFranco).
+    val FOAM_ROLL_UPPER_BACK = StretchMove(
+        id = "upper_back_foam_roll",
+        name = "Foam roll upper back",
+        targetArea = BodyArea.UPPER_BACK,
+        holdSec = 45,
+        cue = "Hands behind your head, hips up: roll from mid-back to the top of the shoulder blades.",
+        focus = Focus(0.3, Spot(Bone.CHEST, V(0.0, 0.12, -0.1))),
+    )
+
+    val FOAM_ROLL_REAR_SHOULDER = StretchMove(
+        id = "shoulders_foam_roll_rear",
+        name = "Foam roll rear shoulder",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 30,
+        cue = "Roller in your armpit, turned back a little: short passes along the back of the shoulder.",
+        focus = Focus(0.26, Spot(Bone.ARM_L, V(0.0, 0.05, -0.04))),
+        isUnilateral = true,
+    )
+
+    val SHOULDER_CAPSULE = StretchMove(
+        id = "shoulders_capsule",
+        name = "Shoulder capsule stretch",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 40,
+        cue = "On your side, bottom arm 45° from your body: press that hand toward the floor.",
+        focus = Focus(0.26, Spot(Bone.ARM_L, V(0.0, 0.04, -0.04))),
+        isUnilateral = true,
+    )
+
+    val BAND_PEC = StretchMove(
+        id = "chest_band_pec",
+        name = "Band pec stretch",
+        targetArea = BodyArea.CHEST,
+        holdSec = 40,
+        cue = "Band from the top of the rack, arm 45° up behind you: lean your chest forward.",
+        focus = Focus(0.3, Spot(Bone.CHEST, V(0.1, 0.18, 0.1))),
+        isUnilateral = true,
+    )
+
+    val RACK_LAT = StretchMove(
+        id = "lats_rack_lean",
+        name = "Rack lat stretch",
+        targetArea = BodyArea.LATS,
+        holdSec = 40,
+        cue = "Hold the rack with a straight arm: sit your hips back and lean away, turning side to side.",
+        focus = Focus(0.32, Spot(Bone.CHEST, V(0.11, 0.08, -0.05))),
+        isUnilateral = true,
+    )
+
+    val BAND_DISLOCATES = StretchMove(
+        id = "shoulders_band_dislocates",
+        name = "Band dislocations",
+        targetArea = BodyArea.SHOULDERS,
+        holdSec = 30,
+        cue = "Hands wide on a band, arms straight: take it up overhead and down behind you, then back.",
+        focus = Focus.both(0.26, Spot(Bone.ARM_L, V(0.0, 0.05, 0.0))),
+    )
+
     /** Every move, by body area within the first 26 and the ones the famous routines added after them. */
     val ALL: List<StretchMove> = listOf(
         PIGEON_POSE, BUTTERFLY_STRETCH, LIZARD_LUNGE,
@@ -375,6 +434,7 @@ object StretchMoves {
         LEGS_UP_THE_WALL,
         SHOULDER_BACKBEND, STANDING_BACKBEND, REAR_HAND_CLASP, WRIST_BICEPS, ONE_LEG_PIKE, KNEELING_LUNGE, PANCAKE,
         SUN_SALUTATION_A,
+        FOAM_ROLL_UPPER_BACK, FOAM_ROLL_REAR_SHOULDER, SHOULDER_CAPSULE, BAND_PEC, RACK_LAT, BAND_DISLOCATES,
     )
 
     fun of(id: String): StretchMove? = ALL.firstOrNull { it.id == id }

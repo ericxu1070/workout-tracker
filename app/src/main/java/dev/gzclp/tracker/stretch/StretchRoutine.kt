@@ -340,6 +340,15 @@ object StretchRoutines {
                 "Warm the whole body and tie each movement to a breath.", "To open a yoga practice, or as a 5-minute morning warm-up.",
                 move(StretchMoves.SUN_SALUTATION_A, 300),
             ),
+            // Joe DeFranco's Simple 6: roll 10 passes a spot, hold 30–45 s a side, two sets of 8–10 dislocations.
+            preset(
+                "simple-6", "Simple 6", "Joe DeFranco's upper-body warm-up: two foam-roll drills, then four shoulder stretches.",
+                "Free up the upper back and shoulders before pressing or pulling.",
+                "Before an upper-body day, about 8 minutes; a foam roller, a band and a rack.",
+                move(StretchMoves.FOAM_ROLL_UPPER_BACK, 60, dynamic = true), move(StretchMoves.FOAM_ROLL_REAR_SHOULDER, 60, dynamic = true),
+                move(StretchMoves.SHOULDER_CAPSULE, 60), move(StretchMoves.BAND_PEC, 60), move(StretchMoves.RACK_LAT, 60),
+                move(StretchMoves.BAND_DISLOCATES, 80, dynamic = true),
+            ),
             preset(
                 "low-back-relief", "Low back relief", "Cat, child's pose, a knees-to-side twist and cobra.",
                 "Ease a stiff low back with gentle bending, turning and arching.", "Back feels tight after sitting or lifting. Stop if pain runs down a leg.",
