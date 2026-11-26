@@ -92,6 +92,11 @@ import dev.gzclp.tracker.ui.RippleField
 import dev.gzclp.tracker.ui.effectsFor
 import dev.gzclp.tracker.ui.ripples
 import dev.gzclp.tracker.ui.watchTaps
+import dev.gzclp.tracker.ui.PaletteWipe
+import dev.gzclp.tracker.ui.LoadedEffects
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
 import dev.gzclp.tracker.ui.touchdown
 import dev.gzclp.tracker.ui.LocalPalette
 import dev.gzclp.tracker.ui.backdropSource
@@ -397,7 +402,15 @@ private fun App(model: AppModel) {
     LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
     motion.ripples?.let { RippleClock(it) }
-    Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples)) {
+    // Above [motion], which a change of mode replaces, so a wipe started in one mode finishes in the other.
+    val wipe = remember { PaletteWipe() }
+    val scope = rememberCoroutineScope()
+    val latestMotion by rememberUpdatedState(motion)
+    fun wiped(on: Boolean, change: () -> Unit) {
+        val window = (context as? android.app.Activity)?.window ?: return change()
+        scope.launch { wipe.run(window, motion.tap, on, { latestMotion.ripples }, change) }
+    }
+    Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples).then(with(wipe) { Modifier.wipe(LocalPalette.current.fg) })) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
         BackStack(
@@ -419,10 +432,10 @@ private fun App(model: AppModel) {
                 )
                 shown == Route.Settings || shown == Route.SettingsPage -> SettingsScreen(
                     started = state.started, programId = state.programId, increments = state.increments,
-                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, loaded = model.loaded, onLoaded = model::chooseLoaded,
+                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, loaded = model.loaded, onLoaded = { on -> if (on != model.loaded) wiped(model.animatorsOn && Effect.PaletteWipe in LoadedEffects) { model.chooseLoaded(on) } },
                     sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                     weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
-                    onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = model::chooseTheme, onRest = model::setRest,
+                    onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = { id -> if (id != model.theme) wiped(Effect.PaletteWipe in motion) { model.chooseTheme(id) } }, onRest = model::setRest,
                     onProgram = { id -> model.dispatch { Commands.chooseProgram(it, id) } },
                     onIncrements = { inc -> model.dispatch { Commands.setIncrements(it, inc) } },
                     onDays = { if (state.program.custom) push(Route.Split, state.programId) else route = Route.Days }, onChooseFolder = { folderPicker.launch(null) },
