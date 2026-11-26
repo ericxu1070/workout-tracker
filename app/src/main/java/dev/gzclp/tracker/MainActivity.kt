@@ -452,7 +452,7 @@ private fun App(model: AppModel) {
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
                     stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
                     onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
-                    sound = model.stretchSound, haptics = model.stretchHaptics,
+                    sound = model.stretchSound, haptics = model.stretchHaptics, onLeave = { logged -> model.dispatch { listOf(logged) } },
                 )
                 shown == Route.StretchRoutine && routine != null -> StretchRoutineScreen(
                     routine, onBack = { route = null }, onStart = { playerFromPage = true; push(Route.Stretch, routine.key) },

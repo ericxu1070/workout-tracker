@@ -308,6 +308,7 @@ fun StretchRoutineScreen(
 /**
  * Fullscreen guided stretch player with Canvas stick figure animation,
  * hold countdown timer, next-move preview, controls, and completion logging.
+ * Leaving mid-routine, by the back button, Back or a swipe, hands [onLeave] the moves already held, if any.
  */
 @Composable
 fun GuidedStretchPlayerScreen(
@@ -316,11 +317,21 @@ fun GuidedStretchPlayerScreen(
     onFinish: (StretchLogged) -> Unit,
     sound: Boolean = false,
     haptics: Boolean = true,
+    onLeave: (StretchLogged) -> Unit = {},
 ) {
     val p = LocalPalette.current
     val player = remember(routine) { StretchPlayerState(routine) }
     val isPaused = player.isPaused
     val context = LocalContext.current
+    val leave by androidx.compose.runtime.rememberUpdatedState(onLeave)
+    // A finished routine logs through Log routine instead; a rotation rebuilds the screen rather than leaving it.
+    DisposableEffect(player) {
+        onDispose {
+            if (!player.isFinished && (context as? android.app.Activity)?.isChangingConfigurations != true) {
+                player.createLoggedEvent().takeIf { it.moves.isNotEmpty() }?.let(leave)
+            }
+        }
+    }
     val coach = remember(sound, haptics) { StretchCoach(context, sound, haptics) }
     DisposableEffect(coach) { onDispose { coach.close() } }
     // The clock runs on frames, which stop when the screen sleeps: a phone on the mat stays awake while the player is open.
