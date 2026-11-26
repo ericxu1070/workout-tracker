@@ -74,7 +74,9 @@ class AppModel private constructor(private val context: Context) {
     /** Null until a laptop theme file has been read once. */
     var laptop by mutableStateOf(prefs.laptopTheme?.let(LaptopTheme::parse))
         private set
-    fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop)
+    var glass by mutableStateOf(prefs.glass)
+        private set
+    fun palette(systemDark: Boolean): Palette = Palettes.resolve(theme, systemDark, laptop).withGlass(glass)
     var restTargets by mutableStateOf(prefs.restTargets())
         private set
     var plates by mutableStateOf(prefs.plates)
@@ -226,6 +228,11 @@ class AppModel private constructor(private val context: Context) {
     fun chooseTheme(id: String) {
         prefs.theme = id
         theme = id
+    }
+
+    fun chooseGlass(on: Boolean) {
+        prefs.glass = on
+        glass = on
     }
 
     fun setRest(tier: Tier, sec: Int) {

@@ -15,7 +15,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -56,6 +58,15 @@ val LocalBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 /** Space at the bottom of a page that floating glass covers; a page's scroller pads its end by it so its last row clears the glass. */
 val LocalBottomInset = staticCompositionLocalOf { 0.dp }
 
+/** Space at the top of a page that a floating header covers; a page's scroller pads its start by it. */
+val LocalTopInset = staticCompositionLocalOf { 0.dp }
+
+/** True inside a glass sheet: its controls drop their own glass, since glass never sits on glass. */
+val LocalOnGlass = staticCompositionLocalOf { false }
+
+/** How far a [scrollEdge] fades: about a switch's height. */
+val ScrollEdgeFade = 36.dp
+
 /** A backdrop to record content into, in Liquid Glass only. */
 @Composable
 fun rememberBackdrop(): Backdrop? {
@@ -83,7 +94,8 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 
 /**
  * A Liquid Glass pane for a bar, sheet or floating pill, clipped to [shape]: its patch of wallpaper and the backdrop over it,
- * blurred and tinted with [Palette.chrome], lit by a sheen and a rim. Where no backdrop is recorded it is solid, so text never sits on sharp content.
+ * blurred and frosted with [Palette.chrome], lit by a sheen and a rim. Only a held thumb refracts ([glassLens]): a pane at rest is frosted.
+ * Where no backdrop is recorded it is solid, so text never sits on sharp content.
  */
 @Composable
 fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modifier {
@@ -112,6 +124,30 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current): Modi
     }.then(if (shape == RectangleShape) Modifier else Modifier.glassEdge(shape))
 }
 
+/**
+ * iOS's scroll edge behind chrome floating over a page, in place of a hairline: the page's wallpaper, solid but for [fade] along its
+ * bottom edge (its top edge if [up]) where it fades out, so what scrolls under the chrome's text is hidden and slips out of sight softly.
+ */
+@Composable
+fun Modifier.scrollEdge(fade: Dp = ScrollEdgeFade, up: Boolean = false): Modifier {
+    val p = LocalPalette.current
+    val window = LocalWindowInfo.current.containerSize
+    val layer = rememberGraphicsLayer()
+    var at by remember { mutableStateOf(Offset.Zero) }
+    return onGloballyPositioned { at = it.positionInRoot() }.drawBehind {
+        layer.compositingStrategy = CompositingStrategy.Offscreen
+        // Read outside the recording: in it, density loops back to this scope's own.
+        val f = fade.toPx()
+        val mask = if (up) Brush.verticalGradient(listOf(Color.Transparent, Color.Black), 0f, f)
+        else Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - f, size.height)
+        layer.record {
+            wallpaper(p, at, window)
+            drawRect(mask, blendMode = BlendMode.DstIn)
+        }
+        drawLayer(layer)
+    }
+}
+
 /** Liquid Glass's lit edge on a control or pane, inside a clip to [shape]: a sheen down from the top under the content, a rim over it. */
 fun Modifier.glassEdge(shape: Shape) = drawWithCache {
     val outline = shape.createOutline(size, layoutDirection, this)
@@ -125,16 +161,17 @@ fun Modifier.glassEdge(shape: Shape) = drawWithCache {
 /** The strongest the sheen gets, at the top edge; PaletteContrastTest holds text on controls to 4.5:1 under it. */
 const val SHEEN = 0.10f
 
-fun DrawScope.glassSheen(o: Outline) =
-    drawOutline(o, Brush.verticalGradient(0f to Color.White.copy(alpha = SHEEN), 0.5f to Color.Transparent, startY = o.bounds.top, endY = o.bounds.bottom))
+fun DrawScope.glassSheen(o: Outline, alpha: Float = 1f) =
+    drawOutline(o, Brush.verticalGradient(0f to Color.White.copy(alpha = SHEEN), 0.5f to Color.Transparent, startY = o.bounds.top, endY = o.bounds.bottom), alpha = alpha)
 
 /** The specular rim: brightest along the top, where light falls, dim down the sides, a little back up along the bottom. Half its stroke falls outside the clip. */
-fun DrawScope.glassRim(o: Outline) = drawOutline(
+fun DrawScope.glassRim(o: Outline, alpha: Float = 1f) = drawOutline(
     o,
     Brush.verticalGradient(
         0f to Color.White.copy(alpha = 0.42f), 0.45f to Color.White.copy(alpha = 0.06f), 1f to Color.White.copy(alpha = 0.16f),
         startY = o.bounds.top, endY = o.bounds.bottom,
     ),
+    alpha = alpha,
     style = Stroke(2.dp.toPx()),
 )
 

@@ -167,22 +167,24 @@ fun StretchScreen(
                 Box(
                     Modifier
                         .clip(CircleShape)
-                        .background(if (allSelected) p.accent else p.fill)
+                        .background(if (allSelected) p.thumb else p.fill)
+                        .then(if (p.glass) Modifier.glassEdge(CircleShape) else Modifier)
                         .clickable { selectedAreaFilter = null }
                         .padding(horizontal = Space.sm, vertical = 6.dp),
                 ) {
-                    Txt("All", Type.subhead, color = if (allSelected) p.onAccent else p.fg)
+                    Txt("All", Type.subhead, color = if (allSelected) p.onThumb else p.fg)
                 }
                 BodyArea.entries.forEach { area ->
                     val isSelected = selectedAreaFilter == area
                     Box(
                         Modifier
                             .clip(CircleShape)
-                            .background(if (isSelected) p.accent else p.fill)
+                            .background(if (isSelected) p.thumb else p.fill)
+                            .then(if (p.glass) Modifier.glassEdge(CircleShape) else Modifier)
                             .clickable { selectedAreaFilter = if (isSelected) null else area }
                             .padding(horizontal = Space.sm, vertical = 6.dp),
                     ) {
-                        Txt(area.displayName, Type.subhead, color = if (isSelected) p.onAccent else p.fg)
+                        Txt(area.displayName, Type.subhead, color = if (isSelected) p.onThumb else p.fg)
                     }
                 }
             }
@@ -390,7 +392,7 @@ fun GuidedStretchPlayerScreen(
 
                     val pauseLabel = if (isPaused) "Resume" else "Pause"
                     Pressable(
-                        player::togglePause, Modifier.size(56.dp).semantics { contentDescription = pauseLabel }, CircleShape, p.accent,
+                        player::togglePause, Modifier.size(56.dp).semantics { contentDescription = pauseLabel }, CircleShape, p.stain,
                         pressedFill = Color.Black.copy(alpha = 0.14f), label = pauseLabel,
                     ) {
                         Icon(if (isPaused) Icons.play else Icons.pause, p.onAccent, 24.dp)

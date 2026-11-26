@@ -8,22 +8,23 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.scale
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
  * How a theme paints the segmented control's thumb, a pill [lift] of the way (0 to 1) from resting in the bar to held up
- * under the finger. A theme can show a material only while lifted; at rest every theme draws the plain pill it always had.
+ * under the finger.
  */
 fun interface ThumbPainter {
     fun DrawScope.paint(pill: RoundRect, color: Color, lift: Float)
@@ -33,19 +34,25 @@ fun interface ThumbPainter {
 val SolidThumb = ThumbPainter { pill, color, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
 
 /**
- * Liquid Glass: the solid pill at rest; lifted, it turns to clear glass, catching Liquid Glass's sheen and rim ([glassSheen], [glassRim])
- * in proportion to [lift], as a held iOS 26 thumb does. The labels under it show through, bent by [glassLens].
+ * Liquid Glass: at rest a solid pill of [color]; lifted, it turns to clear glass as a held iOS 26 thumb does, a faint frost lit by
+ * Liquid Glass's sheen and rim ([glassSheen], [glassRim]), the labels under it bent by [glassLens], a glow of [color] around it.
  */
 val GlassThumb = ThumbPainter { pill, color, lift ->
     val outline = Outline.Rounded(pill)
-    drawOutline(outline, lerp(color, GlassFill, lift))
-    if (lift > 0f) drawContext.canvas.run {
-        saveLayer(androidx.compose.ui.geometry.Rect(pill.left, pill.top, pill.right, pill.bottom).inflate(2.dp.toPx()), Paint().apply { alpha = lift })
-        glassSheen(outline)
-        glassRim(outline)
-        restore()
+    if (lift > 0f) {
+        // A circle stretched to the pill's proportions, so the glow hugs it evenly all round.
+        val c = Offset(pill.left + pill.width / 2, pill.top + pill.height / 2)
+        val r = pill.height / 2 * GLOW_REACH
+        scale(pill.width / pill.height, 1f, c) { drawCircle(Brush.radialGradient(listOf(color.copy(alpha = GLOW * lift), Color.Transparent), c, r), r, c) }
     }
+    drawOutline(outline, lerp(color, GlassFill, lift))
+    glassSheen(outline, lift)
+    glassRim(outline, lift)
 }
+
+/** A held glass thumb's glow: [color] at this alpha at its center, fading out to [GLOW_REACH] times its own size. */
+private const val GLOW = 0.35f
+private const val GLOW_REACH = 2f
 
 /** A fully lifted glass thumb: a faint frost, so the labels it bends read through it. */
 private val GlassFill = Color.White.copy(alpha = 0.14f)

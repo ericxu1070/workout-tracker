@@ -21,17 +21,23 @@ import java.io.File
 class StretchPlayerShots {
     @get:Rule val rule = createComposeRule()
 
-    private fun shot(name: String, routine: StretchRoutine, atMs: Long) {
+    private fun shot(name: String, routine: StretchRoutine, atMs: Long, p: Palette = Palettes.jade) {
         val out = System.getProperty("gzclp.shots") ?: return
         rule.mainClock.autoAdvance = false
-        rule.setContent { GzTheme(Palettes.jade) { GuidedStretchPlayerScreen(routine, {}, {}) } }
+        rule.setContent { GzTheme(p) { GuidedStretchPlayerScreen(routine, {}, {}) } }
         rule.mainClock.advanceTimeBy(atMs)
-        rule.onRoot().captureRoboImage(File(out, "jade-$name.png").path)
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-$name.png").path)
     }
 
     @Test fun stillHold() = shot(
         "60-stretch-player-hold", StretchRoutine("t", "Bedtime wind-down", "", "", listOf(StretchMoves.STANDING_FORWARD_FOLD, StretchMoves.PIGEON_POSE)),
         StretchPlayerState.READY_SEC * 1000L + 11_400,
+    )
+
+    /** Liquid Glass's player: the pause button stained glass. */
+    @Test fun stillHoldGlass() = shot(
+        "60-stretch-player-hold", StretchRoutine("t", "Bedtime wind-down", "", "", listOf(StretchMoves.STANDING_FORWARD_FOLD, StretchMoves.PIGEON_POSE)),
+        StretchPlayerState.READY_SEC * 1000L + 11_400, Palettes.glass,
     )
 
     @Test fun dynamicReps() = shot(

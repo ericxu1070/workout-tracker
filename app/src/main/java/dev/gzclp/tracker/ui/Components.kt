@@ -193,8 +193,8 @@ fun Pressable(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(shape)
             .background(if (pressed) pressedFill.compositeOver(fill) else fill, shape)
-            // In Liquid Glass every filled control is a lit pane.
-            .then(if (p.glass && fill.alpha > 0f && shape != RectangleShape) Modifier.glassEdge(shape) else Modifier)
+            // In Liquid Glass every filled control is a lit pane, but on a glass sheet, where it would be glass on glass.
+            .then(if (p.glass && !LocalOnGlass.current && fill.alpha > 0f && shape != RectangleShape) Modifier.glassEdge(shape) else Modifier)
             .then(if (ring != null) Modifier.border(2.dp, ring, shape) else Modifier)
             .alpha(if (enabled) 1f else 0.4f)
             .combinedClickable(
@@ -227,10 +227,13 @@ fun PillButton(
 ) {
     val p = LocalPalette.current
     val primary = primary && enabled // a disabled primary goes neutral so it never reads as live
+    // In Liquid Glass the primary and destructive are stained glass, the rest clear glass; on a glass sheet they are solid, as off glass.
+    val onGlass = LocalOnGlass.current
     val fill = when {
-        destructive -> p.red
-        primary -> p.accent
-        onSurface -> p.fill
+        destructive -> if (onGlass) p.red else p.redStain
+        primary -> if (onGlass) p.accent else p.stain
+        onSurface || onGlass -> p.fill
+        p.glass -> p.thumb
         else -> p.card
     }
     val fg = if (destructive) p.onRed else if (primary) p.onAccent else p.fg
@@ -348,7 +351,14 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Mo
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, pager: PagerState? = null) {
     val p = LocalPalette.current
     // The thumb takes the accent, as a tinted UISegmentedControl does: a neutral pill can't clear 3:1 on the track with fg text on it.
-    ThumbRow(options.size, selected, onSelect, p.thumb, modifier.fillMaxWidth(), pager, Modifier.background(p.fill, CircleShape), Modifier.height(36.dp)) { i, thumb ->
+    // In Liquid Glass it stays a solid accent pill until held ([GlassThumb]); over a backdrop (a header floating over its pages)
+    // the track is a frosted glass pane, so what scrolls under it blurs.
+    val track = when {
+        p.glass && LocalBackdrop.current != null -> Modifier.glassPane(CircleShape).background(p.fill)
+        p.glass -> Modifier.background(p.fill, CircleShape).glassEdge(CircleShape)
+        else -> Modifier.background(p.fill, CircleShape)
+    }
+    ThumbRow(options.size, selected, onSelect, p.accent, modifier.fillMaxWidth(), pager, track, Modifier.height(36.dp)) { i, thumb ->
         if (thumb) Txt(options[i], Type.subhead.copy(fontWeight = Type.headline.fontWeight), color = p.onAccent, maxLines = 1)
         else Txt(options[i], Type.subhead, color = p.fg, maxLines = 1)
     }
@@ -596,14 +606,16 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
                     )
                     .clickable(remember { MutableInteractionSource() }, null) {},
             ) {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .imePadding()
-                        .padding(Space.xl),
-                    verticalArrangement = Arrangement.spacedBy(Space.lg),
-                    content = content,
-                )
+                androidx.compose.runtime.CompositionLocalProvider(LocalOnGlass provides p.glass) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .imePadding()
+                            .padding(Space.xl),
+                        verticalArrangement = Arrangement.spacedBy(Space.lg),
+                        content = content,
+                    )
+                }
                 Box(Modifier.align(Alignment.TopCenter).padding(top = Space.sm).size(36.dp, 5.dp).clip(CircleShape).background(p.fg3))
             }
         }
@@ -638,12 +650,13 @@ fun BoxScope.UndoBar(text: String?, onUndo: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** Two equal pills on a hairline, pinned to the bottom of a screen; in Liquid Glass the screen's frame draws the glass under them. */
+/** Two equal pills on a hairline, pinned to the bottom of a screen; in Liquid Glass the screen's frame draws a scroll edge under them instead. */
 @Composable
 fun BottomBar(content: @Composable RowScope.() -> Unit) {
     val p = LocalPalette.current
     Column(Modifier.fillMaxWidth().then(if (p.glass) Modifier else Modifier.background(p.bg))) {
-        Hairline()
+        // In Liquid Glass the frame's scroll edge stands in for the hairline.
+        if (!p.glass) Hairline()
         Row(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.exclude(WindowInsets.ime)).padding(Space.lg),
             horizontalArrangement = Arrangement.spacedBy(Space.md), content = content,
@@ -666,16 +679,16 @@ private fun Tab.icon(): ImageVector = when (this) {
 
 /**
  * The app's bottom tab bar: five destinations on a [ThumbRow], the current one on a raised pill in the accent; tap a tab, or drag the pill
- * along the bar and let go over one. In Liquid Glass it floats as a capsule, and the held pill turns to glass.
+ * along the bar and let go over one. In Liquid Glass it floats as a frosted capsule on a solid accent pill, and the held pill turns to clear glass.
  */
 @Composable
 fun TabBar(selected: Tab, modifier: Modifier = Modifier, onSelect: (Tab) -> Unit) {
     val p = LocalPalette.current
     val bar: @Composable (Modifier, Modifier) -> Unit = { m, frame ->
-        // In Liquid Glass the pill is a faint pane, as the tab was before; one label weight keeps the bar's label hidden under the pill's.
-        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.fill else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
+        // In Liquid Glass the pill is the accent, as the header's switch is, until held; one label weight keeps the bar's label hidden under the pill's.
+        ThumbRow(Tab.entries.size, selected.ordinal, { onSelect(Tab.entries[it]) }, if (p.glass) p.accent else p.elevated, m, frame = frame, cell = Modifier.fillMaxHeight()) { i, thumb ->
             val t = Tab.entries[i]
-            val c = if (thumb) p.accent else p.fg2
+            val c = if (!thumb) p.fg2 else if (p.glass) p.onAccent else p.accent
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Icon(t.icon(), c, 24.dp)
                 Txt(t.label, TabLabel, color = c, maxLines = 1)

@@ -79,6 +79,8 @@ fun SettingsScreen(
     onShowPlates: (Boolean) -> Unit = {},
     bodyFemale: Boolean = false,
     onBodyFemale: (Boolean) -> Unit = {},
+    glass: Boolean = false,
+    onGlass: (Boolean) -> Unit = {},
     warmups: Boolean = true,
     onWarmups: (Boolean) -> Unit = {},
     cardioGoalMin: Int = 150,
@@ -355,6 +357,8 @@ fun SettingsScreen(
             }
 
             SettingsPage.Appearance -> {
+                Spacer(Modifier.height(Space.xxl))
+                Group { ToggleRow("Liquid Glass", glass, true, onChange = onGlass) }
                 Spacer(Modifier.height(Space.xxl))
                 Group {
                     @Composable

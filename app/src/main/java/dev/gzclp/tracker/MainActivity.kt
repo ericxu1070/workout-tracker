@@ -390,7 +390,7 @@ private fun App(model: AppModel) {
                 )
                 shown == Route.Settings || shown == Route.SettingsPage -> SettingsScreen(
                     started = state.started, programId = state.programId, increments = state.increments,
-                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets,
+                    themeId = model.theme, laptop = model.laptop, restTargets = model.restTargets, glass = model.glass, onGlass = model::chooseGlass,
                     sync = model.sync.copy(notice = model.notice), notificationsAllowed = model.notificationsAllowed,
                     weighInReminder = model.weighInReminder, weighInMinutes = model.weighInMinutes, health = model.health, plates = model.plates,
                     onBack = { route = if (shown == Route.SettingsPage) Route.Settings else null }, onTheme = model::chooseTheme, onRest = model::setRest,

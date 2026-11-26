@@ -6,11 +6,19 @@ import dev.gzclp.tracker.engine.Tier
 
 /** Device-local settings. Program data never lives here; it lives in the log. */
 class Prefs(context: Context) {
-    private val p = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE)
+    private val p = context.getSharedPreferences("gzclp", Context.MODE_PRIVATE).also {
+        // Liquid Glass was a theme before it was a switch: its colors are Midnight now.
+        if (it.getString("theme", null) == "glass") it.edit().putString("theme", "midnight").putBoolean("glass", true).apply()
+    }
 
     var theme: String
         get() = p.getString("theme", "tokyo")!!
         set(v) = p.edit().putString("theme", v).apply()
+
+    /** Liquid Glass over whichever theme is chosen. */
+    var glass: Boolean
+        get() = p.getBoolean("glass", false)
+        set(v) = p.edit().putBoolean("glass", v).apply()
 
     /** The last good laptop theme, in omarchy-theme.toml's format. */
     var laptopTheme: String?

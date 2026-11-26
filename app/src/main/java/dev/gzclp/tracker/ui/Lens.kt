@@ -52,6 +52,20 @@ const val LENS_MAGNIFY = 0.08f
 /** How far in from the rim the bending reaches. */
 private val LensRim = 10.dp
 
+/** The signed distance from p to the edge of the rounded rect [box] with corners of [radius] (negative inside), and its outward normal. */
+private const val EDGE = """
+float edge(float2 p) {
+    float2 c = (box.xy + box.zw) * 0.5;
+    float2 q = abs(p - c) - ((box.zw - box.xy) * 0.5 - radius);
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+}
+
+float2 normal(float2 p) {
+    float2 g = float2(edge(p + float2(0.5, 0.0)) - edge(p - float2(0.5, 0.0)), edge(p + float2(0.0, 0.5)) - edge(p - float2(0.0, 0.5)));
+    return g / max(length(g), 0.0001);
+}
+"""
+
 /**
  * Samples the content nearer the pill's center than each pixel (the magnify), and within [rim] of the edge, the more the nearer it,
  * out past the edge along the rim's normal: so the rim gathers in what lies just outside the pill, squeezed, as a glass edge bends it.
@@ -63,18 +77,13 @@ uniform float radius;
 uniform float amount;
 uniform float rim;
 
-float edge(float2 p) {
-    float2 c = (box.xy + box.zw) * 0.5;
-    float2 q = abs(p - c) - ((box.zw - box.xy) * 0.5 - radius);
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-}
+$EDGE
 
 half4 main(float2 p) {
     float d = edge(p);
     if (d >= 0.0) return content.eval(p);
     float2 c = (box.xy + box.zw) * 0.5;
-    float2 g = float2(edge(p + float2(0.5, 0.0)) - edge(p - float2(0.5, 0.0)), edge(p + float2(0.0, 0.5)) - edge(p - float2(0.0, 0.5)));
-    float2 n = g / max(length(g), 0.0001);
+    float2 n = normal(p);
     float t = clamp(1.0 + d / rim, 0.0, 1.0);
     float2 s = c + (p - c) / (1.0 + $LENS_MAGNIFY * amount) + n * t * t * rim * amount;
     return content.eval(s);

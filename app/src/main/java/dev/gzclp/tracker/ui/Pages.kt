@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -111,18 +113,19 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
         withTimeoutOrNull(400) { snapshotFlow { pager.isScrollInProgress }.first { it } }
         for (n in 1..beyond) withFrameNanos { near = n }
     }
-    // The header takes the status bar inset, so the pages' frames start right under it.
-    Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars)) {
-        // Drawn over the pages, so a lifted thumb can grow past the header's bottom edge.
-        Box(Modifier.zIndex(1f)) {
+    // Drawn over the pages, so a lifted thumb can grow past the header's bottom edge.
+    val head: @Composable (Modifier) -> Unit = { m ->
+        Box(m.fillMaxWidth().zIndex(1f)) {
             Column(Modifier.padding(horizontal = Space.lg), content = header)
             // An overlay held open over a page dims and holds the header too, as it did when the header sat in the page.
             val dim by animateFloatAsState(if (holds.intValue > 0) 1f else 0f, tween(if (holds.intValue > 0) 240 else 160), label = "dim")
             if (dim > 0f) Box(Modifier.matchParentSize().graphicsLayer { alpha = dim }.background(p.scrim).clickable(remember { MutableInteractionSource() }, null) {})
         }
+    }
+    val pages: @Composable (Modifier) -> Unit = { m ->
         CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
             HorizontalPager(
-                pager, Modifier.weight(1f), verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
+                pager, m, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
                 flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
             ) { i ->
                 // Only the page past halfway blurs: the one being left stays sharp until the middle, then the arriving one is.
@@ -131,6 +134,23 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
                     CompositionLocalProvider(LocalPage provides i) { page(i) }
                 }
             }
+        }
+    }
+    // The header takes the status bar inset, so the pages' frames start right under it.
+    val frame = Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars)
+    val b = rememberBackdrop()
+    if (b == null) Column(frame) {
+        head(Modifier)
+        pages(Modifier.weight(1f))
+    } else SubcomposeLayout(frame) { c ->
+        // In Liquid Glass the pages run on up under the header, which floats over them: what scrolls under its switch shows through the
+        // glass, and above that the wallpaper hides it. Measured first, the header's height pads the pages' start from the first frame.
+        val heads = subcompose(0) { CompositionLocalProvider(LocalBackdrop provides b) { head(Modifier.scrollEdge()) } }.map { it.measure(c.copy(minHeight = 0)) }
+        val top = heads.maxOfOrNull { it.height } ?: 0
+        val body = subcompose(1) { CompositionLocalProvider(LocalTopInset provides top.toDp()) { pages(Modifier.fillMaxSize().backdropSource(b)) } }.map { it.measure(c) }
+        layout(c.maxWidth, c.maxHeight) {
+            body.forEach { it.place(0, 0) }
+            heads.forEach { it.place(0, 0) }
         }
     }
 }
