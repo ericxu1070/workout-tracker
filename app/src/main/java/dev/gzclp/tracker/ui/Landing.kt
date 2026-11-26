@@ -5,6 +5,7 @@ import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -82,3 +83,41 @@ fun Modifier.landingRing(l: Landing, color: Color, check: Dp) = drawWithContent 
 private const val SQUASH = 0.14f
 private const val DROPS = 6
 private val LocalReach = 84.dp
+
+/**
+ * Loaded's rest bar: a channel of liquid draining as rest runs down. The set that started the rest sloshes it, its front tilting
+ * back and forth and calming over [SLOSH_NS]; in the last three seconds it trembles. In between it sits still and draws no frames.
+ */
+@androidx.compose.runtime.Composable
+fun LiquidChannel(frac: Float, remainingSec: Long, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    val start = androidx.compose.runtime.remember { System.nanoTime() }
+    val clock = androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    val trembling = remainingSec in 1L..3L
+    androidx.compose.runtime.LaunchedEffect(trembling) {
+        val until = if (trembling) Long.MAX_VALUE else start + SLOSH_NS
+        while (System.nanoTime() < until) androidx.compose.runtime.withFrameNanos { clock.longValue = System.nanoTime() - start }
+    }
+    androidx.compose.foundation.Canvas(modifier.clip(androidx.compose.foundation.shape.CircleShape)) {
+        drawRect(p.fillPressed)
+        val secs = clock.longValue / 1e9f
+        val energy = maxOf(1f - clock.longValue.toFloat() / SLOSH_NS, if (trembling) 0.3f else 0f).coerceIn(0f, 1f)
+        val front = size.width * frac
+        // The front leans as the liquid swings, a little over two swings a second, and wavers along its height.
+        val lean = energy * size.height * 1.6f * sin(secs * 14f)
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, 0f)
+            val steps = 8
+            for (i in 0..steps) {
+                val y = size.height * i / steps
+                val v = (y / size.height - 0.5f) * 2f
+                lineTo((front + lean * v + energy * 1.5f.dp.toPx() * sin(secs * 23f + v * 3f)).coerceIn(0f, size.width), y)
+            }
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(path, p.accent)
+    }
+}
+
+private const val SLOSH_NS = 1_500_000_000L

@@ -393,7 +393,8 @@ fun RestBar(rest: RestUi, onSkip: () -> Unit, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(Space.sm))
             val frac = (rest.remainingSec.toFloat() / rest.totalSec.coerceAtLeast(1)).coerceIn(0f, 1f)
-            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed)) {
+            if (loaded(Effect.RestLiquid)) LiquidChannel(frac, rest.remainingSec, Modifier.fillMaxWidth().height(8.dp))
+            else Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(p.fillPressed)) {
                 Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(p.accent))
             }
         }
