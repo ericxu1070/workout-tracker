@@ -48,7 +48,7 @@ fun spline(d: Double, vararg keys: Double): Double {
 
 /** Every point the camera keeps in view, in world space: the body's skin and the gear it lifts. */
 fun Poser.framed(block: (Double, Double, Double) -> Unit) {
-    skin(Bone.entries, block)
+    skin(Bone.entries, block = block)
     for (g in gear) if (g.held) g.mesh.each(g.frame, g.sx, g.sy, g.sz, block)
 }
 
@@ -70,6 +70,9 @@ private const val STEPS = 16
 class Motion(val tempo: Tempo, val balance: Boolean = false, val ground: Boolean = false, val yaw: Float? = null, private val build: Poser.(Double) -> Unit) {
     private val fixes: Array<V>
 
+    /** Per step, the twist at each of the [Figure]'s twisting joints through the move, unbroken and centred on none (zero for the pieces). */
+    private val twists = Array(STEPS + 1) { DoubleArray(Figure.JOINTS.size) }
+
     /** Where the camera looks and how far out it must sit to see the body and what it lifts in every pose, so the view never bobs. */
     val center = FloatArray(3)
     val radius: Float
@@ -80,6 +83,7 @@ class Motion(val tempo: Tempo, val balance: Boolean = false, val ground: Boolean
         val i = min(x.toInt(), STEPS - 1)
         p.breath = breath
         p.shift = lerp(fixes[i], fixes[i + 1], x - i)
+        for (j in p.twist.indices) p.twist[j] = lerp(twists[i][j], twists[i + 1][j], x - i)
         p.reset()
         p.build(d)
         p.finish()
@@ -96,29 +100,51 @@ class Motion(val tempo: Tempo, val balance: Boolean = false, val ground: Boolean
             at(shift)
         }
         if (ground) shift += V(0.0, -p.lowest(), 0.0)
+        // The moves were set on the pieces, and a mesh is fuller: where its skin dips into the floor, the whole pose rises out
+        // of it, the limbs still reaching for what they hold. Hands and feet are left out, as they are set on the floor, and
+        // so is a pose the limbs hold up, which a rise would leave hanging from them. A grounded move already rests its skin
+        // on the floor, and a dip under a millimetre is not worth solving the pose again.
+        if (Figure.on && !ground) for (k in 0..1) {
+            val near = SETTLES.filter { p.near(it) }
+            if (near.isEmpty()) break
+            val sink = -p.lowest(near)
+            if (sink <= 0.001) break
+            val held = p.strain
+            at(shift + V(0.0, sink, 0.0))
+            if (p.strain > held + 0.001) { at(shift); break }
+            shift += V(0.0, sink, 0.0)
+        }
         return shift
     }
 
     init {
         val p = Poser()
-        fixes = Array(STEPS + 1) { solve(p, it.toDouble() / STEPS) }
-        val lo = DoubleArray(3) { Double.MAX_VALUE }
-        val hi = DoubleArray(3) { -Double.MAX_VALUE }
+        fixes = Array(STEPS + 1) { k ->
+            solve(p, k.toDouble() / STEPS).also { if (Figure.on) for (j in p.twist.indices) twists[k][j] = Figure.twist(p, j)?.twist ?: 0.0 }
+        }
+        for (j in p.twist.indices) {
+            for (k in 1..STEPS) twists[k][j] += 360 * kotlin.math.round((twists[k - 1][j] - twists[k][j]) / 360)
+            val mid = (twists.minOf { it[j] } + twists.maxOf { it[j] }) / 2
+            for (t in twists) t[j] -= 360 * kotlin.math.round(mid / 360)
+        }
+        // Five poses through the move, posed once: their box centres the view, and their point farthest from it sizes it.
+        var pts = DoubleArray(3 shl 14)
+        var n = 0
         for (k in 0..4) {
             pose(p, k / 4.0)
             p.framed { x, y, z ->
-                lo[0] = minOf(lo[0], x); lo[1] = minOf(lo[1], y); lo[2] = minOf(lo[2], z)
-                hi[0] = maxOf(hi[0], x); hi[1] = maxOf(hi[1], y); hi[2] = maxOf(hi[2], z)
+                if (n + 3 > pts.size) pts = pts.copyOf(pts.size * 2)
+                pts[n++] = x; pts[n++] = y; pts[n++] = z
             }
         }
+        val lo = DoubleArray(3) { Double.MAX_VALUE }
+        val hi = DoubleArray(3) { -Double.MAX_VALUE }
+        for (i in 0 until n) { val k = i % 3; lo[k] = minOf(lo[k], pts[i]); hi[k] = maxOf(hi[k], pts[i]) }
         for (k in 0..2) center[k] = ((lo[k] + hi[k]) / 2).toFloat()
         var far = 0.0
-        for (k in 0..4) {
-            pose(p, k / 4.0)
-            p.framed { x, y, z ->
-                val dx = x - center[0]; val dy = y - center[1]; val dz = z - center[2]
-                far = maxOf(far, sqrt(dx * dx + dy * dy + dz * dz))
-            }
+        for (i in 0 until n step 3) {
+            val dx = pts[i] - center[0]; val dy = pts[i + 1] - center[1]; val dz = pts[i + 2] - center[2]
+            far = maxOf(far, sqrt(dx * dx + dy * dy + dz * dz))
         }
         radius = (far + 0.04).toFloat()
     }
@@ -165,7 +191,13 @@ internal fun Poser.trunkLength(waist: Double = 0.0, chest: Double = 0.0): Double
 }
 
 /** Lowers or lifts the trunk so the lowest point of [bones] rests at height [y] (a bench or seat top). */
-internal fun Poser.rest(y: Double, bones: List<Bone> = Bone.TRUNK) = nudge(V(0.0, y - lowest(bones), 0.0))
+internal fun Poser.rest(y: Double, bones: List<Bone> = Bone.TRUNK) = nudge(V(0.0, y + shift.y - lowest(bones), 0.0))
+
+/** The bones whose skin a [Motion] lifts out of the floor: all but the hands and feet, which the moves set on it. */
+private val SETTLES = Bone.entries.filter { b -> SIDES.none { b == Bone.hand(it) || b == Bone.foot(it) || b == Bone.toes(it) } }
+
+/** Whether [b]'s skin might reach the floor: bent flesh strays a little past where it reaches at rest. */
+private fun Poser.near(b: Bone) = has(b) && this[b].let { f -> minOf(f.o.y, f.at(0.0, Figure.length(b), 0.0).y) } < Figure.reach(b) + 0.05
 
 object Motions {
     private val defs: Map<String, () -> Motion> = LIFTS + ACCESSORIES + BODYWEIGHT + STRETCHES
@@ -178,7 +210,7 @@ object Motions {
     }
 
     /** Solved per figure, since the [Figure] mesh rests on the floor and fills the camera's view differently from the pieces. */
-    private val made = HashMap<Pair<String, Boolean>, Motion>()
+    private val made = java.util.concurrent.ConcurrentHashMap<Pair<String, Boolean>, Motion>()
 
     /** True when [id] has its own motion rather than the generic one. */
     fun known(id: String) = id in defs
@@ -191,8 +223,8 @@ object Motions {
     /** The id of [id]'s own motion, or of the known exercise a custom id spells differently (a custom "pull_ups" is "pull_up"); null when there is none. */
     fun resolve(id: String): String? = id.takeIf { it in defs } ?: folded[fold(id)]
 
-    /** The motion for an exercise or stretch id; an unknown id gets a generic arm raise. */
-    fun of(id: String): Motion = made.getOrPut(id to Figure.on) { defs[id]?.invoke() ?: generic() }
+    /** The motion for an exercise or stretch id; an unknown id gets a generic arm raise. Safe off the main thread: two callers may both solve one, and the first kept wins. */
+    fun of(id: String): Motion = (id to Figure.on).let { k -> made[k] ?: (defs[id]?.invoke() ?: generic()).let { made.putIfAbsent(k, it) ?: it } }
 
     /** The motion for a stretch. */
     fun of(move: StretchMove): Motion = of(move.id)

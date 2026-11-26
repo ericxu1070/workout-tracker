@@ -83,7 +83,10 @@ private val KNEELING: Map<String, () -> Motion> = mapOf(
             val n = V.UP.turn(fingers, -180 * d)
             val half = 0.044 * sin(roll)
             val face = lerp(0.022, 0.012, d) * cos(roll)
-            palm(L, lerp(V(0.19, 0.0, 0.575), V(-0.45, 0.0, 0.5), d) + V.UP * (sqrt(half * half + face * face) - n.y * 0.022), fingers, V(0.3, 1.0, -0.5), n)
+            val at = lerp(V(0.19, 0.0, 0.575), V(-0.45, 0.0, 0.5), d) + V.UP * (sqrt(half * half + face * face) - n.y * 0.022)
+            palm(L, at, fingers, V(0.3, 1.0, -0.5), n)
+            // A mesh's hand is fuller than the pieces' it was set for, so on its edge it rises out of the floor.
+            if (Figure.on) lowest(listOf(Bone.HAND_L)).let { if (it < 0) palm(L, at - V.UP * it, fingers, V(0.3, 1.0, -0.5), n) }
             palm(R, V(-0.19, 0.0, 0.575), V.FWD, V(-0.6, 0.6, -0.4))
         }
     },

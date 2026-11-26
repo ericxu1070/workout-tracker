@@ -1,6 +1,8 @@
 package dev.gzclp.tracker
 
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -20,7 +22,12 @@ class FormBench : ComponentActivity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         Figure.on = intent.getBooleanExtra("mesh", false)
+        // First open, split into reading the mesh (none for the pieces) and solving the move: adb logcat -s FormBench
+        val start = SystemClock.elapsedRealtimeNanos()
+        if (Figure.on) Figure.mesh
+        val read = SystemClock.elapsedRealtimeNanos()
         val motion = Motions.of(intent.getStringExtra("id") ?: "squat")
+        Log.i("FormBench", "read ${(read - start) / 1_000_000} ms, solve ${(SystemClock.elapsedRealtimeNanos() - read) / 1_000_000} ms")
         val p = Palettes.jade
         setContent { GzTheme(p) { FormView(motion, Modifier.fillMaxSize().background(p.bg)) } }
     }
