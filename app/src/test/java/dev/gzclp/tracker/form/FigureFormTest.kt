@@ -1,7 +1,9 @@
 package dev.gzclp.tracker.form
 
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.ParameterizedRobolectricTestRunner
 
@@ -18,25 +20,31 @@ class FigureFormTest(private val body: String) : FormTest() {
     override fun sink(id: String) = SINKS[body]?.get(id) ?: super.sink(id)
     override fun clear() = CLEAR[body] ?: super.clear()
 
+    /** Lying or sitting with an arm or leg along the floor, the body rests on it rather than rising off it to lift the limb. */
+    @Test fun theBodyRestsOnTheFloorUnderItsLimbs() {
+        val p = Poser()
+        val bad = mutableListOf<String>()
+        for (id in listOf("hamstrings_legs_up_wall", "spine_seated_twist", "hips_seated_piriformis")) {
+            val m = Motions.of(id)
+            for (k in 0..20) {
+                m.pose(p, k / 20.0)
+                val gap = p.lowest(Bone.TRUNK + listOf(Bone.THIGH_L, Bone.THIGH_R))
+                if (gap > 0.003) bad += "$id d=${k / 20.0}: ${"%.3f".format(gap)} m off the floor"
+            }
+        }
+        assertTrue(bad.joinToString("\n"), bad.isEmpty())
+    }
+
     companion object {
         @JvmStatic @ParameterizedRobolectricTestRunner.Parameters(name = "{0}") fun bodies() = Figure.bodies.map { arrayOf<Any>(it) }
 
         /**
-         * Sitting or lying, the floor lift stops short where rising would leave the legs or arms reaching for the floor they
-         * are set on, so the glutes and thighs, fuller than the pieces' pelvis and legs, stay sunk into it.
+         * Rolling over the toes into upward dog, the arms and legs are straight to the floor, so the floor lift cannot raise the
+         * fuller thighs off it without leaving a hand or foot short.
          */
         val SINKS = mapOf(
-            "male" to mapOf("hamstrings_legs_up_wall" to 0.0075, "hamstrings_seated_single" to 0.0076, "spine_seated_twist" to 0.0168),
-            "female" to mapOf("hamstrings_pancake" to 0.0252),
-            "male-bodybuilder" to mapOf(
-                "hamstrings_legs_up_wall" to 0.0121, "hamstrings_seated_single" to 0.0092, "hips_seated_piriformis" to 0.0107, "spine_seated_twist" to 0.0172,
-            ),
-            "male-normal" to mapOf("hamstrings_legs_up_wall" to 0.0063, "spine_seated_twist" to 0.0171),
-            "female-bodybuilder" to mapOf(
-                "hamstrings_legs_up_wall" to 0.0088, "hamstrings_pancake" to 0.0232, "hamstrings_seated_single" to 0.0067,
-                "hips_seated_piriformis" to 0.0070, "spine_seated_twist" to 0.0069, "spine_sun_salutation_a" to 0.0060,
-            ),
-            "female-normal" to mapOf("hamstrings_pancake" to 0.0255, "spine_sun_salutation_a" to 0.0051),
+            "female-bodybuilder" to mapOf("spine_sun_salutation_a" to 0.0060),
+            "female-normal" to mapOf("spine_sun_salutation_a" to 0.0051),
         )
 
         /** The fuller thighs reach nearer a deadlift's bar than the pieces' legs it was set against. */

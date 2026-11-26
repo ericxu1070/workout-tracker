@@ -119,16 +119,17 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
     "hamstrings_pancake" to {
         // Sitting in a wide straddle with the knees up: the hips fold forward with a flat back as the hands walk out along the floor.
         stretch { d ->
-            val pitch = lerp(24.0, 46.0, d)
+            var pitch = lerp(24.0, 46.0, d)
             sit(pitch, waist = 6 * d, chest = 4 * d)
+            // A mesh's fuller seat lifts the hips off the floor further than the pieces' pelvis, so it folds on until the
+            // shoulders are low enough for straight arms to reach the floor.
+            if (Figure.on) repeat(4) {
+                val over = shoulders().y - 0.022 - (Build.UPPER_ARM + Build.FOREARM - 0.005)
+                if (over > 0) { pitch += over / ((shoulders().z - this[Bone.PELVIS].o.z) * DEG); sit(pitch, waist = 6 * d, chest = 4 * d) }
+            }
             head(nod = lerp(0.0, 12.0, d))
             for (s in SIDES) {
-                var raise = 88.0 + pitch
-                repeat(3) {
-                    leg(s, raise, plane = 42.0, knee = 3.0, twist = 12.0, ankle = 8.0)
-                    raise -= asin((lowest(listOf(Bone.shin(s), Bone.foot(s))) / 0.9).coerceIn(-1.0, 1.0)) / DEG
-                }
-                leg(s, raise, plane = 42.0, knee = 3.0, twist = 12.0, ankle = 8.0)
+                lower(s, 88.0 + pitch, 3) { leg(s, it, plane = 42.0, knee = 3.0, twist = 12.0, ankle = 8.0) }
                 reachFloor(s, V(s * 0.25, 0.0, 1.0), 0.53, V(s * 0.6, 0.3, -1.0))
             }
         }
