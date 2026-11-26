@@ -37,9 +37,11 @@ import dev.gzclp.tracker.log.strengthSuggestion
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** The next workout in full with its likely day, then the ones after it a row each: day, lead lift and weight, likely day. */
 @Composable
 fun UpcomingScreen(
     state: AppState,
@@ -48,35 +50,63 @@ fun UpcomingScreen(
     onUseSuggestion: (Exercise, Int) -> Unit = { _, _ -> },
 ) {
     val p = LocalPalette.current
+    val plates = LocalPlates.current
+    val upcoming = Commands.upcoming(state, 8)
+    val dates = likelyDays(state, today, upcoming.size)
     ScreenFrame {
         Spacer(Modifier.height(52.dp))
         Txt("Upcoming", Type.largeTitle)
-        Commands.upcoming(state, 8).forEachIndexed { n, (day, exercises) ->
-            val tag = when {
-                n > 0 -> ""
-                state.active != null -> " · in progress"
-                else -> " · next"
-            }
-            GroupHeader(day.title + tag)
-            Group {
-                exercises.map(LocalPlates.current::prescribe).forEachIndexed { i, ex ->
-                    val plan = ex.weight
-                    val suggested = if (plan != null) state.strengthSuggestion(ex) else null
-                    GroupRow(first = i == 0) {
-                        Column(Modifier.weight(1f)) {
-                            Txt(ex.name, Type.body, maxLines = 1)
-                            if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
-                                Spacer(Modifier.height(Space.xs))
-                                StrengthSuggestionChip(plan, suggested, { onUseSuggestion(ex, suggested) })
-                            }
+        val (next, exercises) = upcoming.first()
+        Spacer(Modifier.height(Space.xxl))
+        Txt(next.title, Type.title2)
+        Txt(if (state.active != null) "In progress" else Fmt.day(dates.first(), today), Type.subhead, color = p.fg2)
+        Spacer(Modifier.height(Space.md))
+        Group {
+            exercises.map(plates::prescribe).forEachIndexed { i, ex ->
+                val plan = ex.weight
+                val suggested = if (plan != null) state.strengthSuggestion(ex) else null
+                GroupRow(first = i == 0) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Txt(ex.name, Type.body, Modifier.weight(1f), maxLines = 1)
+                            Txt(ex.scheme.display, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                            Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.body.tabular(), Modifier.padding(start = Space.md).widthIn(min = 64.dp), if (ex.weight == null) p.fg2 else p.fg, align = TextAlign.End)
                         }
-                        Txt(ex.scheme.display, Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
-                        Txt(ex.weight?.let(Fmt::lb) ?: "No weight yet", Type.body.tabular(), Modifier.padding(start = Space.md).widthIn(min = 64.dp), if (ex.weight == null) p.fg2 else p.fg, align = TextAlign.End)
+                        if (plan != null && suggested != null && state.shouldSuggest(ex, suggested)) {
+                            Spacer(Modifier.height(Space.xs))
+                            StrengthSuggestion(suggested, { onUseSuggestion(ex, suggested) })
+                        }
                     }
                 }
             }
         }
+        GroupHeader("After that")
+        Group {
+            upcoming.drop(1).forEachIndexed { i, (day, list) ->
+                val lead = list.firstOrNull()?.let(plates::prescribe)
+                GroupRow(first = i == 0) {
+                    Column(Modifier.weight(1f)) {
+                        Txt(day.title, Type.body, maxLines = 1)
+                        lead?.let { Txt(listOfNotNull(it.name, it.weight?.let(Fmt::lb)).joinToString(" "), Type.footnote.tabular(), color = p.fg2, maxLines = 1) }
+                    }
+                    Txt(Fmt.day(dates[i + 1], today), Type.body.tabular(), Modifier.padding(start = Space.sm), maxLines = 1)
+                }
+            }
+        }
     }
+}
+
+/**
+ * The day each of the next [n] workouts likely falls on. The app keeps no schedule, so it is read from the log: the
+ * median gap in days between the last nine lifting days (two days before there are two), counted on from the last
+ * one, and never before today. A workout in progress is today's.
+ */
+internal fun likelyDays(state: AppState, today: LocalDate, n: Int): List<LocalDate> {
+    val days = state.sessions.filter { it.sets.isNotEmpty() }.map { it.startedAt.toLocalDate() }.distinct().sorted()
+    val gaps = days.takeLast(9).zipWithNext { a, b -> ChronoUnit.DAYS.between(a, b) }.sorted()
+    val gap = if (gaps.isEmpty()) 2L else gaps[gaps.size / 2]
+    val first = if (state.active != null || days.isEmpty()) today else maxOf(today, days.last().plusDays(gap))
+    return List(n) { first.plusDays(it * gap) }
 }
 
 private val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)

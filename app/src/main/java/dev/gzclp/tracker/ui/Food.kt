@@ -85,7 +85,12 @@ fun FoodScreen(
     // Only a tapped or edited estimate is logged (confirmed); the classifier's guesses stay in the meal sheet.
     val shown = meals.filter { it.at.toLocalDate() == day }
 
-    ScreenFrame {
+    ScreenFrame(bottom = {
+        BottomBar {
+            PillButton("Take photo", onSnap, Modifier.weight(1f), primary = true, icon = Icons.camera)
+            PillButton("Upload", onUpload, Modifier.weight(1f), icon = Icons.image)
+        }
+    }) {
         Spacer(Modifier.height(52.dp))
         Txt("Food", Type.largeTitle)
         Spacer(Modifier.height(Space.lg))
@@ -93,11 +98,6 @@ fun FoodScreen(
             MiniStep(Icons.chevronLeft, "Day before") { onDay(day.minusDays(1)) }
             Txt(Fmt.day(day, today), Type.headline, Modifier.weight(1f), align = TextAlign.Center)
             MiniStep(Icons.chevronRight, "Day after", enabled = day < today) { onDay(day.plusDays(1)) }
-        }
-        Spacer(Modifier.height(Space.lg))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-            PillButton("Take photo", onSnap, Modifier.weight(1f), primary = true, icon = Icons.camera)
-            PillButton("Upload", onUpload, Modifier.weight(1f), icon = Icons.image)
         }
         if (error != null) GroupFooter(error, color = p.red)
 
