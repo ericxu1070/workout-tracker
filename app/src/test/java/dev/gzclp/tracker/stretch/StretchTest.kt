@@ -26,7 +26,7 @@ class StretchTest {
     fun namesUseSentenceCase() {
         // A capital only opens the name or the part after a colon, as in "Flexibility: Legs & splits"; famous routines keep their published titles.
         val published = setOf("Starting to Stretch", "Sun salutation A")
-        val names = StretchMoves.ALL.map { it.name } + StretchRoutines.all().map { it.name }.filter { it !in published }
+        val names = (StretchMoves.ALL.map { it.name } + StretchRoutines.all().map { it.name }).filter { it !in published }
         names.forEach { n -> n.split(": ").forEach { assertEquals(n, it.take(1) + it.drop(1).lowercase(), it) } }
     }
 
@@ -202,7 +202,7 @@ class StretchTest {
     @Test
     fun everyRoutineIsListedOnceByName() {
         val names = StretchRoutines.all().map { it.name }
-        assertEquals(21, names.size)
+        assertEquals(22, names.size)
         assertEquals(names.size, names.toSet().size)
         // The default routine resolves to a listed one on every day of the Flexibility rotation.
         val d0 = LocalDate.of(2026, 11, 24)

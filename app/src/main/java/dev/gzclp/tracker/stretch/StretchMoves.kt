@@ -351,6 +351,15 @@ object StretchMoves {
         focus = Focus.both(0.34, Spot(Bone.THIGH_L, V(0.0, 0.2, -0.07))),
     )
 
+    val SUN_SALUTATION_A = StretchMove(
+        id = "spine_sun_salutation_a",
+        name = "Sun salutation A",
+        targetArea = BodyArea.SPINE,
+        holdSec = 45,
+        cue = "One breath a move: arms up, fold, look up, jump back, up dog, down dog for five breaths.",
+        focus = Focus(0.4, Spot(Bone.CHEST, V(0.0, 0.1, -0.1))),
+    )
+
     /** Every move, by body area within the first 26 and the ones the famous routines added after them. */
     val ALL: List<StretchMove> = listOf(
         PIGEON_POSE, BUTTERFLY_STRETCH, LIZARD_LUNGE,
@@ -365,6 +374,7 @@ object StretchMoves {
         SUPINE_SPINAL_TWIST, COBRA_POSE, SEATED_SPINAL_TWIST,
         LEGS_UP_THE_WALL,
         SHOULDER_BACKBEND, STANDING_BACKBEND, REAR_HAND_CLASP, WRIST_BICEPS, ONE_LEG_PIKE, KNEELING_LUNGE, PANCAKE,
+        SUN_SALUTATION_A,
     )
 
     fun of(id: String): StretchMove? = ALL.firstOrNull { it.id == id }

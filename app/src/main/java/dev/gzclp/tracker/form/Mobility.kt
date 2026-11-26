@@ -1,7 +1,9 @@
 package dev.gzclp.tracker.form
 
+import kotlin.math.PI
 import kotlin.math.asin
-import kotlin.math.sqrt
+import kotlin.math.atan2
+import kotlin.math.sin
 
 /** The moves the famous routines need: Limber 11, Simple 6, Starting to Stretch, Sun salutation A, and legs up the wall. */
 internal val MOBILITY: Map<String, () -> Motion> = mapOf(
@@ -128,4 +130,119 @@ internal val MOBILITY: Map<String, () -> Motion> = mapOf(
             }
         }
     },
+    "spine_sun_salutation_a" to { sunSalutationA() },
 )
+
+/**
+ * One position of a flow: the hips and the trunk's pitch and bend, the head, the balls of the feet [lift] up at [ball] with the
+ * heels [rise] degrees up (past 180 the foot has rolled over onto its top), and the arms, raised [arms] degrees or with the
+ * palms on the floor; [sec] to reach it, the feet [hop] high on the way.
+ */
+private class Key(
+    val hip: V, val pitch: Double, val waist: Double, val chest: Double, val nod: Double,
+    val ball: Double, val rise: Double, val arms: Double?, val sec: Double = 3.0, val hop: Double = 0.0, val lift: Double = 0.0,
+)
+
+/**
+ * Surya Namaskara A as Ashtanga counts it, one breath a count: Ekam arms up, Dwe fold, Trini look up, Chatvari jump back to
+ * chaturanga, Pancha up dog, Shat down dog for five breaths, Sapta jump forward and look up, Ashtau fold, Nava arms up, then
+ * stand. The loop opens and closes mid down dog, so its still frame is the pose held longest, and plays from standing.
+ */
+private fun sunSalutationA(): Motion {
+    val p = Poser()
+    val hz = 0.15 // the palms' middles, beside the toes
+    val fz = hz - 1.39 // the balls of the feet back in the plank
+    val wrist = V(0.0, 0.022, hz - 0.075)
+    fun length(waist: Double, chest: Double) = p.run { trunkLength(waist, chest) }
+    fun pitch(hip: V, sh: V, waist: Double, chest: Double): Double {
+        p.pelvis(V.ZERO); p.spine(waist, chest)
+        val q = p.shoulders() - p[Bone.PELVIS].o
+        val w = sh - hip
+        return (atan2(w.z, w.y) - atan2(q.z, q.y)) / DEG
+    }
+    // The pitch that sets the shoulders [r] from the wrists, the hips held at [hip]: folding further only brings them closer.
+    fun toFloor(hip: V, waist: Double, chest: Double, r: Double): Double {
+        var lo = 40.0
+        var hi = 175.0
+        repeat(30) {
+            val mid = (lo + hi) / 2
+            p.pelvis(hip, mid); p.spine(waist, chest)
+            if ((p.shoulders() - wrist).len > r) lo = mid else hi = mid
+        }
+        return (lo + hi) / 2
+    }
+    val stand = Key(V(0.0, STAND, -0.1), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    val ekam = Key(stand.hip, -4.0, 0.0, -8.0, -25.0, 0.0, 0.0, 186.0)
+    val foldHip = V(0.0, 0.85, -0.22)
+    val dwe = Key(foldHip, toFloor(foldHip, 20.0, 14.0, 0.44), 20.0, 14.0, 30.0, 0.0, 0.0, null)
+    val liftHip = V(0.0, 0.89, -0.15)
+    val trini = Key(liftHip, toFloor(liftHip, -6.0, -4.0, 0.535), -6.0, -4.0, -28.0, 0.0, 0.0, null)
+    val chatvari = run {
+        val ank = ankle(V(0.0, 0.0, fz), 75.0)
+        val len = 0.855 + length(0.0, 0.0)
+        val y = 0.22
+        val sh = V(0.0, y, ank.z + kotlin.math.sqrt(len * len - (y - ank.y) * (y - ank.y)))
+        val hip = reach(ank, sh, 0.855, len - 0.855, V.UP)
+        Key(hip, pitch(hip, sh, 0.0, 0.0), 0.0, 0.0, -10.0, fz, 75.0, null, hop = 0.1)
+    }
+    // Rolled over the toes, the ball rises so the top of the foot rests on the floor.
+    val top = V(0.0, 0.093, fz + 0.06)
+    val pancha = run {
+        val ank = ankle(top, 180.0)
+        val sh = V(0.0, 0.022 + 0.535, hz - 0.075)
+        val hip = reach(ank, sh, 0.855, length(-28.0, -14.0), V.DOWN)
+        Key(hip, pitch(hip, sh, -28.0, -14.0), -28.0, -14.0, -30.0, top.z, 180.0, null, lift = top.y)
+    }
+    val dog = run {
+        val ank = ankle(V(0.0, 0.0, fz), 25.0)
+        val len = length(0.0, -5.0)
+        val hip = reach(ank, wrist, 0.855, len + 0.545, V.UP)
+        Key(hip, pitch(hip, hip + (wrist - hip).unit() * len, 0.0, -5.0), 0.0, -5.0, 15.0, fz, 25.0, null)
+    }
+    val hold = 15.0
+    val keys = listOf(
+        dog, dog.copy(hold), trini.copy(hop = 0.12), dwe, ekam, stand, ekam, dwe, trini, chatvari, pancha, dog, dog.copy(hold),
+    )
+    val times = keys.drop(1).runningFold(0.0) { t, k -> t + k.sec }
+    val period = times.last()
+    return Motion(Tempo(period, 0.0, 0.0, 0.0, from = times[5] / period), yaw = 70f) { d ->
+        val t = d * period
+        val i = (1 until keys.size).first { times[it] >= t || it == keys.size - 1 }
+        val a = keys[i - 1]
+        val b = keys[i]
+        val u = ((t - times[i - 1]) / (times[i] - times[i - 1])).coerceIn(0.0, 1.0)
+        val e = jerk(u)
+        val hop = b.hop * sin(PI * u)
+        pelvis(lerp(a.hip, b.hip, e) + V(0.0, hop * 0.6, 0.0), lerp(a.pitch, b.pitch, e))
+        spine(lerp(a.waist, b.waist, e), lerp(a.chest, b.chest, e))
+        head(nod = lerp(a.nod, b.nod, e))
+        for (s in SIDES) {
+            val knee = if (a.ball < -0.5 && b.ball < -0.5) V.DOWN else null
+            plant(s, V(s * 0.07, lerp(a.lift, b.lift, e) + hop, lerp(a.ball, b.ball, e)), rise = lerp(a.rise, b.rise, e), knee = knee)
+            val floor = V(s * 0.2, 0.0, hz)
+            val elbow = V(s * 0.3, 0.3, -1.0)
+            val ra = a.arms
+            val rb = b.arms
+            when {
+                ra == null && rb == null -> palm(s, floor, V.FWD, elbow)
+                ra != null && rb != null -> sweep(s, lerp(ra, rb, e))
+                else -> {
+                    // Between the floor and a free arm: the arm swings along the trunk, the palm settling onto the floor near the end.
+                    val f = if (rb == null) e else 1 - e
+                    sweep(s, lerp(ra ?: rb!!, 172.0, f))
+                    val h = this[Bone.hand(s)]
+                    val w = phase(f, 0.5, 1.0)
+                    palm(s, lerp(hand(s), floor, w), lerp(h.y, V.FWD, w), elbow, lerp(-h.z, V.UP, w))
+                }
+            }
+        }
+    }
+}
+
+/** Arms swept out to the sides and up, [raise] degrees, turning so the palms meet overhead. */
+private fun Poser.sweep(s: Int, raise: Double) {
+    val up = phase(raise, 60.0, 180.0)
+    arm(s, raise, plane = lerp(10.0, 6.0, up), twist = 90 * up, elbow = 4.0, pronate = lerp(90.0, 0.0, up))
+}
+
+private fun Key.copy(sec: Double = this.sec, hop: Double = this.hop) = Key(hip, pitch, waist, chest, nod, ball, rise, arms, sec, hop, lift)

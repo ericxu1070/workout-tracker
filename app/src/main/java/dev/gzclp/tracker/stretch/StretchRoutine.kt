@@ -334,6 +334,12 @@ object StretchRoutines {
                 move(StretchMoves.KNEELING_LUNGE, 180), move(StretchMoves.PANCAKE, 90), move(StretchMoves.BUTTERFLY_STRETCH, 90),
                 move(StretchMoves.WALL_CALF_STRETCH, 180),
             ),
+            // Ashtanga's Surya Namaskara A: one loop of the move is one round of about a minute, five breaths in down dog.
+            preset(
+                "sun-salutation-a", "Sun salutation A", "Ashtanga's Surya Namaskara A, five rounds, one breath a count.",
+                "Warm the whole body and tie each movement to a breath.", "To open a yoga practice, or as a 5-minute morning warm-up.",
+                move(StretchMoves.SUN_SALUTATION_A, 300),
+            ),
             preset(
                 "low-back-relief", "Low back relief", "Cat, child's pose, a knees-to-side twist and cobra.",
                 "Ease a stiff low back with gentle bending, turning and arching.", "Back feels tight after sitting or lifting. Stop if pain runs down a leg.",
