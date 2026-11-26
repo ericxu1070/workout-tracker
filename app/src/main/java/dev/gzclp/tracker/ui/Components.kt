@@ -737,8 +737,11 @@ fun TabFrame(tab: Tab, onSelect: (Tab) -> Unit, content: @Composable () -> Unit)
     }
 }
 
-/** Whether the caller's tab is the one showing; always true outside [TabScreens]. Kept tabs stay composed, so a handler only the shown tab should own waits on this. */
-val LocalTabShown = androidx.compose.runtime.compositionLocalOf { true }
+/**
+ * Whether the caller's tab is the one showing; always true outside [TabScreens]. Kept tabs stay composed, so a handler only the shown tab
+ * should own waits on this. A state, not a value: a changed local recomposes everything under it, which a tab switch must not.
+ */
+val LocalTabShown = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.runtime.State<Boolean>> { androidx.compose.runtime.mutableStateOf(true) }
 
 /**
  * Every tab's screen, kept composed as a UITabBarController keeps its tabs: switching to one costs no composition and finds it as it was
@@ -748,6 +751,8 @@ val LocalTabShown = androidx.compose.runtime.compositionLocalOf { true }
 fun TabScreens(tab: Tab, content: @Composable (Tab) -> Unit) {
     val kept = remember { androidx.compose.runtime.mutableStateListOf(tab) }
     if (tab !in kept) kept += tab
+    // Read only where it matters (placing, and each tab's shown state), so a switch recomposes nothing in the screens.
+    val current = androidx.compose.runtime.rememberUpdatedState(tab)
     // 400 ms clears the first screen's opening frames, as [Pages] waits for its neighbors.
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(400)
@@ -756,12 +761,13 @@ fun TabScreens(tab: Tab, content: @Composable (Tab) -> Unit) {
     androidx.compose.ui.layout.Layout({
         for (t in kept) androidx.compose.runtime.key(t) {
             Box(Modifier.layoutId(t).fillMaxSize(), propagateMinConstraints = true) {
-                androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides (t == tab)) { content(t) }
+                val shown = remember { androidx.compose.runtime.derivedStateOf { current.value == t } }
+                androidx.compose.runtime.CompositionLocalProvider(LocalTabShown provides shown) { content(t) }
             }
         }
     }) { all, c ->
         // Each kept screen is measured, so a switch finds it laid out too; unchanged ones cost nothing to measure again.
         val screens = all.map { it.layoutId to it.measure(c) }
-        layout(c.maxWidth, c.maxHeight) { screens.first { it.first == tab }.second.place(0, 0) }
+        layout(c.maxWidth, c.maxHeight) { screens.first { it.first == current.value }.second.place(0, 0) }
     }
 }

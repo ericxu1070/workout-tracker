@@ -378,7 +378,7 @@ private fun App(model: AppModel) {
             label = "route",
         ) { shown ->
             val session = state.sessions.firstOrNull { it.id == arg }
-            val log = state.exerciseLogs().firstOrNull { it.id == arg }
+            val log = if (shown == Route.Exercise) state.exerciseLogs().firstOrNull { it.id == arg } else null
             val run = state.cardioActive
             val split = state.customPrograms[arg.substringBefore('/')]?.takeIf { shown == Route.Split || shown == Route.SplitDay }
             val splitDay = split?.day(arg.substringAfter('/', ""))
