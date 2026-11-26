@@ -81,6 +81,9 @@ import dev.gzclp.tracker.ui.Type.tabular
 import java.time.Duration
 import java.time.OffsetDateTime
 
+/** The height in px of the [ScreenFrame] scroll area around the composition. */
+val LocalFrameHeight = androidx.compose.runtime.compositionLocalOf { 0 }
+
 /** A full-height screen: scrolling content below the status bar, optional bottom bar. */
 @Composable
 fun ScreenFrame(bottom: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) = Frame(bottom) {
@@ -101,12 +104,13 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     val p = LocalPalette.current
     val title = remember { LargeTitle() }
     var top by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    var height by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barPx = with(androidx.compose.ui.platform.LocalDensity.current) { 44.dp.toPx() }
     val inline by remember { androidx.compose.runtime.derivedStateOf { title.bottom < top } }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
     Column(Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
-        Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {
-            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title, content = scroller)
+        Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx; height = it.size.height }) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalLargeTitle provides title, LocalFrameHeight provides height, content = scroller)
             // Once the large title scrolls under it, the title shows small in a bar, as iOS collapses it.
             androidx.compose.animation.AnimatedVisibility(inline, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
                 Column(Modifier.fillMaxWidth().background(p.bg)) {
