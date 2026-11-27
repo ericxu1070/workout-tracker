@@ -4,15 +4,14 @@ import dev.gzclp.tracker.engine.NormLift
 import dev.gzclp.tracker.engine.Norms
 import dev.gzclp.tracker.engine.Peer
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 /** How far back a lift's best estimated 1RM still counts as current strength. */
 const val STANDING_DAYS = 90L
 
 /** Where [lb] of [lift] falls among [peer]s: [percentile] is the share of them who lift less, 0.001 to 0.999. */
 data class Standing(val lift: NormLift, val lb: Int, val percentile: Double, val peer: Peer) {
-    /** The whole percentile, 1 to 99. */
-    val rank: Int get() = (percentile * 100).roundToInt().coerceIn(1, 99)
+    /** The whole percentile, 1 to 99, rounded down: "more than N%" must hold, and a lift under the curve's 10th mark is not the 10th. */
+    val rank: Int get() = (percentile * 100).toInt().coerceIn(1, 99)
 }
 
 /**

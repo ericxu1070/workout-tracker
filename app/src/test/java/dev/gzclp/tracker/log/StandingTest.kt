@@ -41,6 +41,9 @@ class StandingTest {
         assertTrue(mid.rank in 30..70)
         assertEquals(1, standing(NormLift.BENCH, 45, peer).rank)
         assertEquals(99, standing(NormLift.BENCH, 700, peer).rank)
+        // Rounded down: 1 lb under the 10th percentile's weight is the 9th, as the curve's 10th mark shows.
+        val tenth = Norms.of(false, NormLift.BENCH).liftAt(0.10, peer) / Norms.KG_PER_LB
+        assertEquals(9, standing(NormLift.BENCH, kotlin.math.floor(tenth).toInt() - 1, peer).rank)
     }
 
     @Test fun overallNeedsAllThreeLiftsAndRanksTheirSum() {
