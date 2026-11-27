@@ -93,6 +93,21 @@ internal object BodyPaths {
 /** A muscle's fill at [level] (0..1) of a full week: the base when untrained, then from a pale accent tint to the full accent. */
 private fun muscleFill(p: Palette, level: Float): Color = if (level <= 0f) p.muscle else lerp(p.muscle, p.accent, 0.25f + 0.75f * level.coerceIn(0f, 1f))
 
+/** How far outside a muscle a tap still picks it. */
+private val HitSlop = 12.dp
+
+/** Where a missed tap looks for a muscle, nearest first: eight directions at half of [HitSlop], then at all of it. */
+private val Near = listOf(0.5f, 1f).flatMap { k -> (0 until 8).map { Math.toRadians(it * 45.0).let { a -> (k * kotlin.math.cos(a)).toFloat() to (k * kotlin.math.sin(a)).toFloat() } } }
+
+/**
+ * The muscle at ([x], [y]) in the view's own units, or, where that misses every muscle, the nearest one within [slop]:
+ * so a forearm or a calf is not a pixel hunt, and a tap on a muscle still picks that muscle.
+ */
+internal fun BodyView.muscleAt(x: Float, y: Float, slop: Float): Muscle? {
+    fun at(x: Float, y: Float) = parts.firstOrNull { (m, path) -> m != null && path.contains(x, y) }?.first
+    return at(x, y) ?: Near.firstNotNullOfOrNull { (dx, dy) -> at(x + dx * slop, y + dy * slop) }
+}
+
 /** Where a tap landed: the muscle it hit, the tap's height, and the muscle's left and right edges, in the chart's pixels. */
 private class Picked(val muscle: Muscle, val y: Float, val left: Float, val right: Float)
 
@@ -119,9 +134,9 @@ fun MuscleChart(work: Map<Muscle, MuscleWork>, days: Long, female: Boolean, modi
                         val f = fit(v, i, size.width.toFloat(), size.height.toFloat(), gap)
                         val x = (tap.x - f.dx) / f.s + v.x
                         val y = (tap.y - f.dy) / f.s + v.y
-                        v.parts.firstOrNull { (m, path) -> m != null && path.contains(x, y) }?.let { (m, _) ->
+                        v.muscleAt(x, y, HitSlop.toPx() / f.s)?.let { m ->
                             val edges = v.parts.filter { it.first == m }.map { it.second.getBounds() }
-                            Picked(m!!, tap.y, (edges.minOf { it.left } - v.x) * f.s + f.dx, (edges.maxOf { it.right } - v.x) * f.s + f.dx)
+                            Picked(m, tap.y, (edges.minOf { it.left } - v.x) * f.s + f.dx, (edges.maxOf { it.right } - v.x) * f.s + f.dx)
                         }
                     }
                 }

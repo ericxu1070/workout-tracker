@@ -60,6 +60,8 @@ enum class Effect {
     PrSplash,
     /** A new theme or motion mode spreads from the tap as a wave of color. */
     PaletteWipe,
+    /** Swiped pages cross-fade as they slide: the one leaving dims as the one arriving comes up. */
+    PageFade,
 }
 
 /** Every Loaded effect; the place to drop one. */
@@ -75,8 +77,14 @@ fun animatorsEnabled(resolver: android.content.ContentResolver): Boolean =
 
 fun effectsFor(loaded: Boolean, animatorsOn: Boolean): Set<Effect> = if (loaded && animatorsOn) LoadedEffects else emptySet()
 
-/** The app's motion: which [Effect]s are on, the [ripples] they drop into, the last [tap], and [feel] for their haptics. */
-class Motion(val effects: Set<Effect>, val ripples: RippleField? = null, val feel: Feel? = null) {
+/**
+ * The app's motion: which [Effect]s are on, the [ripples] they drop into, the last [tap], and [feel] for their haptics.
+ * [water] is the screen's one surface, kept across a change of mode so rings already spreading run on to their end.
+ */
+class Motion(val effects: Set<Effect>, val water: RippleField = RippleField(), val feel: Feel? = null) {
+    /** Where an effect drops a ring: [water], or nowhere with every effect off. */
+    val ripples: RippleField? get() = water.takeIf { effects.isNotEmpty() }
+
     /** Where the last finger came down, in the window; a whoosh rises from it. */
     var tap: Offset = Offset.Unspecified
     var window: IntSize = IntSize.Zero
@@ -149,6 +157,7 @@ class RippleField {
     /** A ring from [at] in the window; [strength] 1 is a workout's end. A drop right after a stronger one is the same impact. */
     fun drop(at: Offset, strength: Float = 1f) {
         if (waves.any { (it.start == 0L || now - it.start < SAME_IMPACT_NS) && it.strength >= strength }) return
+        // Never reached at one ring per [SAME_IMPACT_NS]: a ring is gone before a seventh can start, so none is cut off mid-spread.
         if (waves.size >= MAX_WAVES) waves.removeAt(0)
         waves += Wave(at, strength)
     }
@@ -165,7 +174,7 @@ class RippleField {
     companion object {
         const val DURATION_NS = 1_800_000_000L
         private const val SAME_IMPACT_NS = 300_000_000L
-        const val MAX_WAVES = 3
+        const val MAX_WAVES = 6
     }
 }
 
@@ -221,14 +230,12 @@ private val RippleHeight = 6.dp
 private val RippleBand = 110.dp
 
 /**
- * Up to three rings, each [w] = (center x, center y, radius, height) in pixels. Near a ring's crest the content is displaced along the
+ * Up to [RippleField.MAX_WAVES] rings, each [w] = (center x, center y, radius, height) in pixels. Near a ring's crest the content is displaced along the
  * ring's normal by one and a half sine periods under a Gaussian, and lit a little on the side that faces up, as a swell catches light.
  */
-const val RIPPLE = """
+val RIPPLE = """
 uniform shader content;
-uniform float4 w0;
-uniform float4 w1;
-uniform float4 w2;
+${(0 until RippleField.MAX_WAVES).joinToString("\n") { "uniform float4 w$it;" }}
 uniform float band;
 uniform float2 size;
 
@@ -243,7 +250,7 @@ float3 ring(float2 p, float4 w) {
 }
 
 half4 main(float2 p) {
-    float3 a = ring(p, w0) + ring(p, w1) + ring(p, w2);
+    float3 a = ${(0 until RippleField.MAX_WAVES).joinToString(" + ") { "ring(p, w$it)" }};
     half4 c = content.eval(clamp(p + a.xy, float2(0.0), size - 1.0));
     return half4(c.rgb + half(a.z * 0.006) * c.a, c.a);
 }

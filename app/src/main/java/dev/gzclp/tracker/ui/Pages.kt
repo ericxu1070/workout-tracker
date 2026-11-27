@@ -112,6 +112,7 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
 fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.() -> Unit, page: @Composable (Int) -> Unit) {
     val p = LocalPalette.current
     val holds = remember { mutableIntStateOf(0) }
+    val fade = loaded(Effect.PageFade)
     var near by remember { mutableIntStateOf(0) }
     // 400 ms clears the 300 ms screen transition, so the neighbors' first frames don't land on it; a swipe or drag before then can't wait.
     if (beyond > 0) LaunchedEffect(beyond) {
@@ -135,7 +136,7 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
             ) { i ->
                 // Pages slide sharp: a blur animated across a whole page each frame hid it for half a swipe and cost frames.
                 // A page wholly out of view, kept composed for a tap, isn't drawn: it would cost every frame and paint over the page in view.
-                Box(Modifier.drawWithContent { if (abs(pager.position - i) < 1f) drawContent() }) {
+                Box((if (fade) Modifier.graphicsLayer { alpha = pageAlpha(abs(pager.position - i)) } else Modifier).drawWithContent { if (abs(pager.position - i) < 1f) drawContent() }) {
                     CompositionLocalProvider(LocalPage provides i) { page(i) }
                 }
             }
@@ -159,6 +160,9 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
         }
     }
 }
+
+/** Loaded's page fade [away] pages from resting: full until a swipe is under way, half gone at about 70% across, so the page in the middle of the screen stays readable. */
+internal fun pageAlpha(away: Float) = 1f - away.coerceIn(0f, 1f).let { it * it }
 
 /** How many overlays are open over the [Pages] around them; while any is, the pages don't swipe. */
 val LocalPageHolds = compositionLocalOf { mutableIntStateOf(0) }
