@@ -40,6 +40,12 @@ import dev.gzclp.tracker.ui.Type.tabular
 /** The one line a top-sets session logs for [ex]. */
 fun topKey(ex: Exercise) = SetKey(ex.id, ex.tier, 1)
 
+/** Names the open top-sets day's exercises still unchecked, which Finish leaves out; null when every one is logged. */
+fun AppState.topUnlogged(): String? {
+    val missed = active?.let { a -> exercises(a.program, a.day).filter { topKey(it) !in a.sets } }.orEmpty()
+    return missed.singleOrNull()?.let { "${it.name} is not logged" } ?: missed.size.takeIf { it > 1 }?.let { "$it exercises are not logged" }
+}
+
 /**
  * A top-sets session's lines: its day's exercises, then the ones added to it, both the logged and those in [added] still waiting.
  * An added exercise has no prescription: it starts from its last top-sets line, or a weight its history suggests.

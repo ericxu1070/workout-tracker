@@ -138,9 +138,10 @@ sealed interface SheetState {
     }
     /**
      * Finishing a top-sets session, which ran no clock: [durationSec] starts at [estimateSec], worked out from its sets, and a
-     * slider moves it either way in [Commands.TOP_DURATION_STEP_SEC] steps up to [maxSec].
+     * slider moves it either way in [Commands.TOP_DURATION_STEP_SEC] steps up to [maxSec]. [unlogged] names the rows Finish
+     * leaves out, fixed when the sheet opens so it holds while the sheet slides away over the ended session.
      */
-    data class TopFinish(val estimateSec: Long, val durationSec: Long = estimateSec) : SheetState {
+    data class TopFinish(val estimateSec: Long, val durationSec: Long = estimateSec, val unlogged: String? = null) : SheetState {
         val maxSec: Long get() = maxOf(estimateSec * 2, 3600L)
     }
 }
@@ -292,9 +293,7 @@ fun ColumnScope.SheetContent(
             val p = LocalPalette.current
             val haptic = LocalHapticFeedback.current
             val step = Commands.TOP_DURATION_STEP_SEC
-            // A row left unchecked is not saved, so say which of the day's exercises Finish leaves out.
-            val missed = state.active?.let { a -> state.exercises(a.program, a.day).filter { topKey(it) !in a.sets } }.orEmpty()
-            SheetTitle("How long?", missed.singleOrNull()?.let { "${it.name} is not logged" } ?: missed.size.takeIf { it > 1 }?.let { "$it exercises are not logged" })
+            SheetTitle("How long?", s.unlogged)
             Txt(Fmt.minutes(s.durationSec), Type.title1)
             Column {
                 // Stop 0 is one step, the shortest a session gets; the tick stays on the estimate.

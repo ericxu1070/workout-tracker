@@ -73,7 +73,7 @@ class TopSetsUiTest {
         val (squat, bench, row) = state.sessionExercises()
         state = state.then { Commands.logSet(it, squat, 1, 3, squat.weight!!, now, emptyMap(), sets = 5) }
             .then { Commands.logSet(it, bench, 1, 10, bench.weight!!, now, emptyMap(), sets = 3) }
-        rule.setContent { GzTheme(Palettes.tokyo) { Sheet(true, {}) { SheetContent(SheetState.TopFinish(40 * 60L), state, {}, {}, {}) } } }
+        rule.setContent { GzTheme(Palettes.tokyo) { Sheet(true, {}) { SheetContent(SheetState.TopFinish(40 * 60L, unlogged = state.topUnlogged()), state, {}, {}, {}) } } }
         rule.onNodeWithText("${row.name} is not logged").assertExists()
     }
 }

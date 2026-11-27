@@ -121,6 +121,7 @@ import dev.gzclp.tracker.ui.WorkoutPages
 import dev.gzclp.tracker.ui.WorkoutScreen
 import dev.gzclp.tracker.ui.photoTimeNote
 import dev.gzclp.tracker.ui.unloggedSets
+import dev.gzclp.tracker.ui.topUnlogged
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -394,7 +395,7 @@ private fun App(model: AppModel) {
     fun finishTopFlow() {
         val lines = state.active?.sets?.values?.map { it.event }.orEmpty()
         if (lines.isEmpty()) model.dispatch { Commands.endTop(it, model.now(), Commands.SESSION_DURATION_SEC.first) }
-        else open(SheetState.TopFinish(Commands.topDurationSec(lines)))
+        else open(SheetState.TopFinish(Commands.topDurationSec(lines), unlogged = state.topUnlogged()))
     }
     fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
         motion.touchdown(motion.tap)
