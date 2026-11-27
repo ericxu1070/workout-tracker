@@ -23,6 +23,9 @@ class SessionTimeTest {
         assertEquals("a start at or after the end is the day before", start.minusDays(1).plusMinutes(50), before.startedAt)
         assertEquals(sheet.end, before.end)
         assertTrue(before.ok)
+        // A top-sets workout ends when Finish was tapped, seconds and all: a picked start keeps whole minutes to that end.
+        val odd = SheetState.SessionTime("s1", start.plusSeconds(50), 50 * 60L).startingAt(17, 30)
+        assertEquals(90 * 60L, odd.durationSec)
     }
 
     @Test fun aTopSetsFinishSlidesAroundItsEstimate() {

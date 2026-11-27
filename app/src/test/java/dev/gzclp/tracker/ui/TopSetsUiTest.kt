@@ -67,4 +67,13 @@ class TopSetsUiTest {
         rule.onNodeWithText("40 min").assertExists()
         rule.onNodeWithText("1 hr 20 min").assertExists()
     }
+
+    @Test fun theFinishSheetNamesTheRowsLeftUnchecked() {
+        var state = open()
+        val (squat, bench, row) = state.sessionExercises()
+        state = state.then { Commands.logSet(it, squat, 1, 3, squat.weight!!, now, emptyMap(), sets = 5) }
+            .then { Commands.logSet(it, bench, 1, 10, bench.weight!!, now, emptyMap(), sets = 3) }
+        rule.setContent { GzTheme(Palettes.tokyo) { Sheet(true, {}) { SheetContent(SheetState.TopFinish(40 * 60L), state, {}, {}, {}) } } }
+        rule.onNodeWithText("${row.name} is not logged").assertExists()
+    }
 }

@@ -132,7 +132,7 @@ sealed interface SheetState {
 
         /** Starts at the last [hour]:[minute] before the end, which stays put unless that leaves under a minute. */
         fun startingAt(hour: Int, minute: Int): SessionTime {
-            val start = end.withHour(hour).withMinute(minute).withSecond(0).let { if (it.isBefore(end)) it else it.minusDays(1) }
+            val start = end.withHour(hour).withMinute(minute).withSecond(end.second).withNano(end.nano).let { if (it.isBefore(end)) it else it.minusDays(1) }
             return copy(startedAt = start, durationSec = java.time.Duration.between(start, end).seconds.coerceIn(Commands.SESSION_DURATION_SEC))
         }
     }
@@ -292,7 +292,9 @@ fun ColumnScope.SheetContent(
             val p = LocalPalette.current
             val haptic = LocalHapticFeedback.current
             val step = Commands.TOP_DURATION_STEP_SEC
-            SheetTitle("How long?", null)
+            // A row left unchecked is not saved, so say which of the day's exercises Finish leaves out.
+            val missed = state.active?.let { a -> state.exercises(a.program, a.day).filter { topKey(it) !in a.sets } }.orEmpty()
+            SheetTitle("How long?", missed.singleOrNull()?.let { "${it.name} is not logged" } ?: missed.size.takeIf { it > 1 }?.let { "$it exercises are not logged" })
             Txt(Fmt.minutes(s.durationSec), Type.title1)
             Column {
                 // Stop 0 is one step, the shortest a session gets; the tick stays on the estimate.

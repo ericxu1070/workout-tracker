@@ -319,7 +319,11 @@ fun LineChart(
             }
             val last = pts.last()
             val end = Offset(x(last.t.toEpochSecond()), y(last.v))
-            drawCircle(color, 4.dp.toPx(), end)
+            // The newest point is a ring too when it is a top-sets day, so the workout just logged reads as one.
+            if (last.t in rings) {
+                drawCircle(p.bg, 4.dp.toPx(), end)
+                drawCircle(color, 4.dp.toPx(), end, style = Stroke(2.dp.toPx()))
+            } else drawCircle(color, 4.dp.toPx(), end)
             ends += Triple(end, listOf(names[si], value(last.v)).filter { it.isNotEmpty() }.joinToString(" "), color)
         }
         // End labels sit beside their points, pushed apart vertically so two close series never overlap.
