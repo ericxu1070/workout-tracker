@@ -70,4 +70,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("gzclp.shots", providers.gradleProperty("gzclpShots").getOrElse(layout.buildDirectory.dir("shots").get().asFile.path))
     // -PgzclpFontScale=1.3 renders every screenshot at that system font size, to catch truncation.
     providers.gradleProperty("gzclpFontScale").orNull?.let { systemProperty("gzclp.fontScale", it) }
+    // -PgzclpMonkey=2000 lengthens MonkeyTest's run; -PgzclpMonkeyShots=/path saves every 20th screen of it.
+    providers.gradleProperty("gzclpMonkey").orNull?.let { systemProperty("gzclp.monkey", it) }
+    providers.gradleProperty("gzclpMonkeyShots").orNull?.let { systemProperty("gzclp.monkeyShots", it) }
 }

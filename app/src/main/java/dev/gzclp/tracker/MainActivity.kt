@@ -1,6 +1,10 @@
 package dev.gzclp.tracker
 
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import dev.gzclp.tracker.ui.TabFrame
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
@@ -23,16 +27,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.FileProvider
 import androidx.health.connect.client.PermissionController
@@ -77,7 +78,6 @@ import dev.gzclp.tracker.ui.FoodScreen
 import dev.gzclp.tracker.ui.SessionScreen
 import dev.gzclp.tracker.ui.Tab
 import dev.gzclp.tracker.ui.homeTab
-import dev.gzclp.tracker.ui.TabFrame
 import dev.gzclp.tracker.ui.TabHost
 import dev.gzclp.tracker.ui.UpcomingScreen
 import dev.gzclp.tracker.ui.BackStack
@@ -88,7 +88,6 @@ import dev.gzclp.tracker.ui.Feel
 import dev.gzclp.tracker.ui.LocalMotion
 import dev.gzclp.tracker.ui.Motion
 import dev.gzclp.tracker.ui.RippleClock
-import dev.gzclp.tracker.ui.RippleField
 import dev.gzclp.tracker.ui.effectsFor
 import dev.gzclp.tracker.ui.ripples
 import dev.gzclp.tracker.ui.watchTaps
@@ -142,7 +141,7 @@ class MainActivity : ComponentActivity() {
             val last = remember { arrayOf(Motion.Off) }
             val motion = remember(model.loaded, model.animatorsOn) {
                 val fx = effectsFor(model.loaded, model.animatorsOn)
-                Motion(fx, RippleField().takeIf { fx.isNotEmpty() }, Feel(this, view).takeIf { Effect.Feel in fx }).apply {
+                Motion(fx, last[0].water, Feel(this, view).takeIf { Effect.Feel in fx }).apply {
                     tap = last[0].tap
                     window = last[0].window
                     last[0] = this
@@ -407,16 +406,15 @@ private fun App(model: AppModel) {
     // A pushed screen's pop is the [BackStack]'s, which shows it under the finger.
     LazyBackHandler({ sheet != null || route != null || tab != Tab.Exercises }, ::back)
 
-    motion.ripples?.let { RippleClock(it) }
+    RippleClock(motion.water)
     // Above [motion], which a change of mode replaces, so a wipe started in one mode finishes in the other.
     val wipe = remember { PaletteWipe() }
     val scope = rememberCoroutineScope()
     val latestMotion by rememberUpdatedState(motion)
     fun wiped(on: Boolean, change: () -> Unit) {
-        val window = (context as? android.app.Activity)?.window ?: return change()
-        scope.launch { wipe.run(window, motion.tap, on, { latestMotion.ripples }, change) }
+        scope.launch { wipe.run(motion.tap, on, { latestMotion.ripples }, change) }
     }
-    Box(Modifier.fillMaxSize().watchTaps(motion).ripples(motion.ripples).then(with(wipe) { Modifier.wipe(LocalPalette.current.fg) })) {
+    Box(with(wipe) { Modifier.fillMaxSize().watchTaps(motion).ripples(motion.water).wipe(LocalPalette.current.fg) }) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
         BackStack(

@@ -655,7 +655,8 @@ fun MovePreviewDialog(
             Modifier
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(Radius.lg))
-                .background(p.card)
+                // Solid: Liquid Glass's see-through card would show the list under it through the scrim.
+                .background(p.elevated)
                 .clickable(enabled = false) {}
                 .padding(Space.lg),
         ) {

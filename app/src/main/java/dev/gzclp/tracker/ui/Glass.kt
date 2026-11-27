@@ -1,15 +1,15 @@
 package dev.gzclp.tracker.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,23 +17,17 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
@@ -43,12 +37,8 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 
@@ -80,15 +70,9 @@ fun rememberBackdrop(): Backdrop? {
     return remember(layer) { Backdrop(layer) }
 }
 
-/** The page under everything: [Palette.bg], or in Liquid Glass its wallpaper, pinned to the window so pages line up as they slide. */
+/** The page under everything: [Palette.bg], in Liquid Glass too, which keeps the theme's own flat page. */
 @Composable
-fun Modifier.page(): Modifier {
-    val p = LocalPalette.current
-    if (!p.glass) return background(p.bg)
-    val window = LocalWindowInfo.current.containerSize
-    var at by remember { mutableStateOf(Offset.Zero) }
-    return onGloballyPositioned { at = it.positionInRoot() }.drawBehind { wallpaper(p, at, window) }
-}
+fun Modifier.page(): Modifier = background(LocalPalette.current.bg)
 
 /** Records this content into [b], for the glass floating over it to blur; a no-op without [b]. */
 fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else onGloballyPositioned { b.origin = it.positionInRoot() }.drawWithContent {
@@ -106,15 +90,14 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 @Composable
 fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: Boolean = false): Modifier {
     val p = LocalPalette.current
-    val window = LocalWindowInfo.current.containerSize
     val blur = rememberGraphicsLayer()
     val lens = if (bar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) remember { RuntimeShader(LENS) } else null
     var at by remember { mutableStateOf(Offset.Zero) }
     val tint = if (bar) p.bar else p.chrome
     return onGloballyPositioned { at = it.positionInRoot() }.clip(shape).drawWithContent {
         if (b != null) {
-            // The wallpaper is smooth, so it needs no blur; only the content over it does.
-            wallpaper(p, at, window)
+            // The page is flat, so it needs no blur; only the content over it does.
+            drawRect(p.bg)
             // Blurred at a quarter of its size and scaled back up: a blur this wide looks the same and costs a sixteenth.
             val s = BlurScale
             val radius = (if (bar) BarBlurRadius else BlurRadius).toPx() * s
@@ -144,26 +127,17 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: 
 }
 
 /**
- * iOS's scroll edge behind chrome floating over a page, in place of a hairline: the page's wallpaper, solid but for [fade] along its
+ * iOS's scroll edge behind chrome floating over a page, in place of a hairline: the page's color, solid but for [fade] along its
  * bottom edge (its top edge if [up]) where it fades out, so what scrolls under the chrome's text is hidden and slips out of sight softly.
+ * Drawn straight onto the page: masked in a layer of its own, it came out empty after a pushed screen's rise or drop, and the list showed through the bar.
  */
 @Composable
 fun Modifier.scrollEdge(fade: Dp = ScrollEdgeFade, up: Boolean = false): Modifier {
-    val p = LocalPalette.current
-    val window = LocalWindowInfo.current.containerSize
-    val layer = rememberGraphicsLayer()
-    var at by remember { mutableStateOf(Offset.Zero) }
-    return onGloballyPositioned { at = it.positionInRoot() }.drawBehind {
-        layer.compositingStrategy = CompositingStrategy.Offscreen
-        // Read outside the recording: in it, density loops back to this scope's own.
+    val bg = LocalPalette.current.bg
+    return drawBehind {
         val f = fade.toPx()
-        val mask = if (up) Brush.verticalGradient(listOf(Color.Transparent, Color.Black), 0f, f)
-        else Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - f, size.height)
-        layer.record {
-            wallpaper(p, at, window)
-            drawRect(mask, blendMode = BlendMode.DstIn)
-        }
-        drawLayer(layer)
+        val clear = bg.copy(alpha = 0f)
+        if (up) drawRect(Brush.verticalGradient(listOf(clear, bg), 0f, f)) else drawRect(Brush.verticalGradient(listOf(bg, clear), size.height - f, size.height))
     }
 }
 
@@ -196,8 +170,8 @@ fun DrawScope.glassRim(o: Outline, alpha: Float = 1f) = drawOutline(
 
 private val BlurRadius = 24.dp
 
-/** A see-through bar's blur: light enough that what passes under it keeps its shapes. */
-private val BarBlurRadius = 12.dp
+/** A see-through bar's blur: what passes under it keeps its shapes and colors but not its words. */
+private val BarBlurRadius = 20.dp
 
 /**
  * Apple's vibrancy, roughly, for labels on a see-through glass bar: a soft glow of [Palette.bg] under them, so they hold while
@@ -224,29 +198,3 @@ fun Modifier.halo(): Modifier {
 private val HaloRadius = 4.dp
 private const val HALO = 0.8f
 private const val BlurScale = 0.25f
-
-/** The wallpaper spread over the window, drawn from [wall] with the window's top left at -[at]. */
-private fun DrawScope.wallpaper(p: Palette, at: Offset, window: IntSize) {
-    val w = if (window.width > 0) window else IntSize(size.width.toInt(), size.height.toInt())
-    drawImage(wall(p, w), dstOffset = IntOffset(-at.x.toInt(), -at.y.toInt()), dstSize = w, filterQuality = FilterQuality.Low)
-}
-
-private var wallCache: Triple<Palette, IntSize, ImageBitmap>? = null
-
-/**
- * Three soft glows over the page color, laid out on the window: blue high on the left, violet midway on the right, teal low on the left.
- * Painted once at an eighth of the window's size, since filling three screen-sized gradients each frame cost the GPU 2 ms on a Galaxy S21.
- */
-private fun wall(p: Palette, window: IntSize): ImageBitmap {
-    wallCache?.let { (cp, cw, img) -> if (cp === p && cw == window) return img }
-    val img = ImageBitmap(maxOf(1, window.width / 8), maxOf(1, window.height / 8))
-    val w = img.width.toFloat()
-    val h = img.height.toFloat()
-    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(img), Size(w, h)) {
-        drawRect(p.bg)
-        val spots = listOf(Offset(0.1f * w, 0.12f * h) to 0.95f * w, Offset(0.95f * w, 0.5f * h) to 0.85f * w, Offset(0.15f * w, 0.92f * h) to 0.85f * w)
-        for ((glow, spot) in p.glows.zip(spots)) drawRect(Brush.radialGradient(listOf(glow, glow.copy(alpha = 0f)), spot.first, spot.second))
-    }
-    wallCache = Triple(p, window, img)
-    return img
-}

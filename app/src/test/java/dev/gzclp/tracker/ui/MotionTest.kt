@@ -12,6 +12,35 @@ class MotionTest {
         assertEquals(emptySet<Effect>(), effectsFor(loaded = true, animatorsOn = false))
     }
 
+    @Test fun ringsDroppedAsFastAsTheyCanAllRunToTheirEnd() {
+        val f = RippleField()
+        var t = 1L
+        // One a third of a second, the fastest a ring is taken as a new impact, for three seconds.
+        repeat(9) {
+            f.drop(Offset(10f, 10f), 0.5f)
+            f.tick(t)
+            // No ring is cut off: every one still spreading was dropped within the last 1.8 seconds.
+            assertEquals(minOf(it + 1, 6), f.waves.size)
+            t += 310_000_000L
+            f.tick(t)
+        }
+    }
+
+    @Test fun aChangeOfModeKeepsTheWaterAndItsRings() {
+        val loaded = Motion(LoadedEffects)
+        loaded.ripples!!.drop(Offset(10f, 10f))
+        val performance = Motion(emptySet(), loaded.water)
+        assertEquals(null, performance.ripples)
+        assertEquals(1, performance.water.waves.size)
+    }
+
+    @Test fun aPageFadesOnlyOnceItIsWellOnItsWay() {
+        assertEquals(1f, pageAlpha(0f))
+        assertTrue(pageAlpha(0.5f) >= 0.75f)
+        assertEquals(0f, pageAlpha(1f))
+        assertEquals(0f, pageAlpha(2f))
+    }
+
     @Test fun aRingSpreadsAndCalmsAndADropRightAfterAStrongerOneIsTheSameImpact() {
         val f = RippleField()
         f.drop(Offset(10f, 10f), 1f)

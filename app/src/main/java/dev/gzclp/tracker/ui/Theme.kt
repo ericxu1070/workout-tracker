@@ -31,19 +31,17 @@ data class Palette(
     val red: Color,
     /** A selected chip's fill, which [onThumb] labels sit on: the accent; in Liquid Glass, the clear glass every neutral control is made of. */
     val thumb: Color = accent,
-    /** Liquid Glass: soft glows at their peak alpha, laid over [bg] as a wallpaper the glass shows; empty for a flat theme. */
-    val glows: List<Color> = emptyList(),
+    /** Liquid Glass: see-through bars, sheets and controls over the same flat [bg] page. */
+    val glass: Boolean = false,
     /** Liquid Glass bars' and sheets' alpha, fitted by [glassed]. */
     val chromeAlpha: Float = 1f,
     /** How [thumb] is painted, resting and lifted under a finger. */
     val thumbPainter: ThumbPainter = SolidThumb,
 ) {
-    val glass: Boolean get() = glows.isNotEmpty()
-
     /**
-     * This theme in Liquid Glass: a wallpaper of [glowsFor] its accent, bars at [CLEAREST_CHROME], and fg, fg2, accent and red each lifted
+     * This theme in Liquid Glass: its own flat page, bars at [CLEAREST_CHROME], and fg, fg2, accent and red each lifted
      * toward the extreme just enough to read at 4.5:1 over everything [glassSurfaces] names, fg with tertiary text's alpha so the ladder keeps its steps.
-     * Where no lift reaches, the bars go more opaque and then the glows dimmer. One instance per theme: the wallpaper cache and every token search key on it.
+     * Where no lift reaches, the bars go more opaque. One instance per theme: every token search keys on it.
      * Lifts and bar alpha are bisected, since each step toward the extreme only adds contrast: a linear search held a phone's first frame for a second or two.
      */
     val glassed: Palette by lazy {
@@ -55,8 +53,8 @@ data class Palette(
             fun at(i: Int) = Color(lerp(c, toward, i / 100f).toArgb())
             return if (ok(at(100))) at(least(0, 100) { ok(at(it)) }) else null
         }
-        fun attempt(k: Int, a: Int): Palette? {
-            val lit = copy(id = "$id-glass", glows = glowsFor(accent, k / 10f), chromeAlpha = a / 100f, thumbPainter = GlassThumb)
+        fun attempt(a: Int): Palette? {
+            val lit = copy(id = "$id-glass", glass = true, chromeAlpha = a / 100f, thumbPainter = GlassThumb)
             val sheen = Color.White.copy(alpha = SHEEN)
             val clear = clearGlass(dark)
             val tertiary = maxOf(fg3.alpha, 0.75f)
@@ -80,10 +78,9 @@ data class Palette(
                 onAccent = if (contrast(Color.Black, ac) >= contrast(Color.White, ac)) Color.Black else Color.White,
             ).takeIf { it.textReads() }
         }
-        // The strongest glow that reads with opaque bars, then the clearest bars that read under it.
-        if (attempt(0, 100) == null) return@lazy copy(id = "$id-glass", glows = glowsFor(accent, 0f), thumb = clearGlass(dark), thumbPainter = GlassThumb)
-        val k = 10 - least(0, 10) { attempt(10 - it, 100) != null }
-        attempt(k, least(CLEAREST_CHROME, 100) { attempt(k, it) != null })!!
+        if (attempt(100) == null) return@lazy copy(id = "$id-glass", glass = true, thumb = clearGlass(dark), thumbPainter = GlassThumb)
+        // The clearest bars that read.
+        attempt(least(CLEAREST_CHROME, 100) { attempt(it) != null })!!
     }
     fun withGlass(on: Boolean) = if (on) glassed else this
     /**
@@ -114,13 +111,13 @@ data class Palette(
         return if (reads(100)) c.copy(alpha = least(CLEAREST_STAIN, 100, ::reads) / 100f) else c
     }
 
-    /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the wallpaper, with no lit edge, since glass is not the content. */
+    /** A card's fill: [elevated], or in Liquid Glass a translucent pane of it over the page, with no lit edge, since glass is not the content. */
     val card: Color get() = if (glass) elevated.copy(alpha = 0.6f) else elevated
     /** Liquid Glass sheets and the undo bar, which carry running text: [bg] at [chromeAlpha], over whatever is blurred behind them. */
     val chrome: Color get() = bg.copy(alpha = chromeAlpha)
     /**
      * Liquid Glass's tab bar and the switch floating over pages: see-through, [bg] at the clearest alpha from [CLEAREST_BAR] up at which
-     * their labels read at 4.5:1 under the sheen over what scrolls under them most, the wallpaper and cards ([panes]), blurred.
+     * their labels read at 4.5:1 under the sheen over what scrolls under them most, the page and cards ([panes]), blurred.
      * Brighter blocks passing under (an accent button, a red pill) can dip below that; [halo] holds the labels over them.
      */
     val bar: Color by lazy {
@@ -160,11 +157,8 @@ data class Palette(
     }
     /** Text and icons on a [red] fill; red reads at 4.5:1 on both, so either reads on red. */
     val onRed: Color get() = if (dark) bg else elevated
-    /** The wallpaper at its plainest and brightest (every glow at its peak at once), and cards over it. */
-    private val panes: List<Color> by lazy {
-        val walls = listOf(bg) + glows.map { it.compositeOver(bg) } + glows.fold(bg) { under, g -> g.compositeOver(under) }
-        walls + walls.map { card.compositeOver(it) }
-    }
+    /** The page, and a card over it. */
+    private val panes: List<Color> by lazy { listOf(bg, card.compositeOver(bg)) }
     /** Every background text sits on: the page, the sheet or card, and a [fill]-tinted control on each; in Liquid Glass, the worst case behind each pane. */
     val surfaces: List<Color> by lazy { if (glass) glassSurfaces(chrome) else surfaces(bg, elevated, fg) }
     val separator: Color get() = fg.copy(alpha = 0.10f)
@@ -181,8 +175,8 @@ data class Palette(
     val scrim: Color get() = Color.Black.copy(alpha = if (dark) 0.55f else 0.30f)
 
     /**
-     * The wallpaper at its plainest and brightest (every glow at its peak at once), cards over it, and [bar] over all of
-     * that plus whatever bright content can scroll under a bar (accent and red pills, white knobs and photos), cards on those
+     * The page, cards over it, and [bar] over both
+     * plus whatever bright content can scroll under a bar (accent and red pills, white knobs and photos), cards on those
      * bars, and a [fill] on each.
      */
     private fun glassSurfaces(bar: Color): List<Color> {
@@ -262,32 +256,17 @@ object Palettes {
 /** The clearest Liquid Glass bars get, in percent: the alpha the Liquid Glass theme was tuned with. */
 const val CLEAREST_CHROME = 82
 
-/** The clearest Liquid Glass's tab bar and floating switch get, in percent: enough of [Palette.bg] to tint them the theme's color. */
-const val CLEAREST_BAR = 30
+/**
+ * The clearest Liquid Glass's tab bar and floating switch get, in percent: frosted enough that a list passing under them is shapes,
+ * not words to read. At 30 the rows under the tab bar stayed legible and pulled the eye from the bar's own labels.
+ */
+const val CLEAREST_BAR = 60
 
 /** The clearest a stained button gets, in percent: below this, over dark glass, it reads as dimmed, like a disabled button. */
 const val CLEAREST_STAIN = 85
 
 /** Liquid Glass's clear control, a frost over whatever is behind it: faint on dark glass, a brighter sheet on light glass, as iOS's. */
 fun clearGlass(dark: Boolean) = Color.White.copy(alpha = if (dark) 0.14f else 0.6f)
-
-/**
- * Liquid Glass's three wallpaper glows for a theme with [accent]: the accent, a neighbor a little warmer and one a little cooler on the
- * hue wheel (blue, violet and teal for a blue accent), at [strength] of the peaks Liquid Glass was tuned with.
- */
-fun glowsFor(accent: Color, strength: Float): List<Color> {
-    val r = accent.red; val g = accent.green; val b = accent.blue
-    val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = max - min
-    val h = when {
-        d == 0f -> 0f
-        max == r -> 60f * (((g - b) / d) % 6f)
-        max == g -> 60f * ((b - r) / d + 2f)
-        else -> 60f * ((r - g) / d + 4f)
-    }
-    // Saturated, as Liquid Glass's blue, violet and teal were: a vivid glow tints the glass without lifting it toward the text; a gray accent stays gray.
-    val s = (if (max == 0f) 0f else d / max).let { if (it < 0.15f) it else maxOf(it, 0.82f) }
-    return listOf(0f to 0.18f, 50f to 0.14f, -40f to 0.10f).map { (turn, peak) -> Color.hsv(((h + turn) % 360f + 360f) % 360f, s, max, peak * strength) }
-}
 
 fun surfaces(bg: Color, elevated: Color, fg: Color): List<Color> =
     listOf(bg, elevated, fg.copy(alpha = 0.07f).compositeOver(bg), fg.copy(alpha = 0.07f).compositeOver(elevated))
