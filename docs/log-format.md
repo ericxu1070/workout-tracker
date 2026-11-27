@@ -535,8 +535,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets (a clear c
 {"v":2,"seq":117,"ts":"2026-12-03T18:40:00-08:00","type":"progression","exercise":"ohp","tier":"t1","kind":"stage_change","from_weight":100,"to_weight":100,"from_stage":"5x3+","to_stage":"6x2+","session_id":"s1796349600"}
 {"v":2,"seq":118,"ts":"2026-12-03T18:40:00-08:00","type":"session_end","session_id":"s1796349600","program":"gzclp","day":"B1","started_at":"2026-12-03T18:00:00-08:00","duration_sec":2400}
 {"v":2,"seq":119,"ts":"2026-12-03T20:00:00-08:00","type":"set_clear","session_id":"s1796349600","exercise":"ohp","tier":"t1","set_index":1}
-{"v":2,"seq":120,"ts":"2026-12-04T18:48:00-08:00","type":"session_start","session_id":"s1795834080","program":"gzclp","day":"B1","mode":"top","counts":true}
-{"v":2,"seq":121,"ts":"2026-12-04T18:48:20-08:00","type":"set","session_id":"s1795834080","exercise":"ohp","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":4,"target_weight":95,"weight":95,"amrap":false,"sets":5}
-{"v":2,"seq":122,"ts":"2026-12-04T18:50:00-08:00","type":"session_end","session_id":"s1795834080","program":"gzclp","day":"B1","started_at":"2026-12-04T18:10:00-08:00","duration_sec":2400}
-{"v":2,"seq":123,"ts":"2026-12-04T19:02:00-08:00","type":"session_edit","session_id":"s1795834080","duration_sec":3000,"started_at":"2026-12-04T18:00:00-08:00"}
+{"v":2,"seq":120,"ts":"2026-12-04T18:48:00-08:00","type":"session_start","session_id":"s1796438880","program":"gzclp","day":"B1","mode":"top","counts":true}
+{"v":2,"seq":121,"ts":"2026-12-04T18:48:20-08:00","type":"set","session_id":"s1796438880","exercise":"ohp","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":4,"target_weight":95,"weight":95,"amrap":false,"sets":5}
+{"v":2,"seq":122,"ts":"2026-12-04T18:50:00-08:00","type":"session_end","session_id":"s1796438880","program":"gzclp","day":"B1","started_at":"2026-12-04T18:10:00-08:00","duration_sec":2400}
+{"v":2,"seq":123,"ts":"2026-12-04T19:02:00-08:00","type":"session_edit","session_id":"s1796438880","duration_sec":3000,"started_at":"2026-12-04T18:00:00-08:00"}
 ```

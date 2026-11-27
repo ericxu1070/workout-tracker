@@ -231,7 +231,7 @@ object Commands {
         return List(ex.scheme.sets) { top?.actualReps }
     }
 
-    /** Ends a top-sets session as [durationSec] long and ending now. A T1 lift that misses 10×1+ restarts from its weight, with no 5RM asked. */
+    /** Ends a top-sets session as [durationSec] long and ending now. A T1 lift that misses 10×1+ restarts with no 5RM asked, its weight taken as the 5RM (so 85% of it). */
     fun endTop(state: AppState, now: OffsetDateTime, durationSec: Long): List<Event> {
         val a = state.active?.takeIf { it.top } ?: return emptyList()
         val sec = durationSec.coerceIn(SESSION_DURATION_SEC)
