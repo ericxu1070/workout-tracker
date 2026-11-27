@@ -157,7 +157,10 @@ fun SessionScreen(
         Spacer(Modifier.height(Space.lg))
         Group {
             GroupRow(first = true, onClick = onEditTime) {
-                Txt("Duration", Type.body, Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Txt("Duration", Type.body)
+                    Txt(Fmt.span(s.startedAt, s.startedAt.plusSeconds(s.durationSec)), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
+                }
                 Txt(Fmt.minutes(s.durationSec), Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
