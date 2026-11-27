@@ -142,6 +142,6 @@ fun calisthenicsBests(state: AppState, log: ExerciseLog): List<SessionBest> {
         }
         val top = setsWithLoad.maxWithOrNull(compareBy({ it.second }, { it.first.actualReps })) ?: return@mapNotNull null
         val bestE1rm = setsWithLoad.maxOf { it.third }
-        SessionBest(session.startedAt, top.second, top.first.actualReps, bestE1rm)
+        SessionBest(session.startedAt, top.second, top.first.actualReps, bestE1rm, done.all { it.sets != null })
     }
 }

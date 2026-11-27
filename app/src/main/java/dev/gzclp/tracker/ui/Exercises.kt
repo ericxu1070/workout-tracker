@@ -184,6 +184,7 @@ fun ExerciseScreen(
             LineChart(
                 listOf(bests.map { Pt(it.at, it.e1rm.toFloat()) } to p.accent, bests.map { Pt(it.at, it.topWeight.toFloat()) } to p.fg2),
                 listOf("1RM", "Top"),
+                rings = bests.filter { it.topOnly }.mapTo(HashSet()) { it.at },
             )
         }
 
@@ -254,7 +255,19 @@ fun ExerciseScreen(
 
         val (session, sets) = log.last
         GroupHeader("Last workout · ${session.day.title}, ${Fmt.date(session.startedAt)}")
-        SetList(sets.sortedWith(compareBy({ it.tier }, { it.setIndex })))
+        // A top-sets line is one set and a count, never that many sets at its weight.
+        val top = sets.singleOrNull()?.takeIf { it.sets != null }
+        if (top == null) SetList(sets.sortedWith(compareBy({ it.tier }, { it.setIndex })))
+        else Group {
+            GroupRow(first = true) {
+                Txt("Top set", Type.body, Modifier.weight(1f))
+                Txt("${Fmt.lb(top.weight)} × ${top.actualReps}", Type.body.tabular(), color = p.fg2)
+            }
+            GroupRow(first = false) {
+                Txt("Sets", Type.body, Modifier.weight(1f))
+                Txt("${top.sets}", Type.body.tabular(), color = p.fg2)
+            }
+        }
     }
 }
 

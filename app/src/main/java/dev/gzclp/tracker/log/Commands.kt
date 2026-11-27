@@ -78,21 +78,28 @@ object Commands {
         if (state.active != null || state.cardioActive != null || !state.started || missingWeight(state) != null || state.exercises(state.nextDay).isEmpty()) emptyList()
         else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, state.nextDay.id))
 
-    /** Logs a set, or corrects one already logged (keeping its rest fields). [rpe] outside 1 to 10 is dropped, others round to a half. */
-    fun logSet(state: AppState, ex: Exercise, setIndex: Int, reps: Int, weight: Int, now: OffsetDateTime, restTargets: Map<Tier, Int>, rpe: Double? = null): List<Event> {
+    /**
+     * Logs a set, or corrects one already logged (keeping its rest fields). [rpe] outside 1 to 10 is dropped, others round to a half.
+     * With [sets] the line is a top-sets session's: the exercise's best set and how many sets it got in all, with no rest and no AMRAP.
+     */
+    fun logSet(
+        state: AppState, ex: Exercise, setIndex: Int, reps: Int, weight: Int, now: OffsetDateTime, restTargets: Map<Tier, Int>, rpe: Double? = null,
+        sets: Int? = null,
+    ): List<Event> {
         val a = state.active ?: return emptyList()
         val key = SetKey(ex.id, ex.tier, setIndex)
         val existing = a.sets[key]?.event
-        val prev = (a.sets - key).values.maxByOrNull { it.ts }
+        val prev = if (sets != null) null else (a.sets - key).values.maxByOrNull { it.ts }
         val scheme = ex.scheme
         val target = ex.weight ?: 0
         val event = SetLogged(
             sessionId = a.id, exercise = ex.id, tier = ex.tier.id, stage = scheme.label, setIndex = setIndex,
             targetReps = scheme.reps, actualReps = reps.coerceAtLeast(0), targetWeight = target, weight = weight.coerceAtLeast(0),
-            amrap = scheme.amrap && setIndex == scheme.sets,
+            amrap = sets == null && scheme.amrap && setIndex == scheme.sets,
             restSec = if (existing != null) existing.restSec else prev?.let { Duration.between(it.ts, now).seconds.toInt() },
             restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { p -> Tier.of(p.event.tier)?.let { restSec(it, p.event.targetReps, restTargets) } },
             rpe = rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
+            sets = sets?.coerceIn(TOP_SETS),
         ).let { e ->
             // Bodyweight moves snapshot the body weight in effect, so later weigh-ins never rewrite history; an assisted variant's weight is help, logged negative.
             if (!isCalisthenics(ex.id)) e
@@ -197,6 +204,41 @@ object Commands {
         if (state.active != null || state.cardioActive != null || !state.started) emptyList()
         else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, day.id, mode = "open"))
 
+    /** Starts a top-sets session with mode = "top". It prefills what it can and asks for no starting weights. */
+    fun startTop(state: AppState, now: OffsetDateTime, day: ProgramDay = state.nextDay): List<Event> =
+        if (state.active != null || state.cardioActive != null || !state.started) emptyList()
+        else listOf(SessionStart("s" + now.toEpochSecond(), state.programId, day.id, mode = "top"))
+
+    /** The newest top-sets line of [exerciseId] in a finished session, which prefills its next one. */
+    fun lastTop(state: AppState, exerciseId: String): SetLogged? =
+        state.sessions.asReversed().firstNotNullOfOrNull { s -> s.sets.lastOrNull { it.exercise == exerciseId && it.sets != null } }
+
+    /**
+     * How long a top-sets session with these lines likely took, to 5 minutes: each set's work and the rest its reps call
+     * for, and a changeover per exercise. The finish sheet starts here and the user drags it right.
+     */
+    fun topDurationSec(lines: Collection<SetLogged>): Long {
+        val sec = lines.sumOf { (it.sets ?: 1) * (TOP_SET_SEC + Wave.restSec(it.actualReps)) + TOP_CHANGEOVER_SEC }
+        return (Math.round(sec / TOP_DURATION_STEP_SEC.toDouble()) * TOP_DURATION_STEP_SEC).coerceIn(TOP_DURATION_STEP_SEC, SESSION_DURATION_SEC.last)
+    }
+
+    /**
+     * [ex]'s reps for a top-sets session's progression: its top set stands in for every set. All null (nothing changes) when it
+     * has no line, or one lighter than prescribed, which says nothing about the prescription.
+     */
+    private fun topReps(a: ActiveSession, ex: Exercise): List<Int?> {
+        val top = a.sets[SetKey(ex.id, ex.tier, 1)]?.event?.takeIf { it.weight >= (ex.weight ?: 0) }
+        return List(ex.scheme.sets) { top?.actualReps }
+    }
+
+    /** Ends a top-sets session as [durationSec] long and ending now. A T1 lift that misses 10×1+ restarts from its weight, with no 5RM asked. */
+    fun endTop(state: AppState, now: OffsetDateTime, durationSec: Long): List<Event> {
+        val a = state.active?.takeIf { it.top } ?: return emptyList()
+        val sec = durationSec.coerceIn(SESSION_DURATION_SEC)
+        val changes = progressions(state, a.program, a.day, a.id, null) { topReps(a, it) }
+        return changes + SessionEnd(a.id, a.program.id, a.day.id, LogCodec.TS.format(now.minusSeconds(sec)), sec)
+    }
+
     /** Prefills weight for [exerciseId] at [reps] from the strength model or parent ratio. */
     fun suggestWeight(state: AppState, exerciseId: String, reps: Int): Int {
         val model = state.strengthModel()
@@ -216,11 +258,12 @@ object Commands {
         return if (exerciseId in Catalog.barbell) 45 else 20
     }
 
-    /** Sets finished session [id]'s duration; nothing for an unknown session, an unchanged duration, or one out of range. */
-    fun editSession(state: AppState, id: String, durationSec: Long): List<Event> {
+    /** Sets finished session [id]'s duration, and its start when [startedAt] moves it; nothing for an unknown session, no change, or a duration out of range. */
+    fun editSession(state: AppState, id: String, durationSec: Long, startedAt: OffsetDateTime? = null): List<Event> {
         val s = state.sessions.firstOrNull { it.id == id } ?: return emptyList()
-        if (durationSec !in SESSION_DURATION_SEC || durationSec == s.durationSec) return emptyList()
-        return listOf(SessionEdit(id, durationSec))
+        val start = startedAt?.takeIf { !it.isEqual(s.startedAt) }
+        if (durationSec !in SESSION_DURATION_SEC || (durationSec == s.durationSec && start == null)) return emptyList()
+        return listOf(SessionEdit(id, durationSec, start?.let(LogCodec.TS::format)))
     }
 
     /** The next [n] workouts in rotation order, each prescribed as if every earlier one hit every target. */
@@ -474,6 +517,12 @@ object Commands {
 
     val CARDIO_DURATION_SEC = 1L..86_400L
     val SESSION_DURATION_SEC = 60L..86_400L
+    /** How many sets a top-sets line can count for its exercise. */
+    val TOP_SETS = 1..20
+    /** A top-sets session's estimate: the work of one set, and getting from one exercise to the next. */
+    private const val TOP_SET_SEC = 40
+    private const val TOP_CHANGEOVER_SEC = 120
+    const val TOP_DURATION_STEP_SEC = 300L
     val CARDIO_DISTANCE_M = 1..1_000_000
     const val CARDIO_NOTES_MAX = 200
 }

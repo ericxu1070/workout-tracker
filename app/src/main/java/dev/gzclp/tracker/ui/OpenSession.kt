@@ -94,7 +94,7 @@ enum class MuscleGroup(val label: String, val targetSets: Int = 10) {
     }
 }
 
-/** Counts completed sets for the Monday-Sunday week containing [date]. */
+/** Counts completed sets for the Monday-Sunday week containing [date]; a top-sets line counts every set of its exercise. */
 fun AppState.weeklyMuscleGroupSets(date: LocalDate = LocalDate.now()): Map<MuscleGroup, Int> {
     val monday = mondayOf(date)
     val sunday = monday.plusDays(6)
@@ -105,7 +105,7 @@ fun AppState.weeklyMuscleGroupSets(date: LocalDate = LocalDate.now()): Map<Muscl
             for (set in s.sets) {
                 if (set.actualReps > 0) {
                     val group = MuscleGroup.of(set.exercise)
-                    counts[group] = (counts[group] ?: 0) + 1
+                    counts[group] = (counts[group] ?: 0) + (set.sets ?: 1)
                 }
             }
         }
@@ -115,7 +115,7 @@ fun AppState.weeklyMuscleGroupSets(date: LocalDate = LocalDate.now()): Map<Muscl
             for (set in a.sets.values) {
                 if (set.event.actualReps > 0) {
                     val group = MuscleGroup.of(set.event.exercise)
-                    counts[group] = (counts[group] ?: 0) + 1
+                    counts[group] = (counts[group] ?: 0) + (set.event.sets ?: 1)
                 }
             }
         }

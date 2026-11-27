@@ -139,10 +139,14 @@ private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, on
     }
 }
 
-/** One finished workout: its time, which [onEditTime] corrects, then every logged set with its own weight and reps; an exercise's card swipes away. */
+/**
+ * One finished workout: its time, which [onEditTime] corrects, then every logged set with its own weight and reps; an exercise's card swipes away.
+ * A top-sets workout lists each exercise's top set on one row, which [onExercise] opens and a swipe deletes.
+ */
 @Composable
 fun SessionScreen(
     state: AppState, s: SessionRecord, onBack: () -> Unit, onEditTime: () -> Unit, deleting: Deletion? = null, onDelete: (Deletion) -> Unit = {},
+    onExercise: (String) -> Unit = {},
 ) {
     val p = LocalPalette.current
     ScreenFrame {
@@ -153,28 +157,43 @@ fun SessionScreen(
         Spacer(Modifier.height(Space.lg))
         Group {
             GroupRow(first = true, onClick = onEditTime) {
-                Column(Modifier.weight(1f)) {
-                    Txt("Duration", Type.body)
-                    Txt(Fmt.span(s.startedAt, s.startedAt.plusSeconds(s.durationSec)), Type.footnote.tabular(), color = p.fg2, maxLines = 1)
-                }
+                Txt("Duration", Type.body, Modifier.weight(1f))
                 Txt(Fmt.minutes(s.durationSec), Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
-            s.afterLastSet?.let { after ->
+            // A top-sets workout ran no clock to leave running.
+            if (!s.top) s.afterLastSet?.let { after ->
                 GroupRow(first = false) {
                     Txt("Left running", Type.body, Modifier.weight(1f))
                     Txt(Fmt.minutes(after), Type.body.tabular(), color = if (after >= LONG_AFTER_LAST_SEC) p.red else p.fg2)
                 }
             }
         }
-        val gaps = s.setGaps
-        s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
-            val first = sets.first()
-            GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
-            val target = Deletion.Exercise(s.id, key.first, key.second)
-            key(target) {
-                SetList(sets.sortedBy { it.setIndex }, { gaps[Triple(it.exercise, it.tier, it.setIndex)] }) { rows ->
-                    SwipeToDelete("Delete ${state.name(key.first)}", deleting == target, { onDelete(target) }, shape = RoundedCornerShape(Radius.lg)) { rows() }
+        if (s.top) {
+            Spacer(Modifier.height(Space.xxl))
+            Group {
+                s.sets.forEachIndexed { i, set ->
+                    val target = Deletion.Exercise(s.id, set.exercise, set.tier)
+                    key(target) { SwipeToDelete("Delete ${state.name(set.exercise)}", deleting == target, { onDelete(target) }) {
+                        GroupRow(first = i == 0, onClick = { onExercise(set.exercise) }) {
+                            Txt(state.name(set.exercise), Type.body, Modifier.weight(1f), maxLines = 1)
+                            Txt(Fmt.lb(set.weight) + " × ", Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
+                            Txt("${set.actualReps}", Type.body.tabular(), color = if (set.actualReps < set.targetReps) p.red else p.fg)
+                            Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+                        }
+                    } }
+                }
+            }
+        } else {
+            val gaps = s.setGaps
+            s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
+                val first = sets.first()
+                GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
+                val target = Deletion.Exercise(s.id, key.first, key.second)
+                key(target) {
+                    SetList(sets.sortedBy { it.setIndex }, { gaps[Triple(it.exercise, it.tier, it.setIndex)] }) { rows ->
+                        SwipeToDelete("Delete ${state.name(key.first)}", deleting == target, { onDelete(target) }, shape = RoundedCornerShape(Radius.lg)) { rows() }
+                    }
                 }
             }
         }
@@ -244,6 +263,8 @@ fun LineChart(
     unit: String = " lb",
     minSpan: Float = 15f,
     value: (Float) -> String = { it.roundToInt().toString() },
+    /** Times whose points show as rings on the line: a workout logged as top sets. */
+    rings: Set<OffsetDateTime> = emptySet(),
 ) {
     val p = LocalPalette.current
     val tm = rememberTextMeasurer()
@@ -288,6 +309,11 @@ fun LineChart(
                 if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
             }
             drawPath(path, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            pts.dropLast(1).filter { it.t in rings }.forEach { pt ->
+                val o = Offset(x(pt.t.toEpochSecond()), y(pt.v))
+                drawCircle(p.bg, 3.5.dp.toPx(), o)
+                drawCircle(color, 3.5.dp.toPx(), o, style = Stroke(1.5.dp.toPx()))
+            }
             val last = pts.last()
             val end = Offset(x(last.t.toEpochSecond()), y(last.v))
             drawCircle(color, 4.dp.toPx(), end)

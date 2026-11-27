@@ -36,6 +36,9 @@ The app logs a weight and reps for every set, shows plates per side and warm-ups
 - **Adaptive strength**: tracks estimated 1RM (Epley with RIR) across all logged sets with an asymmetric exponential moving average (α_up = 0.4, α_down = 0.15). Manual weight edits act as strong observations (α = 0.6). When an exercise is updated in one tier (e.g. T2 OHP), suggested weights propagate to sibling tiers (e.g. T1 OHP). A suggestion is one sentence with a Use button, or turn on "Auto-adapt weights" in Settings to apply it at session start (capped at a 10% drop).
 - **Calisthenics**: 21 catalog exercises and variations (pull-ups, chin-ups, dips, push-ups, inverted rows, pistol squats, muscle-ups). Effective load is `factor × bodyweight + addedWeight` (1.0 for pull-ups, 0.95 for dips, 0.65 for push-ups, 0.5 for inverted rows, 0.8 for pistol squats). Progression adds reps up to 3×12, then 5 lb or the next harder variation. Charts show absolute e1RM and relative strength (× body weight).
 
+### Top sets
+Tap Log top sets to write a day down as one line per exercise: the weight and reps of your best set, and how many sets you did. The lines start from the plan, so a day that went to plan is one tap per exercise, and you can add any other exercise. No clock runs. Finish asks how long the workout took, starting from an estimate based on the sets you entered. A top set that meets the plan moves that exercise on as a full workout would. The exercise chart draws these days as rings on the same lines, and the muscle map counts every set of each line.
+
 ### Open sessions and weekly volume
 Tap Open session to train freely without advancing your program. Exercises prefill weights from the adaptive model and recalculate target reps when the weight changes. Weekly volume bars by muscle group (Chest, Back, Quads, Hamstrings, Shoulders, Arms, Core) run against weekly targets. At the end, the app asks whether the session counts toward your program.
 

@@ -153,8 +153,12 @@ Log parseLog(const QByteArray &bytes) {
             ended.insert(s.id, s);
         } else if (type == "session_edit") {
             const auto it = ended.find(o["session_id"].toString());
-            if (it != ended.end())
+            if (it != ended.end()) {
                 it->durationSec = o["duration_sec"].toInt();
+                // An edit can move the start too; one without started_at keeps it.
+                if (o.contains("started_at"))
+                    it->start = parseTime(o["started_at"]);
+            }
         } else if (type == "progression") {
             ProgressionEvent e;
             e.session = o["session_id"].toString();

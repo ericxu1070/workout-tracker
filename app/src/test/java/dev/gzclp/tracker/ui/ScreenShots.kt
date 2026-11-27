@@ -471,6 +471,20 @@ class ScreenShots {
                     Sheet(true, {}) { OpenSessionCountSheet({}, {}) }
                 }
             }
+            // Top sets: the next day logged as one line per exercise, two of them in.
+            val top = idle.then(now) { Commands.startTop(it, now) }.let { s ->
+                s.sessionExercises().take(2).fold(s) { st, e -> st.then(now) { Commands.logSet(it, e, 1, e.scheme.reps, e.weight ?: 100, now, emptyMap(), sets = e.scheme.sets) } }
+            }
+            val topDone = top.then(now) { Commands.endTop(it, now, 40 * 60) }
+            shot(p, "03-top-sets") { workoutTab(0) { TopSetsScreen(top, { _, _, _, _ -> }, {}, {}) } }
+            shot(p, "03-top-sets-finish-sheet") {
+                Box(Modifier.fillMaxSize()) {
+                    workoutTab(0) { TopSetsScreen(top, { _, _, _, _ -> }, {}, {}) }
+                    Sheet(true, {}) { SheetContent(SheetState.TopFinish(Commands.topDurationSec(top.active!!.sets.values.map { it.event })), top, {}, {}, {}) }
+                }
+            }
+            shot(p, "11-session-top-sets") { SessionScreen(topDone, topDone.sessions.last(), {}, {}) }
+            shot(p, "09-exercise-top-sets") { ExerciseScreen(topDone, topDone.exerciseLogs().first(), {}, {}) }
             shot(p, "02-stretching") { workoutTab(2) { StretchScreen(idle, "after_workout", {}, {}, {}) } }
             shot(p, "02-stretching-full", tall = true) { workoutTab(2) { StretchScreen(stretchy, evening.id, {}, {}, {}) } }
             shot(p, "02-stretching-library", tall = true) { workoutTab(2) { StretchScreen(stretchy, "throwers-shoulder", {}, {}, {}) } }

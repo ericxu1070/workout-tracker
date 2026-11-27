@@ -17,6 +17,8 @@ Custom splits were added within version 2: the `program_define` and `program_rem
 
 Open sessions and session counting were added within version 2: the optional `mode` and `counts` fields on `session_start`, and the optional `counts` field on `session_end`. A reader that predates them ignores them as unknown fields.
 
+Top-sets sessions were added within version 2: the `"top"` value of `session_start.mode`, the optional `sets` field on `set`, and the optional `started_at` field on `session_edit`. A reader that predates them reads a top-sets session as a workout with one set per exercise, and keeps a session's first start.
+
 Exercise metadata was added within version 2: the `exercise_meta` type. A reader that predates it skips it as an unknown type.
 
 Calisthenics fields on `set` were added within version 2: the optional `added_lb` and `bodyweight_lb` fields. A reader that predates them ignores them as unknown fields.
@@ -208,10 +210,10 @@ A line whose exercise was later deleted from its session no longer counts (see "
 | `session_id` | string | Unique id, such as `s1794306085`. |
 | `program` | string | The program. |
 | `day` | string | The day being done. |
-| `mode` | string, optional | `"program"` (default) or `"open"`. |
+| `mode` | string, optional | `"program"` (default), `"open"`, or `"top"` (a top-sets session: see `set`). |
 | `counts` | bool, optional | True (default) if the session counts toward program progress. |
 
-The line's `ts` is the start time.
+The line's `ts` is the start time, except in a top-sets session, which runs no clock: its start is `session_end.started_at`.
 
 ### `set`
 
@@ -234,10 +236,13 @@ One logged set. Written when the user taps the set done, and again when they cor
 | `rpe` | number, optional | Rate of perceived exertion the user gave the set, 1 to 10 in half steps, always written with one decimal: `8.0`, `8.5`. Absent when not given. It never affects progression. |
 | `added_lb` | number, optional | Weight added (or negative for assistance), lb. |
 | `bodyweight_lb` | number, optional | Body weight snapshot at logging time, lb. |
+| `sets` | int, optional | Only on a top-sets line: how many sets the exercise got in all, 1 to 20. |
 
 The line's `ts` is when the set was logged.
 
 Only working sets are logged. The warm-up sets the app shows before GZCLP T1 lifts are never written to the log, so every `set` line counts toward progression and the metrics below.
+
+**Top-sets lines.** A session with `mode` `"top"` logs one `set` line per exercise, with `set_index` 1: the exercise's best set, which the user picks (the heaviest, or the most reps). Its `weight` and `actual_reps` are that set's alone, and `sets` counts every set done of the exercise, lighter ones included, so never read the line as `sets` sets at `weight`. It has no `rest_sec`, and `amrap` is false. An exercise added to the session has no prescription: its `tier` is `custom`, its `target_weight` is `0`, and its `stage` and `target_reps` repeat what was logged.
 
 **Set identity.** A set is identified by (`session_id`, `exercise`, `tier`, `set_index`). If the user corrects a set, a new `set` line with the same identity is written. The newest one wins. A correction keeps the original `rest_sec` and `rest_target_sec`. A correction can add, change, or remove `rpe`; the newest line's value (or its absence) is the set's RPE.
 
@@ -296,12 +301,14 @@ A `set_clear` is written during the workout, or after its `session_end` when the
 | `session_id` | string | The session. |
 | `program` | string | The program. |
 | `day` | string | The day. |
-| `started_at` | string | Copy of the `session_start` time. |
-| `duration_sec` | int | Seconds from start to end. |
+| `started_at` | string | Copy of the `session_start` time. For a top-sets session, this line's `ts` less `duration_sec`. |
+| `duration_sec` | int | Seconds from start to end. For a top-sets session, the user's estimate. |
 | `counts` | bool, optional | The end-of-session answer for whether an open session counts toward program progress. |
 
 A session with no sets still gets a `session_end` (an accidental start). It does not advance the rotation and should not count as a workout.
 At most one session is open at a time. A `session_start` without a `session_end` is the workout in progress.
+
+A top-sets session counts toward the program. Each exercise's top set stands in for every set of its stage when the `progression` lines are worked out, unless it was lighter than prescribed, and then that exercise gets no line.
 
 ### `exercise_meta`
 
@@ -386,14 +393,15 @@ On-device food classifier estimate for a saved meal photo.
 
 ### `session_edit`
 
-The user corrected a finished workout's duration, such as one left running after the last set.
+The user corrected when a finished workout started or ended, such as one left running after the last set.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `session_id` | string | A session that has a `session_end`. |
 | `duration_sec` | int | The corrected duration, 60 to 86400. It replaces `session_end.duration_sec`; the newest `session_edit` per `session_id` wins. |
+| `started_at` | string, optional | The corrected start. It replaces `session_end.started_at`; the newest `session_edit` that has one wins. Absent when the start did not move. |
 
-The start time, sets, and progression do not change.
+The sets and progression do not change.
 
 ### `body_weight`
 
@@ -462,10 +470,11 @@ First resolve sets: newest `set` per identity wins, drop cleared sets (a clear c
 |---|---|
 | Estimated 1RM, GZCLP | From `set` lines with `amrap: true` and `tier: t1` (optionally `t3`). Epley: `weight * (1 + actual_reps / 30)`. Plot by `ts`. |
 | Estimated 1RM, cycle programs and custom splits | Epley on any `cycle` or `custom` set with `actual_reps > 0`; take the best per session. |
-| Weekly volume and tonnage per exercise | Volume = sum of `actual_reps`. Tonnage = sum of `weight * actual_reps`, using each set's own `weight`. Group by `exercise`, `tier`, and the ISO week of `ts`. |
+| Weekly volume and tonnage per exercise | Volume = sum of `actual_reps`. Tonnage = sum of `weight * actual_reps`, using each set's own `weight`. Group by `exercise`, `tier`, and the ISO week of `ts`. A top-sets line adds its one set only: the reps and weights of the exercise's other sets are not known. |
+| Sets per muscle | Count `set` lines with `actual_reps > 0`; a top-sets line counts `sets`. |
 | GZCLP stalls and resets | `progression` lines with `kind` `stage_change` (stall) and `reset`, by `ts`, with `from_stage`, `to_stage`, and weights. |
 | Cycle timeline | `progression` lines with `tier` `cycle` or `custom`: `cycle_up` and `cycle_repeat` mark the end of each cycle (repeats are the cycle's stalls); `cycle_week` and `cycle_base` give the position after each, and `scheme` tells a `custom` exercise's cycles apart. |
-| Session duration | The newest `session_edit.duration_sec` for the session, else `session_end.duration_sec`, by `started_at`. |
+| Session duration | The newest `session_edit.duration_sec` for the session, else `session_end.duration_sec`, by `started_at` (the newest `session_edit.started_at`, else `session_end.started_at`). |
 | Workouts per week | Count of `session_end` lines whose session has at least one set, by ISO week of `started_at`. Group by `program` to compare programs. |
 | Actual rest vs target | `rest_sec` against `rest_target_sec` on each `set`. Group by the previous set's tier, which is the tier the target came from. |
 | Prescribed vs used weight | `weight` against `target_weight` on each `set`. |
@@ -526,4 +535,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets (a clear c
 {"v":2,"seq":117,"ts":"2026-12-03T18:40:00-08:00","type":"progression","exercise":"ohp","tier":"t1","kind":"stage_change","from_weight":100,"to_weight":100,"from_stage":"5x3+","to_stage":"6x2+","session_id":"s1796349600"}
 {"v":2,"seq":118,"ts":"2026-12-03T18:40:00-08:00","type":"session_end","session_id":"s1796349600","program":"gzclp","day":"B1","started_at":"2026-12-03T18:00:00-08:00","duration_sec":2400}
 {"v":2,"seq":119,"ts":"2026-12-03T20:00:00-08:00","type":"set_clear","session_id":"s1796349600","exercise":"ohp","tier":"t1","set_index":1}
+{"v":2,"seq":120,"ts":"2026-12-04T18:48:00-08:00","type":"session_start","session_id":"s1795834080","program":"gzclp","day":"B1","mode":"top","counts":true}
+{"v":2,"seq":121,"ts":"2026-12-04T18:48:20-08:00","type":"set","session_id":"s1795834080","exercise":"ohp","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":4,"target_weight":95,"weight":95,"amrap":false,"sets":5}
+{"v":2,"seq":122,"ts":"2026-12-04T18:50:00-08:00","type":"session_end","session_id":"s1795834080","program":"gzclp","day":"B1","started_at":"2026-12-04T18:10:00-08:00","duration_sec":2400}
+{"v":2,"seq":123,"ts":"2026-12-04T19:02:00-08:00","type":"session_edit","session_id":"s1795834080","duration_sec":3000,"started_at":"2026-12-04T18:00:00-08:00"}
 ```

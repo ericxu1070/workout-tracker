@@ -104,13 +104,16 @@ object Muscles {
 fun AppState.muscleWork(from: LocalDate, to: LocalDate): Map<Muscle, MuscleWork> {
     val sets = HashMap<Muscle, Int>()
     val load = HashMap<Muscle, Double>()
-    fun count(exercise: String) {
-        val t = Muscles.of(exercise) ?: return
-        for (m in t.primary) { sets.merge(m, 1, Int::plus); load.merge(m, 1.0, Double::plus) }
-        for (m in t.secondary - t.primary.toSet()) { sets.merge(m, 1, Int::plus); load.merge(m, 0.5, Double::plus) }
+    // A top-sets line counts every set of its exercise.
+    fun count(set: SetLogged) {
+        if (set.actualReps <= 0) return
+        val t = Muscles.of(set.exercise) ?: return
+        val n = set.sets ?: 1
+        for (m in t.primary) { sets.merge(m, n, Int::plus); load.merge(m, n.toDouble(), Double::plus) }
+        for (m in t.secondary - t.primary.toSet()) { sets.merge(m, n, Int::plus); load.merge(m, n * 0.5, Double::plus) }
     }
-    for (s in sessions) if (s.startedAt.toLocalDate() in from..to) for (set in s.sets) if (set.actualReps > 0) count(set.exercise)
-    active?.let { a -> if (a.startedAt.toLocalDate() in from..to) for (set in a.sets.values) if (set.event.actualReps > 0) count(set.event.exercise) }
+    for (s in sessions) if (s.startedAt.toLocalDate() in from..to) s.sets.forEach(::count)
+    active?.let { a -> if (a.startedAt.toLocalDate() in from..to) a.sets.values.forEach { count(it.event) } }
     return sets.mapValues { (m, n) -> MuscleWork(n, load.getValue(m)) }
 }
 

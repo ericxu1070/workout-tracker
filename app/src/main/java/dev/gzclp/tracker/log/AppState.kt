@@ -26,17 +26,25 @@ data class SetKey(val exercise: String, val tier: Tier, val setIndex: Int)
 
 data class LoggedSet(val event: SetLogged, val ts: OffsetDateTime)
 
-/** [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. [open] marks a freeform open session. */
+/**
+ * [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. [open] marks a freeform open session,
+ * [top] one logged as a top set per exercise.
+ */
 data class ActiveSession(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val sets: Map<SetKey, LoggedSet>,
     val swaps: Map<Pair<String, Tier>, String> = emptyMap(),
     val open: Boolean = false,
+    val top: Boolean = false,
 )
 
-/** [setTimes] holds when each of [sets] was logged, in the same order. */
+/**
+ * [setTimes] holds when each of [sets] was logged, in the same order. In a [top] session each of [sets] is one exercise's top set,
+ * and its times are the user's estimate.
+ */
 data class SessionRecord(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>,
     val setTimes: List<OffsetDateTime> = emptyList(),
+    val top: Boolean = false,
 ) {
     /** Seconds from the set before each set (the start, for the first) to that set, by (exercise, tier, set index). */
     val setGaps: Map<Triple<String, String, Int>, Long>
@@ -208,7 +216,7 @@ data class AppState(
             is ProgressionEvent -> s.progress(e).copy(strength = strength.observeProgression(e))
             is SessionStart -> {
                 val program = programOf(e.program)
-                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap(), open = e.mode == "open")) } ?: s
+                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap(), open = e.mode == "open", top = e.mode == "top")) } ?: s
             }
             is SetLogged -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
@@ -237,11 +245,18 @@ data class AppState(
                 cardioActive = cardioActive?.takeIf { it.id != e.entryId },
             )
             is CardioCleared -> s.copy(cardio = cardio - e.entryId, cardioActive = cardioActive?.takeIf { it.id != e.entryId })
-            is SessionEdit -> s.copy(sessions = sessions.map { if (it.id == e.sessionId) it.copy(durationSec = e.durationSec) else it })
+            is SessionEdit -> s.copy(
+                sessions = sessions.map {
+                    if (it.id == e.sessionId) it.copy(durationSec = e.durationSec, startedAt = e.startedAt?.let { t -> OffsetDateTime.parse(t, LogCodec.TS) } ?: it.startedAt)
+                    else it
+                },
+            )
             is SessionEnd -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val logged = a.sets.values.sortedBy { it.ts }
-                val record = SessionRecord(a.id, a.program, a.day, a.startedAt, e.durationSec, logged.map { it.event }, logged.map { it.ts })
+                // A top-sets session has no clock: it started its estimated length before it was finished.
+                val start = if (a.top) OffsetDateTime.parse(e.startedAt, LogCodec.TS) else a.startedAt
+                val record = SessionRecord(a.id, a.program, a.day, start, e.durationSec, logged.map { it.event }, logged.map { it.ts }, a.top)
                 s.copy(
                     active = null,
                     sessions = sessions + record,

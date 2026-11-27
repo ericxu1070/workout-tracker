@@ -120,21 +120,28 @@ sealed interface SheetState {
     /** Confirms deleting [target], swiped away from History or Body weight; its row stays open until this closes. */
     data class Delete(val target: Deletion) : SheetState
     /**
-     * Correcting finished lifting session [id]'s duration, from its fixed start [startedAt]. [hours] and [minutes] hold the
-     * typed fields; [durationSec] keeps its seconds until one is typed, so opening and saving changes nothing.
+     * Correcting when finished lifting session [id] started and ended. Its length is never set by itself: it follows from
+     * picking a new start or a new end, and opening and saving changes nothing.
      */
-    data class SessionTime(
-        val id: String, val startedAt: OffsetDateTime, val durationSec: Long,
-        val hours: String = (durationSec / 3600).toString(), val minutes: String = (durationSec % 3600 / 60).toString(),
-    ) : SheetState {
+    data class SessionTime(val id: String, val startedAt: OffsetDateTime, val durationSec: Long) : SheetState {
+        val end: OffsetDateTime get() = startedAt.plusSeconds(durationSec)
         val ok: Boolean get() = durationSec in Commands.SESSION_DURATION_SEC
 
-        fun typed(h: String, m: String): SessionTime? {
-            if (h.length > 2 || m.length > 2 || !h.all(Char::isDigit) || !m.all(Char::isDigit) || (m.toIntOrNull() ?: 0) > 59) return null
-            return copy(hours = h, minutes = m, durationSec = (h.toLongOrNull() ?: 0) * 3600 + (m.toLongOrNull() ?: 0) * 60)
-        }
+        /** Ends at the first [hour]:[minute] after the start, which stays put. */
+        fun endingAt(hour: Int, minute: Int) = copy(durationSec = durationEndingAt(startedAt, hour, minute, Commands.SESSION_DURATION_SEC.last))
 
-        fun withDuration(sec: Long) = SessionTime(id, startedAt, sec)
+        /** Starts at the last [hour]:[minute] before the end, which stays put unless that leaves under a minute. */
+        fun startingAt(hour: Int, minute: Int): SessionTime {
+            val start = end.withHour(hour).withMinute(minute).withSecond(0).let { if (it.isBefore(end)) it else it.minusDays(1) }
+            return copy(startedAt = start, durationSec = java.time.Duration.between(start, end).seconds.coerceIn(Commands.SESSION_DURATION_SEC))
+        }
+    }
+    /**
+     * Finishing a top-sets session, which ran no clock: [durationSec] starts at [estimateSec], worked out from its sets, and a
+     * slider moves it either way in [Commands.TOP_DURATION_STEP_SEC] steps up to [maxSec].
+     */
+    data class TopFinish(val estimateSec: Long, val durationSec: Long = estimateSec) : SheetState {
+        val maxSec: Long get() = maxOf(estimateSec * 2, 3600L)
     }
 }
 
@@ -187,7 +194,7 @@ fun ColumnScope.SheetContent(
     s: SheetState, state: AppState, update: (SheetState) -> Unit, onDismiss: () -> Unit, onConfirm: (SheetState) -> Unit,
     onPickTime: (SheetState.AddMeal) -> Unit = {}, onPickEnd: (SheetState.CardioStop) -> Unit = {},
     onPickStart: (SheetState.CardioStop) -> Unit = {}, onActivity: (SheetState.CardioStop) -> Unit = {},
-    onPickSessionEnd: (SheetState.SessionTime) -> Unit = {},
+    onPickSessionEnd: (SheetState.SessionTime) -> Unit = {}, onPickSessionStart: (SheetState.SessionTime) -> Unit = {},
 ) {
     when (s) {
         is SheetState.Weight -> {
@@ -262,28 +269,48 @@ fun ColumnScope.SheetContent(
             CardioStopSheet(s, state, update, { onPickEnd(s) }, { onPickStart(s) }, { onActivity(s) }) { onConfirm(s) }
         }
         is SheetState.SessionTime -> {
-            SheetTitle("Edit duration", null)
+            SheetTitle(Fmt.minutes(s.durationSec), null)
             val p = LocalPalette.current
-            val end = s.startedAt.plusSeconds(s.durationSec)
             Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Hours", Type.body, Modifier.weight(1f))
-                    NumberField(s.hours, { h -> s.typed(h, s.minutes)?.let(update) }, last = false, label = "Hours")
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Minutes", Type.body, Modifier.weight(1f))
-                    NumberField(s.minutes, { m -> s.typed(s.hours, m)?.let(update) }, label = "Minutes")
+                Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Start", Type.body, Modifier.weight(1f))
+                    Pressable({ onPickSessionStart(s) }, Modifier.heightIn(min = 44.dp), label = "Change start time") {
+                        Txt(Fmt.time(s.startedAt), Type.headline.tabular(), color = p.accent)
+                    }
                 }
                 Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Ends", Type.body, Modifier.weight(1f))
+                    Txt("End", Type.body, Modifier.weight(1f))
                     Pressable({ onPickSessionEnd(s) }, Modifier.heightIn(min = 44.dp), label = "Change end time") {
-                        Txt(Fmt.time(end), Type.headline.tabular(), color = p.accent)
+                        Txt(Fmt.time(s.end), Type.headline.tabular(), color = p.accent)
                     }
-                    Txt(Fmt.dayAfter(s.startedAt, end), Type.body, color = p.fg2)
+                    Txt(Fmt.dayAfter(s.startedAt, s.end), Type.body, color = p.fg2)
                 }
             }
-            Txt("Started ${Fmt.time(s.startedAt)}. ${if (s.ok) "" else "Between 1 minute and 24 hours."}".trim(), Type.footnote, color = if (s.ok) p.fg2 else p.red)
-            PillButton("Save duration", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
+            PillButton("Save", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true, enabled = s.ok)
+        }
+        is SheetState.TopFinish -> {
+            val p = LocalPalette.current
+            val haptic = LocalHapticFeedback.current
+            val step = Commands.TOP_DURATION_STEP_SEC
+            SheetTitle("How long?", null)
+            Txt(Fmt.minutes(s.durationSec), Type.title1)
+            Column {
+                // Stop 0 is one step, the shortest a session gets; the tick stays on the estimate.
+                StepSlider(
+                    (s.durationSec / step).toInt() - 1, (s.maxSec / step).toInt() - 1,
+                    onStop = {
+                        if ((it + 1) * step != s.durationSec) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        update(s.copy(durationSec = (it + 1) * step))
+                    },
+                    description = "Duration",
+                    from = (s.estimateSec / step).toInt() - 1,
+                )
+                Row {
+                    Txt(Fmt.minutes(step), Type.caption, Modifier.weight(1f), p.fg2)
+                    Txt(Fmt.minutes(s.maxSec), Type.caption, color = p.fg2)
+                }
+            }
+            PillButton("Finish", { onConfirm(s) }, Modifier.fillMaxWidth(), primary = true)
         }
         is SheetState.CardioDiscard -> {
             val finished = s.run.id in state.cardio

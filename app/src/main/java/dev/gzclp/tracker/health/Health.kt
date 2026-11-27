@@ -22,6 +22,7 @@ import dev.gzclp.tracker.log.SessionEdit
 import dev.gzclp.tracker.log.SessionEnd
 import dev.gzclp.tracker.log.SessionRecord
 import java.time.Duration
+import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Locale
 
@@ -81,12 +82,15 @@ object HealthRecords {
         return WeightRecord(at.toInstant(), at.offset, Mass.pounds(e.weight), Metadata.manualEntry(e.entryId, seq))
     }
 
-    /** One strength session; each logged set becomes a segment with its reps, and the notes list every set's weight. */
+    /**
+     * One strength session; each logged set becomes a segment with its reps, and the notes list every set's weight.
+     * A top-sets session's notes give each exercise's top set and its count of sets, since the others were not that heavy.
+     */
     fun session(state: AppState, a: SessionRecord, seq: Long): ExerciseSessionRecord {
         val start = a.startedAt.toInstant()
         val stop = maxOf(start.plusSeconds(a.durationSec), start.plusSeconds(1))
         var prev = start
-        val segments = a.sets.zip(a.setTimes).mapNotNull { (set, ts) ->
+        val segments = if (a.top) topSegments(a, start, stop) else a.sets.zip(a.setTimes).mapNotNull { (set, ts) ->
             val to = minOf(ts.toInstant(), stop)
             val from = maxOf(prev, to - SET_TIME)
             if (!from.isBefore(to)) return@mapNotNull null
@@ -96,7 +100,9 @@ object HealthRecords {
         val notes = a.sets.groupBy { it.exercise to it.tier }.entries.joinToString("\n") { (key, logged) ->
             val (id, tier) = key
             val label = Tier.of(tier)?.takeIf { !it.cyclic }?.let { " ${it.label}" } ?: ""
-            "${state.name(id)}$label: " + logged.joinToString(", ") { "${it.weight}×${it.actualReps}" } + " lb"
+            val top = logged.singleOrNull()?.takeIf { it.sets != null }
+            if (top != null) "${state.name(id)}$label: top ${top.weight}×${top.actualReps} lb, ${top.sets} ${if (top.sets == 1) "set" else "sets"}"
+            else "${state.name(id)}$label: " + logged.joinToString(", ") { "${it.weight}×${it.actualReps}" } + " lb"
         }
         return ExerciseSessionRecord(
             startTime = start, startZoneOffset = a.startedAt.offset, endTime = stop, endZoneOffset = a.startedAt.offset,
@@ -106,6 +112,21 @@ object HealthRecords {
             notes = notes.take(1000),
             segments = segments,
         )
+    }
+
+    /**
+     * A top-sets session stamps no set, so its exercises' sets share its time evenly, in order. Only each exercise's first
+     * segment, its top set, carries reps: the others' are not known.
+     */
+    private fun topSegments(a: SessionRecord, start: Instant, stop: Instant): List<ExerciseSegment> {
+        val all = a.sets.flatMap { set -> List(set.sets ?: 1) { i -> set.exercise to if (i == 0) set.actualReps else 0 } }
+        if (all.isEmpty()) return emptyList()
+        val slot = Duration.between(start, stop).dividedBy(all.size.toLong())
+        return all.mapIndexedNotNull { i, (exercise, reps) ->
+            val from = start + slot.multipliedBy(i.toLong())
+            val to = from + minOf(SET_TIME, slot)
+            if (from.isBefore(to)) ExerciseSegment(from, to, segmentType(exercise), reps) else null
+        }
     }
 
     /** One cardio session; distance, pace or speed, and RPE lead the notes, since writing a distance record needs a new permission. */
