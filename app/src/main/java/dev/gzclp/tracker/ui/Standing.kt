@@ -228,7 +228,8 @@ fun StrengthScreen(
             GroupRow(first = false) {
                 Txt("Birth year", Type.body, Modifier.weight(1f), maxLines = 2)
                 MiniStep(Icons.minus, "Earlier birth year", enabled = year > today.year - 90) { onBirthYear(if (birthYear == null) year else year - 1) }
-                Txt(birthYear?.toString() ?: "Not set", Type.body.tabular(), Modifier.widthIn(min = 64.dp).padding(horizontal = Space.sm), maxLines = 1, align = TextAlign.Center)
+                // Wide enough for "Not set", so the steppers stay put when the first tap sets a year.
+                Txt(birthYear?.toString() ?: "Not set", Type.body.tabular(), Modifier.widthIn(min = 80.dp).padding(horizontal = Space.sm), maxLines = 1, align = TextAlign.Center)
                 MiniStep(Icons.plus, "Later birth year", enabled = year < today.year - 13) { onBirthYear(if (birthYear == null) year else year + 1) }
             }
         }
