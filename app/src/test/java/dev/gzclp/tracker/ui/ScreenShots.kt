@@ -513,6 +513,10 @@ class ScreenShots {
             shot(p, "08-exercises") { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) } }
             shot(p, "09-exercise-detail") { ExerciseScreen(idle, bench, {}, {}) }
             shot(p, "09-exercise-relative") { ExerciseScreen(idle, bench, {}, {}, initialRelative = true) }
+            shot(p, "09-exercise-percentile") { ExerciseScreen(idle, bench, {}, {}, birthYear = 1992, today = today, initialView = 2) }
+            shot(p, "09-exercise-percentile-empty") { ExerciseScreen(idle.copy(bodyWeights = emptyMap()), bench, {}, {}, today = today, initialView = 2) }
+            shot(p, "10-strength") { StrengthScreen(idle, false, 1992, today, {}, {}, {}, {}) }
+            shot(p, "10-strength-full", tall = true) { StrengthScreen(idle, true, null, today, {}, {}, {}, {}) }
             shot(p, "09-exercise-relative-empty") { ExerciseScreen(idle.copy(bodyWeights = emptyMap()), bench, {}, {}, initialRelative = true) }
             shot(p, "08-exercises-full", tall = true) { TabFrame(Tab.Exercises, {}) { ExercisesScreen(idle, {}, {}, {}, today = Demo.today.minusDays(1)) } }
             shot(p, "15-body-weight") { BodyWeightScreen(idle, today, {}, {}, {}) }

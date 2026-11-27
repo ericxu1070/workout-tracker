@@ -93,6 +93,8 @@ class AppModel private constructor(private val context: Context) {
         private set
     var bodyBuild by mutableStateOf(prefs.bodyBuild)
         private set
+    var birthYear by mutableStateOf(prefs.birthYear)
+        private set
 
     init {
         Figure.shape = Figure.body(bodyFemale, bodyBuild)
@@ -282,6 +284,11 @@ class AppModel private constructor(private val context: Context) {
         prefs.bodyFemale = on
         bodyFemale = on
         Figure.shape = Figure.body(bodyFemale, bodyBuild)
+    }
+
+    fun chooseBirthYear(year: Int) {
+        prefs.birthYear = year
+        birthYear = year
     }
 
     fun chooseBodyBuild(build: String) {
