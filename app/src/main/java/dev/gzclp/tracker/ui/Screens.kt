@@ -123,7 +123,8 @@ private fun Frame(bottom: (@Composable () -> Unit)?, scroller: @Composable () ->
     val below = LocalBottomInset.current
     var bar by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val inset = if (b == null) 0.dp else with(density) { bar.toDp() }
+    // With no bottom bar of its own, the page still clears what floats below it: without this a tab's last rows stopped under the tab bar.
+    val inset = if (b == null || bottom == null) below else with(density) { bar.toDp() }
     // Status bar inset outside the scroll, so content clips below it instead of scrolling under the clock.
     Column(Modifier.fillMaxSize().page().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { top = it.positionInRoot().y + barPx }) {

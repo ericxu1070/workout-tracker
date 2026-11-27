@@ -75,6 +75,20 @@ class MuscleMapTest {
         rule.onAllNodesWithText("Chest").assertCountEquals(0)
     }
 
+    @Test fun aTapJustOutsideAMusclePicksItAndAFarOneNothing() {
+        val v = BodyPaths.views.getValue("mf")
+        // The leftmost muscle on the front figure: nothing but skin lies left of it.
+        val (m, path) = v.parts.filter { it.first != null }.minBy { it.second.getBounds().left }
+        val b = path.getBounds()
+        val y = b.center.y
+        // Walk in from the left to the muscle's edge on that row.
+        val edge = generateSequence(b.left - 2f) { it + 1f }.first { v.muscleAt(it, y, 0f) != null }
+        assertEquals(m, v.muscleAt(edge, y, 0f))
+        assertEquals(null, v.muscleAt(edge - 4f, y, 0f))
+        assertEquals(m, v.muscleAt(edge - 4f, y, 6f))
+        assertEquals(null, v.muscleAt(edge - 40f, y, 6f))
+    }
+
     @Test fun theSwitchHoldsDayWeekAndMonthAndStartsOnWeek() {
         // The last day lifted, so Day has sets of its own, fewer than its week's.
         val day = idle.sessions.maxOf { it.startedAt }.toLocalDate()

@@ -825,6 +825,9 @@ fun TabFrame(tab: Tab, onSelect: (Tab) -> Unit, content: @Composable () -> Unit)
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().consumeWindowInsets(WindowInsets.navigationBars).backdropSource(b)) {
             androidx.compose.runtime.CompositionLocalProvider(LocalBottomInset provides if (bar) GlassTabBar + Space.xs + nav else 0.dp, content = content)
+            // The page fades out behind the bar's lower half and is gone below it: rows left readable in the strip between the bar
+            // and the screen's edge, around the gesture handle, pulled the eye.
+            if (bar) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(GlassTabBar / 2 + Space.xs + nav).scrollEdge(GlassTabBar / 2, up = true))
         }
         if (bar) androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides b) { TabBar(tab, Modifier.align(Alignment.BottomCenter), onSelect) }
     }

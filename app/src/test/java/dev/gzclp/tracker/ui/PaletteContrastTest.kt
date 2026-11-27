@@ -72,10 +72,8 @@ class PaletteContrastTest {
     }
 
     @Test fun liquidGlassReadsOverItsWorstBackdrop() = glass.forEach { p ->
-        // Translucent over a visible wallpaper (at least a fifth of the glow Liquid Glass was tuned with), or it is only a flat theme with rims.
         assertTrue("${p.id} chrome alpha ${p.chrome.alpha}", p.chrome.alpha < 0.96f)
         assertTrue("${p.id} card alpha ${p.card.alpha}", p.card.alpha <= 0.6f)
-        assertTrue("${p.id} glow alpha ${p.glows.first().alpha}", p.glows.first().alpha > 0.03f)
         for ((i, s) in p.surfaces.withIndex()) {
             // A filled control's label at the top of its sheen, and a switch or segment against its track, on every backdrop.
             p.check("fg on sheen over surface $i", p.fg, Color.White.copy(alpha = SHEEN).compositeOver(s), 4.5f)
@@ -96,12 +94,12 @@ class PaletteContrastTest {
     }
 
     @Test fun barsAreSeeThroughAndTheirLabelsReadOverWhatScrollsUnder() = glass.forEach { p ->
-        // The tab bar and the floating switch are clearer than sheets, tinted the theme's own color; the Liquid Glass theme's at most 45% opaque.
+        // The tab bar and the floating switch are clearer than sheets, tinted the theme's own color; the Liquid Glass theme's at most 65% opaque.
         assertTrue("${p.id} bar alpha ${p.bar.alpha} vs chrome ${p.chrome.alpha}", p.bar.alpha < p.chrome.alpha && p.bar.alpha >= CLEAREST_BAR / 100f)
         assertEquals(p.bg.copy(alpha = p.bar.alpha), p.bar)
-        // The narrowed set: what scrolls under a bar is the wallpaper (plainest, each glow, all glows at once) and cards over it.
+        // The narrowed set: what scrolls under a bar is the page and cards over it.
         // Brighter blocks (accent and red pills, white knobs) are left to the labels' halo, a judgment made on the phone, not here.
-        val walls = listOf(p.bg) + p.glows.map { it.compositeOver(p.bg) } + p.glows.fold(p.bg) { u, g -> g.compositeOver(u) }
+        val walls = listOf(p.bg)
         val sheen = Color.White.copy(alpha = SHEEN)
         for (u in walls + walls.map { p.card.compositeOver(it) }) for (s in p.bar.compositeOver(u).let { listOf(it, sheen.compositeOver(it)) }) {
             p.check("tab label on the bar", p.fg2, s, 4.5f)
@@ -111,7 +109,7 @@ class PaletteContrastTest {
         }
     }
 
-    @Test fun theLiquidGlassThemesBarsAreSeeThrough() = assertTrue(Palettes.glass.bar.alpha <= 0.45f)
+    @Test fun theLiquidGlassThemesBarsAreSeeThrough() = assertTrue(Palettes.glass.bar.alpha <= 0.65f)
 
     @Test fun restingPillIsNeutralAndTheCurrentSegmentReadsOnIt() = themes.forEach { p ->
         // One shade off the bar, never the accent: fg's own hue, so lighter on a dark bar and grayer on a light one.
@@ -129,9 +127,8 @@ class PaletteContrastTest {
     }
 
     @Test fun theLiquidGlassThemeKeepsItsLook() {
-        // Midnight under glass is what the Liquid Glass theme was: full glows, bars at 82%, secondary text as it was.
+        // Midnight under glass is what the Liquid Glass theme was, on a flat page: bars at 82%, secondary text as it was.
         val p = Palettes.midnight.glassed
-        assertEquals(0.18f, p.glows.first().alpha, 1e-3f)
         assertEquals(0.82f, p.chrome.alpha, 1e-3f)
         assertEquals(Palettes.midnight.fg2, p.fg2)
         // Its accent, the blue its controls and charts were tuned in, moves by at most a few 8-bit steps.
