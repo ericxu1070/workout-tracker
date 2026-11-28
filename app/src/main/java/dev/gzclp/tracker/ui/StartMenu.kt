@@ -46,11 +46,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -86,11 +88,8 @@ class StartMenu {
     internal var backdrop: Backdrop? = null
     internal val button = FocusRequester()
 
-    /** Closes with nothing picked: keyboard focus goes back to the button. */
     fun close() {
-        if (!open) return
         open = false
-        button.requestFocus()
     }
 }
 
@@ -128,12 +127,16 @@ fun StartMenuOptions(menu: StartMenu, primary: String, onPrimary: () -> Unit, op
     LaunchedEffect(tabShown.value) { if (!tabShown.value) menu.open = false }
     HoldPages(menu.open)
     var picked by remember { mutableStateOf(false) }
+    val input = LocalInputModeManager.current
     LaunchedEffect(menu.open) {
         if (menu.open) {
             picked = false
             if (whoosh) motion.feel?.lift()
             menu.t.animateTo(1f, if (whoosh) riseSpring() else tween(260, easing = EaseOutQuart))
         } else if (menu.t.value > 0f) {
+            // With a keyboard, focus follows the menu: into it as it opens ([Pane]) and back to the button as it closes with nothing
+            // picked. Under a finger it stays put: moved, it left the button wearing a focus ring.
+            if (!picked && input.inputMode == InputMode.Keyboard) menu.button.requestFocus()
             menu.t.animateTo(0f, tween(180, easing = EaseOutQuart))
             // What was picked brings its own landing: a sheet, or the workout.
             if (whoosh && !picked) {
@@ -173,7 +176,8 @@ private fun Pane(menu: StartMenu, origin: () -> Offset, primary: String, onPrima
     val p = LocalPalette.current
     val t = { menu.t.value.coerceAtLeast(0f) }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { first.requestFocus() }
+    val input = LocalInputModeManager.current
+    LaunchedEffect(Unit) { if (input.inputMode == InputMode.Keyboard) first.requestFocus() }
     // It picks up the press the closed button was let go from, and eases back to full size as that button would have ([Pressable]).
     // With the system's Remove animations on there is no press to pick up: it is drawn closed, then open, and nothing in between.
     val sink = loaded(Effect.Sink)

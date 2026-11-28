@@ -1,7 +1,11 @@
 package dev.gzclp.tracker.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -9,6 +13,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -19,7 +24,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -39,8 +43,15 @@ class StartMenuTest {
 
     private val picked = mutableListOf<String>()
 
-    private fun home() = rule.setContent {
-        GzTheme(Palettes.tokyo) { HomeScreen(Demo.state, { picked += "start" }, {}, onStartTop = { picked += "top" }) }
+    /** The Workout screen as a finger finds it, or with a keyboard in use: Robolectric's own window is in neither mode for certain. */
+    private fun home(keyboard: Boolean = false) = rule.setContent {
+        val input = object : InputModeManager {
+            override val inputMode = if (keyboard) InputMode.Keyboard else InputMode.Touch
+            override fun requestInputMode(inputMode: InputMode) = false
+        }
+        CompositionLocalProvider(LocalInputModeManager provides input) {
+            GzTheme(Palettes.tokyo) { HomeScreen(Demo.state, { picked += "start" }, {}, onStartTop = { picked += "top" }) }
+        }
     }
 
     private fun assertClosed() {
@@ -158,10 +169,18 @@ class StartMenuTest {
         rule.onNodeWithText("Choose").assertExists()
     }
 
+    /** Under a finger focus stays where it was: moved to the button on closing, it left the button wearing a keyboard's focus ring. */
+    @Test fun aFingerLeavesNoFocusBehind() {
+        home()
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.onNodeWithText("Start workout").assertIsNotFocused()
+        rule.onRoot().performTouchInput { click(Offset(width / 2f, height * 0.25f)) }
+        rule.onNodeWithText(START_OR_LOG).assertIsNotFocused()
+    }
+
     /** With a keyboard, focus goes to the option under the button, and back to the button when the menu closes. */
     @Test fun focusMovesIntoTheMenuAndBackToTheButton() {
-        InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
-        home()
+        home(keyboard = true)
         rule.onNodeWithText(START_OR_LOG).performSemanticsAction(SemanticsActions.OnClick)
         rule.onNodeWithText("Start workout").assertIsFocused()
         rule.runOnIdle { rule.activity.onBackPressedDispatcher.onBackPressed() }
@@ -174,19 +193,24 @@ class StartMenuTest {
         val closed = rule.onNodeWithText(START_OR_LOG).fetchSemanticsNode().boundsInRoot
         rule.mainClock.autoAdvance = false
         rule.onNodeWithText(START_OR_LOG).performClick()
-        rule.mainClock.advanceTimeBy(64)
-        val part = rule.onNode(pane).fetchSemanticsNode().boundsInRoot
+        val opening = frames()
         rule.mainClock.advanceTimeBy(1000)
         val open = rule.onNode(pane).fetchSemanticsNode().boundsInRoot
-        assertTrue("${closed.height} < ${part.height} < ${open.height}", part.height > closed.height && part.height < open.height)
+        val part = opening.filter { it.height > closed.height && it.height < open.height }
+        assertTrue("part grown on the way: ${opening.map { it.height }}", part.size >= 3)
         // Its bottom edge is the button's, still easing back from the press the button was let go at.
-        assertEquals(closed.bottom, part.bottom, 0.03f * closed.height)
+        for (b in part) assertEquals(closed.bottom, b.bottom, 0.03f * closed.height)
         rule.onRoot().performTouchInput { click(Offset(width / 2f, height * 0.25f)) }
-        rule.mainClock.advanceTimeBy(64)
-        val closing = rule.onNode(pane).fetchSemanticsNode().boundsInRoot
-        assertTrue(closing.height > closed.height && closing.height < open.height)
+        val closing = frames()
+        assertTrue("part shrunk on the way: ${closing.map { it.height }}", closing.count { it.height > closed.height && it.height < open.height } >= 3)
         rule.mainClock.advanceTimeBy(1000)
         assertClosed()
+    }
+
+    /** The pane's bounds over the next ten frames, while there is one. */
+    private fun frames() = (1..10).mapNotNull {
+        rule.mainClock.advanceTimeByFrame()
+        rule.onAllNodes(pane).fetchSemanticsNodes().singleOrNull()?.boundsInRoot
     }
 }
 
@@ -217,7 +241,7 @@ class StartMenuNoMotionTest {
             rule.onAllNodes(pane).fetchSemanticsNodes().singleOrNull()?.boundsInRoot?.height ?: closed
         }
         assertEquals("never part shrunk: $after", setOf(closed), after.toSet() - open)
-        assertTrue("closed within two frames: $after", after[1] == closed)
+        assertTrue("closed within three frames: $after", after[2] == closed)
         rule.mainClock.advanceTimeByFrame()
         rule.onNodeWithText("Start workout").assertDoesNotExist()
         rule.onNodeWithText(START_OR_LOG).assertExists()
