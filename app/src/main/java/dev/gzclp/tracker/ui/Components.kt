@@ -62,6 +62,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -615,7 +616,8 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, backdrop: Backdrop? = LocalBa
             Box(Modifier.fillMaxSize().background(p.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         }
         AnimatedVisibility(
-            visible, Modifier.align(Alignment.BottomCenter),
+            // A sheet as tall as the screen still stops short of the status bar, so its handle and title stay clear of it.
+            visible, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.statusBars).padding(top = Space.sm),
             // Coming in, the sheet's own [down] carries it, so a finger can catch it on the way; leaving takes about two thirds as long.
             enter = EnterTransition.None,
             exit = if (whoosh && !flung) androidx.compose.animation.scaleOut(DropScale, 0.86f) + fadeOut(tween(220, easing = androidx.compose.animation.core.EaseIn))
