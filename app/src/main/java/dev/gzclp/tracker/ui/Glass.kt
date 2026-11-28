@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -91,6 +92,7 @@ fun Modifier.backdropSource(b: Backdrop?): Modifier = if (b == null) this else o
 fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: Boolean = false): Modifier {
     val p = LocalPalette.current
     val blur = rememberGraphicsLayer()
+    val frame = rememberGraphicsLayer()
     val lens = if (bar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) remember { RuntimeShader(LENS) } else null
     var at by remember { mutableStateOf(Offset.Zero) }
     val tint = if (bar) p.bar else p.chrome
@@ -103,9 +105,6 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: 
             val radius = (if (bar) BarBlurRadius else BlurRadius).toPx() * s
             // A lens records a rim's width more all round, so its edge gathers in what lies just outside the pane.
             val m = if (lens != null) LensRim.toPx() else 0f
-            blur.pivotOffset = Offset.Zero
-            blur.scaleX = 1 / s
-            blur.scaleY = 1 / s
             blur.renderEffect = if (lens == null) BlurEffect(radius, radius, TileMode.Clamp) else lens.run {
                 setFloatUniform("box", m * s, m * s, (m + size.width) * s, (m + size.height) * s)
                 setFloatUniform("radius", minOf(size.width, size.height) / 2 * s)
@@ -116,10 +115,21 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: 
                     RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP),
                 ).asComposeRenderEffect()
             }
-            blur.record(IntSize(ceil((size.width + 2 * m) * s).toInt(), ceil((size.height + 2 * m) * s).toInt())) {
+            val area = IntSize(ceil((size.width + 2 * m) * s).toInt(), ceil((size.height + 2 * m) * s).toInt())
+            blur.record(area) {
                 scale(s, Offset.Zero) { translate(b.origin.x - at.x + m, b.origin.y - at.y + m) { drawLayer(b.layer) } }
             }
-            translate(-m, -m) { drawLayer(blur) }
+            // An effect runs only over the clip it is drawn under, and the lens reads past the pane's edge, where under the pane's own
+            // clip a GPU leaves stale texture (a band of colored noise along the switch's bottom). Drawn first into an offscreen frame of its
+            // whole size, the lens runs over all of it, and only then is clipped to the pane. A blur alone reads only what it asks for.
+            val shown = if (lens == null) blur else frame.apply {
+                compositingStrategy = CompositingStrategy.Offscreen
+                record(area) { drawLayer(blur) }
+            }
+            shown.pivotOffset = Offset.Zero
+            shown.scaleX = 1 / s
+            shown.scaleY = 1 / s
+            translate(-m, -m) { drawLayer(shown) }
             drawRect(tint)
         } else drawRect(tint.copy(alpha = 1f))
         drawContent()
