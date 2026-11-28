@@ -7,9 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +48,7 @@ import dev.gzclp.tracker.log.FoodEstimate
 import dev.gzclp.tracker.log.WaterLog
 import dev.gzclp.tracker.ui.Type.tabular
 import java.time.LocalDate
+import kotlin.math.roundToInt
 import java.time.OffsetDateTime
 
 /** What I ate on [day]: one photo per meal, oldest first, with camera and gallery buttons for the next one. */
@@ -150,14 +153,25 @@ fun FoodScreen(
     }
 }
 
-/** A meal's photo, decoded to about [maxSide] pixels and cropped to fill [modifier]; [ownShape] sizes it to the photo (portrait capped at 3:4). */
+/**
+ * A meal's photo, decoded to about [maxSide] pixels and cropped to fill [modifier]; [ownShape] sizes it to the photo (portrait capped
+ * at 3:4) across the full width, cropped shorter when less height is left.
+ */
 @Composable
 fun MealPhoto(meal: Meal, maxSide: Int, modifier: Modifier, ownShape: Boolean = false) {
     val bmp = remember(meal.file, meal.file.lastModified(), maxSide) { FoodLog.downscale(meal.file, maxSide)?.asImageBitmap() }
     if (bmp == null) Box(modifier.background(LocalPalette.current.fill))
     else Image(
         bmp, "Meal at ${Fmt.time(meal.at)}",
-        if (ownShape) modifier.aspectRatio(maxOf(bmp.width.toFloat() / bmp.height, 0.75f)) else modifier, contentScale = ContentScale.Crop,
+        if (!ownShape) modifier else modifier.layout { m, c ->
+            // Not aspectRatio: when the height left is short of the photo's, it would overflow its slot onto what sits above.
+            val fit = (c.maxWidth / maxOf(bmp.width.toFloat() / bmp.height, 0.75f)).roundToInt().coerceIn(c.minHeight, c.maxHeight)
+            // Squeezed to a sliver (the keyboard up), the photo steps aside instead.
+            val h = if (fit < 64.dp.roundToPx()) c.minHeight else fit
+            val pl = m.measure(Constraints.fixed(c.maxWidth, h))
+            layout(pl.width, pl.height) { pl.place(0, 0) }
+        },
+        contentScale = ContentScale.Crop,
     )
 }
 
@@ -186,11 +200,13 @@ fun AddMealSheet(s: SheetState.AddMeal, onTime: () -> Unit, update: (SheetState)
 
 /** The meal sheet: the photo large, with Delete, and top 3 calorie estimates with confirmation/editing. */
 @Composable
-fun MealSheet(
+fun ColumnScope.MealSheet(
     meal: Meal,
     today: LocalDate,
     onDelete: () -> Unit,
     onDone: () -> Unit,
+    /** Guesses for the photo; tests pass their own, since the model does not run off device. */
+    classify: (suspend (java.io.File) -> List<Prediction>)? = null,
 ) {
     val context = LocalContext.current
     val p = LocalPalette.current
@@ -205,10 +221,11 @@ fun MealSheet(
     var editLow by remember(currentEst) { mutableStateOf(currentEst?.kcalLow ?: 500) }
     var editHigh by remember(currentEst) { mutableStateOf(currentEst?.kcalHigh ?: 700) }
 
-    LaunchedEffect(meal.file.name) { suggestions = Classifier.classify(context, meal.file, topK = 3) }
+    LaunchedEffect(meal.file.name) { suggestions = classify?.invoke(meal.file) ?: Classifier.classify(context, meal.file, topK = 3) }
 
     Txt(Fmt.weighInTime(meal.at, today), Type.title2)
-    MealPhoto(meal, FoodLog.MAX_SIDE, Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)), ownShape = true)
+    // The photo gives up height first, so a tall one never pushes the estimates and buttons off the bottom of the sheet.
+    MealPhoto(meal, FoodLog.MAX_SIDE, Modifier.weight(1f, fill = false).fillMaxWidth().clip(RoundedCornerShape(Radius.lg)), ownShape = true)
 
     Spacer(Modifier.height(Space.md))
     if (editing) {
@@ -229,37 +246,19 @@ fun MealSheet(
             }
         )
         Spacer(Modifier.height(Space.sm))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Space.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Txt("Low", Type.caption, color = p.fg2)
-                Spacer(Modifier.height(4.dp))
-                Stepper(
-                    value = editLow.toString(),
-                    onMinus = { if (editLow > 50) editLow -= 25 },
-                    onPlus = { editLow += 25; if (editHigh <= editLow) editHigh = editLow + 50 },
-                    unit = "kcal"
-                )
+        // One full-width row each: two big steppers side by side do not fit half a sheet, which hid their plus buttons.
+        Group {
+            KcalRow("Low", editLow, first = true, onSet = { editLow = it }, onMinus = { editLow = (editLow - 25).coerceAtLeast(50) }) {
+                editLow += 25
+                if (editHigh <= editLow) editHigh = editLow + 50
             }
-            Column(Modifier.weight(1f)) {
-                Txt("High", Type.caption, color = p.fg2)
-                Spacer(Modifier.height(4.dp))
-                Stepper(
-                    value = editHigh.toString(),
-                    onMinus = { if (editHigh - 25 > editLow) editHigh -= 25 },
-                    onPlus = { editHigh += 25 },
-                    unit = "kcal"
-                )
-            }
+            KcalRow("High", editHigh, first = false, onSet = { editHigh = it }, onMinus = { if (editHigh - 25 > editLow) editHigh -= 25 }) { editHigh += 25 }
         }
         Spacer(Modifier.height(Space.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
             PillButton("Cancel", { editing = false }, Modifier.weight(1f), onSurface = true)
             PillButton(
-                "Save estimate",
+                "Save",
                 {
                     val validLabel = editLabel.trim().ifEmpty { "Meal" }
                     val finalLow = editLow.coerceAtLeast(50)
@@ -330,6 +329,23 @@ fun MealSheet(
     Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         PillButton("Delete meal", onDelete, Modifier.weight(1f), onSurface = true, danger = true)
         PillButton("Done", onDone, Modifier.weight(1f), primary = true)
+    }
+}
+
+/** A calorie bound in a [Group]: minus and plus step it by 25, and a tap on the number types it (Save keeps low >= 50 and high > low). */
+@Composable
+private fun KcalRow(label: String, kcal: Int, first: Boolean, onSet: (Int) -> Unit, onMinus: () -> Unit, onPlus: () -> Unit) {
+    GroupRow(first) {
+        Column(Modifier.weight(1f)) {
+            Txt(label, Type.body, maxLines = 1)
+            Txt("kcal", Type.footnote, color = LocalPalette.current.fg2, maxLines = 1)
+        }
+        MiniStep(Icons.minus, "Decrease $label") { onMinus() }
+        NumberField(
+            if (kcal == 0) "" else kcal.toString(), { onSet(it.filter(Char::isDigit).take(4).toIntOrNull() ?: 0) },
+            modifier = Modifier.padding(horizontal = Space.sm), width = 80.dp, label = "$label kcal",
+        )
+        MiniStep(Icons.plus, "Increase $label") { onPlus() }
     }
 }
 
