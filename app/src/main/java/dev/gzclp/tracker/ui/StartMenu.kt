@@ -115,7 +115,7 @@ fun StartMenuButton(menu: StartMenu, modifier: Modifier = Modifier) {
  * [menu]'s options, over the screen they are declared after: [options] top to bottom, then [primary] as a pill where the closed
  * button was, under the thumb that opened it. The pane's sides and bottom edge are the button's and its top edge rises, on
  * [Disclosed]'s clock; in Loaded it rises on [riseSpring] and, closed with nothing picked, lands back in the bar with a ripple.
- * The page dims and holds still under it, as under a [Sheet]; a tap on the page or Back closes it.
+ * The page dims and holds still under it, as under a [Sheet]; a tap on the page or on the header over it, or Back, closes it.
  */
 @Composable
 fun StartMenuOptions(menu: StartMenu, primary: String, onPrimary: () -> Unit, options: List<StartOption>) {
@@ -126,7 +126,7 @@ fun StartMenuOptions(menu: StartMenu, primary: String, onPrimary: () -> Unit, op
     val tabShown = LocalTabShown.current
     BackHandler(menu.open && tabShown.value, menu::close)
     LaunchedEffect(tabShown.value) { if (!tabShown.value) menu.open = false }
-    HoldPages(menu.open)
+    HoldPages(menu.open, menu::close)
     var picked by remember { mutableStateOf(false) }
     val input = LocalInputModeManager.current
     val focus = LocalFocusManager.current

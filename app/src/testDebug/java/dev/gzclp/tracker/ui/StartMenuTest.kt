@@ -21,6 +21,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -144,6 +145,49 @@ class StartMenuTest {
         rule.onRoot().performTouchInput { click(Offset(width / 2f, height * 0.25f)) }
         assertClosed()
         assertEquals(emptyList<String>(), picked)
+    }
+
+    /** The Workout tab's Lifting page under its fixed header (the gear and the Lifting, Cardio, Stretching switch), which dims with the page. */
+    private fun underTheHeader(p: Palette, mode: () -> Int, onMode: (Int) -> Unit, onSettings: () -> Unit) = rule.setContent {
+        GzTheme(p) { WorkoutPages(mode(), onMode, onSettings) { if (it == 0) HomeScreen(Demo.state, { picked += "start" }, {}) } }
+    }
+
+    /** The dimmed header is outside the menu as the dimmed page is: a tap on it closes the menu, and reaches nothing in the header. */
+    private fun aTapOnTheDimmedHeaderClosesIt(p: Palette) {
+        var mode by mutableStateOf(0)
+        var settings = 0
+        underTheHeader(p, { mode }, { mode = it }, { settings++ })
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.onNodeWithText("Start workout").assertExists()
+        rule.onNodeWithText("Cardio").performClick()
+        assertClosed()
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.onNodeWithContentDescription("Settings").performClick()
+        assertClosed()
+        assertEquals(0, mode)
+        assertEquals(0, settings)
+        assertEquals(emptyList<String>(), picked)
+        // Lit again, the header is live.
+        rule.onNodeWithContentDescription("Settings").performClick()
+        assertEquals(1, settings)
+    }
+
+    @Test fun aTapOnTheDimmedHeaderClosesIt() = aTapOnTheDimmedHeaderClosesIt(Palettes.tokyo)
+    @Test fun aTapOnTheDimmedHeaderClosesItInLiquidGlass() = aTapOnTheDimmedHeaderClosesIt(Palettes.glass)
+
+    /** Under a sheet the header still swallows taps: the menu's way of closing does not outlive the menu, even into the sheet it opened. */
+    @Test fun theHeaderStillSwallowsTapsUnderASheet() {
+        var mode by mutableStateOf(0)
+        var settings = 0
+        underTheHeader(Palettes.tokyo, { mode }, { mode = it }, { settings++ })
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.onNodeWithText("Quick log").performClick()
+        rule.onNodeWithText("Choose").assertExists()
+        rule.onNodeWithText("Cardio").performClick()
+        rule.onNodeWithContentDescription("Settings").performClick()
+        rule.onNodeWithText("Choose").assertExists()
+        assertEquals(0, mode)
+        assertEquals(0, settings)
     }
 
     /** A tap in the pane's own padding, between its options, is not a tap outside. */
