@@ -286,7 +286,7 @@ class AppModel private constructor(private val context: Context) {
         Figure.shape = Figure.body(bodyFemale, bodyBuild)
     }
 
-    fun chooseBirthYear(year: Int) {
+    fun chooseBirthYear(year: Int?) {
         prefs.birthYear = year
         birthYear = year
     }
