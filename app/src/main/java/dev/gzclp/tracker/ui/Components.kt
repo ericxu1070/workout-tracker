@@ -394,6 +394,12 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     }
 }
 
+/** How a [ThumbRow] looks this frame, for tests: the thumb at [x] segments, the bar at [swell] scale, the thumb [lift]ed, its [glass] clear. */
+data class ThumbLook(val x: Float, val swell: Float, val lift: Float, val glass: Float)
+
+val ThumbLookKey = androidx.compose.ui.semantics.SemanticsPropertyKey<() -> ThumbLook>("ThumbLook")
+var androidx.compose.ui.semantics.SemanticsPropertyReceiver.thumbLook by ThumbLookKey
+
 /**
  * [count] equal segments on a bar ([frame], drawn behind them) with one [thumb] pill that slides under them: tap a segment or drag the thumb.
  * Given a [pager], the thumb follows a swipe of the pages, and a tap or a drag of the thumb turns the pages to the segment at once, while the
@@ -433,12 +439,20 @@ fun ThumbRow(
         }
     }
     val motion = remember { ThumbMotion(at()) }
+    // The segment a tap is carrying the thumb to: until it lands there, the bar and thumb grow as for a drag, glass and all.
+    var tapTo by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    LaunchedEffect(tapTo) {
+        val to = tapTo ?: return@LaunchedEffect
+        androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it }
+        tapTo = null
+    }
     fun pick(i: Int) {
         motion.momentum = false
+        if (abs(motion.x - i) >= 0.02f) tapTo = i
         if (pager != null) tap(i) else select(i)
     }
-    LaunchedEffect(swiped) { if (swiped) motion.momentum = true }
-    val lifted = held || swiped
+    LaunchedEffect(swiped) { if (swiped) { motion.momentum = true; tapTo = null } }
+    val lifted = held || swiped || tapTo != null
     // Waits, without frames, for the target to move, then chases it until the thumb rests there again.
     LaunchedEffect(motion) {
         while (true) {
@@ -447,9 +461,10 @@ fun ThumbRow(
         }
     }
     LaunchedEffect(lifted) { motion.lift.animateTo(if (lifted) 1f else 0f, ThumbMotion.Lift) }
-    val swell by animateFloatAsState(if (held) 1.04f else 1f, androidx.compose.animation.core.spring(1f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
+    val swell by animateFloatAsState(if (held || tapTo != null) 1.04f else 1f, androidx.compose.animation.core.spring(1f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
     Box(
-        modifier.graphicsLayer { scaleX = swell; scaleY = swell },
+        modifier.graphicsLayer { scaleX = swell; scaleY = swell }
+            .semantics { thumbLook = { ThumbLook(motion.x, swell, motion.lift.value, if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f) } },
     ) {
         // The bar is a layer of its own behind the segments, so a bar that clips (a glass pane) leaves the lifted thumb whole.
         Box(Modifier.matchParentSize().then(frame))
@@ -467,6 +482,7 @@ fun ThumbRow(
                             return@awaitEachGesture
                         }
                         held = true
+                        tapTo = null
                         try {
                             val slop = awaitHorizontalTouchSlopOrCancellation(down.id) { c, _ -> c.consume() }
                             if (slop == null) {

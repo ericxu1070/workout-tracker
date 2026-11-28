@@ -107,7 +107,8 @@ fun springStep(x: Float, v: Float, to: Float, dt: Float, stiffness: Float, dampi
 /**
  * A segmented thumb's motion: [x] follows its target on a stiff spring. Moved by a gesture with [momentum] (a drag or a swipe), the spring is
  * lightly underdamped, so the thumb arrives just after the finger with a small bounce, and [stretch] chases [stretchFor] its speed on a bouncier
- * one, so stopping overshoots into tall and narrow. Moved by a tap, it glides there critically damped, no squash. [lift] grows it while held.
+ * one, so stopping overshoots into tall and narrow. Moved by a tap, it glides there on a softer spring, critically damped, no squash, landing
+ * in about 380 ms so the tap reads as a deliberate slide. [lift] grows it while held, and while a tap carries it.
  * Both springs step in one frame loop ([chase]): restarting an animation each frame would hold the thumb still while its target moves.
  */
 class ThumbMotion(start: Float) {
@@ -124,7 +125,7 @@ class ThumbMotion(start: Float) {
 
     /** Advances [dt] seconds toward [to]; true once it rests there. */
     fun step(to: Float, dt: Float): Boolean {
-        springStep(x, v, to, dt, FOLLOW_STIFFNESS, if (momentum) FOLLOW_DAMPING else 1f).let { (a, b) -> x = a; v = b }
+        springStep(x, v, to, dt, if (momentum) FOLLOW_STIFFNESS else TAP_STIFFNESS, if (momentum) FOLLOW_DAMPING else 1f).let { (a, b) -> x = a; v = b }
         springStep(stretch, sv, if (momentum) stretchFor(v) else 0f, dt, SQUASH_STIFFNESS, if (momentum) SQUASH_DAMPING else 1f).let { (a, b) -> stretch = a; sv = b }
         val rest = abs(x - to) < 1e-3f && abs(v) < 1e-2f && abs(stretch) < 1e-3f && abs(sv) < 1e-2f
         if (rest) {
@@ -155,6 +156,8 @@ class ThumbMotion(start: Float) {
         // Stiff and lightly underdamped, as iOS's segmented thumbs: about 35 ms behind a moving finger, a small overshoot on arrival.
         const val FOLLOW_STIFFNESS = 1600f
         const val FOLLOW_DAMPING = 0.7f
+        // A tap's glide: within 2% of the segment at about 380 ms, a whole-segment move or a longer one alike.
+        const val TAP_STIFFNESS = 250f
         const val SQUASH_STIFFNESS = Spring.StiffnessMedium
         const val SQUASH_DAMPING = 0.4f
         val Lift = spring<Float>(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
