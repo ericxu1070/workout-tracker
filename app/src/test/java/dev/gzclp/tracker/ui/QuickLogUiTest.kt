@@ -41,6 +41,7 @@ class QuickLogUiTest {
     @Test fun aCatalogMoveLogsAsSetsTimesRepsWithBodyWeightAsItsLoad() {
         val logged = mutableListOf<List<Any?>>()
         home(setUp(), logged)
+        rule.onNodeWithText(START_OR_LOG).performClick()
         rule.onNodeWithText("Quick log").performClick()
         rule.onNodeWithText("Choose").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("handstand")
@@ -54,6 +55,7 @@ class QuickLogUiTest {
     @Test fun aNameNoExerciseHasIsAddedAsANewOne() {
         val logged = mutableListOf<List<Any?>>()
         home(setUp(), logged)
+        rule.onNodeWithText(START_OR_LOG).performClick()
         rule.onNodeWithText("Quick log").performClick()
         rule.onNodeWithText("Choose").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("Wrist roller")

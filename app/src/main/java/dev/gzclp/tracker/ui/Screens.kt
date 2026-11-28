@@ -293,21 +293,8 @@ fun HomeScreen(
     var showOpenSessionSheet by remember { mutableStateOf(false) }
     var showQuickLog by remember { mutableStateOf(false) }
     var quickLogs by remember { mutableStateOf(0) }
-    ScreenFrame(bottom = {
-        BottomBar {
-            // Three ways into the day and a quick log off it, two by two: the workout itself last, where the thumb rests.
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.md)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                    PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
-                    PillButton("Log top sets", onStartTop, Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                    PillButton("Quick log", { quickLogs++; showQuickLog = true }, Modifier.weight(1f))
-                    PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
-                }
-            }
-        }
-    }) {
+    val menu = remember { StartMenu() }
+    ScreenFrame(bottom = { BottomBar { StartMenuButton(menu, Modifier.weight(1f)) } }) {
         Spacer(Modifier.height(Space.xxl))
         Txt(day.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xxl))
@@ -329,6 +316,15 @@ fun HomeScreen(
             }
         }
     }
+    // Three ways into the day and a quick log off it: the workout itself last, where the button was and the thumb rests.
+    StartMenuOptions(
+        menu, "Start workout", onStart,
+        listOf(
+            StartOption("Quick log", "Counts toward your stats, never your program.") { quickLogs++; showQuickLog = true },
+            StartOption("Log top sets", "Your best set of each exercise, no clock.", onStartTop),
+            StartOption("Open session", "Train freely, then choose if it counts.") { showOpenSessionSheet = true },
+        ),
+    )
     Sheet(showOpenSessionSheet, { showOpenSessionSheet = false }) {
         OpenSessionStartSheet(
             state = state,

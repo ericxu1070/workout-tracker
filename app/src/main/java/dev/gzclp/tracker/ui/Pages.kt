@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -112,6 +113,7 @@ fun rememberPages(selected: Int, count: Int, onSelect: (Int) -> Unit): PagerStat
 fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.() -> Unit, page: @Composable (Int) -> Unit) {
     val p = LocalPalette.current
     val holds = remember { mutableIntStateOf(0) }
+    val headerTap = remember { mutableStateOf<(() -> Unit)?>(null) }
     val fade = loaded(Effect.PageFade)
     var near by remember { mutableIntStateOf(0) }
     // 400 ms clears the 300 ms screen transition, so the neighbors' first frames don't land on it; a swipe or drag before then can't wait.
@@ -124,12 +126,13 @@ fun Pages(pager: PagerState, beyond: Int = 0, header: @Composable ColumnScope.()
         Box(m.fillMaxWidth().zIndex(1f)) {
             Column(Modifier.padding(horizontal = Space.lg), content = header)
             // An overlay held open over a page dims and holds the header too, as it did when the header sat in the page.
+            // A tap on it goes to the overlay that asked for one ([HoldPages]), and is swallowed under any other.
             val dim by animateFloatAsState(if (holds.intValue > 0) 1f else 0f, tween(if (holds.intValue > 0) 240 else 160), label = "dim")
-            if (dim > 0f) Box(Modifier.matchParentSize().graphicsLayer { alpha = dim }.background(p.scrim).clickable(remember { MutableInteractionSource() }, null) {})
+            if (dim > 0f) Box(Modifier.matchParentSize().graphicsLayer { alpha = dim }.background(p.scrim).clickable(remember { MutableInteractionSource() }, null) { headerTap.value?.invoke() })
         }
     }
     val pages: @Composable (Modifier) -> Unit = { m ->
-        CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds) {
+        CompositionLocalProvider(LocalPages provides pager, LocalPageHolds provides holds, LocalHeaderTap provides headerTap) {
             HorizontalPager(
                 pager, m, verticalAlignment = Alignment.Top, userScrollEnabled = holds.intValue == 0, beyondViewportPageCount = near,
                 flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = SegmentSpring),
@@ -167,12 +170,28 @@ internal fun pageAlpha(away: Float) = 1f - away.coerceIn(0f, 1f).let { it * it }
 /** How many overlays are open over the [Pages] around them; while any is, the pages don't swipe. */
 val LocalPageHolds = compositionLocalOf { mutableIntStateOf(0) }
 
-/** An overlay open over a page ([on]) holds the pages still, so a drag on it never slides the page away beneath it. */
+/** What a tap on the [Pages] header does while it is dimmed under an overlay: nothing, unless the overlay set this ([HoldPages]). */
+val LocalHeaderTap = compositionLocalOf { mutableStateOf<(() -> Unit)?>(null) }
+
+/**
+ * An overlay open over a page ([on]) holds the pages still, so a drag on it never slides the page away beneath it.
+ * One that a tap outside closes passes [onHeaderTap], so a tap on the dimmed header closes it as a tap on the dimmed page does;
+ * without it the header swallows the tap, as under a sheet.
+ */
 @Composable
-fun HoldPages(on: Boolean) {
+fun HoldPages(on: Boolean, onHeaderTap: (() -> Unit)? = null) {
     val holds = LocalPageHolds.current
-    DisposableEffect(on, holds) {
+    val headerTap = LocalHeaderTap.current
+    val tapped by rememberUpdatedState(onHeaderTap)
+    val taps = on && onHeaderTap != null
+    DisposableEffect(on, taps, holds, headerTap) {
+        val mine = { tapped?.invoke() ?: Unit }
         if (on) holds.intValue++
-        onDispose { if (on) holds.intValue-- }
+        if (taps) headerTap.value = mine
+        onDispose {
+            if (on) holds.intValue--
+            // Only its own: the overlay that opens as this one closes may have set the next.
+            if (headerTap.value === mine) headerTap.value = null
+        }
     }
 }
