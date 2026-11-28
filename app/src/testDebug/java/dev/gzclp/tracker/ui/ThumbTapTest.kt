@@ -186,3 +186,35 @@ class ThumbTapNoMotionTest {
         assertEquals(2f, rule.onNode(SemanticsMatcher.keyIsDefined(ThumbLookKey)).fetchSemanticsNode().config[ThumbLookKey]().x, 0f)
     }
 }
+
+/**
+ * With the system's animations slowed tenfold, a tap's slide takes over three seconds; the bar and pill stay grown for all of its
+ * travel, not only for its first second.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+class ThumbTapSlowMotionTest {
+    @get:Rule val rule = createComposeRule(effectContext = object : androidx.compose.ui.MotionDurationScale { override val scaleFactor = 10f })
+
+    private fun look() = rule.onNode(SemanticsMatcher.keyIsDefined(ThumbLookKey)).fetchSemanticsNode().config[ThumbLookKey]()
+
+    @Test fun aSlowedTapStaysGrownPastASecond() {
+        var tab by mutableStateOf(Tab.Workout)
+        rule.setContent { GzTheme(Palettes.dark) { TabBar(tab) { tab = it } } }
+        rule.waitForIdle()
+        val b = rule.onNodeWithText("Food").fetchSemanticsNode().boundsInRoot
+        rule.mainClock.autoAdvance = false
+        rule.onRoot().performTouchInput { down(b.center); up() }
+        rule.mainClock.advanceTimeBy(1700)
+        val mid = look()
+        assertTrue("mid-slide: ${mid.x}", mid.x > 1f && mid.x < 3.5f)
+        assertEquals("still grown 1.7 s in", 1f, mid.lift, 0.05f)
+        assertEquals("bar still swelled 1.7 s in", 1.04f, mid.swell, 0.005f)
+        rule.mainClock.autoAdvance = true
+        rule.mainClock.advanceTimeBy(20_000)
+        rule.waitForIdle()
+        assertEquals(ThumbLook(4f, 1f, 0f, 0f), look())
+        assertEquals(Tab.Food, tab)
+    }
+}
