@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
@@ -33,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -119,15 +119,17 @@ fun Modifier.glassPane(shape: Shape, b: Backdrop? = LocalBackdrop.current, bar: 
             blur.record(area) {
                 scale(s, Offset.Zero) { translate(b.origin.x - at.x + m, b.origin.y - at.y + m) { drawLayer(b.layer) } }
             }
-            // The effect runs only over the clip it is drawn under, and the lens reads past the pane's edge, where under the pane's own
+            // An effect runs only over the clip it is drawn under, and the lens reads past the pane's edge, where under the pane's own
             // clip a GPU leaves stale texture (a band of colored noise along the switch's bottom). Drawn first into an offscreen frame of its
-            // whole size, it runs over all of it, and only then is clipped to the pane.
-            frame.compositingStrategy = CompositingStrategy.Offscreen
-            frame.pivotOffset = Offset.Zero
-            frame.scaleX = 1 / s
-            frame.scaleY = 1 / s
-            frame.record(area) { drawLayer(blur) }
-            translate(-m, -m) { drawLayer(frame) }
+            // whole size, the lens runs over all of it, and only then is clipped to the pane. A blur alone reads only what it asks for.
+            val shown = if (lens == null) blur else frame.apply {
+                compositingStrategy = CompositingStrategy.Offscreen
+                record(area) { drawLayer(blur) }
+            }
+            shown.pivotOffset = Offset.Zero
+            shown.scaleX = 1 / s
+            shown.scaleY = 1 / s
+            translate(-m, -m) { drawLayer(shown) }
             drawRect(tint)
         } else drawRect(tint.copy(alpha = 1f))
         drawContent()
