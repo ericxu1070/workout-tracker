@@ -165,7 +165,9 @@ fun MealPhoto(meal: Meal, maxSide: Int, modifier: Modifier, ownShape: Boolean = 
         bmp, "Meal at ${Fmt.time(meal.at)}",
         if (!ownShape) modifier else modifier.layout { m, c ->
             // Not aspectRatio: when the height left is short of the photo's, it would overflow its slot onto what sits above.
-            val h = (c.maxWidth / maxOf(bmp.width.toFloat() / bmp.height, 0.75f)).roundToInt().coerceIn(c.minHeight, c.maxHeight)
+            val fit = (c.maxWidth / maxOf(bmp.width.toFloat() / bmp.height, 0.75f)).roundToInt().coerceIn(c.minHeight, c.maxHeight)
+            // Squeezed to a sliver (the keyboard up), the photo steps aside instead.
+            val h = if (fit < 64.dp.roundToPx()) c.minHeight else fit
             val pl = m.measure(Constraints.fixed(c.maxWidth, h))
             layout(pl.width, pl.height) { pl.place(0, 0) }
         },
