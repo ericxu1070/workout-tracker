@@ -22,7 +22,7 @@ import java.io.File
 
 /**
  * Frames 32 ms apart after a tap on each pill selector, from demo data: the tab bar, the Workout switch and History's segmented control,
- * in Liquid Glass (Loaded) and dark (Performance), for the PR's GIFs (`./gradlew recordRoborazziDebug --tests '*TapSlideShots' -PgzclpShots=dir`). The pill glides over, the bar and pill grow while it travels, and both settle after.
+ * in Liquid Glass (Loaded) and dark (Performance), for the PR's GIFs (`./gradlew recordRoborazziDebug --tests '*TapSlideShots' -PgzclpShots=dir`). The pill glides over, the bar and pill grow only while it travels, and both are back at rest as it lands.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

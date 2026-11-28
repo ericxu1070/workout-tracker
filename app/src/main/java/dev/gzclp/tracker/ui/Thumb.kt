@@ -19,27 +19,36 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
  * How a theme paints the segmented control's thumb, a pill [lift] of the way (0 to 1) from resting in the bar to held up
- * under the finger; a held glass thumb glows in [glow].
+ * under the finger; a held glass thumb glows in [glow], a held solid one is rimmed in [edge].
  */
 fun interface ThumbPainter {
-    fun DrawScope.paint(pill: RoundRect, color: Color, glow: Color, lift: Float)
+    fun DrawScope.paint(pill: RoundRect, color: Color, glow: Color, edge: Color, lift: Float)
 }
 
-/** A solid pill whether resting or lifted. */
-val SolidThumb = ThumbPainter { pill, color, _, _ -> drawPath(Path().apply { addRoundRect(pill) }, color) }
+/**
+ * A solid pill whether resting or lifted. Lifted, an opaque one is rimmed by a hairline of [ThumbPainter.paint]'s edge: the tab bar's
+ * pill is the color of a card, so where it grows past the bar over one, nothing else marks it, and it looked cut off flat along the
+ * bar's top. A see-through pill tints whatever it is over, so it shows as it is.
+ */
+val SolidThumb = ThumbPainter { pill, color, _, edge, lift ->
+    drawPath(Path().apply { addRoundRect(pill) }, color)
+    if (lift > 0f && color.alpha == 1f) drawOutline(Outline.Rounded(pill), edge, alpha = lift, style = Stroke(1.dp.toPx()))
+}
 
 /**
  * Liquid Glass: at rest a pill of [color]; lifted, it turns to clear glass as a held iOS 26 thumb does, a faint frost lit by
  * Liquid Glass's sheen and rim ([glassSheen], [glassRim]), the labels under it bent by [glassLens], a glow of [glow] around it.
  */
-val GlassThumb = ThumbPainter { pill, color, glow, lift ->
+val GlassThumb = ThumbPainter { pill, color, glow, _, lift ->
     val outline = Outline.Rounded(pill)
     if (lift > 0f) {
         // A circle stretched to the pill's proportions, so the glow hugs it evenly all round.
@@ -108,7 +117,7 @@ fun springStep(x: Float, v: Float, to: Float, dt: Float, stiffness: Float, dampi
  * A segmented thumb's motion: [x] follows its target on a stiff spring. Moved by a gesture with [momentum] (a drag or a swipe), the spring is
  * lightly underdamped, so the thumb arrives just after the finger with a small bounce, and [stretch] chases [stretchFor] its speed on a bouncier
  * one, so stopping overshoots into tall and narrow. Moved by a tap, it glides there on a softer spring, critically damped, no squash, landing
- * in about 380 ms so the tap reads as a deliberate slide. [lift] grows it while held, and while a tap carries it.
+ * in about 330 ms so the tap reads as a deliberate slide. [lift] grows it while held, and while a tap carries it ([TAP_LET_GO]).
  * Both springs step in one frame loop ([chase]): restarting an animation each frame would hold the thumb still while its target moves.
  */
 class ThumbMotion(start: Float) {
@@ -156,10 +165,16 @@ class ThumbMotion(start: Float) {
         // Stiff and lightly underdamped, as iOS's segmented thumbs: about 35 ms behind a moving finger, a small overshoot on arrival.
         const val FOLLOW_STIFFNESS = 1600f
         const val FOLLOW_DAMPING = 0.7f
-        // A tap's glide: within 2% of the segment at about 380 ms, a whole-segment move or a longer one alike.
-        const val TAP_STIFFNESS = 250f
+        // A tap's glide: within 2% of the way there at about 330 ms, a whole-segment move or a longer one alike.
+        const val TAP_STIFFNESS = 340f
         const val SQUASH_STIFFNESS = Spring.StiffnessMedium
         const val SQUASH_DAMPING = 0.4f
         val Lift = spring<Float>(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
+        /**
+         * A tap grows the bar and thumb only while it carries the thumb: they let go this many segments short of where it is headed,
+         * on [TapLift], quick enough that both are back at rest by the time the thumb lands.
+         */
+        const val TAP_LET_GO = 0.4f
+        val TapLift = spring<Float>(dampingRatio = 1f, stiffness = 3500f)
     }
 }
