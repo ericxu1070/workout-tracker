@@ -43,9 +43,10 @@ fun ordinal(n: Int): String = "$n" + when {
     else -> "th"
 }
 
-/** "men at 181 lb, age 34", or "ages 24 to 34" with no birth year. */
-fun Peer.describe(): String =
-    "${if (female) "women" else "men"} at ${(bodyKg / Norms.KG_PER_LB).roundToInt()} lb, " + (age?.let { "age ${it.roundToInt()}" } ?: "ages 24 to 34")
+/** "men at 181 lb, age 34", or "ages 24 to 34" with no birth year; on screen, [space] keeps the age from breaking across lines. */
+fun Peer.describe(space: String = " "): String =
+    "${if (female) "women" else "men"} at ${(bodyKg / Norms.KG_PER_LB).roundToInt()} lb, " +
+        (age?.let { "age$space${it.roundToInt()}" } ?: "ages${space}24${space}to${space}34")
 
 /** Whose lifts the curve is drawn from, and what the lifter's own number is. */
 fun normsSource(): String =
@@ -139,7 +140,7 @@ fun StandingBlock(standing: Standing, what: String) {
     val p = LocalPalette.current
     Column {
         Txt("${ordinal(standing.rank)} percentile", Type.title1)
-        Txt("$what, more than ${standing.rank}% of ${standing.peer.describe()}", Type.subhead, color = p.fg2)
+        Txt("$what, more than ${standing.rank}% of ${standing.peer.describe("\u00A0")}", Type.subhead, color = p.fg2)
     }
     Spacer(Modifier.height(Space.md))
     StandingCurve(standing)
@@ -175,7 +176,7 @@ fun LiftStanding(lift: NormLift, lb: Int, peer: Peer?, onLogWeight: () -> Unit, 
 @Composable
 fun StrengthScreen(
     state: AppState, female: Boolean, birthYear: Int?, today: LocalDate,
-    onBack: () -> Unit, onBirthYear: (Int) -> Unit, onOpen: (String) -> Unit, onLogWeight: () -> Unit,
+    onBack: () -> Unit, onBirthYear: (Int?) -> Unit, onOpen: (String) -> Unit, onLogWeight: () -> Unit,
 ) {
     val p = LocalPalette.current
     val peer = state.peer(female, birthYear, today)
@@ -232,6 +233,7 @@ fun StrengthScreen(
                 Txt(birthYear?.toString() ?: "Not set", Type.body.tabular(), Modifier.widthIn(min = 80.dp).padding(horizontal = Space.sm), maxLines = 1, align = TextAlign.Center)
                 MiniStep(Icons.plus, "Later birth year", enabled = year < today.year - 13) { onBirthYear(if (birthYear == null) year else year + 1) }
             }
+            if (birthYear != null) GroupRow(first = false, onClick = { onBirthYear(null) }) { Txt("Clear birth year", Type.body, color = p.accent) }
         }
         GroupFooter("Gender is under Settings, Appearance. Body weight is your latest 7-day average. Height is not used: no meet records it.")
         GroupFooter(normsSource())

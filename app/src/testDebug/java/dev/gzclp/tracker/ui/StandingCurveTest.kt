@@ -3,7 +3,13 @@ package dev.gzclp.tracker.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -22,6 +28,7 @@ import dev.gzclp.tracker.engine.Peer
 import dev.gzclp.tracker.log.exerciseLogs
 import dev.gzclp.tracker.log.standing
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -136,5 +143,59 @@ class StandingCurveTest {
         rule.onNodeWithContentDescription("Squat among men", substring = true).assertExists()
         rule.onNodeWithText("Strength").performClick()
         assertEquals(1, strength)
+    }
+
+    @Test fun aSetBirthYearClearsBackToNotSet() {
+        var year: Int? = 1992
+        var calls = 0
+        val idle = Demo.state.copy(active = null)
+        rule.setContent { GzTheme(Palettes.tokyo) { StrengthScreen(idle, false, year, Demo.today, {}, { year = it; calls++ }, {}, {}) } }
+        rule.onNodeWithText("Clear birth year").performClick()
+        assertEquals(1, calls)
+        assertEquals(null, year)
+    }
+
+    @Test fun anUnsetBirthYearHasNothingToClear() {
+        val idle = Demo.state.copy(active = null)
+        rule.setContent { GzTheme(Palettes.tokyo) { StrengthScreen(idle, false, null, Demo.today, {}, {}, {}, {}) } }
+        rule.onNodeWithText("Not set").assertExists()
+        rule.onNodeWithText("Clear birth year").assertDoesNotExist()
+    }
+
+    @Test fun theAgeNeverBreaksAcrossLines() {
+        val width = mutableIntStateOf(200)
+        val ageless = Peer(female = false, bodyKg = 82.0, age = null)
+        rule.setContent { GzTheme(Palettes.jade) { Column(Modifier.width(width.intValue.dp)) { StandingBlock(standing(NormLift.TOTAL, 1040, ageless), "Total 1040 lb") } } }
+        for (w in 200..411 step 3) {
+            width.intValue = w
+            rule.waitForIdle()
+            val node = rule.onNodeWithText("more than", substring = true).fetchSemanticsNode()
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+            val layout = layouts.single()
+            val text = layout.layoutInput.text.text
+            val start = text.indexOf("ages")
+            assertTrue("$w dp: $text", start >= 0)
+            assertEquals("$w dp: \"ages 24 to 34\" split", layout.getLineForOffset(start), layout.getLineForOffset(text.length - 1))
+        }
+    }
+
+    @Test fun aZeroPoundLiftStillDrawsTheCurve() {
+        // Light and old enough that the plot reaches down to 0 lb, where the density was 0 / 0 and blanked the whole line.
+        val light = Peer(female = false, bodyKg = 120 * Norms.KG_PER_LB, age = 75.0)
+        var view: android.view.View? = null
+        show { view = androidx.compose.ui.platform.LocalView.current; StandingCurve(standing(NormLift.SQUAT, 0, light)) }
+        rule.onNodeWithContentDescription("you 0 lb", substring = true).assertExists()
+        val img = rule.runOnIdle {
+            val v = view!!
+            android.graphics.Bitmap.createBitmap(v.width, v.height, android.graphics.Bitmap.Config.ARGB_8888).also { v.draw(android.graphics.Canvas(it)) }
+        }
+        val line = Palettes.jade.fg2
+        fun near(c: Int, f: Float) = kotlin.math.abs(c / 255f - f) < 0.06f
+        // Only the plot, above its axis: the labels under it share the line's color.
+        val drawn = (0 until img.width).sumOf { x ->
+            (0 until (img.height * 0.8f).toInt()).count { y -> img.getPixel(x, y).let { near(it shr 16 and 255, line.red) && near(it shr 8 and 255, line.green) && near(it and 255, line.blue) } }
+        }
+        assertTrue("curve pixels: $drawn", drawn > 200)
     }
 }

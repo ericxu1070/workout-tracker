@@ -45,6 +45,8 @@ class Norm(
      * corners a table of quantiles would draw.
      */
     fun density(liftKg: Double, peer: Peer): Double {
+        // No one lifts nothing, and at 0 the span below would be 0 / 0.
+        if (liftKg <= 0) return 0.0
         val h = 0.3 * scale(peer)
         val (lo, hi) = liftKg * exp(-h) to liftKg * exp(h)
         return (percentile(hi, peer) - percentile(lo, peer)) / (hi - lo)
