@@ -26,6 +26,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import dev.gzclp.tracker.engine.Cycle
+import dev.gzclp.tracker.engine.NormLift
+import dev.gzclp.tracker.log.currentLifts
+import dev.gzclp.tracker.log.overall
+import dev.gzclp.tracker.log.peer
+import dev.gzclp.tracker.log.recentBest
 import dev.gzclp.tracker.engine.Schemes
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.engine.Wave
@@ -62,7 +67,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ExercisesScreen(
     state: AppState, onOpen: (String) -> Unit, onBodyWeight: () -> Unit, onLogWeight: () -> Unit,
-    today: LocalDate = LocalDate.now(), female: Boolean = false,
+    today: LocalDate = LocalDate.now(), female: Boolean = false, birthYear: Int? = null, onStrength: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val logs = state.exerciseLogs()
@@ -105,6 +110,20 @@ fun ExercisesScreen(
                 }
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
+            // Strength shows once a competition lift is logged: before that there is nothing to rank.
+            val lifts = state.currentLifts()
+            if (lifts.isNotEmpty()) GroupRow(first = false, onClick = onStrength) {
+                val total = state.peer(female, birthYear, today)?.let { overall(lifts, it) }
+                Column(Modifier.weight(1f)) {
+                    Txt("Strength", Type.headline, maxLines = 1)
+                    Txt(
+                        total?.let { "Total ${it.lb} lb among lifters like you" } ?: "Your lifts among lifters like you",
+                        Type.footnote, color = p.fg2, maxLines = 1,
+                    )
+                }
+                if (total != null) Txt(ordinal(total.rank), Type.subhead.tabular(), Modifier.padding(start = Space.sm))
+                Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
+            }
         }
         if (logs.isEmpty()) {
             Spacer(Modifier.height(Space.xxl))
@@ -143,11 +162,19 @@ fun ExerciseScreen(
     onLogWeight: () -> Unit,
     initialRelative: Boolean = false,
     onSaveMeta: ((ExerciseMeta) -> Unit)? = null,
+    female: Boolean = false,
+    birthYear: Int? = null,
+    today: LocalDate = LocalDate.now(),
+    onStrength: () -> Unit = {},
+    initialView: Int = if (initialRelative) 1 else 0,
 ) {
     val p = LocalPalette.current
     val isBodyweight = isCalisthenics(log.id)
     val bests = if (isBodyweight) calisthenicsBests(state, log) else log.bests
-    var relative by rememberSaveable { mutableStateOf(initialRelative) }
+    // 0 Weight, 1 × body weight, 2 Percentile, which only the competition lifts have.
+    var view by rememberSaveable { mutableStateOf(initialView) }
+    val normLift = NormLift.of(log.id)
+    val relative = view == 1
     val factor = bodyweightFactor(log.id, state.exerciseMeta[log.id]) ?: 1.0
     val defaultFactor = defaultBodyweightFactor(log.id) ?: 1.0
     var editingFactor by rememberSaveable { mutableStateOf(false) }
@@ -159,9 +186,11 @@ fun ExerciseScreen(
         FormToggle(log.id)
         if (bests.isNotEmpty()) {
             Spacer(Modifier.height(Space.lg))
-            Segmented(listOf("Weight", "× body weight"), if (relative) 1 else 0, { relative = it == 1 })
+            Segmented(listOfNotNull("Weight", "× body weight", normLift?.let { "Percentile" }), view, { view = it })
         }
-        if (bests.isNotEmpty() && relative) RelativeStrength(state, bests, onLogWeight)
+        val current = recentBest(bests)
+        if (normLift != null && current != null && view == 2) LiftStanding(normLift, current, state.peer(female, birthYear, today), onLogWeight, onStrength)
+        else if (bests.isNotEmpty() && relative) RelativeStrength(state, bests, onLogWeight)
         else if (bests.isNotEmpty()) {
             val first = bests.first()
             val last = bests.last()

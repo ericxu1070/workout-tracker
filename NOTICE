@@ -52,3 +52,14 @@ Muscle map paths (app/src/main/resources/dev/gzclp/tracker/ui/muscles.txt)
 
   Only the path data is used: the SVG paths are re-spaced (arc flags split) and
   each body region is mapped to the app's muscles. No library code is included.
+
+Strength norms (app/src/main/resources/dev/gzclp/tracker/engine/strength-norms.txt)
+
+  Fitted by tools/strength-norms.py from the meet results of the
+  OpenPowerlifting project, https://www.openpowerlifting.org, at the commit
+  named in the file's header. A copy of the data is at
+  https://gitlab.com/openpowerlifting/opl-data
+
+  OpenPowerlifting data is contributed to the public domain. Only fitted
+  curves are shipped: no lifter's name or result is included, and none of the
+  project's source code (AGPL) is used or included.

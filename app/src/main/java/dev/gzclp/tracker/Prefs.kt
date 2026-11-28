@@ -89,6 +89,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("body_female", false)
         set(v) = p.edit().putBoolean("body_female", v).apply()
 
+    /** The year the lifter was born, for comparing lifts within their age; null until they set it. 0 is stored for null. */
+    var birthYear: Int?
+        get() = p.getInt("birth_year", 0).takeIf { it > 0 }
+        set(v) = p.edit().putInt("birth_year", v ?: 0).apply()
+
     /** The form figure's build: "athletic" (the default), "bodybuilder" or "normal". */
     var bodyBuild: String
         get() = p.getString("body_build", null) ?: "athletic"

@@ -64,6 +64,7 @@ import dev.gzclp.tracker.log.weighIns
 import dev.gzclp.tracker.log.weighInScale
 import dev.gzclp.tracker.remind.WeighIn
 import dev.gzclp.tracker.ui.BodyWeightScreen
+import dev.gzclp.tracker.ui.StrengthScreen
 import dev.gzclp.tracker.ui.Fmt
 import dev.gzclp.tracker.ui.Space
 import dev.gzclp.tracker.ui.UndoBar
@@ -173,7 +174,7 @@ class MainActivity : ComponentActivity() {
  * and nothing for [SettingsPage], which shows the app's settingsPage. [depth] orders them, so going back slides the way it came.
  */
 internal enum class Route(val depth: Int) {
-    Settings(1), SettingsPage(2), Days(3), Session(1), Exercise(1), BodyWeight(1), Activities(1), Split(3), SplitDay(4), Stretch(2), StretchRoutine(1),
+    Settings(1), SettingsPage(2), Days(3), Session(1), Exercise(1), BodyWeight(1), Strength(1), Activities(1), Split(3), SplitDay(4), Stretch(2), StretchRoutine(1),
 }
 
 /** The weigh-in just saved at [lb] to entry [id]; [before] is that entry before an edit, null for a new one. */
@@ -503,7 +504,13 @@ private fun App(model: AppModel) {
                     state, session, { route = null }, { open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec)) },
                     deleting, { open(SheetState.Delete(it)) }, onExercise = { push(Route.Exercise, it) },
                 )
-                shown == Route.Exercise && log != null -> ExerciseScreen(state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } })
+                shown == Route.Exercise && log != null -> ExerciseScreen(
+                    state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } },
+                    female = model.bodyFemale, birthYear = model.birthYear, onStrength = { push(Route.Strength) },
+                )
+                shown == Route.Strength -> StrengthScreen(
+                    state, model.bodyFemale, model.birthYear, LocalDate.now(), { route = null }, model::chooseBirthYear, { push(Route.Exercise, it) }, { logWeight() },
+                )
                 shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight, deleting) { open(SheetState.Delete(it)) }
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
                     stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
@@ -577,7 +584,7 @@ private fun App(model: AppModel) {
                                 state, java.time.LocalDate.now(), onOpenSession = { push(Route.Session, it) },
                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                             )
-                            Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() }, female = model.bodyFemale)
+                            Tab.Exercises -> ExercisesScreen(state, onOpen = { push(Route.Exercise, it) }, onBodyWeight = { push(Route.BodyWeight) }, onLogWeight = { logWeight() }, female = model.bodyFemale, birthYear = model.birthYear, onStrength = { push(Route.Strength) })
                             Tab.History -> HistoryScreen(
                                 state, historyView, { historyView = it }, onOpen = { push(Route.Session, it) }, onCardio = { open(cardioEdit(it, model.now())) },
                                 deleting = deleting, onDelete = { open(SheetState.Delete(it)) },

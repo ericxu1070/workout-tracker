@@ -39,6 +39,16 @@ The app logs a weight and reps for every set, shows plates per side and warm-ups
 ### Top sets
 Tap Log top sets to write a day down as one line per exercise: the weight and reps of your best set, and how many sets you did. The lines start from the plan, so a day that went to plan is one tap per exercise, and you can add any other exercise. No clock runs. Finish asks how long the workout took, starting from an estimate based on the sets you entered. A top set that meets the plan moves that exercise on as a full workout would. The exercise chart draws these days as rings on the same lines, and the muscle map counts every set of each line.
 
+### Strength percentiles
+Squat, bench press and deadlift each get a Percentile view, and Exercises › Strength ranks their sum as a competition total: where your best estimated 1RM of the last 90 days falls among lifters of your gender, body weight and age. The curve is the real spread of those lifters, with the share you are ahead of filled in and the 10th, median and 90th marked. Hold and drag along it to read any percentile's weight and its multiple of body weight.
+
+<p>
+<img src="docs/images/performance/strength.webp" width="200" alt="Strength: the total's percentile on its curve, each lift's percentile, and who you are compared as">
+<img src="docs/images/performance/percentile.webp" width="200" alt="Bench press, Percentile view: the estimated 1RM on the curve of lifters like you">
+</p>
+
+The comparison group is each lifter's first raw, drug-tested full meet since 2015 in [OpenPowerlifting](https://www.openpowerlifting.org) (public domain), about 244,000 people. They are people who chose to compete, lifting judged singles, so a gym lifter's estimated 1RM ranks lower here than it would among gym-goers. Body weight is your 7-day average, age comes from a birth year you set on the Strength page (ages 24 to 34 until you do), and height is not used because no meet records it. `tools/strength-norms.py` rebuilds the shipped table from a checkout of the project's data; nothing is fetched by the app.
+
 ### Open sessions and weekly volume
 Tap Open session to train freely without advancing your program. Exercises prefill weights from the adaptive model and recalculate target reps when the weight changes. Weekly volume bars by muscle group (Chest, Back, Quads, Hamstrings, Shoulders, Arms, Core) run against weekly targets. At the end, the app asks whether the session counts toward your program.
 
