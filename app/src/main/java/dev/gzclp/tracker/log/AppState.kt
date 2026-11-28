@@ -28,24 +28,30 @@ data class LoggedSet(val event: SetLogged, val ts: OffsetDateTime)
 
 /**
  * [swaps] maps a slot (exercise, tier) to the exercise done in its place this session. [open] marks a freeform open session,
- * [top] one logged as a top set per exercise.
+ * [top] one logged as a top set per exercise, [quick] a quick log (see [Commands.quickLog]), which only lives inside one dispatch.
  */
 data class ActiveSession(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val sets: Map<SetKey, LoggedSet>,
     val swaps: Map<Pair<String, Tier>, String> = emptyMap(),
     val open: Boolean = false,
     val top: Boolean = false,
+    val quick: Boolean = false,
 )
 
 /**
  * [setTimes] holds when each of [sets] was logged, in the same order. In a [top] session each of [sets] is one exercise's top set,
- * and its times are the user's estimate.
+ * and its times are the user's estimate. A [quick] log is exercise done off the program: it counts toward stats only, and its
+ * program and day are only those due when it was logged.
  */
 data class SessionRecord(
     val id: String, val program: Program, val day: ProgramDay, val startedAt: OffsetDateTime, val durationSec: Long, val sets: List<SetLogged>,
     val setTimes: List<OffsetDateTime> = emptyList(),
     val top: Boolean = false,
+    val quick: Boolean = false,
 ) {
+    /** What History and Health Connect call it: its day's title, or "Quick log" for a quick log, whose day means nothing. */
+    val title: String get() = if (quick) "Quick log" else day.title
+
     /** Seconds from the set before each set (the start, for the first) to that set, by (exercise, tier, set index). */
     val setGaps: Map<Triple<String, String, Int>, Long>
         get() = sets.zip(setTimes).withIndex().associate { (i, p) ->
@@ -216,7 +222,7 @@ data class AppState(
             is ProgressionEvent -> s.progress(e).copy(strength = strength.observeProgression(e))
             is SessionStart -> {
                 val program = programOf(e.program)
-                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap(), open = e.mode == "open", top = e.mode == "top")) } ?: s
+                program.day(e.day)?.let { s.copy(active = ActiveSession(e.sessionId, program, it, entry.ts, emptyMap(), open = e.mode == "open", top = e.mode == "top", quick = e.mode == "quick")) } ?: s
             }
             is SetLogged -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
@@ -254,15 +260,16 @@ data class AppState(
             is SessionEnd -> {
                 val a = active?.takeIf { it.id == e.sessionId } ?: return s
                 val logged = a.sets.values.sortedBy { it.ts }
-                // A top-sets session has no clock: it started its estimated length before it was finished.
-                val start = if (a.top) OffsetDateTime.parse(e.startedAt, LogCodec.TS) else a.startedAt
-                val record = SessionRecord(a.id, a.program, a.day, start, e.durationSec, logged.map { it.event }, logged.map { it.ts }, a.top)
+                // A top-sets session or a quick log has no clock: it started its estimated length before it was finished.
+                val start = if (a.top || a.quick) OffsetDateTime.parse(e.startedAt, LogCodec.TS) else a.startedAt
+                val record = SessionRecord(a.id, a.program, a.day, start, e.durationSec, logged.map { it.event }, logged.map { it.ts }, a.top, a.quick)
                 s.copy(
                     active = null,
                     sessions = sessions + record,
-                    // An open session answered "doesn't count" leaves the rotation where it was.
-                    next = if (a.sets.isEmpty() || e.counts == false) next else advanced(a),
-                    strength = strength.observeSets(record.sets, exerciseMeta),
+                    // An open session answered "doesn't count" leaves the rotation where it was; a quick log never moves it.
+                    next = if (a.sets.isEmpty() || e.counts == false || a.quick) next else advanced(a),
+                    // A quick log is stats only: it never feeds the model behind adaptive weight suggestions.
+                    strength = if (a.quick) strength else strength.observeSets(record.sets, exerciseMeta),
                 )
             }
             is ExerciseMeta -> s.copy(exerciseMeta = exerciseMeta + (e.exercise to e))

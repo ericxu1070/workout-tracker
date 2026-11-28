@@ -51,6 +51,7 @@ object Muscles {
         "muscle_up" to t("UPPER_BACK TRICEPS", "BICEPS CHEST"),
         "inverted_row" to t("UPPER_BACK", "BICEPS REAR_DELTS"),
         "pistol_squat" to t("QUADS GLUTES", "HAMSTRINGS ADDUCTORS"),
+        "handstand_press" to t("SHOULDERS TRICEPS", "TRAPS UPPER_BACK"),
     )
 
     /** A custom move by whole words in its id, checked in order (a leg curl is hamstrings, not quads or biceps); null when nothing matches. */

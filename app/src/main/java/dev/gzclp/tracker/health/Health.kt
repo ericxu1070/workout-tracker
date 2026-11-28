@@ -85,12 +85,13 @@ object HealthRecords {
     /**
      * One strength session; each logged set becomes a segment with its reps, and the notes list every set's weight.
      * A top-sets session's notes give each exercise's top set and its count of sets, since the others were not that heavy.
+ * A quick log stamps every set at once, so it is spread out the way a top-sets session is.
      */
     fun session(state: AppState, a: SessionRecord, seq: Long): ExerciseSessionRecord {
         val start = a.startedAt.toInstant()
         val stop = maxOf(start.plusSeconds(a.durationSec), start.plusSeconds(1))
         var prev = start
-        val segments = if (a.top) topSegments(a, start, stop) else a.sets.zip(a.setTimes).mapNotNull { (set, ts) ->
+        val segments = if (a.top || a.quick) topSegments(a, start, stop) else a.sets.zip(a.setTimes).mapNotNull { (set, ts) ->
             val to = minOf(ts.toInstant(), stop)
             val from = maxOf(prev, to - SET_TIME)
             if (!from.isBefore(to)) return@mapNotNull null
@@ -108,7 +109,7 @@ object HealthRecords {
             startTime = start, startZoneOffset = a.startedAt.offset, endTime = stop, endZoneOffset = a.startedAt.offset,
             metadata = Metadata.manualEntry(a.id, seq),
             exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-            title = "${a.day.title} · ${a.program.name}",
+            title = if (a.quick) a.title else "${a.day.title} · ${a.program.name}",
             notes = notes.take(1000),
             segments = segments,
         )

@@ -19,6 +19,8 @@ Open sessions and session counting were added within version 2: the optional `mo
 
 Top-sets sessions were added within version 2: the `"top"` value of `session_start.mode`, the optional `sets` field on `set`, and the optional `started_at` field on `session_edit`. A reader that predates them reads a top-sets session as a workout with one set per exercise, and keeps a session's first start.
 
+Quick logs were added within version 2: the `"quick"` value of `session_start.mode`, and the built-in `handstand_press`. A reader that predates them reads a quick log as a workout that does not count toward the program, since both its lines carry `counts` false.
+
 Exercise metadata was added within version 2: the `exercise_meta` type. A reader that predates it skips it as an unknown type.
 
 Calisthenics fields on `set` were added within version 2: the optional `added_lb` and `bodyweight_lb` fields. A reader that predates them ignores them as unknown fields.
@@ -65,7 +67,7 @@ Every line has these fields.
 
 Names used in several types:
 
-- `exercise`: a stable id. The app's built-in ids are `squat`, `bench`, `deadlift`, `ohp`, `barbell_row`, `lat_pulldown`, `dumbbell_row`, `seated_cable_row`, `incline_db_press`, `chest_fly`, `lateral_raise`, `rear_delt_fly`, `face_pull`, `barbell_curl`, `hammer_curl`, `tricep_pushdown`, `overhead_tricep_extension`, `romanian_deadlift`, `leg_press`, `leg_curl`, `leg_extension`, `calf_raise`. Exercises the user adds get an id made from their name, such as `cable_crunch`. Every id is named by an `exercise_define` line.
+- `exercise`: a stable id. The app's built-in ids include `squat`, `bench`, `deadlift`, `ohp`, `barbell_row`, `lat_pulldown`, `dumbbell_row`, `seated_cable_row`, `incline_db_press`, `chest_fly`, `lateral_raise`, `rear_delt_fly`, `face_pull`, `barbell_curl`, `hammer_curl`, `tricep_pushdown`, `overhead_tricep_extension`, `romanian_deadlift`, `leg_press`, `leg_curl`, `leg_extension`, `calf_raise`, and the calisthenics moves such as `push_up`, `pull_up` and `handstand_press`. Exercises the user adds get an id made from their name, such as `cable_crunch`. Every id is named by an `exercise_define` line.
 - `program`: a built-in program, `gzclp`, `bro`, `ppl`, `upper_lower`, `full_body`, `chest_back_legs`, or `chest_back_arms_legs`, or a custom split named by a `program_define` line. Only `gzclp` uses the GZCLP tiers. The other built-ins use the 3-week cycle, and custom splits use it per exercise (see "Custom splits").
 - `tier`: `t1`, `t2`, or `t3` for GZCLP; `cycle` for an exercise in a built-in cycle program; `custom` for an exercise in a custom split. The same exercise can have GZCLP state, cycle state, and custom state at once; they are separate.
 - `stage`: the scheme, `<sets>x<reps>`, with `+` when the last set is AMRAP. T1 is `5x3+`, `6x2+`, or `10x1+`. T2 is `3x10`, `3x8`, or `3x6`. T3 is `3x15+`. Cycle stages map one to one to cycle weeks: `3x12` is week 1, `3x10` week 2, `3x8` week 3. A `custom` stage is that week's sets and reps, such as `5x6`.
@@ -210,10 +212,12 @@ A line whose exercise was later deleted from its session no longer counts (see "
 | `session_id` | string | Unique id, such as `s1794306085`. |
 | `program` | string | The program. |
 | `day` | string | The day being done. |
-| `mode` | string, optional | `"program"` (default), `"open"`, or `"top"` (a top-sets session: see `set`). |
+| `mode` | string, optional | `"program"` (default), `"open"`, `"top"` (a top-sets session: see `set`), or `"quick"` (a quick log: see below). |
 | `counts` | bool, optional | True (default) if the session counts toward program progress. |
 
-The line's `ts` is the start time, except in a top-sets session, which runs no clock: its start is `session_end.started_at`.
+The line's `ts` is the start time, except in a top-sets session or a quick log, which run no clock: the start is `session_end.started_at`.
+
+**Quick logs.** A session with `mode` `"quick"` is exercise done off the program, such as push-ups at home. Its `session_start`, `set` lines and `session_end` are written together, with one `ts`. It holds one exercise: one `set` line per set, `set_index` 1 to 10, each with the same `weight` and `actual_reps`, tier `custom`, `target_weight` `0`, and `stage` and `target_reps` repeating what was logged. Its sets have no `rest_sec`, and `amrap` is false. A bodyweight move carries `added_lb` and `bodyweight_lb` as in any session. Its `program` and `day` are only those due when it was logged, and `counts` is false on both lines. It counts toward stats (exercise history, estimated 1RM, the muscle map, weekly volume) and never toward the program: it gets no `progression` line, does not move the rotation, and is not read as a workout's length or as a workout day. Its `duration_sec` is an estimate from its sets, and `session_edit` can correct it like any workout's.
 
 ### `set`
 
@@ -539,4 +543,8 @@ First resolve sets: newest `set` per identity wins, drop cleared sets (a clear c
 {"v":2,"seq":121,"ts":"2026-12-04T18:48:20-08:00","type":"set","session_id":"s1796438880","exercise":"ohp","tier":"t1","stage":"5x3+","set_index":1,"target_reps":3,"actual_reps":4,"target_weight":95,"weight":95,"amrap":false,"sets":5}
 {"v":2,"seq":122,"ts":"2026-12-04T18:50:00-08:00","type":"session_end","session_id":"s1796438880","program":"gzclp","day":"B1","started_at":"2026-12-04T18:10:00-08:00","duration_sec":2400}
 {"v":2,"seq":123,"ts":"2026-12-04T19:02:00-08:00","type":"session_edit","session_id":"s1796438880","duration_sec":3000,"started_at":"2026-12-04T18:00:00-08:00"}
+{"v":2,"seq":124,"ts":"2026-12-05T07:30:00-08:00","type":"session_start","session_id":"s1796484600","program":"gzclp","day":"A2","mode":"quick","counts":false}
+{"v":2,"seq":125,"ts":"2026-12-05T07:30:00-08:00","type":"set","session_id":"s1796484600","exercise":"handstand_press","tier":"custom","stage":"2x5","set_index":1,"target_reps":5,"actual_reps":5,"target_weight":0,"weight":0,"amrap":false,"added_lb":0.0,"bodyweight_lb":181.4}
+{"v":2,"seq":126,"ts":"2026-12-05T07:30:00-08:00","type":"set","session_id":"s1796484600","exercise":"handstand_press","tier":"custom","stage":"2x5","set_index":2,"target_reps":5,"actual_reps":5,"target_weight":0,"weight":0,"amrap":false,"added_lb":0.0,"bodyweight_lb":181.4}
+{"v":2,"seq":127,"ts":"2026-12-05T07:30:00-08:00","type":"session_end","session_id":"s1796484600","program":"gzclp","day":"A2","started_at":"2026-12-05T07:25:00-08:00","duration_sec":300,"counts":false}
 ```

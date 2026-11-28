@@ -100,15 +100,41 @@ object Commands {
             restTargetSec = if (existing != null) existing.restTargetSec else prev?.let { p -> Tier.of(p.event.tier)?.let { restSec(it, p.event.targetReps, restTargets) } },
             rpe = rpe?.let { Math.round(it * 2) / 2.0 }?.takeIf { it in 1.0..10.0 },
             sets = sets?.coerceIn(TOP_SETS),
-        ).let { e ->
-            // Bodyweight moves snapshot the body weight in effect, so later weigh-ins never rewrite history; an assisted variant's weight is help, logged negative.
-            if (!isCalisthenics(ex.id)) e
-            else e.copy(
-                addedLb = e.weight.toDouble().let { if (ex.id.startsWith("assisted_")) -it else it },
-                bodyweightLb = existing?.bodyweightLb ?: state.snapshotBodyweight(now),
-            )
-        }
+        ).let { bodyweight(state, it, existing, now) }
         return if (event == existing) emptyList() else listOf(event)
+    }
+
+    /** Bodyweight moves snapshot the body weight in effect, so later weigh-ins never rewrite history; an assisted variant's weight is help, logged negative. */
+    private fun bodyweight(state: AppState, e: SetLogged, existing: SetLogged?, now: OffsetDateTime): SetLogged =
+        if (!isCalisthenics(e.exercise)) e
+        else e.copy(
+            addedLb = e.weight.toDouble().let { if (e.exercise.startsWith("assisted_")) -it else it },
+            bodyweightLb = existing?.bodyweightLb ?: state.snapshotBodyweight(now),
+        )
+
+    /**
+     * A quick log: [sets] × [reps] of the exercise named [name] (a new one is defined), at [weight] lb or none, done just now
+     * off the program. It is a whole session in one go, mode = "quick", that counts for stats only: no progression line, no
+     * rotation, no strength model. Its length is an estimate, editable later like any workout's. A bodyweight move's weight is
+     * what was added. Nothing while a workout or cardio runs, since a session start would replace it.
+     */
+    fun quickLog(state: AppState, name: String, sets: Int, reps: Int, weight: Int?, now: OffsetDateTime): List<Event> {
+        if (state.active != null || state.cardioActive != null || !state.started || sets !in QUICK_SETS || reps !in QUICK_REPS) return emptyList()
+        val (exercise, define) = findOrDefine(state, name) ?: return emptyList()
+        // Two quick logs can land in one second.
+        val id = generateSequence(now.toEpochSecond()) { it + 1 }.map { "s$it" }.first { id -> state.sessions.none { it.id == id } }
+        val lines = (1..sets).map { i ->
+            val e = SetLogged(
+                sessionId = id, exercise = exercise, tier = Tier.CUSTOM.id, stage = "${sets}x$reps", setIndex = i,
+                targetReps = reps, actualReps = reps, targetWeight = 0, weight = (weight ?: 0).coerceAtLeast(0), amrap = false,
+            )
+            bodyweight(state, e, null, now)
+        }
+        // The top-sets estimate for one line counting every set: their work and rest, and getting set up.
+        val sec = topDurationSec(listOf(lines[0].copy(sets = sets)))
+        val day = state.nextDay.id
+        return define + SessionStart(id, state.programId, day, mode = "quick", counts = false) + lines +
+            SessionEnd(id, state.programId, day, LogCodec.TS.format(now.minusSeconds(sec)), sec, counts = false)
     }
 
     /** The rest after a set at [tier] with [reps] target reps: a split sets it by reps, every other tier by its Settings row. */
@@ -519,6 +545,9 @@ object Commands {
     val SESSION_DURATION_SEC = 60L..86_400L
     /** How many sets a top-sets line can count for its exercise. */
     val TOP_SETS = 1..20
+    /** A quick log's sets (set_index runs 1 to 10) and reps per set. */
+    val QUICK_SETS = 1..10
+    val QUICK_REPS = 1..100
     /** A top-sets session's estimate: the work of one set, and getting from one exercise to the next. */
     private const val TOP_SET_SEC = 40
     private const val TOP_CHANGEOVER_SEC = 120

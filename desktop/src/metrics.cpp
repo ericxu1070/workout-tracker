@@ -21,7 +21,7 @@ double bodyweightFactorFor(const QString &exercise, const QHash<QString, Exercis
     }
     static const QHash<QString, double> kDefaults{
         {"pull_up", 1.0}, {"chin_up", 1.0}, {"muscle_up", 1.0},
-        {"dip", 0.95}, {"push_up", 0.65}, {"inverted_row", 0.5}, {"pistol_squat", 0.8}
+        {"dip", 0.95}, {"push_up", 0.65}, {"inverted_row", 0.5}, {"pistol_squat", 0.8}, {"handstand_press", 0.9}
     };
     QString clean = exercise.toLower().trimmed();
     clean.replace('-', '_');
@@ -133,8 +133,9 @@ QVariantMap strength(const Log &log) {
 
 QVariantMap dashboard(const Log &log) {
     QVector<Session> workouts;
+    // A quick log's sets count below, but it is not a workout: no duration bar, no session in its week.
     for (const Session &s : log.sessions)
-        if (s.sets > 0)
+        if (s.sets > 0 && !s.quick)
             workouts.append(s);
 
     // One run of ISO weeks, Monday first, from the first workout or cardio session to the last, shared by every weekly chart.

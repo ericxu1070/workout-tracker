@@ -589,6 +589,8 @@ private fun App(model: AppModel) {
                                                                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                         onStartOpen = ::startOpenFlow,
                                         onStartTop = ::startTopFlow,
+                                        onQuickLog = { name, sets, reps, w -> model.dispatch { Commands.quickLog(it, name, sets, reps, w, model.now()) } },
+                                        now = model::now,
                                     ) else WorkoutScreen(
                                         state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
                                         onLog = { ex, i, w, r, rpe ->

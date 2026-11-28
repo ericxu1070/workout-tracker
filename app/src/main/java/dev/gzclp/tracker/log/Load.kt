@@ -13,6 +13,7 @@ import kotlin.math.roundToInt
  * push-up: 0.65
  * inverted row: 0.5
  * pistol squat: 0.8
+ * handstand press (handstand push-up): 0.9
  */
 val DEFAULT_BODYWEIGHT_FACTORS: Map<String, Double> = mapOf(
     "pull_up" to 1.0,
@@ -22,6 +23,7 @@ val DEFAULT_BODYWEIGHT_FACTORS: Map<String, Double> = mapOf(
     "push_up" to 0.65,
     "inverted_row" to 0.5,
     "pistol_squat" to 0.8,
+    "handstand_press" to 0.9,
 )
 
 /** The default bodyweight factor for a calisthenics move or its weighted_ / assisted_ variant. */

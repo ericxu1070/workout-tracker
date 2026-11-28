@@ -39,7 +39,7 @@ class Tests : public QObject {
 private slots:
     void docExampleResolves() {
         const Log log = parseLog(docExample());
-        QCOMPARE(log.sets.size(), 3);
+        QCOMPARE(log.sets.size(), 6);  // the A1 workout's three, a top-sets line and a quick log's two
         QCOMPARE(log.sets[0].rpe, 0.0);  // absent
         QCOMPARE(log.sets[1].rpe, 8.5);
         QCOMPARE(log.name("squat"), QString("Squat"));
@@ -49,8 +49,11 @@ private slots:
         QCOMPARE(log.bodyWeight[0].weight, 181.4);  // the edit wins
 
         const QVariantMap d = dashboard(log);
-        QCOMPARE(d["workouts"].toInt(), 1);
-        QVERIFY(d["strength"].toMap()["lifts"].toList().isEmpty());  // no AMRAP or cycle sets
+        QCOMPARE(d["workouts"].toInt(), 2);  // A1 and the top-sets day; the quick log is not a workout
+        // No AMRAP or cycle sets; the quick log's handstand presses are a bodyweight move, so they count.
+        const QVariantList lifts = d["strength"].toMap()["lifts"].toList();
+        QCOMPARE(lifts.size(), 1);
+        QCOMPARE(lifts[0].toMap()["id"].toString(), QString("handstand_press"));
         const QVariantMap volume = find(d["volume"].toList(), "lift", "squat");
         QCOMPARE(volume["reps"].toInt(), 6);
         QCOMPARE(volume["tonnage"].toDouble(), 210.0 * 3 + 215 * 3);  // each set's own weight
@@ -64,14 +67,23 @@ private slots:
         QCOMPARE(rest["target"].toDouble(), 180.0);
         QCOMPARE(d["sessions"].toList().value(0).toMap()["v"].toDouble(), 3120 / 60.0);  // the session_edit wins
 
+        // The quick log's sets count, but it is no workout: no duration bar.
+        int quickSets = 0;
+        for (const LoggedSet &s : log.sets)
+            quickSets += s.session == "s1796484600";
+        QCOMPARE(quickSets, 2);
+        const qint64 quickStart = QDateTime::fromString("2026-12-05T07:25:00-08:00", Qt::ISODate).toMSecsSinceEpoch();
+        for (const QVariant &v : d["sessions"].toList())
+            QVERIFY(qint64(v.toMap()["t"].toDouble()) != quickStart);
+
         // Cardio: the run, the basketball edit (4500 -> 3900 s), and no discarded ride.
         QCOMPARE(log.cardio.size(), 2);
         QCOMPARE(log.cardio[0].activity, QString("basketball"));
         QCOMPARE(log.cardio[0].durationSec, 3900);
         QCOMPARE(log.cardio[1].distanceM, 8047);
         const QVariantMap cardio = d["cardio"].toMap();
-        QCOMPARE(d["weeks"].toList().size(), 3);  // the run extends to the cardio week of Nov 16
-        QCOMPARE(cardio["minutes"].toList(), (QVariantList{0.0, 0.0, (2490 + 3900) / 60.0}));
+        QCOMPARE(d["weeks"].toList().size(), 5);  // the December top-sets day and quick log extend it to the week of Nov 30
+        QCOMPARE(cardio["minutes"].toList(), (QVariantList{0.0, 0.0, (2490 + 3900) / 60.0, 0.0, 0.0}));
         QCOMPARE(cardio["activities"].toList().value(0).toMap()["name"].toString(), QString("Basketball"));
 
         const QVariantList rows = d["timeline"].toMap()["rows"].toList();
