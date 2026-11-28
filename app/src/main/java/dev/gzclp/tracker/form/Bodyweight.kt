@@ -78,6 +78,19 @@ private fun pushUp(kind: Kind) = Motion(Tempo(1.6, 0.3, 1.0, 0.6)) { d ->
     }
 }
 
+/**
+ * A handstand press: upside down on straight arms, the body straight from hands to heels, lowering until the head nears the
+ * floor between the hands, the elbows travelling forward and out.
+ */
+private fun handstandPress() = Motion(Tempo(2.0, 0.3, 1.2, 0.6)) { d ->
+    val len = trunkLength()
+    val sh = V(0.0, lerp(drop(0.6) - 0.06, 0.36, d), lerp(0.0, 0.08, d))
+    trunk(sh + V.UP * len, sh)
+    head(nod = -25.0)
+    for (s in SIDES) palm(s, V(s * 0.3, 0.0, -0.06), -V.FWD, V(s * 0.8, 0.2, -0.6))
+    for (s in SIDES) leg(s, raise = 3.0, plane = 0.0, ankle = -40.0)
+}
+
 /** Parallel-bar height for dips. */
 private const val DIP = 1.2
 
@@ -198,4 +211,5 @@ internal val BODYWEIGHT: Map<String, () -> Motion> = buildMap {
     three("muscle_up") { muscleUp(it) }
     three("inverted_row") { invertedRow(it) }
     three("pistol_squat") { pistol(it) }
+    put("handstand_press") { handstandPress() }
 }
