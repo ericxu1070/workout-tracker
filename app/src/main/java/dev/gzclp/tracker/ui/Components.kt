@@ -444,12 +444,15 @@ fun ThumbRow(
     var tapTo by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
     LaunchedEffect(tapTo) {
         val to = tapTo ?: return@LaunchedEffect
-        androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it }
+        // A tap the selection never follows (declined, or overridden mid-slide) still lets go after a second.
+        kotlinx.coroutines.withTimeoutOrNull(1000) { androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it } }
         tapTo = null
     }
     fun pick(i: Int) {
         motion.momentum = false
-        if (abs(motion.x - i) >= 0.02f) tapTo = i
+        // With Remove animations on, the thumb lands at once and nothing grows, not even for a frame.
+        val still = scope.coroutineContext[androidx.compose.ui.MotionDurationScale]?.scaleFactor == 0f
+        tapTo = if (!still && abs(motion.x - i) >= 0.02f) i else null
         if (pager != null) tap(i) else select(i)
     }
     LaunchedEffect(swiped) { if (swiped) { motion.momentum = true; tapTo = null } }

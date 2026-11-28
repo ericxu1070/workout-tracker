@@ -78,11 +78,48 @@ class ThumbTapTest {
     @Test fun workoutSwitchTapInLoaded() { assertSlides(Palettes.glass, "Stretching", 2) { workoutSwitch() }; assertEquals(2, mode) }
     @Test fun workoutSwitchTapInPerformance() { assertSlides(Palettes.light, "Stretching", 2) { workoutSwitch() }; assertEquals(2, mode) }
 
+    /** A tap the selection never follows (the caller keeps its tab) still lets the bar and pill settle. */
+    @Test fun aDeclinedTapStillSettles() {
+        rule.setContent { GzTheme(Palettes.glass) { TabBar(Tab.Workout) {} } }
+        tapAndWatch("History")
+        val rest = look()
+        assertEquals(1f, rest.swell, 1e-3f)
+        assertEquals(0f, rest.lift, 1e-3f)
+        assertEquals(0f, rest.glass, 1e-3f)
+    }
+
     /** A tap on the segment already chosen moves nothing and grows nothing. */
     @Test fun tapOnTheChosenSegmentStaysPut() {
         rule.setContent { GzTheme(Palettes.glass) { segmented() } }
         val (early, mid) = tapAndWatch("Day")
         for (l in listOf(early, mid)) assertEquals(0f, l.x, 0f)
         assertEquals(0, seg)
+    }
+}
+
+/** With the system's Remove animations on, a tap lands the pill at once and never grows the bar or the pill, not even for a frame. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+class ThumbTapNoMotionTest {
+    @get:Rule val rule = createComposeRule(effectContext = object : androidx.compose.ui.MotionDurationScale { override val scaleFactor = 0f })
+
+    @Test fun aTapJumpsWithoutGrowing() {
+        var seg by mutableStateOf(0)
+        rule.setContent { GzTheme(Palettes.glass) { Segmented(listOf("Day", "Week", "Month"), seg, { seg = it }) } }
+        rule.waitForIdle()
+        val b = rule.onNodeWithText("Month").fetchSemanticsNode().boundsInRoot
+        rule.mainClock.autoAdvance = false
+        rule.onRoot().performTouchInput { down(b.center); up() }
+        repeat(20) { f ->
+            rule.mainClock.advanceTimeByFrame()
+            val l = rule.onNode(SemanticsMatcher.keyIsDefined(ThumbLookKey)).fetchSemanticsNode().config[ThumbLookKey]()
+            assertEquals("swell at frame $f", 1f, l.swell, 1e-3f)
+            assertEquals("lift at frame $f", 0f, l.lift, 1e-3f)
+        }
+        rule.mainClock.autoAdvance = true
+        rule.waitForIdle()
+        assertEquals(2, seg)
+        assertEquals(2f, rule.onNode(SemanticsMatcher.keyIsDefined(ThumbLookKey)).fetchSemanticsNode().config[ThumbLookKey]().x, 0f)
     }
 }
