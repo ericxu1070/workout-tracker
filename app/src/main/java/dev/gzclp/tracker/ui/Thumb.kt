@@ -35,12 +35,13 @@ fun interface ThumbPainter {
 }
 
 /**
- * A solid pill whether resting or lifted. Lifted, a hairline of [ThumbPainter.paint]'s edge rims it: the tab bar's pill is the color of
- * a card, so where it grows past the bar over one, nothing else marks it, and it looked cut off flat along the bar's top.
+ * A solid pill whether resting or lifted. Lifted, an opaque one is rimmed by a hairline of [ThumbPainter.paint]'s edge: the tab bar's
+ * pill is the color of a card, so where it grows past the bar over one, nothing else marks it, and it looked cut off flat along the
+ * bar's top. A see-through pill tints whatever it is over, so it shows as it is.
  */
 val SolidThumb = ThumbPainter { pill, color, _, edge, lift ->
     drawPath(Path().apply { addRoundRect(pill) }, color)
-    if (lift > 0f) drawOutline(Outline.Rounded(pill), edge, alpha = lift, style = Stroke(1.dp.toPx()))
+    if (lift > 0f && color.alpha == 1f) drawOutline(Outline.Rounded(pill), edge, alpha = lift, style = Stroke(1.dp.toPx()))
 }
 
 /**
@@ -173,7 +174,7 @@ class ThumbMotion(start: Float) {
          * A tap grows the bar and thumb only while it carries the thumb: they let go this many segments short of where it is headed,
          * on [TapLift], quick enough that both are back at rest by the time the thumb lands.
          */
-        const val TAP_LET_GO = 0.3f
-        val TapLift = spring<Float>(dampingRatio = 1f, stiffness = 2500f)
+        const val TAP_LET_GO = 0.4f
+        val TapLift = spring<Float>(dampingRatio = 1f, stiffness = 3500f)
     }
 }

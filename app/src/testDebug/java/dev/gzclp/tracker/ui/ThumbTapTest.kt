@@ -57,8 +57,9 @@ class ThumbTapTest {
         rule.setContent { GzTheme(p) { content() } }
         val frames = tapAndWatch(label)
         assertTrue("still gliding at 150 ms: ${frames[8].x}", frames[8].x > 0.2f && frames[8].x < to * 0.9f)
-        val land = frames.indexOfFirst { abs(it.x - to) < 0.02f }
-        assertTrue("lands at frame $land", land in 15..28)
+        // Landed: within a twentieth of a segment, 4 dp on the tab bar, with only the glide's slow last creep to go.
+        val land = frames.indexOfFirst { abs(it.x - to) < landed }
+        assertTrue("lands at frame $land", land in 12..24)
         // Raised while it travels: at its fullest somewhere between the two segments.
         val peak = frames.take(land).maxBy { it.lift }
         assertTrue("grown mid-slide, not at an end: ${peak.x}", peak.x > 0.1f * to && peak.x < to - 0.1f)
@@ -80,6 +81,7 @@ class ThumbTapTest {
         rule.onNodeWithText(label).assertIsSelected()
     }
 
+    private val landed = 0.05f
     private var seg by mutableStateOf(0)
     private var tab by mutableStateOf(Tab.Workout)
     private var mode by mutableStateOf(0)
@@ -150,8 +152,8 @@ class ThumbTapTest {
         val frames = listOf(first.last()) + watch(60)
         settle()
         // No frame's lift moves more than a quick spring's step: nothing snaps.
-        for ((a, b) in frames.zipWithNext()) assertTrue("lift jumps: ${a.lift} to ${b.lift}", abs(b.lift - a.lift) < 0.35f)
-        val land = frames.indexOfFirst { abs(it.x - 1f) < 0.02f }
+        for ((a, b) in frames.zipWithNext()) assertTrue("lift jumps: ${a.lift} to ${b.lift}", abs(b.lift - a.lift) < 0.5f)
+        val land = frames.indexOfFirst { abs(it.x - 1f) < landed }
         for (l in frames.drop(land)) assertEquals("lift once landed", 0f, l.lift, 0.02f)
         assertEquals(ThumbLook(1f, 1f, 0f, 0f), look())
         assertEquals(Tab.Upcoming, tab)
