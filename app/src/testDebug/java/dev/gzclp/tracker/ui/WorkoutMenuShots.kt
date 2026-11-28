@@ -85,15 +85,18 @@ class WorkoutMenuShots {
         }
     }
 
-    /** The menu open at one and a half times the text size: every line whole. */
-    @Test fun largeText() {
+    /** The menu open at one and a half times the text size: every line whole, and in Liquid Glass the rows it covers blurred through its pane. */
+    private fun largeText(p: Palette, name: String) {
         RuntimeEnvironment.setFontScale(1.5f)
-        val (out, b) = workout(Palettes.dark)
-        rule.onRoot().captureRoboImage(File(out, "dark-large-0-closed.png").path)
+        val (out, b) = workout(p)
+        rule.onRoot().captureRoboImage(File(out, "$name-large-0-closed.png").path)
         rule.onRoot().performTouchInput { down(b.center); up() }
         rule.waitForIdle()
-        rule.onRoot().captureRoboImage(File(out, "dark-large-2-open.png").path)
+        rule.onRoot().captureRoboImage(File(out, "$name-large-2-open.png").path)
     }
+
+    @Test fun largeTextDark() = largeText(Palettes.dark, "dark")
+    @Test fun largeTextGlass() = largeText(Palettes.glass, "glass-dark")
 
     @Test fun pickDark() = pick(Palettes.dark, "dark")
     @Test fun pickGlass() = pick(Palettes.glass, "glass-dark")

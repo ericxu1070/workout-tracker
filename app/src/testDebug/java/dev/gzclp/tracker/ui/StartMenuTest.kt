@@ -2,6 +2,9 @@ package dev.gzclp.tracker.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
@@ -169,13 +172,31 @@ class StartMenuTest {
         rule.onNodeWithText("Choose").assertExists()
     }
 
-    /** Under a finger focus stays where it was: moved to the button on closing, it left the button wearing a keyboard's focus ring. */
-    @Test fun aFingerLeavesNoFocusBehind() {
+    /**
+     * Under a finger no focus is left on the button as the menu closes: handed back as to a keyboard, it left the button wearing a
+     * focus ring. (Whether a touch may focus the open menu's first option is the system's call: a phone lets it, this test window does not.)
+     */
+    @Test fun aFingerLeavesNoFocusOnTheButton() {
         home()
         rule.onNodeWithText(START_OR_LOG).performClick()
-        rule.onNodeWithText("Start workout").assertIsNotFocused()
+        rule.onNodeWithText("Start workout").assertExists()
         rule.onRoot().performTouchInput { click(Offset(width / 2f, height * 0.25f)) }
         rule.onNodeWithText(START_OR_LOG).assertIsNotFocused()
+    }
+
+    /** The tab bar stays live under the open menu: leaving the tab closes it, so it is not found open on the way back. */
+    @Test fun leavingTheTabClosesIt() {
+        var tab by mutableStateOf(Tab.Workout)
+        rule.setContent { GzTheme(Palettes.tokyo) { TabHost({ tab }, { tab = it }) { if (it == Tab.Workout) HomeScreen(Demo.state, { picked += "start" }, {}) } } }
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.onNodeWithText("Start workout").assertExists()
+        rule.onNodeWithText("History").performClick()
+        rule.runOnIdle { assertEquals(Tab.History, tab) }
+        // Back is the other tab's now, not a menu's left open out of sight.
+        rule.runOnIdle { assertTrue(!rule.activity.onBackPressedDispatcher.hasEnabledCallbacks()) }
+        rule.onNodeWithText("Workout").performClick()
+        assertClosed()
+        assertEquals(emptyList<String>(), picked)
     }
 
     /** With a keyboard, focus goes to the option under the button, and back to the button when the menu closes. */

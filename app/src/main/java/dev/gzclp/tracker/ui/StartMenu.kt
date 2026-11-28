@@ -52,6 +52,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.dismiss
@@ -128,18 +129,20 @@ fun StartMenuOptions(menu: StartMenu, primary: String, onPrimary: () -> Unit, op
     HoldPages(menu.open)
     var picked by remember { mutableStateOf(false) }
     val input = LocalInputModeManager.current
+    val focus = LocalFocusManager.current
     LaunchedEffect(menu.open) {
         if (menu.open) {
             picked = false
             if (whoosh) motion.feel?.lift()
             menu.t.animateTo(1f, if (whoosh) riseSpring() else tween(260, easing = EaseOutQuart))
         } else if (menu.t.value > 0f) {
-            // With a keyboard, focus follows the menu: into it as it opens ([Pane]) and back to the button as it closes with nothing
-            // picked. Under a finger it stays put: moved, it left the button wearing a focus ring.
-            if (!picked && input.inputMode == InputMode.Keyboard) menu.button.requestFocus()
+            // Focus went into the menu as it opened ([Pane]). Closed with nothing picked, a keyboard gets it back on the button;
+            // under a finger it is let go, or the button is left wearing a focus ring. A tab left behind keeps out of both.
+            val here = tabShown.value && !picked
+            if (here) if (input.inputMode == InputMode.Keyboard) menu.button.requestFocus() else focus.clearFocus()
             menu.t.animateTo(0f, tween(180, easing = EaseOutQuart))
             // What was picked brings its own landing: a sheet, or the workout.
-            if (whoosh && !picked) {
+            if (whoosh && here) {
                 motion.ripples?.drop(menu.anchor.center, 0.35f)
                 motion.feel?.land(0.3f)
             }
@@ -176,8 +179,7 @@ private fun Pane(menu: StartMenu, origin: () -> Offset, primary: String, onPrima
     val p = LocalPalette.current
     val t = { menu.t.value.coerceAtLeast(0f) }
     val first = remember { FocusRequester() }
-    val input = LocalInputModeManager.current
-    LaunchedEffect(Unit) { if (input.inputMode == InputMode.Keyboard) first.requestFocus() }
+    LaunchedEffect(Unit) { first.requestFocus() }
     // It picks up the press the closed button was let go from, and eases back to full size as that button would have ([Pressable]).
     // With the system's Remove animations on there is no press to pick up: it is drawn closed, then open, and nothing in between.
     val sink = loaded(Effect.Sink)
