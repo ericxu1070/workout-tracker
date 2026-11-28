@@ -1,5 +1,6 @@
 package dev.gzclp.tracker.ui
 
+import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
@@ -58,6 +59,7 @@ import dev.gzclp.tracker.form.Tone
 import dev.gzclp.tracker.form.Skin
 import dev.gzclp.tracker.form.V
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -83,6 +85,56 @@ private const val HAIR_LIFT = 0.02f
 
 /** How far each silhouette fades out past its edge, in pixels: the figure's anti-aliasing. */
 private const val FRINGE = 1.2f
+
+/** How light shades a surface: not at all, in two tones with a narrow step between them, or along its whole ramp. */
+internal enum class Shade { FLAT, CEL, SOFT }
+
+/**
+ * How the figure is drawn: an [ink] line this many dp wide around every silhouette, in a view [INK_VIEW] dp across (a
+ * smaller view scales it down), and how light [shade]s what it encloses. No line is the lit, unlined figure of before.
+ */
+internal class Look(val ink: Float, val shade: Shade) {
+    companion object {
+        const val THIN = 1f
+        const val MEDIUM = 1.5f
+        const val BOLD = 2.25f
+        val UNLINED = Look(0f, Shade.SOFT)
+        val THIN_SOFT = Look(THIN, Shade.SOFT)
+        val MEDIUM_CEL = Look(MEDIUM, Shade.CEL)
+        val BOLD_FLAT = Look(BOLD, Shade.FLAT)
+    }
+}
+
+/** The look every figure wears: one of [Look]'s own, or any of its line weights with any [Shade]. A var only so the review sheets can draw the others. */
+internal var look = Look.MEDIUM_CEL
+
+/** The smaller side, in dp, of the view a [Look]'s line is measured in, and the thinnest a smaller view's line gets, in dp. */
+private const val INK_VIEW = 240f
+private const val INK_MIN = 0.5f
+
+/** The longest an outline's corner reaches past its vertex, in line widths; a sharper turn tapers instead of growing a spike. */
+private const val MITER = 2f
+
+/**
+ * How much of a smooth surface's normal must lie across the screen for its outline to be full width there. Less, and the
+ * line thins toward nothing: a silhouette's normal lies all across the screen, a face turned to the eye that happens to
+ * hold an edge-on triangle has almost none.
+ */
+private const val EDGE_ON = 0.7f
+
+/**
+ * How much farther the outline sorts than the edge it runs along, in metres: a surface less than this far behind an edge
+ * covers its line, so a fold too shallow to draw (a nostril, between two fingers) leaves no mark inside the figure.
+ */
+private const val INK_SINK = 0.03f
+
+/** Where on its ramp a two-tone surface's shaded tone sits (its lit one is the top), and where on the accent's ramp an unlit surface's highlight does: under its top, which is pale. */
+private const val DIM = 0.45f
+private const val HOT = 0.7f
+
+/** The light level where a two-tone surface turns from shaded to lit, and how wide the step is. */
+private const val CEL_AT = 0.45f
+private const val CEL_STEP = 0.04f
 
 /** How far, as a share of the other part's radius, a surface cut at a joint keeps going inside it, so no gap opens along the crease. */
 private const val OVERLAP = 0.015
@@ -152,6 +204,12 @@ class Projector {
         for (i in 0..2) light[i] /= l
     }
 
+    /** Sets [sx], [sy] to how far the direction ([x], [y], [z]) runs right and down the screen. */
+    fun across(x: Float, y: Float, z: Float) {
+        sx = x * r[0] + y * r[1] + z * r[2]
+        sy = -(x * u[0] + y * u[1] + z * u[2])
+    }
+
     fun project(x: Float, y: Float, z: Float) {
         val dx = x - eye[0]; val dy = y - eye[1]; val dz = z - eye[2]
         depth = dx * f[0] + dy * f[1] + dz * f[2]
@@ -161,8 +219,14 @@ class Projector {
     }
 }
 
-/** Shadow-to-light colour ramps for the body, the highlighted target area and each material, and the floor and shadow paints, for one palette. */
-private class Tones(p: Palette) {
+/**
+ * Shadow-to-light colour ramps for the body, the highlighted target area and each material, and the floor and shadow paints,
+ * for one palette and [look].
+ */
+private class Tones(p: Palette, val look: Look) {
+    val ink = p.fg.copy(alpha = 1f).toArgb()
+    /** For two tones, what a surface's lit colour is multiplied by at each light level along x from 0 to 1: the step is drawn per pixel, not per vertex. */
+    val step: Shader?
     val body: IntArray
     val accent: IntArray
     val hair: IntArray
@@ -176,10 +240,12 @@ private class Tones(p: Palette) {
         fun ramp(lo: Color, hi: Color) = IntArray(64) { lerp(lo, hi, it / 63f).toArgb() }
         val bg = p.bg; val fg = p.fg; val g = p.fg2; val a = p.accent
         if (p.dark) {
-            body = ramp(lerp(fg, bg, 0.66f), fg)
+            // The ink is the foreground colour, so under it the surfaces that light up to that colour stop short of it.
+            val inked = look.ink > 0f
+            body = ramp(lerp(fg, bg, 0.66f), if (inked) lerp(fg, bg, 0.33f) else fg)
             accent = ramp(lerp(a, bg, 0.62f), lerp(a, Color.White, 0.2f))
             hair = ramp(lerp(fg, bg, 0.92f), lerp(fg, bg, 0.72f))
-            metal = ramp(lerp(g, bg, 0.72f), lerp(g, Color.White, 0.15f))
+            metal = ramp(lerp(g, bg, 0.72f), if (inked) lerp(g, bg, 0.3f) else lerp(g, Color.White, 0.15f))
             rubber = ramp(lerp(g, bg, 0.9f), lerp(g, bg, 0.55f))
             pad = ramp(lerp(g, bg, 0.86f), lerp(g, bg, 0.45f))
         } else {
@@ -189,6 +255,13 @@ private class Tones(p: Palette) {
             metal = ramp(lerp(g, fg, 0.3f), lerp(g, bg, 0.7f))
             rubber = ramp(lerp(fg, bg, 0.08f), lerp(fg, bg, 0.42f))
             pad = ramp(lerp(fg, bg, 0.15f), lerp(fg, bg, 0.5f))
+        }
+        step = if (look.shade != Shade.CEL) null else {
+            // The body's shaded tone over its lit one, channel by channel; the other materials darken as much.
+            val hi = body[63]; val lo = body[(DIM * 63).toInt()]
+            fun ch(s: Int) = ((lo shr s and 0xFF) * 255 / (hi shr s and 0xFF).coerceAtLeast(1)).coerceAtMost(255) shl s
+            val m = (0xFF shl 24) or ch(16) or ch(8) or ch(0)
+            LinearGradient(0f, 0f, 1f, 0f, intArrayOf(m, m, -1, -1), floatArrayOf(0f, CEL_AT - CEL_STEP / 2, CEL_AT + CEL_STEP / 2, 1f), Shader.TileMode.CLAMP)
         }
         val f = fg.copy(alpha = if (p.dark) 0.07f else 0.05f).toArgb()
         floor.shader = RadialGradient(0f, 0f, 1f, intArrayOf(f, f, f and 0xFFFFFF), floatArrayOf(0f, 0.7f, 1f), Shader.TileMode.CLAMP)
@@ -220,8 +293,10 @@ private val PRINT: Array<DoubleArray> = Bone.entries.map { b ->
 /**
  * Everything one figure needs per frame, allocated once and grown only when a heavier scene needs it. Each frame the posed
  * meshes are lit per vertex, back faces dropped, surfaces that meet at a joint cut where they run into each other (whole
- * triangles sorted by depth would interleave along the crossing), each silhouette edge given a fringe that fades to clear
- * (anti-aliasing, which drawVertices lacks), and every triangle sorted far to near into one drawVertices call.
+ * triangles sorted by depth would interleave along the crossing), each silhouette edge given the look's ink line and a fringe
+ * that fades to clear (anti-aliasing, which drawVertices lacks), and every triangle sorted far to near into one drawVertices
+ * call. A line sorts with its edge, so a nearer surface covers it and it shows wherever one part of the body passes in front
+ * of another.
  */
 private class Scene {
     val pose = Poser()
@@ -233,16 +308,42 @@ private class Scene {
     /** The hair's posed points, as [Figure.placeHair] lays them. */
     private var hairAt = FloatArray(0)
     private var xy = FloatArray(4096)
+    /** Each vertex's light level, as its place along [Tones.step]. */
+    private var uv = FloatArray(4096)
     private var dep = FloatArray(2048)
     private var col = IntArray(2048)
     /** Each vertex's colour in the see-through pass: fixed gear that hides the body keeps its own, everything else is clear. */
     private var shade = IntArray(2048)
     private var wp = FloatArray(2048 * 3)
     private var cut = FloatArray(2048)
-    private var tri = IntArray(4096 * 3)
+    private var tri = ShortArray(4096 * 3)
     private var keys = LongArray(4096)
+    /** How many triangles, from the one a key names, sort and draw as one with it; how many keys there are, and the triangle the last one names. */
+    private var span = ByteArray(4096)
+    private var nk = 0
+    private var head = 0
     private var out = ShortArray(4096 * 3)
     private var front = BooleanArray(512)
+    /** The silhouette edges of the mesh in hand, as places in its [Mesh.edges], and then the two ends of each one that is drawn. */
+    private var rim = IntArray(512)
+    private var ends = IntArray(1024)
+    /** Per vertex, its unit normal as it runs across the screen: the way a smooth surface's outline leaves it. */
+    private var lean = FloatArray(4096)
+    /** Per vertex, for the outline through it: its rim edges' unit normals summed, how many there are, and where its ring of outline vertices starts (-1 before it has one). */
+    private var turn = FloatArray(4096)
+    private var met = IntArray(2048)
+    private var ring = IntArray(2048)
+    /** Per vertex, which join between two lengths of one long item of gear it lies on; 0 for none. */
+    private var seam = IntArray(2048)
+    /** The edge [edge] last read: its ends, as the front face beside it winds them, and its unit normal on screen, pointing away from that face. */
+    private var ea = 0
+    private var eb = 0
+    private var ex = 0f
+    private var ey = 0f
+    /** This frame's line width in pixels and ink, and whether light leaves each surface its one lit tone. */
+    private var line = 0f
+    private var inked = 0
+    private var flat = false
     private val skin = FloatArray(pose.bent.size)
     private val skinNormal = FloatArray(pose.bent.size)
     private var nv = 0
@@ -258,7 +359,8 @@ private class Scene {
     private val poly = IntArray(4)
     private var gearAt = IntArray(64)
 
-    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, focus: Focus?) {
+    /** [ink] is the outline's width in pixels. */
+    fun draw(c: NativeCanvas, w: Float, h: Float, motion: Motion, d: Double, breath: Double, orbit: Orbit, tones: Tones, focus: Focus?, ink: Float) {
         val r = motion.radius
         val dist = r * 3.5f
         pr.set(orbit.yaw, orbit.pitch, motion.center, dist, min(w, h) * 0.46f * sqrt(dist * dist - r * r) / r, w / 2, h / 2)
@@ -276,7 +378,8 @@ private class Scene {
             else -> shadow(c, g.frame.o, g.frame.o, max(g.sx, g.sz) / 2, tones.shadow)
         }
 
-        nv = 0; nt = 0; placed.clear(); meshOf.fill(null); hot = tones.accent
+        nv = 0; nt = 0; nk = 0; placed.clear(); meshOf.fill(null); hot = tones.accent
+        line = ink; inked = tones.ink; flat = tones.look.shade != Shade.SOFT
         if (Figure.on) figure(tones, focus?.figure) else {
             for ((s, bones) in pose.chains()) if (bones.all { pose.has(it) }) chain(s, bones, tones, focus?.of(s, bones))
             for (b in Bone.entries) if (pose.has(b)) Body.of(b)?.let { part(it, pose[b], 1.0, 1.0, 1.0, tones.body, false, b, focus?.of(it, b)) }
@@ -286,20 +389,26 @@ private class Scene {
         if (gearAt.size <= gear.size) gearAt = IntArray(gear.size * 2 + 1)
         for (k in gear.indices) { val g = gear[k]; gearAt[k] = nv; part(g.mesh, g.frame, g.sx, g.sy, g.sz, tones.of(g.tone), g.tone == Tone.METAL) }
         gearAt[gear.size] = nv
+        seams()
         val ghosts = ghost(body)
         if (!Figure.on) for (s in SEAMS) { cut(s.a, s.b); cut(s.b, s.a) }
         for (k in placed.indices) faces(placed[k], starts[k])
-        java.util.Arrays.sort(keys, 0, nt)
-        for (j in 0 until nt) {
-            val t = (keys[j] and 0x3FFFFF).toInt() * 3
-            out[j * 3] = tri[t].toShort(); out[j * 3 + 1] = tri[t + 1].toShort(); out[j * 3 + 2] = tri[t + 2].toShort()
+        java.util.Arrays.sort(keys, 0, nk)
+        var o = 0
+        for (j in 0 until nk) {
+            var i = (keys[j] and 0x3FFFFF).toInt()
+            val end = (i + span[i]) * 3
+            i *= 3
+            while (i < end) { out[o] = tri[i]; out[o + 1] = tri[i + 1]; out[o + 2] = tri[i + 2]; i += 3; o += 3 }
         }
-        c.drawVertices(NativeCanvas.VertexMode.TRIANGLES, nv * 2, xy, 0, null, 0, col, 0, out, 0, nt * 3, paint)
+        val texs = if (tones.step != null) uv else null
+        paint.shader = tones.step; over.shader = tones.step
+        c.drawVertices(NativeCanvas.VertexMode.TRIANGLES, nv * 2, xy, 0, texs, 0, col, 0, out, 0, nt * 3, paint)
         if (!ghosts) return
         // Every triangle again, far to near, each replacing what is under it: the faded gear leaves its colour, and any of the
         // body in front of it clears it again. One layer, so where two of its faces overlap it does not get darker.
         c.saveLayerAlpha(null, GHOST)
-        c.drawVertices(NativeCanvas.VertexMode.TRIANGLES, nv * 2, xy, 0, null, 0, shade, 0, out, 0, nt * 3, over)
+        c.drawVertices(NativeCanvas.VertexMode.TRIANGLES, nv * 2, xy, 0, texs, 0, shade, 0, out, 0, nt * 3, over)
         c.restore()
     }
 
@@ -332,11 +441,12 @@ private class Scene {
     private fun grow(verts: Int, tris: Int) {
         if (nv + verts > col.size) {
             val n = max(col.size * 2, nv + verts)
-            xy = xy.copyOf(n * 2); dep = dep.copyOf(n); col = col.copyOf(n); shade = shade.copyOf(n); wp = wp.copyOf(n * 3); cut = cut.copyOf(n)
+            xy = xy.copyOf(n * 2); uv = uv.copyOf(n * 2); dep = dep.copyOf(n); col = col.copyOf(n); shade = shade.copyOf(n); wp = wp.copyOf(n * 3); cut = cut.copyOf(n)
+            lean = lean.copyOf(n * 2); turn = turn.copyOf(n * 2); met = met.copyOf(n); ring = ring.copyOf(n); seam = seam.copyOf(n)
         }
         if (nt + tris > keys.size) {
             val n = max(keys.size * 2, nt + tris)
-            tri = tri.copyOf(n * 3); keys = keys.copyOf(n); out = out.copyOf(n * 3)
+            tri = tri.copyOf(n * 3); keys = keys.copyOf(n); span = span.copyOf(n); out = out.copyOf(n * 3)
         }
     }
 
@@ -352,8 +462,16 @@ private class Scene {
 
     /** Queues a triangle; the key sorts far ones first and keeps the order of equal depths. */
     private fun add(a: Int, b: Int, c: Int, depth: Float) {
-        tri[nt * 3] = a; tri[nt * 3 + 1] = b; tri[nt * 3 + 2] = c
-        keys[nt] = ((Int.MAX_VALUE - java.lang.Float.floatToRawIntBits(depth)).toLong() shl 22) or nt.toLong()
+        keys[nk++] = ((Int.MAX_VALUE - java.lang.Float.floatToRawIntBits(depth)).toLong() shl 22) or nt.toLong()
+        head = nt
+        span[nt] = 0
+        also(a, b, c)
+    }
+
+    /** Queues a triangle to sort and draw with the last one [add]ed. */
+    private fun also(a: Int, b: Int, c: Int) {
+        tri[nt * 3] = a.toShort(); tri[nt * 3 + 1] = b.toShort(); tri[nt * 3 + 2] = c.toShort()
+        span[head]++
         nt++
     }
 
@@ -407,6 +525,21 @@ private class Scene {
             if (hairAt.size < it.verts * 3) hairAt = FloatArray(it.verts * 3)
             Figure.placeHair(pose[Bone.HEAD], hairAt)
             part(it, pose[Bone.HEAD], 1.0, 1.0, 1.0, tones.hair, false, at = hairAt)
+        }
+    }
+
+    /** Marks where two lengths of one long item of gear meet end to end: it is drawn as one thing, with no line across it there. */
+    private fun seams() {
+        val gear = pose.gear
+        java.util.Arrays.fill(seam, 0, nv, 0)
+        for (k in 1 until gear.size) if (gear[k].piece > 0) {
+            // The two lengths lie along the line through their frames, and the far face of the first is the near face of the next.
+            val a = gear[k - 1].frame.o; val b = gear[k].frame.o
+            val ux = (b.x - a.x).toFloat(); val uy = (b.y - a.y).toFloat(); val uz = (b.z - a.z).toFloat()
+            var far = -Float.MAX_VALUE
+            for (v in gearAt[k - 1] until gearAt[k]) far = max(far, wp[v * 3] * ux + wp[v * 3 + 1] * uy + wp[v * 3 + 2] * uz)
+            val near = 1e-3f * (ux * ux + uy * uy + uz * uz)
+            for (v in gearAt[k - 1] until gearAt[k + 1]) if (abs(wp[v * 3] * ux + wp[v * 3 + 1] * uy + wp[v * 3 + 2] * uz - far) < near) seam[v] = k
         }
     }
 
@@ -471,10 +604,13 @@ private class Scene {
         val wrap = ((ux * lit[0] + uy * lit[1] + uz * lit[2] + 0.3f) / 1.3f).coerceIn(0f, 1f)
         val facing = (ux * eye[0] + uy * eye[1] + uz * eye[2]).coerceIn(0f, 1f)
         val k = 0.04f + 0.6f * wrap + 0.18f * (0.5f + 0.5f * uy) + 0.18f * facing
-        val shade = (k.coerceIn(0f, 1f) * (ramp.size - 1)).toInt()
+        uv[v * 2] = k; uv[v * 2 + 1] = 0f
+        pr.across(ux, uy, uz)
+        lean[v * 2] = pr.sx; lean[v * 2 + 1] = pr.sy
+        val shade = if (flat) ramp.size - 1 else (k.coerceIn(0f, 1f) * (ramp.size - 1)).toInt()
         var c = ramp[shade]
-        if (glow > 0f) c = mix(c, hot[shade], glow)
-        if (metal) {
+        if (glow > 0f) c = mix(c, hot[if (flat) (HOT * (ramp.size - 1)).toInt() else shade], glow)
+        if (metal && !flat) {
             val hx = lit[0] + eye[0]; val hy = lit[1] + eye[1]; val hz = lit[2] + eye[2]
             val s = ((ux * hx + uy * hy + uz * hz) / sqrt(hx * hx + hy * hy + hz * hz)).coerceAtLeast(0f).pow(24) * 0.7f
             c = mix(c, -1, s)
@@ -482,7 +618,7 @@ private class Scene {
         col[v] = c
     }
 
-    /** Queues the front faces of [mesh], whose vertices start at [base], cut where they run into another surface, and a fringe along its silhouette. */
+    /** Queues the front faces of [mesh], whose vertices start at [base], cut where they run into another surface, and the outline along its silhouette. */
     private fun faces(mesh: Mesh, base: Int) {
         // A cut triangle can add two vertices; a mesh nothing cuts (the Figure) needs no room for them.
         var cuts = false
@@ -507,27 +643,94 @@ private class Scene {
             if (kept > 0) clip(a, b, c)
         }
         var rims = 0
-        for (k in edges.indices step 6) if (front[edges[k + 2]] != (edges[k + 5] >= 0 && front[edges[k + 5]])) rims++
-        if (!more || nv + 2 * rims > Short.MAX_VALUE) return
-        grow(2 * rims, 2 * rims)
-        for (k in edges.indices step 6) {
-            val one = front[edges[k + 2]]
-            val two = edges[k + 5] >= 0 && front[edges[k + 5]]
-            if (one == two) continue
-            val a = base + if (one) edges[k] else edges[k + 4]
-            val b = base + if (one) edges[k + 1] else edges[k + 3]
-            if (cut[a] < 0f || cut[b] < 0f) continue
-            val ex = xy[b * 2] - xy[a * 2]; val ey = xy[b * 2 + 1] - xy[a * 2 + 1]
-            val len = sqrt(ex * ex + ey * ey)
-            if (len < 1e-3f) continue
-            val px = -ey / len * FRINGE; val py = ex / len * FRINGE
-            val a2 = nv; val b2 = nv + 1
-            xy[a2 * 2] = xy[a * 2] + px; xy[a2 * 2 + 1] = xy[a * 2 + 1] + py; col[a2] = col[a] and 0xFFFFFF; shade[a2] = shade[a] and 0xFFFFFF; dep[a2] = dep[a]
-            xy[b2 * 2] = xy[b * 2] + px; xy[b2 * 2 + 1] = xy[b * 2 + 1] + py; col[b2] = col[b] and 0xFFFFFF; shade[b2] = shade[b] and 0xFFFFFF; dep[b2] = dep[b]
-            nv += 2
-            val d = (dep[a] + dep[b]) / 2
-            add(a, b, b2, d); add(a, b2, a2, d)
+        for (k in edges.indices step 6) if (front[edges[k + 2]] != (edges[k + 5] >= 0 && front[edges[k + 5]])) {
+            if (rims == rim.size) rim = rim.copyOf(rims * 2)
+            rim[rims++] = k
         }
+        if (!more) return
+        // A corner of the outline is one ring of vertices that every edge at it shares, so no wedge opens on the outside of a
+        // turn. A crisp crease splits a corner into a vertex per face; they meet at their weld.
+        val weld = weld(mesh)
+        java.util.Arrays.fill(turn, base * 2, (base + mesh.verts) * 2, 0f)
+        java.util.Arrays.fill(met, base, base + mesh.verts, 0)
+        java.util.Arrays.fill(ring, base, base + mesh.verts, -1)
+        if (ends.size < rims * 2) ends = IntArray(rims * 2)
+        var n = 0
+        var corners = 0
+        for (i in 0 until rims) if (edge(mesh, base, rim[i])) {
+            ends[n * 2] = ea; ends[n * 2 + 1] = eb
+            n++
+            corners += meet(ea, base, weld) + meet(eb, base, weld)
+        }
+        // Past each corner, where the fill has faded into the ink, where the ink ends and where it has faded out; with no ink, where the fill has faded out.
+        val rings = if (line > 0f) 3 else 1
+        if (nv + rings * corners > Short.MAX_VALUE) return
+        grow(rings * corners, 2 * rings * n)
+        for (i in 0 until n) {
+            val a = ends[i * 2]; val b = ends[i * 2 + 1]
+            val a2 = ring(a, base, weld); val b2 = ring(b, base, weld)
+            add(a, b, b2, (dep[a] + dep[b]) / 2 - lift + INK_SINK); also(a, b2, a2)
+            for (r in 1 until rings) { also(a2 + r - 1, b2 + r - 1, b2 + r); also(a2 + r - 1, b2 + r, a2 + r) }
+        }
+    }
+
+    /** Counts the last [edge] among those that meet at [v]'s corner; 1 when it is the first there. */
+    private fun meet(v: Int, base: Int, weld: IntArray): Int {
+        val at = base + weld[v - base].let { if (it < 0) v - base else it }
+        turn[at * 2] += ex; turn[at * 2 + 1] += ey
+        return if (met[at]++ == 0) 1 else 0
+    }
+
+    /** Reads the silhouette edge at [k] of [mesh]'s edges into [ea], [eb], [ex] and [ey]; false for one that is cut away, lies along a [seam] or has no length on screen. */
+    private fun edge(mesh: Mesh, base: Int, k: Int): Boolean {
+        val edges = mesh.edges
+        val one = front[edges[k + 2]]
+        ea = base + if (one) edges[k] else edges[k + 4]
+        eb = base + if (one) edges[k + 1] else edges[k + 3]
+        if (cut[ea] < 0f || cut[eb] < 0f || (seam[ea] != 0 && seam[ea] == seam[eb])) return false
+        val dx = xy[eb * 2] - xy[ea * 2]; val dy = xy[eb * 2 + 1] - xy[ea * 2 + 1]
+        val len = sqrt(dx * dx + dy * dy)
+        if (len < 1e-3f) return false
+        ex = -dy / len; ey = dx / len
+        return true
+    }
+
+    /**
+     * The outline's ring of vertices out from [v], the first of them. On a smooth surface they lie along its normal there,
+     * which turns evenly along a silhouette however its edges zigzag, and nearer the less of it lies across the screen
+     * ([EDGE_ON]). At a crisp corner they lie along the mean of the normals of the edges that meet there, as far out as a
+     * mitred corner reaches, up to [MITER]; where those pull apart past that, the line tapers toward nothing instead.
+     */
+    private fun ring(v: Int, base: Int, weld: IntArray): Int {
+        val w = weld[v - base]
+        val at = if (w < 0) v else base + w
+        if (ring[at] >= 0) return ring[at]
+        ring[at] = nv
+        var x = lean[v * 2]; var y = lean[v * 2 + 1]
+        var s = min(1 / sqrt(x * x + y * y), 1 / EDGE_ON)
+        if (w >= 0) {
+            x = turn[at * 2] / met[at]; y = turn[at * 2 + 1] / met[at]
+            s = min(1 / (x * x + y * y), MITER * MITER)
+        }
+        // A vertex with no normal has no way out, and its line starts from nothing there.
+        if (x.isNaN() || y.isNaN()) s = 0f.also { x = 0f; y = 0f }
+        x *= s; y *= s
+        if (line == 0f) put(v, x * FRINGE, y * FRINGE, col[v] and 0xFFFFFF, shade[v] and 0xFFFFFF) else {
+            val c = if (col[v] ushr 24 != 0) inked else 0
+            val g = if (shade[v] ushr 24 != 0) inked else 0
+            val out = max(line, FRINGE)
+            put(v, x * FRINGE, y * FRINGE, c, g)
+            put(v, x * out, y * out, c, g)
+            put(v, x * (out + FRINGE), y * (out + FRINGE), c and 0xFFFFFF, g and 0xFFFFFF)
+        }
+        return ring[at]
+    }
+
+    /** A new vertex ([dx], [dy]) pixels from [v], with its colour in the solid pass and in the see-through one. */
+    private fun put(v: Int, dx: Float, dy: Float, c: Int, s: Int) {
+        xy[nv * 2] = xy[v * 2] + dx; xy[nv * 2 + 1] = xy[v * 2 + 1] + dy; col[nv] = c; shade[nv] = s
+        uv[nv * 2] = 1f; uv[nv * 2 + 1] = 0f
+        nv++
     }
 
     /** Queues the part of triangle ([a], [b], [c]) that its cut keeps, as one triangle or two. */
@@ -542,7 +745,7 @@ private class Scene {
         var d = 0f
         for (i in 0 until n) d += dep[poly[i]]
         add(poly[0], poly[1], poly[2], d / n)
-        if (n == 4) add(poly[0], poly[2], poly[3], d / n)
+        if (n == 4) also(poly[0], poly[2], poly[3])
     }
 
     /** A new vertex where the edge from [p] to [q] crosses its cut. */
@@ -552,8 +755,23 @@ private class Scene {
         val v = nv++
         pr.project(at(0), at(1), at(2))
         xy[v * 2] = pr.sx; xy[v * 2 + 1] = pr.sy; dep[v] = pr.depth; col[v] = mix(col[p], col[q], s); shade[v] = 0
+        uv[v * 2] = uv[p * 2] + (uv[q * 2] - uv[p * 2]) * s; uv[v * 2 + 1] = 0f
         return v
     }
+}
+
+/** Per mesh, each vertex's first twin at the same point, or -1 when it has none: a crisp crease gives a corner a vertex per face, which [Mesh.edges] pairs across each edge. */
+private val welds = HashMap<Mesh, IntArray>()
+
+private fun weld(mesh: Mesh) = welds.getOrPut(mesh) {
+    val w = IntArray(mesh.verts) { it }
+    fun root(v: Int): Int { var r = v; while (w[r] != r) r = w[r]; return r }
+    fun join(a: Int, b: Int) { val x = root(a); val y = root(b); w[max(x, y)] = min(x, y) }
+    val e = mesh.edges
+    for (k in e.indices step 6) if (e[k + 5] >= 0) { join(e[k], e[k + 3]); join(e[k + 1], e[k + 4]) }
+    val twins = IntArray(mesh.verts)
+    for (v in w.indices) twins[root(v)]++
+    IntArray(mesh.verts) { v -> root(v).let { if (twins[it] == 1) -1 else it } }
 }
 
 /** [a] moved [t] of the way to [b], channel by channel. */
@@ -581,7 +799,7 @@ fun FormView(
 ) {
     val p = LocalPalette.current
     val scene = remember { Scene() }
-    val tones = remember(p) { Tones(p) }
+    val tones = remember(p, look) { Tones(p, look) }
     var clock by remember { mutableLongStateOf(0L) }
     // A kept tab out of sight stops the clock, so it runs no frames there.
     if (still == null && LocalTabShown.current.value) LaunchedEffect(motion, orbit) {
@@ -608,7 +826,8 @@ fun FormView(
         val sec = clock / 1e9
         val d = still?.toDouble() ?: motion.tempo.at(time?.invoke() ?: sec)
         val breath = if (still != null) 0.0 else 0.5 - 0.5 * cos(2 * PI * sec / BREATH_SEC)
-        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus) }
+        val ink = tones.look.ink.let { if (it == 0f) 0f else max(it * min(1f, size.minDimension / INK_VIEW.dp.toPx()), INK_MIN).dp.toPx() }
+        drawIntoCanvas { scene.draw(it.nativeCanvas, size.width, size.height, motion, d, breath, orbit, tones, focus, ink) }
     }
 }
 
