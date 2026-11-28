@@ -447,8 +447,8 @@ fun ThumbRow(
     val carried by remember(pager) { derivedStateOf { tapTo != null && abs(at() - motion.x) > ThumbMotion.TAP_LET_GO } }
     LaunchedEffect(tapTo) {
         val to = tapTo ?: return@LaunchedEffect
-        // A tap the selection never follows (declined, or overridden mid-slide) still lets go after a second.
-        kotlinx.coroutines.withTimeoutOrNull(1000) { androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it } }
+        // A tap the selection never follows (declined, or overridden mid-slide) still lets go after a second, as slowed animations count one.
+        kotlinx.coroutines.withTimeoutOrNull((1000 * motionScale()).toLong()) { androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it } }
         tapTo = null
     }
     fun pick(i: Int) {
