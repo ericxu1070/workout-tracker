@@ -109,10 +109,10 @@ class FigureTest(private val body: String) {
                 }
             }
         }
-        println("FIGURE shoulder flesh keeps at least ${"%.2f".format(least)} of its reach from the joint, at $where")
+        println("FIGURE shoulder flesh keeps at least ${"%.4f".format(least)} of its reach from the joint, at $where")
         // A twist collapsed through the joint kept a thirtieth. Linear blending still pinches a shoulder swung far overhead
         // (the triceps stretch keeps a fifth), as it did before the twist was taken out of it.
-        assertTrue("the shoulder flesh falls to ${"%.2f".format(least)} of its reach from the joint at $where", least > 0.15)
+        assertTrue("the shoulder flesh falls to ${"%.4f".format(least)} of its reach from the joint at $where", least > 0.15)
     }
 
     /**
@@ -135,6 +135,26 @@ class FigureTest(private val body: String) {
             assertTrue("a forearm's twist jumps ${"%.1f".format(most)} degrees in one of turning", most < 5)
             assertTrue("the twist never runs down the forearm: at most ${"%.0f".format(full)} degrees", full > Figure.HINGE_FULL - 1)
         }
+    }
+
+    /**
+     * Through every move, in 200 steps, a forearm's twist steps no further between two of them than [SMOOTH] degrees, but
+     * for the moves in [FLIPS], whose own arm frames jump there.
+     */
+    @Test fun aForearmsTwistRunsSmoothlyThroughEveryMove() {
+        val p = Poser()
+        val worst = sortedMapOf<String, Double>()
+        for (id in Catalog.all.map { it.id } + StretchMoves.ALL.map { it.id }) for (j in Figure.JOINTS.size until Figure.TWISTING.size) {
+            var last = Double.NaN
+            for (k in 0..200) {
+                Motions.of(id).pose(p, k / 200.0)
+                val t = Figure.hinge(p, j)!!.twist
+                val step = kotlin.math.abs(t - last)
+                if (step > SMOOTH) { println("FIGURE forearm twist steps ${"%.0f".format(step)} degrees at $id d=${k / 200.0} ${Figure.TWISTING[j].second}, to ${"%.0f".format(t)}"); worst[id] = maxOf(worst[id] ?: 0.0, step) }
+                last = t
+            }
+        }
+        assertTrue("forearm twists that jump: $worst", worst.all { (id, step) -> step <= (FLIPS[id] ?: SMOOTH) })
     }
 
     /** The pieces are drawn unless the mesh is asked for, so opening a move must not wait on reading and fitting it. */
@@ -185,6 +205,20 @@ class FigureTest(private val body: String) {
 
     companion object {
         const val STRETCH = 1.5
+
+        const val SMOOTH = 30.0
+
+        /**
+         * The moves whose upper arm or forearm frame jumps between two steps, and the most a forearm's twist steps there
+         * (measured 2026-11-28, rounded up). The sun salutation's arms pass through straight, where an upper arm's roll
+         * is set by a bend too small to tell; a muscle-up turns the wrists over the bar faster than a step; the incline
+         * press's first step and the glute ball's reach turn a forearm past where its twist fades. On main the same
+         * frames pinch the elbow flat and let it go again.
+         */
+        val FLIPS = mapOf(
+            "spine_sun_salutation_a" to 230.0, "muscle_up" to 65.0, "assisted_muscle_up" to 65.0, "weighted_muscle_up" to 65.0,
+            "incline_db_press" to 80.0, "hips_glute_ball" to 40.0,
+        )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun bodies() = Figure.bodies
     }

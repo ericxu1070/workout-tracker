@@ -29,6 +29,9 @@ import kotlin.math.sqrt
  * most, and close-ups of the joints, hands and head (the view drawn larger than the tile and moved, so a close-up is the
  * same drawing, only nearer). One PNG per body and view under the folder named by SHEETS, to lay out side by side:
  * SHEETS=\$PWD/build/review/after ./gradlew recordRoborazziDebug --tests 'dev.gzclp.tracker.form.FigureSheets'
+ * SHEETS_BODIES and SHEETS_ONLY (comma-separated) keep to some bodies and to the views whose names hold one of the words.
+ * SHEETS_MOVES renders moves in place of the views, each at a point through it, whole and close on the left elbow:
+ * SHEETS_MOVES=muscle_up@0.43,muscle_up@0.44
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -104,10 +107,18 @@ class FigureSheets {
         val p = Palettes.light
         val only = System.getenv("SHEETS_ONLY")?.ifEmpty { null }?.split(",")
         val bodies = System.getenv("SHEETS_BODIES")?.ifEmpty { null }?.split(",") ?: Figure.bodies
+        val moves = System.getenv("SHEETS_MOVES")?.ifEmpty { null }?.split(",")?.map { it.substringBefore('@') to it.substringAfter('@').toDouble() }
+        val views = moves?.flatMap { (id, d) ->
+            listOf(
+                Tile("$id-$d-whole", { Motions.of(id) }, d, 35f, 15f, 2.0, { this[Bone.CHEST].o }),
+                Tile("$id-$d-elbow-front", { Motions.of(id) }, d, 35f, 15f, 0.55, elbow),
+                Tile("$id-$d-elbow-back", { Motions.of(id) }, d, 145f, 15f, 0.55, elbow),
+            )
+        } ?: tiles
         try {
             for (body in bodies) {
                 Figure.shape = body
-                for (t in tiles) if (only == null || only.any { it in t.name }) shot(File(out, "$body/${t.name}.png"), t, p)
+                for (t in views) if (only == null || only.any { it in t.name }) shot(File(out, "$body/${t.name}.png"), t, p)
             }
         } finally {
             Figure.shape = "male"
