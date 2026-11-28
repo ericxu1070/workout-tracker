@@ -283,6 +283,7 @@ fun HomeScreen(
     onEditWeight: (Exercise) -> Unit,
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onStartOpen: () -> Unit = {},
+    onStartTop: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val day = state.nextDay
@@ -290,8 +291,14 @@ fun HomeScreen(
     var showOpenSessionSheet by remember { mutableStateOf(false) }
     ScreenFrame(bottom = {
         BottomBar {
-            PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
-            PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
+            // Three ways into the day: the workout itself under the two lighter ones.
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.md)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                    PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
+                    PillButton("Log top sets", onStartTop, Modifier.weight(1f))
+                }
+                PillButton("Start workout", onStart, Modifier.fillMaxWidth(), primary = true)
+            }
         }
     }) {
         Spacer(Modifier.height(Space.xxl))
@@ -347,9 +354,15 @@ fun WorkoutScreen(
     warmups: Boolean = true,
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
+    onLogTop: (Exercise, weight: Int, reps: Int, sets: Int) -> Unit = { _, _, _, _ -> },
+    onFinishTop: () -> Unit = { onEnd() },
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
+    if (a.top) {
+        TopSetsScreen(state, onLogTop, { onClear(it, 1) }, onFinishTop)
+        return
+    }
     if (a.open) {
         LaunchedEffect(a.id, OpenSessionManager.isActive) { OpenSessionManager.attach(state) }
         OpenSessionScreen(

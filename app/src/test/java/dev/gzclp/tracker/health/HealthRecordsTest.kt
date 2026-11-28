@@ -66,6 +66,24 @@ class HealthRecordsTest {
         assertTrue(rec.notes!!, rec.notes!!.startsWith("Squat T1: ${exercises.first().weight}×3, "))
     }
 
+    @Test fun topSetsSessionSpreadsItsSetsAndGivesRepsToTheTopSetOnly() {
+        val s = store()
+        s.dispatch(t0) { Commands.startTop(it, t0) }
+        val (squat, bench) = s.state.value.sessionExercises()
+        s.dispatch(t0) { Commands.logSet(it, squat, 1, 3, squat.weight!!, t0, rest, sets = 5) }
+        s.dispatch(t0) { Commands.logSet(it, bench, 1, 10, bench.weight!!, t0, rest, sets = 3) }
+        val w = s.write(t0) { Commands.endTop(it, t0, 40 * 60) }
+
+        val rec = w.upserts.single() as ExerciseSessionRecord
+        assertEquals(t0.minusMinutes(40).toInstant(), rec.startTime)
+        assertEquals(t0.toInstant(), rec.endTime)
+        assertEquals(listOf(3, 0, 0, 0, 0, 10, 0, 0), rec.segments.map { it.repetitions })
+        assertEquals(rec.startTime, rec.segments.first().startTime)
+        assertTrue(rec.segments.zipWithNext().all { (a, b) -> !a.endTime.isAfter(b.startTime) })
+        assertTrue(!rec.segments.last().endTime.isAfter(rec.endTime))
+        assertEquals("Squat T1: top ${squat.weight}×3 lb, 5 sets\nBench press T2: top ${bench.weight}×10 lb, 3 sets", rec.notes)
+    }
+
     @Test fun setsLoggedInTheSameSecondStillMakeAValidSession() {
         val s = store()
         s.dispatch(t0) { Commands.start(it, t0) }

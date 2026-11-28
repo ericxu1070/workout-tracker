@@ -6,14 +6,14 @@ import kotlin.math.roundToInt
 /** Epley estimated 1-rep max, in whole lb. */
 fun epley(weight: Int, reps: Int): Int = (weight * (1 + reps / 30.0)).roundToInt()
 
-/** One session's best for an exercise: the heaviest set and the best estimated 1RM. */
-data class SessionBest(val at: OffsetDateTime, val topWeight: Int, val topReps: Int, val e1rm: Int)
+/** One session's best for an exercise: the heaviest set and the best estimated 1RM. [topOnly] when a top-sets line is all there is of it. */
+data class SessionBest(val at: OffsetDateTime, val topWeight: Int, val topReps: Int, val e1rm: Int, val topOnly: Boolean = false)
 
 /** The heaviest set (then most reps) and best estimated 1RM over [sets] with reps; null when none has reps. */
 fun best(at: OffsetDateTime, sets: List<SetLogged>): SessionBest? {
     val done = sets.filter { it.actualReps > 0 }
     val top = done.maxWithOrNull(compareBy({ it.weight }, { it.actualReps })) ?: return null
-    return SessionBest(at, top.weight, top.actualReps, done.maxOf { epley(it.weight, it.actualReps) })
+    return SessionBest(at, top.weight, top.actualReps, done.maxOf { epley(it.weight, it.actualReps) }, done.all { it.sets != null })
 }
 
 /** Every logged set of one exercise, by session, oldest first. */

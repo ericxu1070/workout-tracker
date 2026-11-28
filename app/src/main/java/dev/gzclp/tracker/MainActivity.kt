@@ -122,6 +122,7 @@ import dev.gzclp.tracker.ui.WorkoutPages
 import dev.gzclp.tracker.ui.WorkoutScreen
 import dev.gzclp.tracker.ui.photoTimeNote
 import dev.gzclp.tracker.ui.unloggedSets
+import dev.gzclp.tracker.ui.topUnlogged
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -337,8 +338,15 @@ private fun App(model: AppModel) {
         val end = s.startedAt.plusSeconds(s.durationSec)
         TimePickerDialog(context, { _, h, m ->
             val c = sheet as? SheetState.SessionTime ?: return@TimePickerDialog
-            open(c.withDuration(durationEndingAt(c.startedAt, h, m, Commands.SESSION_DURATION_SEC.last)))
+            open(c.endingAt(h, m))
         }, end.hour, end.minute, DateFormat.is24HourFormat(context)).show()
+    }
+    /** The system time picker for a finished workout's start; a start at or after its end means the day before. */
+    fun pickSessionStart(s: SheetState.SessionTime) {
+        TimePickerDialog(context, { _, h, m ->
+            val c = sheet as? SheetState.SessionTime ?: return@TimePickerDialog
+            open(c.startingAt(h, m))
+        }, s.startedAt.hour, s.startedAt.minute, DateFormat.is24HourFormat(context)).show()
     }
     /** Leaves the activity picker; changing a sheet's activity goes back to that sheet, with [a] when one was picked. */
     fun closeActivities(a: Activity? = null) {
@@ -378,6 +386,17 @@ private fun App(model: AppModel) {
         close()
         requestNotifications()
         model.dispatch { Commands.startOpen(it, model.now()) }
+    }
+    /** A top-sets session prefills what it can, so nothing is missing, and it runs no rest timer to notify about. */
+    fun startTopFlow() {
+        close()
+        model.dispatch { Commands.startTop(it, model.now()) }
+    }
+    /** Asks how long a top-sets session took, starting from its sets' estimate; one with no line just ends. */
+    fun finishTopFlow() {
+        val lines = state.active?.sets?.values?.map { it.event }.orEmpty()
+        if (lines.isEmpty()) model.dispatch { Commands.endTop(it, model.now(), Commands.SESSION_DURATION_SEC.first) }
+        else open(SheetState.TopFinish(Commands.topDurationSec(lines), unlogged = state.topUnlogged()))
     }
     fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
         motion.touchdown(motion.tap)
@@ -483,7 +502,7 @@ private fun App(model: AppModel) {
                 )
                 shown == Route.Session && session != null -> SessionScreen(
                     state, session, { route = null }, { open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec)) },
-                    deleting, { open(SheetState.Delete(it)) },
+                    deleting, { open(SheetState.Delete(it)) }, onExercise = { push(Route.Exercise, it) },
                 )
                 shown == Route.Exercise && log != null -> ExerciseScreen(
                     state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } },
@@ -534,6 +553,7 @@ private fun App(model: AppModel) {
                                         onEditWeight = { open(weightSheet(it)) },
                                                                                 onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                         onStartOpen = ::startOpenFlow,
+                                        onStartTop = ::startTopFlow,
                                     ) else WorkoutScreen(
                                         state, java.time.Instant.ofEpochMilli(nowMillis).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime(), model.rest(nowMillis),
                                         onLog = { ex, i, w, r, rpe ->
@@ -555,6 +575,8 @@ private fun App(model: AppModel) {
                                         warmups = model.warmups,
                                         onUseSuggestion = { ex, w -> model.dispatch { Commands.editWeight(it, ex, w) } },
                                         onFinishOpen = { counts -> if (counts) endFlow() else finishWorkout(null, counts = false) },
+                                        onLogTop = { ex, w, r, n -> model.dispatch { Commands.logSet(it, ex, 1, r, w, model.now(), model.restTargets, sets = n) } },
+                                        onFinishTop = ::finishTopFlow,
                                     )
                                 }
                             }
@@ -603,7 +625,7 @@ private fun App(model: AppModel) {
             val s = sheet ?: lastSheet ?: return@Sheet
             SheetContent(
                 s, state, update = { sheet = it; lastSheet = it }, onDismiss = ::close, onPickTime = ::pickMealTime, onPickEnd = ::pickCardioEnd,
-                onPickStart = ::pickCardioStart, onPickSessionEnd = ::pickSessionEnd, onActivity = { close(); push(Route.Activities, "change") },
+                onPickStart = ::pickCardioStart, onPickSessionEnd = ::pickSessionEnd, onPickSessionStart = ::pickSessionStart, onActivity = { close(); push(Route.Activities, "change") },
                 onConfirm = { c ->
                     when (c) {
                         is SheetState.Weight -> {
@@ -706,7 +728,12 @@ private fun App(model: AppModel) {
                             close()
                         }
                         is SheetState.SessionTime -> {
-                            model.dispatch { Commands.editSession(it, c.id, c.durationSec) }
+                            model.dispatch { Commands.editSession(it, c.id, c.durationSec, c.startedAt) }
+                            close()
+                        }
+                        is SheetState.TopFinish -> {
+                            motion.touchdown(motion.tap)
+                            model.dispatch { Commands.endTop(it, model.now(), c.durationSec) }
                             close()
                         }
                         is SheetState.CardioDiscard -> {

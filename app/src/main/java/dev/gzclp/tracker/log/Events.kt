@@ -65,6 +65,7 @@ data class ProgressionEvent(
     val scheme: String? = null,
 ) : Event
 
+/** [mode] is "program", "open" (a freeform open session) or "top" (one top-set line per exercise). */
 @Serializable @SerialName("session_start")
 data class SessionStart(
     val sessionId: String,
@@ -92,6 +93,8 @@ data class SetLogged(
     val rpe: Double? = null,
     val addedLb: Double? = null,
     val bodyweightLb: Double? = null,
+    /** Set on a top-sets line only: every set done of the exercise, at any weight. The line's own weight and reps are the best one's. */
+    val sets: Int? = null,
 ) : Event
 
 /** In [sessionId], the slot ([exercise], [tier]) is done as [substitute]; a null [substitute] puts the original back. */
@@ -166,9 +169,9 @@ data class FoodEstimate(
     val confirmed: Boolean = false,
 ) : Event
 
-/** Corrects a finished session's [durationSec], such as one left running; the newest line per [sessionId] wins. */
+/** Corrects a finished session's [durationSec], such as one left running, and its start when [startedAt] is set; the newest line per [sessionId] wins. */
 @Serializable @SerialName("session_edit")
-data class SessionEdit(val sessionId: String, val durationSec: Long) : Event
+data class SessionEdit(val sessionId: String, val durationSec: Long, val startedAt: String? = null) : Event
 
 /** One weigh-in. [entryId] is its identity: a later line with the same id is an edit. [at] is when it was weighed. */
 @Serializable @SerialName("body_weight")

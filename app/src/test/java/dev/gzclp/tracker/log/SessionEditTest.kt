@@ -85,6 +85,19 @@ class SessionEditTest {
         assertEquals("an end before the last set has no run-on", 0L, s.state.value.sessions.single().afterLastSet)
     }
 
+    @Test fun editCanMoveTheStartAndALaterDurationEditKeepsIt() {
+        val s = finished(3000)
+        val id = s.state.value.sessions.single().id
+        val start = t0.minusMinutes(20)
+        val now = t0.plusDays(1)
+        assertTrue("the same start and duration is no edit", s.dispatch(now) { Commands.editSession(it, id, 3000, t0) }.isEmpty())
+        val line = s.dispatch(now) { Commands.editSession(it, id, 4200, start) }.single()
+        assertEquals(SessionEdit(id, 4200, "2026-11-20T17:40:00-08:00"), line.event)
+        assertEquals(start to 4200L, s.state.value.sessions.single().let { it.startedAt to it.durationSec })
+        s.dispatch(now) { Commands.editSession(it, id, 3600) }
+        assertEquals(start to 3600L, Store(file).state.value.sessions.single().let { it.startedAt to it.durationSec })
+    }
+
     @Test fun lineRoundTripsInTheDocumentedShape() {
         val e = Entry(120, t0, SessionEdit("s1795312800", 3900))
         val line = LogCodec.encode(e)
