@@ -3,10 +3,13 @@ package dev.gzclp.tracker.form
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.gzclp.tracker.ui.FormView
 import dev.gzclp.tracker.ui.GzTheme
@@ -32,6 +35,8 @@ import kotlin.math.sqrt
  * SHEETS_BODIES and SHEETS_ONLY (comma-separated) keep to some bodies and to the views whose names hold one of the words.
  * SHEETS_MOVES renders moves in place of the views, each at a point through it, whole and close on the left elbow:
  * SHEETS_MOVES=muscle_up@0.43,muscle_up@0.44
+ * SHEETS_VIEW is the size in dp of the app's view that a tile's whole drawing stands for (240 for an exercise's card): a
+ * line drawn in dp is then as wide against the figure as it is there, and a close-up is that view enlarged.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -140,10 +145,12 @@ class FigureSheets {
         val w = (W * zoom).roundToInt(); val h = (H * zoom).roundToInt()
         look(w.toFloat(), h.toFloat())
         val dx = (W / 2 - pr.sx).roundToInt(); val dy = (H / 2 - pr.sy).roundToInt()
+        val view = System.getenv("SHEETS_VIEW")?.toFloatOrNull()
         file.parentFile.mkdirs()
         captureRoboImage(file.path) {
             GzTheme(palette) {
                 Box(Modifier.fillMaxSize().background(palette.bg).clipToBounds()) {
+                    CompositionLocalProvider(LocalDensity provides if (view == null) LocalDensity.current else Density(min(w, h) / view)) {
                     FormView(
                         m,
                         Modifier.layout { measurable, _ ->
@@ -152,6 +159,7 @@ class FigureSheets {
                         },
                         still = t.d.toFloat(), orbit = Orbit().apply { yaw = t.yaw; pitch = t.pitch },
                     )
+                    }
                 }
             }
         }

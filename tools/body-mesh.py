@@ -1,11 +1,13 @@
 """Builds the form viewer's full-body mesh, app/src/test/resources/dev/gzclp/tracker/form/body.bin.
 
-The source is MakeHuman's hm08 base mesh and default rig, both CC0 1.0 (see NOTICE), fetched at a pinned commit. The script
-keeps the body (no eyes, teeth or helpers) and closes its eyes and mouth over the holes they leave, folds the rig's 163
-bones into the figure's 19 (`Bone` in Rig.kt), bakes a closed-fist variant of each hand with the rig's own finger bones,
-subdivides the mesh once and decimates it to the vertex count asked for (keeping a subset of the subdivided vertices, so
-weights and fist positions carry over exactly), and writes each of the 19 bones' frame in the mesh's space. FigureBake (a unit test) fits each body onto the Poser's skeleton and writes the app's
-figure-<body>.bin from it: rebake after running this (BAKE=1 ./gradlew testDebugUnitTest --tests 'dev.gzclp.tracker.form.FigureBake').
+The source is MakeHuman's hm08 base mesh and default rig, both CC0 1.0 (see NOTICE), fetched at a pinned commit. The
+script keeps the body (no eyes, teeth or helpers), closes its mouth and fills its eye sockets over the holes they leave
+(EYES below: open eyes, or lids drawn shut), folds the rig's 163 bones into the figure's 19 (`Bone` in Rig.kt), bakes a
+closed-fist variant of each hand with the rig's own finger bones, subdivides the mesh once and decimates it to the vertex
+count asked for (keeping a subset of the subdivided vertices, so weights and fist positions carry over exactly), and
+writes each of the 19 bones' frame in the mesh's space. FigureBake (a unit test) fits each body onto the Poser's skeleton
+and writes the app's figure-<body>.bin from it: rebake after running this (BAKE=1 ./gradlew testDebugUnitTest --tests
+'dev.gzclp.tracker.form.FigureBake').
 
 Each body in BODIES is the same mesh (same vertices, triangles and weights) morphed by MakeHuman's own CC0 targets, so every
 body bends the same way: body.bin holds the man, shapes.bin the others' positions, frames and fists, and the app's hair.bin
@@ -16,6 +18,7 @@ Run: uv run --python 3.12 --with numpy --with scipy --with pymeshlab python tool
 """
 import functools
 import json
+import os
 import pathlib
 import struct
 import sys
@@ -71,15 +74,18 @@ HAIRS = ROOT / "app/src/main/resources/dev/gzclp/tracker/form/hair.bin"
 # her chest a little fuller and rounder, without the point at its front.
 RACES = ("caucasian", "african", "asian")
 MUSCLE = "macrodetails/universal-{}-young-{}muscle-{}weight"
+# Every body's ears lie nearer the head and are rounder at the top: standing out, an ear leaves a notch between it and the
+# head narrower than an outline drawn round the figure, which fills it with spikes.
+EARS_FLAT = {f"ears/{s}-ear-{k}": x for s in "lr" for k, x in (("wing-decr", 1.0), ("shape-round", 0.5))}
 BODIES = {
-    "male": {**{f"macrodetails/{r}-male-young": 1 / 3 for r in RACES},
+    "male": {**EARS_FLAT, **{f"macrodetails/{r}-male-young": 1 / 3 for r in RACES},
              MUSCLE.format("male", "max", "average"): 0.4, MUSCLE.format("male", "max", "min"): 0.6,
              "torso/torso-vshape-incr": 0.6, "torso/torso-muscle-dorsi-incr": 0.4, "torso/torso-muscle-pectoral-incr": 0.8,
              **{f"armslegs/{s}-{part}-muscle-incr": x for s in "lr" for part, x in
                 (("upperarm", 1.0), ("lowerarm", 0.7), ("upperarm-shoulder", 0.4), ("upperleg", 0.8), ("lowerleg", 0.6))},
              **{f"armslegs/{s}-{part}-scale-{d}-incr": 0.3 for s in "lr" for part in ("upperarm", "lowerarm") for d in ("horiz", "depth")},
              "hip/hip-scale-horiz-decr": 0.3, "measure/measure-waist-circ-decr": 0.3},
-    "female": {**{f"macrodetails/{r}-female-young": 1 / 3 for r in RACES},
+    "female": {**EARS_FLAT, **{f"macrodetails/{r}-female-young": 1 / 3 for r in RACES},
                MUSCLE.format("female", "max", "average"): 0.42, MUSCLE.format("female", "max", "min"): 0.18,
                MUSCLE.format("female", "average", "min"): 0.12,
                "measure/measure-shoulder-dist-decr": 0.6, "armslegs/l-upperarm-shoulder-muscle-decr": 0.5,
@@ -524,6 +530,13 @@ def loop(tris, n):
 SPEND = {"PELVIS": 2.0, "WAIST": 2.5, "CHEST": 2.5, "HAND": 0.2, "FOOT": 0.3, "TOES": 0.04}
 FOLDS = {"upperarm01": 10.0, "lowerarm01": 10.0, "wrist": 3.0, "upperleg01": 10.0, "lowerleg01": 10.0, "foot": 4.0}
 JOINT_REACH, BETWEEN = 0.10, 10.0
+# The eyes and the lips, a face's few lines: near each (the rig's eye joints, and the bone at the middle of the lips)
+# the vertices count for this many times as much, fading out from 0.6 of FEATURE_REACH to all of it. With the head's
+# plain share a lid or a lip is left a handful of vertices, which crumple it.
+FEATURES, FEATURE_REACH = {"eye.L": 16.0, "eye.R": 16.0, "oris05": 8.0}, 0.035
+# The ears (what of the head stands further than EAR_OUT from its middle) count for EARS times as much: left a dozen
+# vertices each, their rims are a few sharp corners, which an outline drawn round the head turns into spikes.
+EARS, EAR_OUT = 6.0, 0.072
 
 
 def spend(pos, weights, head):
@@ -531,6 +544,8 @@ def spend(pos, weights, head):
     keep = 1 + 4 * (1 - weights.max(1))  # vertices shared between bones bend, so they count for more
     keep *= 1 + (BETWEEN - 1) * 4 * weights[:, B["THIGH_L"]] * weights[:, B["THIGH_R"]]
     keep *= 1 + np.max([(x - 1) * smooth(1 - np.linalg.norm(pos - head[f"{b}.{s}"], axis=1) / JOINT_REACH) for b, x in FOLDS.items() for s in "LR"], 0)
+    keep *= 1 + np.max([(x - 1) * smooth((1 - np.linalg.norm(pos - head[b], axis=1) / FEATURE_REACH) / 0.4) for b, x in FEATURES.items()], 0)
+    keep *= 1 + (EARS - 1) * weights[:, B["HEAD"]] * (np.abs(pos[:, 0]) > EAR_OUT)
     for part, x in SPEND.items():
         keep *= 1 + (x - 1) * weights[:, [i for b, i in B.items() if b.startswith(part)]].sum(1)
     return keep
@@ -607,16 +622,34 @@ def abs_cut(pos, tris, head, depth):
 
 
 # The face. MakeHuman's body has no eyes, teeth or tongue: its lids open onto empty sockets and its lips onto a hollow
-# mouth, which once decimated read as a mask with holes for eyes. Each socket is drawn tight across its opening and
-# rounded out over the eyeball (EYE its radius, the base mesh's eye helper's; the skin relaxed from EYE_FROM to EYE_TO
-# radii out and lifted to EYE_OUT of the radius): closed lids. The mouth and nostrils, which the face hides from the
-# front (FACE_HIDDEN behind it, on a grid of FACE_CELL), are drawn tight the same way: closed lips.
-EYE, EYE_FROM, EYE_TO, EYE_OUT, EYE_ROUNDS = 0.1495 * SCALE, 1.08, 1.4, 0.95, 300
+# mouth, which once decimated read as a mask with holes for eyes. The mouth and nostrils, which the face hides from the
+# front (FACE_HIDDEN behind it, on a grid of FACE_CELL), are drawn tight across their openings: closed lips. Each socket
+# is drawn tight the same way and rounded out over the eyeball (EYE its radius, the base mesh's eye helper's), one of
+# two ways, EYES:
+# - "open": the lids stay as they are, and the socket behind them (what lies within EYE_REACH radii of the eye and faces
+#   it, its normal less than EYE_FACING along the way out from it) becomes the eyeball's own surface under them.
+# - "closed": the lids go too (the skin relaxed from EYE_FROM to EYE_TO radii out and lifted to EYE_OUT of the radius),
+#   which leaves a smooth lid drawn shut. Close up it reads as a blank or blindfolded face.
+# To switch: EYES=closed in the environment of this script, then rebake.
+EYES = os.environ.get("EYES", "open")
+EYE, EYE_ROUNDS = 0.1495 * SCALE, 300
+EYE_REACH, EYE_FACING = 1.1, 0.3
+EYE_FROM, EYE_TO, EYE_OUT = 1.08, 1.4, 0.95
 FACE_CELL, FACE_HIDDEN, FACE_ROUNDS = 0.002, 0.006, 400
 
 
+def normals(pos, tris):
+    """Each vertex's unit normal from the faces around it, weighted by their area."""
+    across = np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]])
+    n = np.zeros_like(pos)
+    for k in range(3):
+        np.add.at(n, tris[:, k], across)
+    return n / np.linalg.norm(n, axis=1, keepdims=True)
+
+
 def face(pos, tris, head):
-    """The body with its eyes and mouth closed."""
+    """The body with its mouth closed and its eye sockets filled."""
+    assert EYES in ("open", "closed"), EYES
     near, count = neighbours(tris, len(pos))
     pos = pos.copy()
     eye = head["eye.L"]
@@ -635,15 +668,21 @@ def face(pos, tris, head):
     hidden = inside[pos[inside, 2] < ahead - FACE_HIDDEN]
     for _ in range(FACE_ROUNDS):
         pos[hidden] = (near @ pos / count)[hidden]
+    normal = normals(pos, tris)
     for s in "LR":
         c = head[f"eye.{s}"]
-        share = smooth((EYE_TO * EYE - np.linalg.norm(pos - c, axis=1)) / ((EYE_TO - EYE_FROM) * EYE))
+        d = pos - c
+        r = np.linalg.norm(d, axis=1)
+        if EYES == "open":
+            share, out = ((r < EYE_REACH * EYE) & (np.einsum("ij,ij->i", normal, d) < EYE_FACING * r)).astype(float), 1.0
+        else:
+            share, out = smooth((EYE_TO * EYE - r) / ((EYE_TO - EYE_FROM) * EYE)), EYE_OUT
         for _ in range(EYE_ROUNDS):
             pos += share[:, None] * (near @ pos / count - pos)
         d = pos - c
         r = np.linalg.norm(d, axis=1)
-        pos += d / r[:, None] * (share * np.maximum(0, EYE_OUT * EYE - r))[:, None]
-        for _ in range(10):  # the step where the lift starts, evened out
+        pos += d / r[:, None] * (share * np.maximum(0, out * EYE - r))[:, None]
+        for _ in range(10 if EYES == "closed" else 0):  # the step where the lift starts, evened out
             pos += share[:, None] * 0.5 * (near @ pos / count - pos)
     return pos
 
@@ -654,16 +693,18 @@ def face(pos, tris, head):
 # ear, 180 behind), the shell's grid (rings out from the crown, and points around each), its thickness on top and at the
 # sides, and for a bun where it is tied (its angle from straight up, behind). Both lines are soft curves: square corners
 # and a hard edge read as a helmet, and a ponytail, which rides the head as one piece, stood on end whenever the head
-# tipped forward.
+# tipped forward. Each passes over the top of the ear with skin between (hair that touches the ear runs through its rim,
+# and an outline drawn round the head breaks into spikes there) and ends on the skull at the nape: the hair moves with
+# the head alone, so what lay on the neck would lift off it or sink into it as the head tips.
 HAIR_AT = np.array([0.0, 0.06, 0.005])
 STYLES = {
     # Cropped short: a rounded front, in at the temples, a short sideburn, over the ear and down to the nape.
-    "male": dict(line=((0, 0.104), (30, 0.102), (48, 0.092), (62, 0.078), (70, 0.050), (76, 0.036), (82, 0.050), (88, 0.060),
-                       (100, 0.060), (108, 0.030), (125, 0.012), (180, 0.008)),
+    "male": dict(line=((0, 0.104), (30, 0.102), (48, 0.092), (62, 0.078), (70, 0.050), (76, 0.036), (82, 0.058), (88, 0.070),
+                       (100, 0.070), (110, 0.036), (125, 0.012), (180, 0.008)),
                  grid=(12, 72), top=0.006, side=0.004, tie=None),
-    # Pulled back to a bun: a rounded front, corners at the temples, down in front of the ears and round behind them.
-    "female": dict(line=((0, 0.108), (22, 0.105), (38, 0.098), (42, 0.090), (52, 0.068), (66, 0.050), (76, 0.040),
-                         (82, 0.050), (88, 0.064), (102, 0.064), (110, 0.024), (140, -0.005), (180, -0.012)),
+    # Pulled back to a bun: a rounded front, corners at the temples, one sweep back over the ears and down to the nape.
+    "female": dict(line=((0, 0.108), (22, 0.105), (38, 0.098), (46, 0.090), (58, 0.070), (66, 0.057), (72, 0.052),
+                         (98, 0.052), (106, 0.034), (114, 0.018), (130, 0.010), (180, 0.008)),
                    grid=(14, 72), top=0.009, side=0.007, tie=62),
 }
 HAIR_SMOOTH = 6
@@ -835,7 +876,9 @@ def main():
         p[scalp_verts] = o + bald(local, style) @ frame_axes
     # Decimated on the plain mesh the weights were made on: a body's targets press the thighs together, and decimated
     # there the steps in weight between the legs collapse into single edges that tear as the legs part.
-    plain = finer @ flat(raw, head, tail, w, parent)
+    # With its face closed as every body's is: chosen on the open mouth, the vertices kept there make a spur at a corner of
+    # the closed lips.
+    plain = finer @ flat(face(raw, tris, head), head, tail, w, parent)
     weights = finer @ weights
     idx, faces = decimate(plain, fine, verts, spend(plain, weights, head))
     weights = weights[idx]
