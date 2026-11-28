@@ -3,7 +3,6 @@ package dev.gzclp.tracker.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutQuart
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -18,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -142,11 +143,20 @@ fun StartMenuOptions(menu: StartMenu, primary: String, onPrimary: () -> Unit, op
         }
     }
     // [Pages] dims its header on this same clock while the pages are held, so the page and the header above it go dark as one.
-    val dim by animateFloatAsState(if (menu.open) 1f else 0f, tween(if (menu.open) 240 else 160), label = "dim")
+    val dim = remember { Animatable(0f) }
+    LaunchedEffect(menu.open) { dim.animateTo(if (menu.open) 1f else 0f, tween(if (menu.open || picked) 240 else 160)) }
+    val dimmed by remember { derivedStateOf { dim.value > 0f } }
     var origin by remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInRoot() }) {
         // In Liquid Glass the page runs on up under that header, which dims itself: the scrim stops short of it, or it would be dimmed twice.
-        if (dim > 0f) Box(Modifier.fillMaxSize().padding(top = LocalTopInset.current).graphicsLayer { alpha = dim }.background(p.scrim).pointerInput(menu) { detectTapGestures { menu.close() } })
+        if (dimmed) Box(
+            Modifier.fillMaxSize().padding(top = LocalTopInset.current).graphicsLayer {
+                // A picked option's sheet brings its own scrim up over this one, on the same 240 ms ([Sheet]): this one goes by as much
+                // as that one has come, so the page under the two stays as dark. Each fading its own way, the page flashed half again as bright.
+                val s = p.scrim.alpha
+                alpha = if (picked) (1f - (1f - s) / (1f - s * (1f - dim.value))) / s else dim.value
+            }.background(p.scrim).pointerInput(menu) { detectTapGestures { menu.close() } },
+        )
         if (menu.shown) Pane(menu, { origin }, primary, onPrimary, options) { go ->
             // Still closing, it takes no second pick.
             if (menu.open) {
@@ -172,11 +182,13 @@ private fun Pane(menu: StartMenu, origin: () -> Offset, primary: String, onPrima
     LaunchedEffect(Unit) { settle.animateTo(1f, if (sink) spring(dampingRatio = 1f, stiffness = 900f) else tween(200)) }
     // No taller than the button, the pane is the button's own pill; grown, its corners sit a pad's width outside the pill's.
     val shape = RoundedCornerShape(26.dp + PanePad)
+    val top = LocalTopInset.current
     Layout(
         {
             CompositionLocalProvider(LocalOnGlass provides p.glass) {
                 Column {
-                    Column(Modifier.padding(top = Space.sm).graphicsLayer { alpha = ((t() - 0.3f) / 0.5f).coerceIn(0f, 1f) }) {
+                    // On a screen too short for them all (a phone on its side), the options scroll above the pill.
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(top = Space.sm).graphicsLayer { alpha = ((t() - 0.3f) / 0.5f).coerceIn(0f, 1f) }) {
                         options.forEachIndexed { i, o ->
                             GroupRow(first = i == 0, onClick = { pick(o.go) }) {
                                 Column(Modifier.weight(1f)) {
@@ -205,10 +217,11 @@ private fun Pane(menu: StartMenu, origin: () -> Offset, primary: String, onPrima
             }
         },
         Modifier
-            // On the closed button: its sides and bottom edge, and as much above as the pane has grown.
+            // On the closed button: its sides and bottom edge, and as much above as the pane has grown, short of the header over the page.
             .layout { m, c ->
                 val a = menu.anchor.translate(-origin())
-                val pl = m.measure(Constraints.fixedWidth(a.width.roundToInt()))
+                val room = (a.bottom - top.toPx() - Space.lg.toPx()).coerceAtLeast(a.height).roundToInt()
+                val pl = m.measure(Constraints(a.width.roundToInt(), a.width.roundToInt(), 0, room))
                 layout(c.maxWidth, c.maxHeight) { pl.place(a.left.roundToInt(), a.bottom.roundToInt() - pl.height) }
             }
             .graphicsLayer {
@@ -225,8 +238,8 @@ private fun Pane(menu: StartMenu, origin: () -> Offset, primary: String, onPrima
                 dismiss { menu.close(); true }
             },
     ) { ms, c ->
-        val pl = ms.single().measure(c.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-        val h = lerp(menu.anchor.height.roundToInt(), pl.height, t())
+        val pl = ms.single().measure(c.copy(minHeight = 0))
+        val h = lerp(menu.anchor.height.roundToInt(), pl.height, t()).coerceAtMost(c.maxHeight)
         layout(pl.width, h) { pl.place(0, h - pl.height) }
     }
 }

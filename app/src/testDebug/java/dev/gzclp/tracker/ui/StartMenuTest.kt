@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.platform.app.InstrumentationRegistry
@@ -139,6 +141,21 @@ class StartMenuTest {
         rule.onRoot().performTouchInput { click(Offset(b.center.x, b.bottom - 4 * rule.density.density)) }
         rule.onNodeWithText("Start workout").assertExists()
         assertEquals(emptyList<String>(), picked)
+    }
+
+    /** A phone on its side has no room for the whole menu: it stops short of the screen's top, Start workout stays in place, and the rest scroll. */
+    @Config(sdk = [35], qualifiers = "w891dp-h250dp-420dpi")
+    @Test fun onAShortScreenItStaysOnScreenAndItsOptionsScroll() {
+        home()
+        val closed = rule.onNodeWithText(START_OR_LOG).fetchSemanticsNode().boundsInRoot
+        rule.onNodeWithText(START_OR_LOG).performClick()
+        rule.waitForIdle()
+        val open = rule.onNode(pane).fetchSemanticsNode().boundsInRoot
+        assertEquals(16 * rule.density.density, open.top, 1f)
+        assertEquals(closed.bottom, open.bottom, 1f)
+        rule.onNodeWithText("Start workout").assertIsDisplayed()
+        rule.onNodeWithText("Quick log").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithText("Choose").assertExists()
     }
 
     /** With a keyboard, focus goes to the option under the button, and back to the button when the menu closes. */
