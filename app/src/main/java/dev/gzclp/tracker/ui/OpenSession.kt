@@ -72,7 +72,7 @@ enum class MuscleGroup(val label: String, val targetSets: Int = 10) {
             Legs to "squat leg_press leg_curl leg_extension calf_raise romanian_deadlift pistol_squat",
             Chest to "bench incline_db_press chest_fly push_up dip",
             Arms to "barbell_curl hammer_curl tricep_pushdown overhead_tricep_extension",
-            Shoulders to "ohp lateral_raise",
+            Shoulders to "ohp lateral_raise handstand_press",
             Pull to "deadlift barbell_row lat_pulldown dumbbell_row seated_cable_row face_pull rear_delt_fly pull_up chin_up muscle_up inverted_row",
         ).flatMap { (g, ids) -> ids.split(" ").map { it to g } }.toMap()
 
@@ -333,11 +333,14 @@ fun AddExerciseSheet(
     state: AppState,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
+    title: String = "Add exercise",
+    onCreate: ((name: String) -> Unit)? = null,
+    exclude: Set<String> = emptySet(),
 ) {
     val p = LocalPalette.current
     var query by remember { mutableStateOf("") }
-    val recents = remember(state) { recentExercises(state) }
-    val allMoves = state.moves.values.toList()
+    val recents = remember(state, exclude) { recentExercises(state).filter { it !in exclude } }
+    val allMoves = state.moves.values.filter { it.id !in exclude }
     val filtered = remember(query, allMoves) {
         if (query.isBlank()) allMoves
         else allMoves.filter { it.name.contains(query, ignoreCase = true) || it.id.contains(query, ignoreCase = true) }
@@ -347,7 +350,7 @@ fun AddExerciseSheet(
         Modifier.fillMaxWidth().heightIn(max = 500.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Txt("Add exercise", Type.title2, Modifier.weight(1f))
+            Txt(title, Type.title2, Modifier.weight(1f))
             SmallPill("Close", onDismiss)
         }
         Spacer(Modifier.height(Space.md))
@@ -393,6 +396,18 @@ fun AddExerciseSheet(
                 Spacer(Modifier.height(Space.lg))
             }
 
+            // With [onCreate], a name no exercise has can be added as a new one.
+            val typed = query.trim().replace(Regex("\\s+"), " ")
+            if (onCreate != null && typed.isNotEmpty() && allMoves.none { it.name.equals(typed, ignoreCase = true) }) {
+                Group {
+                    GroupRow(first = true, onClick = { onCreate(typed) }) {
+                        Icon(Icons.plus, p.accent, 20.dp)
+                        Spacer(Modifier.width(Space.md))
+                        Txt("Add \u201c$typed\u201d", Type.headline, Modifier.weight(1f), p.accent, maxLines = 1)
+                    }
+                }
+                Spacer(Modifier.height(Space.lg))
+            }
             Txt("All exercises", Type.footnote, color = p.fg2)
             Spacer(Modifier.height(Space.sm))
             Group {
@@ -481,6 +496,8 @@ fun OpenSessionScreen(
     Sheet(showAddExercise, { showAddExercise = false }) {
         AddExerciseSheet(
             state = state,
+            // An exercise already in the session is left out: adding it again would do nothing.
+            exclude = OpenSessionManager.exercises.map { it.exercise.id }.toSet(),
             onSelect = { id ->
                 OpenSessionManager.addExercise(state, id)
                 showAddExercise = false

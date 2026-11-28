@@ -284,20 +284,27 @@ fun HomeScreen(
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onStartOpen: () -> Unit = {},
     onStartTop: () -> Unit = {},
+    onQuickLog: (name: String, sets: Int, reps: Int, weight: Int?) -> Unit = { _, _, _, _ -> },
+    now: () -> java.time.OffsetDateTime = java.time.OffsetDateTime::now,
 ) {
     val p = LocalPalette.current
     val day = state.nextDay
     val exercises = state.exercises(day).map(LocalPlates.current::prescribe)
     var showOpenSessionSheet by remember { mutableStateOf(false) }
+    var showQuickLog by remember { mutableStateOf(false) }
+    var quickLogs by remember { mutableStateOf(0) }
     ScreenFrame(bottom = {
         BottomBar {
-            // Three ways into the day: the workout itself under the two lighter ones.
+            // Three ways into the day and a quick log off it, two by two: the workout itself last, where the thumb rests.
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.md)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     PillButton("Open session", { showOpenSessionSheet = true }, Modifier.weight(1f))
                     PillButton("Log top sets", onStartTop, Modifier.weight(1f))
                 }
-                PillButton("Start workout", onStart, Modifier.fillMaxWidth(), primary = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                    PillButton("Quick log", { quickLogs++; showQuickLog = true }, Modifier.weight(1f))
+                    PillButton("Start workout", onStart, Modifier.weight(1f), primary = true)
+                }
             }
         }
     }) {
@@ -336,6 +343,15 @@ fun HomeScreen(
             onDismiss = { showOpenSessionSheet = false },
         )
     }
+    Sheet(showQuickLog, { showQuickLog = false }) {
+        // Keyed on each opening, so a quick log starts blank but keeps its fields while the sheet slides away.
+        androidx.compose.runtime.key(quickLogs) {
+            QuickLogSheet(state, now) { name, sets, reps, weight ->
+                showQuickLog = false
+                onQuickLog(name, sets, reps, weight)
+            }
+        }
+    }
 }
 /** What the rest card needs; null when not resting. */
 data class RestUi(val remainingSec: Long, val totalSec: Int, val label: String)
@@ -355,7 +371,7 @@ fun WorkoutScreen(
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
     onLogTop: (Exercise, weight: Int, reps: Int, sets: Int) -> Unit = { _, _, _, _ -> },
-    onFinishTop: () -> Unit = { onEnd() },
+    onFinishTop: (added: List<String>) -> Unit = { onEnd() },
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return

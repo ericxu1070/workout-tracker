@@ -124,9 +124,12 @@ fun SheetState.CardioStop.withActivity(a: Activity): SheetState.CardioStop =
 fun cardioClock(run: CardioRun, sheet: SheetState?, now: OffsetDateTime): OffsetDateTime =
     (sheet as? SheetState.CardioStop)?.takeIf { it.now == null && it.run.id == run.id }?.let { run.startedAt.plusSeconds(it.maxSec) } ?: now
 
-/** The duration that ends at the first [hour]:[minute] after [start], kept within a minute and [maxSec]. */
+/**
+ * The duration that ends at the first [hour]:[minute] after [start], kept within a minute and [maxSec]. The end keeps the start's
+ * seconds, so the length is whole minutes and reads as the two clock times apart.
+ */
 fun durationEndingAt(start: OffsetDateTime, hour: Int, minute: Int, maxSec: Long): Long {
-    val end = start.withHour(hour).withMinute(minute).withSecond(0).let { if (it.isAfter(start)) it else it.plusDays(1) }
+    val end = start.withHour(hour).withMinute(minute).let { if (it.isAfter(start)) it else it.plusDays(1) }
     return Duration.between(start, end).seconds.coerceIn(minOf(60, maxSec), maxSec)
 }
 

@@ -283,7 +283,7 @@ fun ExerciseScreen(
         }
 
         val (session, sets) = log.last
-        GroupHeader("Last workout · ${session.day.title}, ${Fmt.date(session.startedAt)}")
+        GroupHeader("Last workout · ${session.title}, ${Fmt.date(session.startedAt)}")
         // A top-sets line is one set and a count, never that many sets at its weight.
         val top = sets.singleOrNull()?.takeIf { it.sets != null }
         if (top == null) SetList(sets.sortedWith(compareBy({ it.tier }, { it.setIndex })))

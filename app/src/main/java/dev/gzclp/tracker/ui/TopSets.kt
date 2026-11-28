@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.gzclp.tracker.engine.Program
 import dev.gzclp.tracker.engine.Scheme
 import dev.gzclp.tracker.engine.Tier
 import dev.gzclp.tracker.log.AppState
@@ -40,15 +41,16 @@ import dev.gzclp.tracker.ui.Type.tabular
 /** The one line a top-sets session logs for [ex]. */
 fun topKey(ex: Exercise) = SetKey(ex.id, ex.tier, 1)
 
-/** Names the open top-sets day's exercises still unchecked, which Finish leaves out; null when every one is logged. */
-fun AppState.topUnlogged(): String? {
-    val missed = active?.let { a -> exercises(a.program, a.day).filter { topKey(it) !in a.sets } }.orEmpty()
+/** Names the open top-sets session's rows still unchecked, [added] ones too, which Finish leaves out; null when every one is logged. */
+fun AppState.topUnlogged(added: List<String> = emptyList()): String? {
+    val missed = active?.let { a -> topLines(this, added).filter { topKey(it) !in a.sets } }.orEmpty()
     return missed.singleOrNull()?.let { "${it.name} is not logged" } ?: missed.size.takeIf { it > 1 }?.let { "$it exercises are not logged" }
 }
 
 /**
  * A top-sets session's lines: its day's exercises, then the ones added to it, both the logged and those in [added] still waiting.
- * An added exercise has no prescription: it starts from its last top-sets line, or a weight its history suggests.
+ * An added exercise the program does on another day keeps that slot's tier and prescription. Any other has none: it starts
+ * from its last top-sets line, or a weight its history suggests.
  */
 fun topLines(state: AppState, added: List<String>): List<Exercise> {
     val a = state.active ?: return emptyList()
@@ -56,10 +58,18 @@ fun topLines(state: AppState, added: List<String>): List<Exercise> {
     // In the order added, so logging one never moves a row; a logged one is also read back from the log.
     val extra = (added + a.sets.keys.filter { k -> day.none { it.key == k.exercise to k.tier } }.map { it.exercise }).distinct().filter { id -> day.none { it.id == id } }
     return day + extra.map { id ->
-        val last = Commands.lastTop(state, id)
-        Exercise(id, state.name(id), Tier.CUSTOM, Scheme(last?.sets ?: 3, last?.actualReps ?: 10, false), null)
+        // A line already logged keeps the tier it was logged under.
+        val logged = a.sets.keys.firstOrNull { it.exercise == id }?.tier
+        state.programExercise(a.program, id)?.takeIf { logged == null || it.tier == logged } ?: run {
+            val last = Commands.lastTop(state, id)
+            Exercise(id, state.name(id), Tier.CUSTOM, Scheme(last?.sets ?: 3, last?.actualReps ?: 10, false), null)
+        }
     }
 }
+
+/** [id] as [program] does it on its first day that has it, or null when no day does. */
+private fun AppState.programExercise(program: Program, id: String): Exercise? =
+    program.days.firstNotNullOfOrNull { d -> slots(program, d).firstOrNull { it.ex == id } }?.let(::exercise)
 
 /** A session logged as one line per exercise: its best set and how many sets it got. No clock runs; Finish asks how long it took. */
 @Composable
@@ -67,7 +77,7 @@ fun TopSetsScreen(
     state: AppState,
     onLog: (Exercise, weight: Int, reps: Int, sets: Int) -> Unit,
     onClear: (Exercise) -> Unit,
-    onFinish: () -> Unit,
+    onFinish: (added: List<String>) -> Unit,
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
@@ -78,7 +88,7 @@ fun TopSetsScreen(
     // Finish stays quiet until a line is logged, as an open session's does.
     val any = a.sets.isNotEmpty()
     ScreenFrame(bottom = {
-        BottomBar { PillButton(if (any) "Finish" else "Cancel", onFinish, Modifier.weight(1f), primary = any) }
+        BottomBar { PillButton(if (any) "Finish" else "Cancel", { onFinish(added) }, Modifier.weight(1f), primary = any) }
     }) {
         Spacer(Modifier.height(Space.xxl))
         Txt(a.day.title, Type.largeTitle, maxLines = 1)
@@ -112,6 +122,8 @@ fun TopSetsScreen(
     Sheet(adding, { adding = false }) {
         AddExerciseSheet(
             state = state,
+            // A row already on the day is left out: picking it would add nothing.
+            exclude = lines.map { it.id }.toSet(),
             onSelect = { id ->
                 added = added + id
                 adding = false
