@@ -418,11 +418,11 @@ private fun App(model: AppModel) {
         close()
         model.dispatch { Commands.startTop(it, model.now()) }
     }
-    /** Asks how long a top-sets session took, starting from its sets' estimate; one with no line just ends. */
-    fun finishTopFlow() {
+    /** Asks how long a top-sets session took, starting from its sets' estimate; one with no line just ends. [added] are its added rows. */
+    fun finishTopFlow(added: List<String>) {
         val lines = state.active?.sets?.values?.map { it.event }.orEmpty()
         if (lines.isEmpty()) model.dispatch { Commands.endTop(it, model.now(), Commands.SESSION_DURATION_SEC.first) }
-        else open(SheetState.TopFinish(Commands.topDurationSec(lines), unlogged = state.topUnlogged()))
+        else open(SheetState.TopFinish(Commands.topDurationSec(lines), unlogged = state.topUnlogged(added)))
     }
     fun finishWorkout(fiveRm: Int?, counts: Boolean? = null) {
         motion.touchdown(motion.tap)

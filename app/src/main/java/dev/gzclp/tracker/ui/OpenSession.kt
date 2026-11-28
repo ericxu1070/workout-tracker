@@ -335,11 +335,12 @@ fun AddExerciseSheet(
     onDismiss: () -> Unit,
     title: String = "Add exercise",
     onCreate: ((name: String) -> Unit)? = null,
+    exclude: Set<String> = emptySet(),
 ) {
     val p = LocalPalette.current
     var query by remember { mutableStateOf("") }
-    val recents = remember(state) { recentExercises(state) }
-    val allMoves = state.moves.values.toList()
+    val recents = remember(state, exclude) { recentExercises(state).filter { it !in exclude } }
+    val allMoves = state.moves.values.filter { it.id !in exclude }
     val filtered = remember(query, allMoves) {
         if (query.isBlank()) allMoves
         else allMoves.filter { it.name.contains(query, ignoreCase = true) || it.id.contains(query, ignoreCase = true) }
@@ -495,6 +496,8 @@ fun OpenSessionScreen(
     Sheet(showAddExercise, { showAddExercise = false }) {
         AddExerciseSheet(
             state = state,
+            // An exercise already in the session is left out: adding it again would do nothing.
+            exclude = OpenSessionManager.exercises.map { it.exercise.id }.toSet(),
             onSelect = { id ->
                 OpenSessionManager.addExercise(state, id)
                 showAddExercise = false

@@ -371,7 +371,7 @@ fun WorkoutScreen(
     onUseSuggestion: (Exercise, Int) -> Unit = { e, _ -> onEditWeight(e) },
     onFinishOpen: (counts: Boolean) -> Unit = { onEnd() },
     onLogTop: (Exercise, weight: Int, reps: Int, sets: Int) -> Unit = { _, _, _, _ -> },
-    onFinishTop: () -> Unit = { onEnd() },
+    onFinishTop: (added: List<String>) -> Unit = { onEnd() },
 ) {
     val p = LocalPalette.current
     val a = state.active ?: return
