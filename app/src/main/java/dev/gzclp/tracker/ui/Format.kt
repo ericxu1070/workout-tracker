@@ -52,11 +52,12 @@ object Fmt {
     /** [timeRange], with the day it ends on when that is a later day: 6:26 PM – 4:26 PM next day. */
     fun span(a: OffsetDateTime, b: OffsetDateTime): String = dayAfter(a, b).let { if (it.isEmpty()) timeRange(a, b) else "${time(a)} – ${time(b)}$it" }
 
-    /** <1 min, 52 min, 1 hr 20 min, 3 hr. */
+    /** <1 min, 52 min, 1 hr 20 min, 3 hr. Never negative: time counted from a start the clock has not reached yet (a clock set back) is 0 min. */
     fun minutes(totalSec: Long): String {
-        val m = (totalSec + 30) / 60
+        val s = totalSec.coerceAtLeast(0)
+        val m = (s + 30) / 60
         return when {
-            m == 0L && totalSec > 0 -> "<1 min"
+            m == 0L && s > 0 -> "<1 min"
             m < 60 -> "$m min"
             m % 60 == 0L -> "${m / 60} hr"
             else -> "${m / 60} hr ${m % 60} min"

@@ -67,14 +67,15 @@ class ThumbTest {
         val m = ThumbMotion(0f)
         var frames = 0
         while (!m.step(2f, 1 / 60f)) {
-            if (frames == 9) assertTrue("still gliding at 150 ms: ${m.x}", m.x < 1.8f)
-            if (frames == 23) assertTrue("there by 400 ms: ${m.x}", m.x > 1.96f)
+            if (frames == 8) assertTrue("still gliding at 150 ms: ${m.x}", m.x < 1.8f)
+            if (frames == 16) assertTrue("not there yet at 280 ms: ${m.x}", m.x < 1.96f)
+            if (frames == 19) assertTrue("there by 330 ms: ${m.x}", m.x > 1.96f)
             assertTrue("past the segment at frame $frames: ${m.x}", m.x <= 2f + 1e-4f)
             assertEquals("squash at frame $frames", 0f, m.stretch, 1e-4f)
             assertTrue("never settles", ++frames < 300)
         }
-        // A deliberate glide, not a snap: well short of the segment at 150 ms, all but there by 400 ms, at rest within a second.
-        assertTrue("settles in ${frames} frames", frames in 24..60)
+        // A deliberate glide, not a snap: well short of the segment at 150 ms, all but there by 330 ms, at rest within a second.
+        assertTrue("settles in ${frames} frames", frames in 20..60)
     }
 
     /** With the system's Remove animations on, the thumb lands at once, waiting on no frame. */

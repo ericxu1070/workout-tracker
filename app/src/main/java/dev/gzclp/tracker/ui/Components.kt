@@ -440,12 +440,15 @@ fun ThumbRow(
         }
     }
     val motion = remember { ThumbMotion(at()) }
-    // The segment a tap is carrying the thumb to: until it lands there, the bar and thumb grow as for a drag, glass and all.
+    // The segment a tap is carrying the thumb to, until it lands there.
     var tapTo by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    // The bar and thumb grow as for a drag, glass and all, only while the tap carries the thumb: they let go a little short of where
+    // it is headed, so the thumb lands as the plain resting pill. A tap that moves nothing grows nothing.
+    val carried by remember(pager) { derivedStateOf { tapTo != null && abs(at() - motion.x) > ThumbMotion.TAP_LET_GO } }
     LaunchedEffect(tapTo) {
         val to = tapTo ?: return@LaunchedEffect
-        // A tap the selection never follows (declined, or overridden mid-slide) still lets go after a second.
-        kotlinx.coroutines.withTimeoutOrNull(1000) { androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it } }
+        // A tap the selection never follows (declined, or overridden mid-slide) still lets go after a second, as slowed animations count one.
+        kotlinx.coroutines.withTimeoutOrNull((1000 * motionScale()).toLong()) { androidx.compose.runtime.snapshotFlow { abs(motion.x - to) < 0.02f }.first { it } }
         tapTo = null
     }
     fun pick(i: Int) {
@@ -456,7 +459,9 @@ fun ThumbRow(
         if (pager != null) tap(i) else select(i)
     }
     LaunchedEffect(swiped) { if (swiped) { motion.momentum = true; tapTo = null } }
-    val lifted = held || swiped || tapTo != null
+    val lifted = held || swiped
+    // A tap's growing and letting go both fit inside its glide; a hold, a drag and a swipe keep their slower springs.
+    val quick = !lifted && tapTo != null
     // Waits, without frames, for the target to move, then chases it until the thumb rests there again.
     LaunchedEffect(motion) {
         while (true) {
@@ -464,8 +469,11 @@ fun ThumbRow(
             motion.chase(at)
         }
     }
-    LaunchedEffect(lifted) { motion.lift.animateTo(if (lifted) 1f else 0f, ThumbMotion.Lift) }
-    val swell by animateFloatAsState(if (held || tapTo != null) 1.04f else 1f, androidx.compose.animation.core.spring(1f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell")
+    LaunchedEffect(lifted, carried) { motion.lift.animateTo(if (lifted || carried) 1f else 0f, if (quick) ThumbMotion.TapLift else ThumbMotion.Lift) }
+    val swell by animateFloatAsState(
+        if (held || carried) 1.04f else 1f,
+        if (quick) ThumbMotion.TapLift else androidx.compose.animation.core.spring(1f, androidx.compose.animation.core.Spring.StiffnessLow), label = "swell",
+    )
     Box(
         modifier.graphicsLayer { scaleX = swell; scaleY = swell }
             .semantics { thumbLook = { ThumbLook(motion.x, swell, motion.lift.value, if (p.glass) motion.lift.value.coerceIn(0f, 1f) else 0f) } },
@@ -556,7 +564,7 @@ fun ThumbRow(
             Row(
                 Modifier.matchParentSize().clearAndSetSemantics {}.drawWithContent {
                     val pill = pill(size)
-                    with(p.thumbPainter) { paint(pill, thumb, p.accent, motion.lift.value.coerceIn(0f, 1f)) }
+                    with(p.thumbPainter) { paint(pill, thumb, p.accent, p.separator, motion.lift.value.coerceIn(0f, 1f)) }
                     // Its labels fade as it clears, leaving the bar's own labels seen through the glass.
                     val a = 1f - clear()
                     if (a > 0f) clipPath(Path().apply { addRoundRect(pill) }) {
