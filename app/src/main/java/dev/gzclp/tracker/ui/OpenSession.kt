@@ -482,6 +482,8 @@ fun OpenSessionScreen(
     Sheet(showAddExercise, { showAddExercise = false }) {
         AddExerciseSheet(
             state = state,
+            // An exercise already in the session is left out: adding it again would do nothing.
+            exclude = OpenSessionManager.exercises.map { it.exercise.id }.toSet(),
             onSelect = { id ->
                 OpenSessionManager.addExercise(state, id)
                 showAddExercise = false
