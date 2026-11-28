@@ -647,9 +647,10 @@ def normals(pos, tris):
     return n / np.linalg.norm(n, axis=1, keepdims=True)
 
 
-def face(pos, tris, head):
-    """The body with its mouth closed and its eye sockets filled."""
-    assert EYES in ("open", "closed"), EYES
+def face(pos, tris, head, eyes=None):
+    """The body with its mouth closed and its eye sockets filled, as EYES says unless [eyes] does."""
+    eyes = eyes or EYES
+    assert eyes in ("open", "closed"), eyes
     near, count = neighbours(tris, len(pos))
     pos = pos.copy()
     eye = head["eye.L"]
@@ -673,7 +674,7 @@ def face(pos, tris, head):
         c = head[f"eye.{s}"]
         d = pos - c
         r = np.linalg.norm(d, axis=1)
-        if EYES == "open":
+        if eyes == "open":
             share, out = ((r < EYE_REACH * EYE) & (np.einsum("ij,ij->i", normal, d) < EYE_FACING * r)).astype(float), 1.0
         else:
             share, out = smooth((EYE_TO * EYE - r) / ((EYE_TO - EYE_FROM) * EYE)), EYE_OUT
@@ -682,7 +683,7 @@ def face(pos, tris, head):
         d = pos - c
         r = np.linalg.norm(d, axis=1)
         pos += d / r[:, None] * (share * np.maximum(0, out * EYE - r))[:, None]
-        for _ in range(10 if EYES == "closed" else 0):  # the step where the lift starts, evened out
+        for _ in range(10 if eyes == "closed" else 0):  # the step where the lift starts, evened out
             pos += share[:, None] * 0.5 * (near @ pos / count - pos)
     return pos
 
@@ -876,9 +877,9 @@ def main():
         p[scalp_verts] = o + bald(local, style) @ frame_axes
     # Decimated on the plain mesh the weights were made on: a body's targets press the thighs together, and decimated
     # there the steps in weight between the legs collapse into single edges that tear as the legs part.
-    # With its face closed as every body's is: chosen on the open mouth, the vertices kept there make a spur at a corner of
-    # the closed lips.
-    plain = finer @ flat(face(raw, tris, head), head, tail, w, parent)
+    # With its mouth closed as every body's is: chosen on the open mouth, the vertices kept there make a spur at a corner of
+    # the closed lips. And with open eyes whichever EYES is, so the same vertices are kept and only the eyes differ.
+    plain = finer @ flat(face(raw, tris, head, "open"), head, tail, w, parent)
     weights = finer @ weights
     idx, faces = decimate(plain, fine, verts, spend(plain, weights, head))
     weights = weights[idx]
