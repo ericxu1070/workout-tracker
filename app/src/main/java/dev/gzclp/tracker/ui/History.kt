@@ -97,9 +97,11 @@ private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, on
         Txt("No workouts yet", Type.headline)
         return
     }
-    if (done.isNotEmpty()) {
-        val recent = done.takeLast(16)
-        val avg = done.sumOf { it.durationSec } / done.size
+    // A quick log's length is an estimate of a few sets, not a workout's.
+    val workouts = done.filter { !it.quick }
+    if (workouts.isNotEmpty()) {
+        val recent = workouts.takeLast(16)
+        val avg = workouts.sumOf { it.durationSec } / workouts.size
         Spacer(Modifier.height(Space.xxl))
         Row(verticalAlignment = Alignment.Bottom) {
             Txt(Fmt.minutes(avg), Type.title1)
@@ -128,8 +130,8 @@ private fun ColumnScope.AllHistory(state: AppState, onOpen: (String) -> Unit, on
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             } else if (s is SessionRecord) GroupRow(first = i == 0, onClick = { onOpen(s.id) }) {
                 Column(Modifier.weight(1f)) {
-                    Txt("${s.day.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
-                    Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) }, Type.footnote, color = p.fg2, maxLines = 1)
+                    Txt("${s.title} · ${Fmt.date(s.startedAt)}", Type.headline, maxLines = 1)
+                    Txt(s.sets.map { it.exercise }.distinct().joinToString(", ") { state.name(it) } + if (s.quick) " · ${s.sets.size} × ${s.sets[0].actualReps}" else "", Type.footnote, color = p.fg2, maxLines = 1)
                 }
                 Txt(Fmt.minutes(s.durationSec), Type.subhead.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
@@ -151,7 +153,7 @@ fun SessionScreen(
     val p = LocalPalette.current
     ScreenFrame {
         NavRow(onBack)
-        Txt(s.day.title, Type.largeTitle)
+        Txt(s.title, Type.largeTitle)
         Spacer(Modifier.height(Space.xs))
         Txt(Fmt.date(s.startedAt), Type.subhead, color = p.fg2)
         Spacer(Modifier.height(Space.lg))
@@ -164,8 +166,8 @@ fun SessionScreen(
                 Txt(Fmt.minutes(s.durationSec), Type.body.tabular(), Modifier.padding(start = Space.sm), p.fg2)
                 Icon(Icons.chevronRight, p.fg3, 20.dp, Modifier.padding(start = Space.xs))
             }
-            // A top-sets workout ran no clock to leave running.
-            if (!s.top) s.afterLastSet?.let { after ->
+            // A top-sets workout or a quick log ran no clock to leave running.
+            if (!s.top && !s.quick) s.afterLastSet?.let { after ->
                 GroupRow(first = false) {
                     Txt("Left running", Type.body, Modifier.weight(1f))
                     Txt(Fmt.minutes(after), Type.body.tabular(), color = if (after >= LONG_AFTER_LAST_SEC) p.red else p.fg2)
@@ -188,10 +190,12 @@ fun SessionScreen(
                 }
             }
         } else {
-            val gaps = s.setGaps
+            // A quick log's sets share one moment, so they have no rest between them to show.
+            val gaps = if (s.quick) emptyMap() else s.setGaps
             s.sets.groupBy { it.exercise to it.tier }.forEach { (key, sets) ->
                 val first = sets.first()
-                GroupHeader("${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
+                // A quick log has no tier or stage of its own; the folded row below says its sets × reps.
+                GroupHeader(if (s.quick) state.name(key.first) else "${state.name(key.first)} · ${Tier.of(key.second)?.label ?: key.second} ${first.stage.replace("x", "×")}")
                 val target = Deletion.Exercise(s.id, key.first, key.second)
                 key(target) {
                     SetList(sets.sortedBy { it.setIndex }, { gaps[Triple(it.exercise, it.tier, it.setIndex)] }) { rows ->

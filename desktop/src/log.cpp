@@ -99,6 +99,7 @@ Log parseLog(const QByteArray &bytes) {
     QSet<QString> loggedSlots;
     QHash<QString, QJsonObject> weighIns;
     QHash<QString, Session> ended;
+    QSet<QString> quick;
     QHash<QString, Cardio> cardio;
     QHash<QString, WaterEntry> waterEntries;
     QHash<QString, StretchEntry> stretchEntries;
@@ -144,9 +145,13 @@ Log parseLog(const QByteArray &bytes) {
             sets.insert(key, s);
         } else if (type == "set_clear") {
             sets.remove(setKey(o));
+        } else if (type == "session_start") {
+            if (o["mode"].toString() == "quick")
+                quick.insert(o["session_id"].toString());
         } else if (type == "session_end") {
             Session s;
             s.id = o["session_id"].toString();
+            s.quick = quick.contains(s.id);
             s.program = o["program"].toString();
             s.start = parseTime(o["started_at"]);
             s.durationSec = o["duration_sec"].toInt();

@@ -31,6 +31,7 @@ struct Session {
     QDateTime start;
     int durationSec = 0;
     int sets = 0;  // resolved sets; 0 means an accidental start, not a workout
+    bool quick = false;  // a quick log: its sets count, but it is not a workout
 };
 
 struct ProgressionEvent {

@@ -102,7 +102,8 @@ fun UpcomingScreen(
  * one, and never before today. A workout in progress is today's.
  */
 internal fun likelyDays(state: AppState, today: LocalDate, n: Int): List<LocalDate> {
-    val days = state.sessions.filter { it.sets.isNotEmpty() }.map { it.startedAt.toLocalDate() }.distinct().sorted()
+    // A quick log is off the program, so it says nothing about when the next workout falls.
+    val days = state.sessions.filter { it.sets.isNotEmpty() && !it.quick }.map { it.startedAt.toLocalDate() }.distinct().sorted()
     val gaps = days.takeLast(9).zipWithNext { a, b -> ChronoUnit.DAYS.between(a, b) }.sorted()
     val gap = if (gaps.isEmpty()) 2L else gaps[gaps.size / 2]
     val first = if (state.active != null || days.isEmpty()) today else maxOf(today, days.last().plusDays(gap))
@@ -122,7 +123,8 @@ fun MonthGrid(state: AppState, today: LocalDate, initialMonth: YearMonth, onOpen
     var month by remember { mutableStateOf(initialMonth) }
     val bouts = remember(state) { state.bouts() }
     val mixes = remember(bouts) { dayMix(bouts) }
-    val sessionOn = state.sessions.filter { it.sets.isNotEmpty() }.associateBy { it.startedAt.toLocalDate() }
+    // A day with a workout opens it, not a quick log done the same day.
+    val sessionOn = state.sessions.filter { it.sets.isNotEmpty() }.sortedBy { !it.quick }.associateBy { it.startedAt.toLocalDate() }
     val cardioOn = state.cardio.values.associateBy { it.startedAt.toLocalDate() }
     Group {
         Column(Modifier.padding(Space.lg)) {

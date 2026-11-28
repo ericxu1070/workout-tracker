@@ -48,6 +48,7 @@ object Catalog {
         Move("pistol_squat", "Pistol squat", true),
         Move("weighted_pistol_squat", "Weighted pistol squat", true),
         Move("assisted_pistol_squat", "Assisted pistol squat", true),
+        Move("handstand_press", "Handstand press"),
     )
 
     /** Exercises loaded on a barbell: their targets round to what the plates make, and each set shows its plates. */

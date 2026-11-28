@@ -65,7 +65,7 @@ data class ProgressionEvent(
     val scheme: String? = null,
 ) : Event
 
-/** [mode] is "program", "open" (a freeform open session) or "top" (one top-set line per exercise). */
+/** [mode] is "program", "open" (a freeform open session), "top" (one top-set line per exercise) or "quick" (a quick log, stats only). */
 @Serializable @SerialName("session_start")
 data class SessionStart(
     val sessionId: String,
