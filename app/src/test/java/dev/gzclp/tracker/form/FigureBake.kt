@@ -101,8 +101,10 @@ class FigureBake {
         for (i in 0 until nv) fit(raw, i, i, pos)
         lead = IntArray(nv) { i -> bones[i * 4 + (0..3).maxBy { weights[i * 4 + it] }].toInt() }
         val fitted = pos.copyOf()
-        // The back only: the chest, belly and glutes keep the body's own shape.
-        wear(pos, Bone.TRUNK.take(3), Bone.PELVIS, Body.torso.mesh.profile, -0.03, 0.53, Onto.BACK)
+        // The back only: the chest, belly and glutes keep the body's own shape. And no further than BACK_MOST: the pieces' back
+        // is a straight board, and a body's hollow moved the whole 6 cm out onto it stood like one, its own relief stretched
+        // into ripples on the way.
+        wear(pos, Bone.TRUNK.take(3), Bone.PELVIS, Body.torso.mesh.profile, -0.03, 0.53, Onto.BACK, most = BACK_MOST)
         for (s in SIDES) {
             // Twice for the thigh: the second pass pulls its front back onto the loft's, which a deadlift's bar clears by a hair.
             wear(pos, listOf(Bone.thigh(s)), Bone.thigh(s), Body.leg.mesh.profile, 0.04, 0.5)
@@ -117,14 +119,6 @@ class FigureBake {
             val b = Bone.entries[lead[i]]; val f = bind[b.ordinal]; val d = at(i) - f.o
             reach[b.ordinal] = max(reach[b.ordinal], (d - f.y * (d dot f.y).coerceIn(0.0, Figure.length(b))).len)
         }
-        fun follows(i: Int, b: Bone) = (0..3).any { bones[i * 4 + it].toInt() == b.ordinal && weights[i * 4 + it] > 0f }
-        val joint = IntArray(nv) { i -> Figure.JOINTS.indices.firstOrNull { follows(i, Figure.JOINTS[it].second) } ?: -1 }
-        val along = FloatArray(nv) { i ->
-            if (joint[i] < 0) 0f else Figure.JOINTS[joint[i]].second.let { b ->
-                val f = bind[b.ordinal]
-                (((at(i) - f.o) dot f.y) / Figure.length(b)).coerceIn(0.0, 1.0).toFloat()
-            }
-        }
         val left = BooleanArray(nh) { pos[hand[it] * 3] > 0 }
         val fist = FloatArray(nh * 3)
         for ((k, i) in hand.withIndex()) fit(rawFist, k, i, fist)
@@ -133,15 +127,19 @@ class FigureBake {
         val n = normals(closed, tri)
         val fistNorm = FloatArray(nh * 3) { n[hand[it / 3] * 3 + it % 3] }
 
-        // Each step down a twisting joint's child is a bone of its own, which the vertices at it follow in place of the child;
-        // every step, whether or not a vertex sits at it, so every body has the same bones.
-        val step = IntArray(nv) { (along[it] * Figure.TWIST_STEPS).roundToInt() }
-        val steps = Figure.JOINTS.indices.flatMap { j -> (0..Figure.TWIST_STEPS).map { j to it } }
+        // Each step down a twisting joint's child is a bone of its own, which the vertices at it follow in place of the child
+        // (a vertex at the elbow follows a step of the upper arm and one of the forearm); every step, whether or not a vertex
+        // sits at it, so every body has the same bones.
+        val steps = Figure.TWISTING.indices.flatMap { j -> (0..Figure.TWIST_STEPS).map { j to it } }
         val nb = Bone.entries.size
         check(nb + steps.size <= 256) { "more twist steps than a byte holds" }
         val skinned = bones.copyOf()
-        for (i in 0 until nv) if (joint[i] >= 0) for (k in 0..3) if (bones[i * 4 + k].toInt() == Figure.JOINTS[joint[i]].second.ordinal) {
-            skinned[i * 4 + k] = (nb + steps.indexOf(joint[i] to step[i])).toByte()
+        for (i in 0 until nv) for (k in 0..3) {
+            val j = Figure.TWISTING.indexOfFirst { it.second.ordinal == bones[i * 4 + k].toInt() }
+            if (j < 0) continue
+            val b = Figure.TWISTING[j].second; val f = bind[b.ordinal]
+            val along = (((at(i) - f.o) dot f.y) / Figure.length(b)).coerceIn(0.0, 1.0)
+            skinned[i * 4 + k] = (nb + j * (Figure.TWIST_STEPS + 1) + (along * Figure.TWIST_STEPS).roundToInt()).toByte()
         }
 
         // In the order Figure reads it.
@@ -170,10 +168,11 @@ class FigureBake {
 
     /**
      * Moves the flesh of [group] in [pos] [onto] those surfaces of [loft] (the pieces' part in [frame]'s rest coordinates),
-     * level by level from [from] to [to] up it ([along] further up [loft]), fading in and out over [FADE] at the ends.
+     * level by level from [from] to [to] up it ([along] further up [loft]), fading in and out over [FADE] at the ends, and
+     * none of it further than [most].
      * The motions were tuned on the pieces, so a bar across the back or a bench under it has to find the mesh where it found them.
      */
-    private fun wear(pos: FloatArray, group: List<Bone>, frame: Bone, loft: Profile, from: Double, to: Double, onto: Onto = Onto.FRONT_AND_BACK, along: Double = 0.0) {
+    private fun wear(pos: FloatArray, group: List<Bone>, frame: Bone, loft: Profile, from: Double, to: Double, onto: Onto = Onto.FRONT_AND_BACK, along: Double = 0.0, most: Double = Double.MAX_VALUE) {
         val f = Figure.REST[frame]
         val ids = group.map { it.ordinal }
         val sides = onto == Onto.SIDES
@@ -202,7 +201,8 @@ class FigureBake {
             // than the flesh around them, and mapping past them would throw that flesh out beyond the loft.
             val t = ((across(p) - lo) / (hi - lo)).coerceIn(0.0, 1.0)
             val c = when (onto) { Onto.FRONT_AND_BACK -> lerp(cz - b, cz + b, t); Onto.FRONT -> lerp(lo, cz + b, t); Onto.BACK -> lerp(cz - b, hi, t); Onto.SIDES -> lerp(-a, a, t) }
-            val q = if (sides) f.at(p.x + share * (c - p.x), p.y, p.z) else f.at(p.x, p.y, p.z + share * (c - p.z))
+            val by = (share * (c - across(p))).coerceIn(-most, most)
+            val q = if (sides) f.at(p.x + by, p.y, p.z) else f.at(p.x, p.y, p.z + by)
             pos[i * 3] = q.x.toFloat(); pos[i * 3 + 1] = q.y.toFloat(); pos[i * 3 + 2] = q.z.toFloat()
         }
     }
@@ -227,5 +227,6 @@ class FigureBake {
         const val STEP = 0.02
         const val FADE = 0.06
         const val RELAX = 8
+        const val BACK_MOST = 0.025
     }
 }

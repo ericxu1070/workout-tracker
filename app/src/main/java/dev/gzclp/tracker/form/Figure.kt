@@ -15,10 +15,10 @@ object Figure {
     var on = true
 
     /** figure-<body>.bin's layout, which FigureBake writes. */
-    internal const val FIGURE_VERSION = 1
+    internal const val FIGURE_VERSION = 2
 
     /** How finely a twist runs down a twisting joint's child: in this many steps, each a bone of its own to the vertices at it. */
-    internal const val TWIST_STEPS = 64
+    internal const val TWIST_STEPS = 32
 
     /** Each body's name: a sex, "male" or "female", alone for the athletic build or with "-bodybuilder" or "-normal". */
     val bodies = listOf("male", "female", "male-bodybuilder", "male-normal", "female-bodybuilder", "female-normal")
@@ -58,7 +58,7 @@ object Figure {
 
     /**
      * The hair placed at the head's posed frame [f] into [out]: rigid, except that what would reach under the floor lies
-     * on it, as a ponytail does under a head lying on its back.
+     * on it, as a bun does under a head lying on its back.
      */
     fun placeHair(f: Frame, out: FloatArray) {
         val p = hair!!.pos
@@ -89,9 +89,25 @@ object Figure {
 
     /**
      * The joints whose child's twist runs down it rather than blending linearly, parent then child: the shoulders, which twist
-     * furthest. (Not the elbows: their swing-twist split breaks down as they fold flat.)
+     * furthest. Their twist is split from their swing, and follows the move's own path ([Poser.twist]).
      */
     internal val JOINTS = SIDES.map { Bone.CHEST to Bone.arm(it) }
+
+    /**
+     * The elbows, whose child turns about its own length too, as the forearm turns the palm: blended linearly, the forearm
+     * thins to a strap at the elbow in every grip that is not the rest pose's. An elbow only hinges, so its twist is read
+     * off the hinge, which holds however flat it folds (where a split from the swing breaks down). It is read each frame
+     * as the turn nearest none, with no path to follow, so past [HINGE_FULL] degrees it runs down the forearm less and
+     * less, and not at all at half a turn, where the nearest turn flips to the other way round: the few grips that turn a
+     * forearm that far blend it linearly, as every grip did.
+     */
+    internal val HINGES = SIDES.map { Bone.arm(it) to Bone.forearm(it) }
+
+    /** Up to this many degrees from rest, all of a hinge's twist runs down its child. */
+    internal const val HINGE_FULL = 120.0
+
+    /** Every joint whose child's twist runs down it: [JOINTS], then [HINGES]. */
+    internal val TWISTING = JOINTS + HINGES
 
     /** The rig's bind pose as Poser angles: arms 40° out, elbows bent 47°, palms toward the thighs, legs a little apart. */
     val REST = Poser().apply {
@@ -123,11 +139,14 @@ object Figure {
 
     internal fun twist(p: Poser, j: Int): Twist? = current.twist(p, j)
 
+    /** [twist] for [TWISTING]'s hinge [j]: how far its child has turned about its own length since rest, from where the hinge alone leaves it. */
+    internal fun hinge(p: Poser, j: Int): Twist? = current.hinge(p, j)
+
     /** How far the skin that follows [b] most reaches from it at rest: from the line between its joint and the next. */
     internal fun reach(b: Bone) = current.reach[b.ordinal]
 
     /** How many bones the mesh's vertices follow: the 19, then every step down each twisting joint's child, the same for every body. */
-    internal val blends get() = Bone.entries.size + JOINTS.size * (TWIST_STEPS + 1)
+    internal val blends get() = Bone.entries.size + TWISTING.size * (TWIST_STEPS + 1)
 
     /** Writes the 3×3 turn by [deg] degrees about the unit axis [k] into [out]. */
     private fun turn(k: V, deg: Double, out: FloatArray) {
@@ -159,7 +178,7 @@ object Figure {
         private val bind = Array(Bone.entries.size) { REST.f[it]!! }
 
         /**
-         * Past the 19 bones, every step down the children of [JOINTS]: which joint each is on, and how far
+         * Past the 19 bones, every step down the children of [TWISTING]: which joint each is on, and how far
          * down its child at rest, from the joint (0) to the far end (1). A vertex follows its step in place of the child.
          */
         val stepJoint: ByteArray
@@ -216,6 +235,16 @@ object Figure {
             return Twist(a, twist, fb.o)
         }
 
+        internal fun hinge(p: Poser, j: Int): Twist? {
+            val (parent, child) = TWISTING[j]
+            if (!p.has(child) || !p.has(parent)) return null
+            fun turned(a: Frame, f: Frame): Double { val u = a.x.across(f.y); return kotlin.math.atan2((u cross f.x) dot f.y, u dot f.x) / DEG }
+            val fb = bind[child.ordinal]
+            val t = (turned(p[parent], p[child]) - turned(bind[parent.ordinal], fb)).let { it - 360 * kotlin.math.round(it / 360) }
+            val run = ((180 - kotlin.math.abs(t)) / (180 - HINGE_FULL)).coerceIn(0.0, 1.0)
+            return Twist(fb.y, t * run * run * (3 - 2 * run), fb.o)
+        }
+
         fun pose(p: Poser, pos: FloatArray, norm: FloatArray?, only: List<Bone>, height: Boolean) {
             // Per bone, the map from the rest mesh to this pose: its frame now after the inverse of its frame at rest, as a 3×4 matrix.
             val m = p.blend
@@ -237,10 +266,10 @@ object Figure {
             }
             // Linear blending collapses a joint twisted far. The child's twist runs down it as it does in flesh instead: none at the
             // joint, where it blends with the parent as only swung, and all at the far end, a step at a time.
-            val twists = Array(JOINTS.size) { twist(p, it) }
+            val twists = Array(TWISTING.size) { if (it < JOINTS.size) twist(p, it) else hinge(p, it) }
             val r1 = FloatArray(9); val r = FloatArray(9)
             for (s in stepJoint.indices) {
-                val j = stepJoint[s].toInt(); val c = JOINTS[j].second.ordinal * 12; val o = (Bone.entries.size + s) * 12
+                val j = stepJoint[s].toInt(); val c = TWISTING[j].second.ordinal * 12; val o = (Bone.entries.size + s) * 12
                 placed[Bone.entries.size + s] = placed[c / 12]
                 if (!placed[c / 12]) continue
                 val tw = twists[j]

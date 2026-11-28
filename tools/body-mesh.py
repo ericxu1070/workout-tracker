@@ -1,10 +1,10 @@
 """Builds the form viewer's full-body mesh, app/src/test/resources/dev/gzclp/tracker/form/body.bin.
 
 The source is MakeHuman's hm08 base mesh and default rig, both CC0 1.0 (see NOTICE), fetched at a pinned commit. The script
-keeps the body (no eyes, teeth or helpers), folds the rig's 163 bones into the figure's 19 (`Bone` in Rig.kt), bakes a
-closed-fist variant of each hand with the rig's own finger bones, decimates to the vertex count asked for (keeping a
-subset of the original vertices, so weights and fist positions carry over exactly), and writes each of the 19 bones'
-frame in the mesh's space. FigureBake (a unit test) fits each body onto the Poser's skeleton and writes the app's
+keeps the body (no eyes, teeth or helpers) and closes its eyes and mouth over the holes they leave, folds the rig's 163
+bones into the figure's 19 (`Bone` in Rig.kt), bakes a closed-fist variant of each hand with the rig's own finger bones,
+subdivides the mesh once and decimates it to the vertex count asked for (keeping a subset of the subdivided vertices, so
+weights and fist positions carry over exactly), and writes each of the 19 bones' frame in the mesh's space. FigureBake (a unit test) fits each body onto the Poser's skeleton and writes the app's
 figure-<body>.bin from it: rebake after running this (BAKE=1 ./gradlew testDebugUnitTest --tests 'dev.gzclp.tracker.form.FigureBake').
 
 Each body in BODIES is the same mesh (same vertices, triangles and weights) morphed by MakeHuman's own CC0 targets, so every
@@ -12,7 +12,9 @@ body bends the same way: body.bin holds the man, shapes.bin the others' position
 each body's hair.
 
 Run: uv run --python 3.12 --with numpy --with scipy --with pymeshlab python tools/body-mesh.py [verts]
+(8000 vertices unless given, the count the shipped bodies have.)
 """
+import functools
 import json
 import pathlib
 import struct
@@ -43,10 +45,19 @@ WAIST_AT, CHEST_AT, NECK_AT = 0.10, 0.28, 0.56
 SPINE_BLEND = 0.05
 CROTCH_DROP, CROTCH_SPLIT, CROTCH_WIDTH = 0.06, 0.03, 0.06  # how far below the hip joints the crotch lets go of the pelvis, the blend across the middle, and how far out to the sides it reaches
 HIP_BAND, HIP_ROUNDS = 0.12, 20  # how far up and down from the hip joints the weights spread, and how many rings
+SHOULDER_BAND, SHOULDER_ROUNDS = 0.08, 3  # the same around each shoulder joint, less far: spread wider, a shoulder turned far thins
 
 # Each hand's contact points in Poser: a flat palm rests 0.022 m out from the wrist's axis; a sole 0.075 m below the
 # ankle, the toes' 0.02 m below their joint.
 PALM, ANKLE, TOE = 0.022, 0.075, 0.02
+# Poser's shoulder joint in its chest frame (out, up of Build's chest length, forward), and the way a relaxed arm hangs
+# from it (Poser.finish: raised 4 degrees in the plane 20 degrees forward of the side).
+SHOULDER, SHOULDER_UP, CHEST_LONG, SHOULDER_FWD = 0.18, 0.23, 0.28, 0.02
+# How much of the way from the rig's shoulder joint to Poser's the arm's flesh moves bodily (shoulders a little raised
+# and squared in every pose); round what is left, the flesh swings as the arm turns (right when the arm hangs, and
+# shrugged the higher it lifts: all of it, and the shoulders reach the ears with the arms overhead).
+SHOULDER_MOVED = 0.55
+HANG = np.array([np.sin(np.radians(4)) * np.cos(np.radians(20)), -np.cos(np.radians(4)), np.sin(np.radians(4)) * np.sin(np.radians(20))])
 
 
 SHAPES = OUT.with_name("shapes.bin")
@@ -76,11 +87,11 @@ BODIES = {
                **{f"armslegs/{s}-{part}-muscle-incr": 0.3 for s in "lr" for part in ("upperarm", "upperleg")}, "measure/measure-hips-circ-incr": 0.15, "buttocks/buttocks-volume-incr": 0.1,
                "breast/female-young-averagemuscle-averageweight-maxcup-maxfirmness": 0.4, "breast/breast-trans-up": 0.3, "breast/breast-point-decr": 1.0,
                "breast/nipple-point-decr": 1.0, "breast/nipple-size-decr": 1.0,
-               # A softer face: narrower jaw and chin, smaller nose, fuller lips, larger eyes, higher cheekbones.
+               # A softer face: narrower jaw and chin, smaller nose, a little fuller lips, larger eyes, higher cheekbones.
                "chin/chin-width-decr": 0.8, "chin/chin-bones-decr": 0.7, "chin/chin-prominent-decr": 0.5, "chin/chin-height-decr": 0.3,
                "head/head-oval": 0.6, "head/head-scale-horiz-decr": 0.2,
                "nose/nose-scale-horiz-decr": 0.5, "nose/nose-scale-vert-decr": 0.35, "nose/nose-point-up": 0.4, "nose/nose-volume-decr": 0.3,
-               "mouth/mouth-upperlip-volume-incr": 0.35, "mouth/mouth-lowerlip-volume-incr": 0.3, "mouth/mouth-cupidsbow-incr": 0.4,
+               "mouth/mouth-upperlip-volume-incr": 0.15, "mouth/mouth-lowerlip-volume-incr": 0.12, "mouth/mouth-cupidsbow-incr": 0.2,
                "forehead/forehead-nubian-decr": 0.5, "eyebrows/eyebrows-trans-up": 0.35, "neck/neck-scale-horiz-decr": 0.25,
                **{f"eyes/{s}-eye-scale-incr": 0.35 for s in "lr"}, **{f"cheek/{s}-cheek-bones-incr": 0.2 for s in "lr"},
                **{f"cheek/{s}-cheek-volume-decr": 0.5 for s in "lr"}},
@@ -119,6 +130,7 @@ def fetch(name):
     return path
 
 
+@functools.lru_cache(None)
 def target(name, n):
     """A MakeHuman target as an offset per vertex of the base mesh's [n]."""
     d = np.zeros((n, 3))
@@ -151,15 +163,9 @@ def calm(pos, hip):
     return smooth((CALM_OUT[1] - np.abs(pos[:, 0])) / (CALM_OUT[1] - CALM_OUT[0])) * smooth((hip[1] + CALM_UP[1] - pos[:, 1]) / (CALM_UP[1] - CALM_UP[0]))
 
 
-# How much more of the muscle targets' fine detail (all but what DEFINE_ROUNDS of smoothing keeps) each body takes, so its
-# muscles still read once decimated and under the viewer's soft light (more leaves lumps).
-DEFINE = {"male": 0.2, "female": 0.2, "male-bodybuilder": 0.3, "female-bodybuilder": 0.3, "male-normal": 0.0, "female-normal": 0.0}
-DEFINE_ROUNDS = 15
-
-
-def load(targets=None, calmed=False, define=0.0):
-    """The body (morphed by [targets] with [define] more of their muscles' detail, scaled to the man's height; [calmed] for a
-    woman) and the rig's joints, bones and weights on it."""
+def load(targets=None, calmed=False):
+    """The body (morphed by [targets], scaled to the man's height; [calmed] for a woman) and the rig's joints, bones and
+    weights on it."""
     pos, tris, group = [], [], None
     for line in open(fetch("base.obj")):
         if line.startswith("v "):
@@ -175,14 +181,6 @@ def load(targets=None, calmed=False, define=0.0):
     skel = json.load(open(fetch("default.mhskel")))
     tall = lambda p: np.ptp(p[:n, 1])
     offset = sum(target(k, len(pos)) * x for k, x in (targets or {}).items())
-    muscle = sum(target(k, len(pos)) * x for k, x in (targets or {}).items() if "universal" in k)
-    if define and np.any(muscle):
-        near, count = neighbours(tris, n)
-        broad = muscle[:n]
-        for _ in range(DEFINE_ROUNDS):
-            broad = near @ broad / count
-        offset = offset.copy()
-        offset[:n] += define * (muscle[:n] - broad)
     if calmed:
         hip = np.mean([pos[skel["joints"][skel["bones"][f"upperleg01.{s}"]["head"]]].mean(0) for s in "LR"], 0)
         near, count = neighbours(tris, n)
@@ -281,14 +279,18 @@ def neighbours(tris, n):
 
 
 def soften(weights, pos, tris, head):
-    """The weights around the hip joints spread over a band of neighbouring vertices. Where they change sharply the thigh
-    folds through the pelvis as it bends, and the viewer's painter's sort draws that fold as a sawtooth."""
+    """The weights around the hip and shoulder joints spread over a band of neighbouring vertices. Where they change sharply
+    the thigh folds through the pelvis as it bends, and the upper arm through the chest and back as it hangs, and the
+    viewer's painter's sort draws that fold as a sawtooth."""
     near, count = neighbours(tris, len(pos))
     hip = (head["upperleg01.L"][1] + head["upperleg01.R"][1]) / 2
     legs = weights[:, [B["PELVIS"], B["THIGH_L"], B["THIGH_R"]]].sum(1) > 0
-    band = smooth(1 - np.abs(pos[:, 1] - hip) / HIP_BAND) * legs
-    for _ in range(HIP_ROUNDS):
-        weights = weights + band[:, None] * (near @ weights / count - weights)
+    arms = weights[:, [B["CHEST"], B["ARM_L"], B["ARM_R"]]].sum(1) > 0
+    shoulder = cKDTree([head["upperarm01.L"], head["upperarm01.R"]]).query(pos)[0]
+    for band, rounds in ((smooth(1 - np.abs(pos[:, 1] - hip) / HIP_BAND) * legs, HIP_ROUNDS),
+                         (smooth(1 - shoulder / SHOULDER_BAND) * arms, SHOULDER_ROUNDS)):
+        for _ in range(rounds):
+            weights = weights + band[:, None] * (near @ weights / count - weights)
     return weights / weights.sum(1, keepdims=True)
 
 
@@ -353,6 +355,25 @@ def palm_normal(head, tail, s):
     return n if (tail[f"finger3-3.{s}"] - mid) @ n > 0 else -n
 
 
+def between(a, b):
+    """The shortest turn that takes the direction [a] to [b]."""
+    a, b = unit(a), unit(b)
+    axis = np.cross(a, b)
+    return rotation(axis, np.degrees(np.arctan2(np.linalg.norm(axis), a @ b))) if np.linalg.norm(axis) > 1e-9 else np.eye(3)
+
+
+def shoulder(joint, elbow, at, hang):
+    """Where the upper arm's frame starts in the mesh's space. Poser turns the arm about [at], a point of the chest about
+    5 cm above the rig's shoulder [joint] (and nearer the middle on a broad body, further out on a narrow one). An arm
+    moved bodily up onto it shrugs and squares the shoulders. Instead it moves SHOULDER_MOVED of the way, and for the
+    rest its flesh stays where the rig has it once the arm hangs along [hang] at rest: the frame starts where [at] lies
+    in that hanging arm, turned back up with it."""
+    d = (at - joint) * (1 - SHOULDER_MOVED)
+    b, c = hang @ d, d @ d - (elbow - joint) @ (elbow - joint)
+    down = between(elbow - joint, d + (-b + np.sqrt(b * b - c)) * hang)  # the arm turned about its joint until its elbow hangs under [at]
+    return joint + down.T @ d
+
+
 def frames(pos, head, tail, waist, chest):
     """Each of the 19 bones' frame in the mesh's space and its length there (0 for an end bone, which keeps its size)."""
     fwd = np.array([0.0, 0.0, 1.0])
@@ -367,8 +388,10 @@ def frames(pos, head, tail, waist, chest):
         "NECK": (frame(head["neck01"], head["head"] - head["neck01"], fwd), np.linalg.norm(head["head"] - head["neck01"])),
         "HEAD": (frame(head["head"], tail["head"] - head["head"], fwd), 0.0),
     }
-    for s, side in (("L", "_L"), ("R", "_R")):
-        sh, el, wr = head[f"upperarm01.{s}"], head[f"lowerarm01.{s}"], head[f"wrist.{s}"]
+    for s, side, x in (("L", "_L", 1), ("R", "_R", -1)):
+        el, wr = head[f"lowerarm01.{s}"], head[f"wrist.{s}"]
+        at = spine(chest) + [x * SHOULDER, SHOULDER_UP * (head["neck01"][1] - chest) / CHEST_LONG, SHOULDER_FWD]
+        sh = shoulder(head[f"upperarm01.{s}"], el, at, HANG * [x, 1, 1])
         n = palm_normal(head, tail, s)
         f["ARM" + side] = (frame(sh, el - sh, wr - el), np.linalg.norm(el - sh))
         f["FOREARM" + side] = (frame(el, wr - el, n), np.linalg.norm(wr - el))
@@ -387,12 +410,6 @@ def frames(pos, head, tail, waist, chest):
         f["FOOT" + side] = (frame(np.array([an[0], sole + ANKLE, an[2]]), ahead, up), 0.0)
         f["TOES" + side] = (frame(np.array([ball[0], sole + TOE, ball[2]]), ahead, up), 0.0)
     return [f[b] for b in BONES]
-
-
-# How far each joint of a closed hand bends, in degrees: the knuckle, the middle joint and the last, for the four fingers.
-CURL = (80.0, 95.0, 55.0)
-THUMB = (25.0, 20.0, 45.0)
-WRIST = -20.0  # a gripping wrist tips back a little, which lays the bar across the palm
 
 
 def bend(pos, w, parent, turn):
@@ -417,12 +434,6 @@ def bend(pos, w, parent, turn):
     m = total > 0
     out[m] = (moved[m] + pos[m] * (everything[m, None] - total[m, None])) / everything[m, None]
     return out
-
-
-def thumb_axis(d, n, across, side):
-    """The axis a thumb joint bends about toward the palm: across the bone, tipped toward the fingers. [across] runs from the
-    little finger to the index, so it turns the other way on the right hand, where every cross product flips."""
-    return np.cross(d, n) + across * 0.6 * side
 
 
 def flat(pos, head, tail, w, parent):
@@ -454,7 +465,10 @@ def flat(pos, head, tail, w, parent):
 
 # How far each joint of a closed hand bends, in degrees: the knuckle, the middle joint and the last, for the four fingers.
 CURL = (80.0, 95.0, 55.0)
-THUMB = (25.0, 20.0, 45.0)
+# The thumb's three joints each turn it toward a point in front of the palm, THUMB_OUT from it and THUMB_BACK toward the
+# wrist from the index and middle knuckles, so it closes over the fingers. (Bent across its own bones alone it stood out
+# from the fist like a hitchhiker's.)
+THUMB, THUMB_OUT, THUMB_BACK = (40.0, 25.0, 35.0), 0.035, 0.01
 WRIST = -20.0  # a gripping wrist tips back a little, which lays the bar across the palm
 
 
@@ -463,9 +477,9 @@ def fist(pos, head, tail, w, parent):
     turn = {}
     for s, side in (("L", 1), ("R", -1)):
         n = palm_normal(head, tail, s)
-        across = unit(head[f"finger2-1.{s}"] - head[f"finger5-1.{s}"])
-        hinge = unit(np.cross(head[f"finger3-1.{s}"] - head[f"wrist.{s}"], n))
-        turn[f"wrist.{s}"] = (rotation(hinge, WRIST), head[f"wrist.{s}"])
+        along = unit(head[f"finger3-1.{s}"] - head[f"wrist.{s}"])
+        turn[f"wrist.{s}"] = (rotation(np.cross(along, n), WRIST), head[f"wrist.{s}"])
+        over = (head[f"finger2-1.{s}"] + head[f"finger3-1.{s}"]) / 2 - along * THUMB_BACK + n * THUMB_OUT
         for b in [b for b in w if b.endswith("." + s) and (b.startswith("finger") or b.startswith("metacarpal"))]:
             k = b.split(".")[0]
             if k.startswith("metacarpal"):
@@ -473,14 +487,58 @@ def fist(pos, head, tail, w, parent):
                 continue
             finger, joint = int(k[6]), int(k[8]) - 1
             d = tail[b] - head[b]
-            axis = np.cross(d, n) if finger > 1 else thumb_axis(d, n, across, side)
+            axis = np.cross(d, n) if finger > 1 else np.cross(d, over - head[b])
             turn[b] = (rotation(axis, (THUMB if finger == 1 else CURL)[joint]), head[b])
     return bend(pos, w, parent, turn)
 
 
+def loop(tris, n):
+    """One round of Loop subdivision: each vertex of the finer mesh as its weights over the [n] old ones (a sparse matrix,
+    the old vertices first and then one per edge) and the finer triangles. The base mesh is a cage made to be subdivided:
+    decimated as it is, its own corners show along every outline."""
+    ends = np.sort(np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]]), 1)
+    across = np.concatenate([tris[:, 2], tris[:, 0], tris[:, 1]])
+    edge, of = np.unique(ends[:, 0] * n + ends[:, 1], return_inverse=True)
+    assert (np.bincount(of) == 2).all(), "an open edge, or one more than two triangles share"
+    m = len(edge)
+    near, count = neighbours(tris, n)
+    count = count[:, 0]
+    beta = np.where(count > 3, 3 / (8 * count), 3 / 16)
+    old = scipy.sparse.diags(1 - count * beta) + scipy.sparse.diags(beta) @ near
+    k = np.arange(m)
+    mid = scipy.sparse.csr_matrix((np.concatenate([np.full(2 * m, 3 / 8), np.full(len(of), 1 / 8)]),
+                                   (np.concatenate([k, k, of]), np.concatenate([edge // n, edge % n, across]))), shape=(m, n))
+    m01, m12, m20 = (n + of).reshape(3, -1)
+    t0, t1, t2 = tris.T
+    fine = np.concatenate([np.stack(t, 1) for t in ((t0, m01, m20), (t1, m12, m01), (t2, m20, m12), (m01, m12, m20))])
+    return scipy.sparse.vstack([old, mid]).tocsr(), fine
+
+
+# Where the decimated mesh spends its vertices. Edge collapse alone spends them on curvature: the face, fingers and toes,
+# a few pixels each on a phone, took half, and the limbs and the joints that fold (straight at rest, so flat to it) were
+# left with triangles 3 cm across, the size of the teeth where a bent knee's two sides cross. So each part's vertices
+# count for this much against the limbs' 1 (the trunk's more, for the chest and belly a body's build shows on), and those
+# within JOINT_REACH of a joint that folds for up to that joint's FOLDS times as much. The strip between the legs that
+# the two thighs share counts for up to BETWEEN times as much: as the legs part, each row of triangles across it takes
+# its share of the stretch, and too few rows stretch into long slivers.
+SPEND = {"PELVIS": 2.0, "WAIST": 2.5, "CHEST": 2.5, "HAND": 0.2, "FOOT": 0.3, "TOES": 0.04}
+FOLDS = {"upperarm01": 10.0, "lowerarm01": 10.0, "wrist": 3.0, "upperleg01": 10.0, "lowerleg01": 10.0, "foot": 4.0}
+JOINT_REACH, BETWEEN = 0.10, 10.0
+
+
+def spend(pos, weights, head):
+    """Each vertex's importance to [decimate]."""
+    keep = 1 + 4 * (1 - weights.max(1))  # vertices shared between bones bend, so they count for more
+    keep *= 1 + (BETWEEN - 1) * 4 * weights[:, B["THIGH_L"]] * weights[:, B["THIGH_R"]]
+    keep *= 1 + np.max([(x - 1) * smooth(1 - np.linalg.norm(pos - head[f"{b}.{s}"], axis=1) / JOINT_REACH) for b, x in FOLDS.items() for s in "LR"], 0)
+    for part, x in SPEND.items():
+        keep *= 1 + (x - 1) * weights[:, [i for b, i in B.items() if b.startswith(part)]].sum(1)
+    return keep
+
+
 def decimate(pos, tris, verts, keep):
     """The mesh cut to about [verts] vertices by edge collapse that keeps each surviving vertex where it was; [keep] is each
-    vertex's importance, so the joints that bend keep enough rings to bend smoothly."""
+    vertex's importance."""
     ms = pymeshlab.MeshSet()
     ms.add_mesh(pymeshlab.Mesh(vertex_matrix=pos, face_matrix=tris, v_scalar_array=keep))
     ms.meshing_decimation_quadric_edge_collapse(targetfacenum=2 * verts - 4, optimalplacement=False, preservetopology=True,
@@ -518,8 +576,8 @@ def plain(pos, tris, tail):
 # The abs: the belly smoothed flat of the targets' own uneven detail (ABS_CALM rounds), then cut back as shallow grooves:
 # the line down the middle, the lines across it at ABS_ROWS of the way up from the hip joints to the neck, and a line down
 # each side at ABS_SIDE out from the middle. Each body's depth in metres; the grooves are ABS_SOFT wide (as the sigma of
-# their profile).
-ABS = {"male": 0.016, "female": 0.011, "male-bodybuilder": 0.02, "female-bodybuilder": 0.015, "male-normal": 0.004, "female-normal": 0.003}
+# their profile). Deeper than this they break up into blotches: the grooves are narrower than the triangles that carry them.
+ABS = {"male": 0.010, "female": 0.007, "male-bodybuilder": 0.014, "female-bodybuilder": 0.010, "male-normal": 0.004, "female-normal": 0.003}
 ABS_ROWS, ABS_SIDE, ABS_SOFT, ABS_CALM = (0.25, 0.36, 0.47), 0.07, 0.012, 30
 ABS_FROM, ABS_TO = 0.14, 0.57  # where the abs start and end, of the way from the hip joints to the neck
 
@@ -548,27 +606,69 @@ def abs_cut(pos, tris, head, depth):
     return pos
 
 
+# The face. MakeHuman's body has no eyes, teeth or tongue: its lids open onto empty sockets and its lips onto a hollow
+# mouth, which once decimated read as a mask with holes for eyes. Each socket is drawn tight across its opening and
+# rounded out over the eyeball (EYE its radius, the base mesh's eye helper's; the skin relaxed from EYE_FROM to EYE_TO
+# radii out and lifted to EYE_OUT of the radius): closed lids. The mouth and nostrils, which the face hides from the
+# front (FACE_HIDDEN behind it, on a grid of FACE_CELL), are drawn tight the same way: closed lips.
+EYE, EYE_FROM, EYE_TO, EYE_OUT, EYE_ROUNDS = 0.1495 * SCALE, 1.08, 1.4, 0.95, 300
+FACE_CELL, FACE_HIDDEN, FACE_ROUNDS = 0.002, 0.006, 400
+
+
+def face(pos, tris, head):
+    """The body with its eyes and mouth closed."""
+    near, count = neighbours(tris, len(pos))
+    pos = pos.copy()
+    eye = head["eye.L"]
+    # From the brow down to the chin, the front of the head: each point's depth behind the face in front of it.
+    box = lambda q: (np.abs(q[:, 0]) < 0.04) & (q[:, 1] < eye[1] - 0.012) & (q[:, 1] > eye[1] - 0.10) & (q[:, 2] > eye[2] - 0.045)
+    t = pos[tris]
+    skin = np.vstack([pos, t.mean(1), (t[:, 0] + t[:, 1]) / 2, (t[:, 1] + t[:, 2]) / 2, (t[:, 2] + t[:, 0]) / 2])
+    skin = skin[box(skin)]
+    cell = np.floor(skin[:, :2] / FACE_CELL).astype(int)
+    low = cell.min(0)
+    front = np.full(cell.max(0) - low + 1, -np.inf)
+    np.maximum.at(front, tuple((cell - low).T), skin[:, 2])
+    inside = np.nonzero(box(pos))[0]
+    i, j = (np.floor(pos[inside, :2] / FACE_CELL).astype(int) - low).T
+    ahead = np.max([front[np.clip(i + a, 0, front.shape[0] - 1), np.clip(j + b, 0, front.shape[1] - 1)] for a in (-1, 0, 1) for b in (-1, 0, 1)], 0)
+    hidden = inside[pos[inside, 2] < ahead - FACE_HIDDEN]
+    for _ in range(FACE_ROUNDS):
+        pos[hidden] = (near @ pos / count)[hidden]
+    for s in "LR":
+        c = head[f"eye.{s}"]
+        share = smooth((EYE_TO * EYE - np.linalg.norm(pos - c, axis=1)) / ((EYE_TO - EYE_FROM) * EYE))
+        for _ in range(EYE_ROUNDS):
+            pos += share[:, None] * (near @ pos / count - pos)
+        d = pos - c
+        r = np.linalg.norm(d, axis=1)
+        pos += d / r[:, None] * (share * np.maximum(0, EYE_OUT * EYE - r))[:, None]
+        for _ in range(10):  # the step where the lift starts, evened out
+            pos += share[:, None] * 0.5 * (near @ pos / count - pos)
+    return pos
+
+
 # Hair, in each body's head frame (x to its left, y up, z forward, from the top of the neck) about a centre HAIR_AT in the
-# skull: a shell over the scalp out to a hairline, its edge tucked under the skin. A style gives the hairline as its angle
-# from straight up at headings around the head (0 at the front, 180 behind), the shell's thickness on top and at the sides,
-# the depth of the broad clumps the hair falls in, and for a ponytail where it is tied (its angle from straight up behind).
+# skull: a shell over the scalp out to a hairline, thinning to nothing there with its edge tucked under the skin. A style
+# gives the hairline as its height in the head's frame at each heading round the head (degrees, 0 at the front, 90 at the
+# ear, 180 behind), the shell's grid (rings out from the crown, and points around each), its thickness on top and at the
+# sides, and for a bun where it is tied (its angle from straight up, behind). Both lines are soft curves: square corners
+# and a hard edge read as a helmet, and a ponytail, which rides the head as one piece, stood on end whenever the head
+# tipped forward.
 HAIR_AT = np.array([0.0, 0.06, 0.005])
-# Each style's hairline as its height in the head's frame at each heading (degrees, 0 at the front, 90 at the ear); a
-# heading listed twice steps the line straight down there. Its grid: rings out from the crown, and points around each.
 STYLES = {
-    # A buzz cut, lined up: a straight front, square corners at the temples, sideburns, a straight nape, and a flat edge all round.
-    "male": dict(line=((0, 0.104), (40, 0.104), (40, 0.088), (70, 0.082), (70, 0.022), (80, 0.022), (80, 0.058),
-                       (100, 0.058), (108, 0.008), (180, 0.008)),
-                 grid=(20, 120), top=0.004, side=0.004, clump=0.0, part=False, tie=None, wall=True),
-    # Pulled back to a ponytail: a rounded front, corners at the temples, down in front of the ears and round behind them.
+    # Cropped short: a rounded front, in at the temples, a short sideburn, over the ear and down to the nape.
+    "male": dict(line=((0, 0.104), (30, 0.102), (48, 0.092), (62, 0.078), (70, 0.050), (76, 0.036), (82, 0.050), (88, 0.060),
+                       (100, 0.060), (108, 0.030), (125, 0.012), (180, 0.008)),
+                 grid=(12, 72), top=0.006, side=0.004, tie=None),
+    # Pulled back to a bun: a rounded front, corners at the temples, down in front of the ears and round behind them.
     "female": dict(line=((0, 0.108), (22, 0.105), (38, 0.098), (42, 0.090), (52, 0.068), (66, 0.050), (76, 0.040),
                          (82, 0.050), (88, 0.064), (102, 0.064), (110, 0.024), (140, -0.005), (180, -0.012)),
-                   grid=(24, 90), top=0.009, side=0.007, clump=0.0015, part=False, tie=88, wall=False),
+                   grid=(14, 72), top=0.009, side=0.007, tie=62),
 }
-CLUMP = 0.02  # how far apart the clumps are, in metres
 HAIR_SMOOTH = 6
 SINK, TUCK = 0.015, 0.005  # how far the scalp under the hair sinks, and the hair's edge under the skin
-TAIL_RINGS, TAIL_SIDES, TAIL_LONG = 24, 16, 0.13
+BUN, BUN_OUT, BUN_RINGS, BUN_SIDES = 0.036, 0.028, 5, 12  # a bun's radius across the head and out from it, and its grid
 
 
 def scalp(pos, centre):
@@ -643,16 +743,12 @@ def hair(head_pos, style):
     at = scalp(head_pos, HAIR_AT)
     rings, around = style["grid"]
     t = np.arange(1, rings + 1) / rings
-    # Rings shrinking from the hairline to the crown, laid flat, then evened out along each ring so a step in the line
-    # (where it runs straight down) doesn't crowd them; the hairline itself stays put.
+    # Rings shrinking from the hairline to the crown, laid flat, then evened out along each ring so a dip in the line
+    # doesn't crowd them; the hairline itself stays put.
     grid = t[:, None, None] * laid(*hairline(style, at, around))[None]
     for _ in range(40):
         even = (np.roll(grid, 1, 1) + np.roll(grid, -1, 1)) / 2
         grid[:-1] += (1 - t[:-1, None, None]) ** 2 * 0.5 * (even[:-1] - grid[:-1])
-    if style["wall"]:  # a second ring at the hairline, on the skin: the hair's edge drops straight down to it
-        t = np.append(t, 1.0)
-        grid = np.concatenate([grid, grid[-1:]])
-        rings += 1
     dirs = direction(np.linalg.norm(grid, axis=2), np.arctan2(grid[..., 0], grid[..., 1])).reshape(-1, 3)
     dirs = np.vstack([[0, 1, 0], dirs])
     tt = np.concatenate([[0], np.repeat(t, around)])
@@ -662,105 +758,71 @@ def hair(head_pos, style):
         grid = (2 * grid + np.roll(grid, 1, 1) + np.roll(grid, -1, 1)) / 4
         grid[1:-1] = (2 * grid[1:-1] + grid[:-2] + grid[2:]) / 4
     radius = np.concatenate([[radius[0]], grid.ravel()])
-    skin = HAIR_AT + dirs * radius[:, None]
-    u, v, w = skin[:, 0], skin[:, 1] - HAIR_AT[1], skin[:, 2]
     # Thick on top, thinner down the sides, to nothing at the hairline and then just under the skin.
     thick = style["side"] + (style["top"] - style["side"]) * smooth((0.75 - tt) / 0.5)
-    if style["wall"]:
-        lift = np.where(np.arange(len(tt)) >= len(tt) - around, -0.0005, thick)  # down to the skin, no further: it is drawn over it
-    else:
-        lift = thick * smooth((1 - tt) / 0.12) - TUCK * smooth((tt - 0.9) / 0.1)
-    if style["part"]:
-        # A middle part from the forehead back to the crown, the hair rising off it to each side.
-        front = smooth((w - 0.0) / 0.03)
-        lift += front * (0.004 * smooth(np.abs(u) / 0.012) - 0.013 * np.exp(-(u / 0.005) ** 2)) * smooth((1 - tt) / 0.12)
-        # Clumps falling from the part down each side, and straight down behind the crown.
-        side = np.cos(2 * np.pi * w / CLUMP + 0.5 * np.sin(u * 30))
-        back = np.cos(2 * np.pi * u / CLUMP + 0.5 * np.sin(v * 30))
-        k = smooth((w + 0.02) / 0.04)
-        lift -= style["clump"] * (k * (0.5 + 0.5 * side) ** 2 + (1 - k) * (0.5 + 0.5 * back) ** 2) * smooth((1 - tt) / 0.2)
-    if style["tie"] is not None:
-        tie = np.radians(style["tie"])
-        tie_dir = np.array([0, np.cos(tie), -np.sin(tie)])
-        # Combed back to the tie: clumps running to it.
-        rel = dirs - tie_dir * (dirs @ tie_dir)[:, None]
-        e1 = np.cross(tie_dir, [1.0, 0, 0]); e1 /= np.linalg.norm(e1)
-        e2 = np.cross(tie_dir, e1)
-        psi = np.arctan2(rel @ e2, rel @ e1)
-        lift -= style["clump"] * (0.5 + 0.5 * np.cos(26 * psi)) ** 2 * smooth((1 - tt) / 0.2)
-    pos = skin + dirs * lift[:, None]
-    tris = []
-    for j in range(around):
-        tris.append((0, 1 + j, 1 + (j + 1) % around))
+    lift = thick * smooth((1 - tt) / 0.12) - TUCK * smooth((tt - 0.9) / 0.1)
+    pos = HAIR_AT + dirs * (radius + lift)[:, None]
+    tris = [(0, 1 + j, 1 + (j + 1) % around) for j in range(around)]
     for i in range(rings - 1):
         for j in range(around):
             a, b = 1 + i * around + j, 1 + i * around + (j + 1) % around
             tris += [(a, a + around, b), (b, a + around, b + around)]
-    # One winding for the whole cap, the grid's own, facing out on the whole: each triangle alone can't tell, as the edge's
-    # wall stands on end to the centre.
+    # One winding for the whole cap, the grid's own, facing out on the whole: each triangle alone can't tell, as the
+    # tucked edge stands on end to the centre.
     tris = np.array(tris)
     n = np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]])
     if np.einsum("ij,ij->", n, pos[tris].mean(1) - HAIR_AT) < 0:
         tris = tris[:, ::-1]
     if style["tie"] is None:
         return pos, tris
-    tail_pos, tail_tris = ponytail(at, tie_dir, style)
-    return np.vstack([pos, tail_pos]), np.vstack([tris, tail_tris + len(pos)])
+    tie = np.radians(style["tie"])
+    knot, knot_tris = bun(at, np.array([0, np.cos(tie), -np.sin(tie)]), style)
+    return np.vstack([pos, knot]), np.vstack([tris, knot_tris + len(pos)])
 
 
-def ponytail(at, tie_dir, style):
-    """A ponytail tied at [tie_dir]: a tube curving back and down, pinched at the tie, full, then tapering to a tip."""
-    out = tie_dir
-    tie = HAIR_AT + tie_dir * (at(tie_dir[None])[0] + style["top"])
-    down = np.array([0.0, -1.0, 0.0])
-    b0, b1, b2, b3 = tie - out * 0.012, tie + out * 0.04, tie + out * 0.05 + down * 0.06, tie + out * 0.035 + down * TAIL_LONG
-    s = np.linspace(0, 1, TAIL_RINGS)
-    curve = ((1 - s) ** 3)[:, None] * b0 + (3 * s * (1 - s) ** 2)[:, None] * b1 + (3 * s * s * (1 - s))[:, None] * b2 + (s ** 3)[:, None] * b3
-    along = np.gradient(curve, axis=0)
-    along /= np.linalg.norm(along, axis=1, keepdims=True)
-    radius = (0.012 + 0.016 * smooth((s - 0.06) / 0.14)) * np.sqrt(np.clip(1 - ((s - 0.35) / 0.65).clip(0) ** 2, 0, 1)) + 0.002
-    psi = np.arange(TAIL_SIDES) * 2 * np.pi / TAIL_SIDES
-    pos, n1 = [], np.array([1.0, 0, 0])
-    for k in range(TAIL_RINGS):
-        n1 = n1 - along[k] * (n1 @ along[k]); n1 /= np.linalg.norm(n1)
-        n2 = np.cross(along[k], n1)
-        groove = 1 - 0.14 * (0.5 + 0.5 * np.cos(6 * psi + 4 * s[k])) ** 2
-        pos.append(curve[k] + (np.cos(psi)[:, None] * n1 + np.sin(psi)[:, None] * n2) * (radius[k] * groove)[:, None])
-    pos = np.vstack(pos + [curve[-1:] + along[-1:] * 0.004])
-    tris, tip = [], len(pos) - 1
-    for k in range(TAIL_RINGS - 1):
-        for j in range(TAIL_SIDES):
-            a, b = k * TAIL_SIDES + j, k * TAIL_SIDES + (j + 1) % TAIL_SIDES
-            tris += [(a, a + TAIL_SIDES, b), (b, a + TAIL_SIDES, b + TAIL_SIDES)]
-    last = (TAIL_RINGS - 1) * TAIL_SIDES
-    tris += [(last + j, tip, last + (j + 1) % TAIL_SIDES) for j in range(TAIL_SIDES)]
+def bun(at, out, style):
+    """A bun tied where [out] leaves the head: a flattened ball, sunk a little into the hair under it. Whichever way the
+    head turns or lies it sits right, which hair that should hang cannot while it moves with the head as one piece."""
+    centre = HAIR_AT + out * (at(out[None])[0] + style["top"] + BUN_OUT * 0.5)
+    e1 = unit(np.cross(out, [1.0, 0, 0]))
+    e2 = np.cross(out, e1)
+    psi = np.arange(BUN_SIDES) * 2 * np.pi / BUN_SIDES
+    around = np.cos(psi)[:, None] * e1 + np.sin(psi)[:, None] * e2
+    polar = np.arange(1, BUN_RINGS + 1) * np.pi / (BUN_RINGS + 1)
+    pos = np.vstack([centre + out * BUN_OUT] + [centre + out * BUN_OUT * np.cos(a) + around * BUN * np.sin(a) for a in polar]
+                    + [centre - out * BUN_OUT])
+    last = len(pos) - 1
+    tris = [(0, 1 + j, 1 + (j + 1) % BUN_SIDES) for j in range(BUN_SIDES)]
+    for i in range(BUN_RINGS - 1):
+        for j in range(BUN_SIDES):
+            a, b = 1 + i * BUN_SIDES + j, 1 + i * BUN_SIDES + (j + 1) % BUN_SIDES
+            tris += [(a, a + BUN_SIDES, b), (b, a + BUN_SIDES, b + BUN_SIDES)]
+    tris += [(last - BUN_SIDES + j, last, last - BUN_SIDES + (j + 1) % BUN_SIDES) for j in range(BUN_SIDES)]
     tris = np.array(tris)
-    ring = np.minimum(tris.max(1) // TAIL_SIDES, TAIL_RINGS - 1)
-    return pos, outward(pos, tris, curve[ring])
+    return pos, outward(pos, tris, np.repeat(centre[None], len(tris), 0))
 
 
-def body(name, tris, w, parent):
-    """One body of BODIES before decimation: its positions with flat hands, its fists, and its bones' frames."""
+def body(name, tris, w, parent, finer):
+    """One body of BODIES before it is subdivided ([finer]) and decimated: its positions with flat hands, its fists, and its
+    bones' frames."""
     woman = name.startswith("female")
-    pos, _, head, tail, _, _ = load(BODIES[name], calmed=woman, define=DEFINE[name])
-    pos = abs_cut(plain(pos, tris, tail), tris, head, ABS[name])
+    pos, _, head, tail, _, _ = load(BODIES[name], calmed=woman)
+    pos = abs_cut(plain(face(pos, tris, head), tris, tail), tris, head, ABS[name])
     deep = crease(pos, head)
     pos = cleft(pos, head, CLEFT_FILLS.get(name, CLEFT_FILL))
     print(f"{name}: glute cleft {deep * 1000:.0f} mm deep, {crease(pos, head) * 1000:.0f} mm once filled")
     closed = fist(pos, head, tail, w, parent)
     pos = flat(pos, head, tail, w, parent)
-    return pos, closed, frames(pos, head, tail, *spine(head)), head
+    return pos, closed, frames(finer @ pos, head, tail, *spine(head)), head
 
 
 def main():
-    verts = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
+    verts = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     raw, tris, head, tail, w, parent = load()
     weights, _, _ = fold(raw, head, w)
     weights = soften(weights, raw, tris, head)
-    hands = (weights[:, B["HAND_L"]] + weights[:, B["HAND_R"]]) > 0
-    keep = 1 + 4 * (1 - weights.max(1))  # vertices shared between bones bend, so they count for more
-    keep = keep * (1 + 6 * belly(raw, head)[0])  # and the abs need enough vertices to show
-    bodies = {name: body(name, tris, w, parent) for name in BODIES}
+    finer, fine = loop(tris, len(raw))
+    bodies = {name: body(name, tris, w, parent, finer) for name in BODIES}
     # Each body's hair, in its head's frame, made on its scalp, which then sinks under it.
     scalp_verts = weights[:, B["HEAD"]] > 0.99
     hairs = {}
@@ -773,11 +835,14 @@ def main():
         p[scalp_verts] = o + bald(local, style) @ frame_axes
     # Decimated on the plain mesh the weights were made on: a body's targets press the thighs together, and decimated
     # there the steps in weight between the legs collapse into single edges that tear as the legs part.
-    idx, faces = decimate(flat(raw, head, tail, w, parent), tris, verts, keep)
-    weights, hands = weights[idx], hands[idx]
+    plain = finer @ flat(raw, head, tail, w, parent)
+    weights = finer @ weights
+    idx, faces = decimate(plain, fine, verts, spend(plain, weights, head))
+    weights = weights[idx]
+    hands = (weights[:, B["HAND_L"]] + weights[:, B["HAND_R"]]) > 0
     shaped = {}
     for name, (p, c, fr, _) in bodies.items():
-        shaped[name] = (p[idx], c[idx], fr)
+        shaped[name] = ((finer @ p)[idx], (finer @ c)[idx], fr)
     pos, closed, f = shaped["male"]
     top = np.argsort(-weights, 1)[:, :4]
     w4 = np.take_along_axis(weights, top, 1)

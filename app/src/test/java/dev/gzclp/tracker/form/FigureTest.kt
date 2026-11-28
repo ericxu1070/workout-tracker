@@ -22,6 +22,7 @@ class FigureTest(private val body: String) {
     @After fun off() { Figure.on = true; Figure.shape = "male" }
 
     private fun at(i: Int) = V(pos[i * 3].toDouble(), pos[i * 3 + 1].toDouble(), pos[i * 3 + 2].toDouble())
+    private fun rest(i: Int) = "(%.3f, %.3f, %.3f)".format(mesh.pos[i * 3], mesh.pos[i * 3 + 1], mesh.pos[i * 3 + 2])
 
     @Test fun theRestPoseIsTheMeshAsFitted() {
         Figure.pose(Figure.REST, pos)
@@ -61,18 +62,20 @@ class FigureTest(private val body: String) {
             Figure.pose(p, pos)
             for (j in e.indices step 6) {
                 val d = (at(e[j]) - at(e[j + 1])).len
-                if (d > worst) { worst = d; where = "$id d=${k / 20.0} ${Bone.entries[Figure.lead[e[j]]]}" }
+                if (d > worst) { worst = d; where = "$id d=${k / 20.0} ${Bone.entries[Figure.lead[e[j]]]} to ${Bone.entries[Figure.lead[e[j + 1]]]}, from ${rest(e[j])} to ${rest(e[j + 1])} at rest" }
             }
         }
         println("FIGURE longest edge ${"%.4f".format(worst)} m at $where, ${"%.4f".format(rest)} m at rest")
-        assertTrue("an edge ${"%.3f".format(worst)} m long at $where", worst < (TEAR[body] ?: STRETCH * rest))
+        assertTrue("an edge ${"%.3f".format(worst)} m long at $where", worst < STRETCH * rest)
     }
 
     /** Seen from behind at the bottom of a squat, a crotch left on the pelvis swings back level with the glutes: a bump between them. */
     @Test fun theCrotchStaysTuckedBetweenTheGlutesThroughASquat() {
         val hip = Figure.REST[Bone.PELVIS].o.y
         fun rest(i: Int, c: Int) = mesh.pos[i * 3 + c].toDouble()
-        val crotch = (0 until mesh.verts).filter { kotlin.math.abs(rest(it, 0)) < 0.02 && rest(it, 1) in hip - 0.12..hip - 0.02 }
+        // From 5 cm under the hip joints down, where the thighs have taken the crotch over: nearer them the strip is the cleft
+        // between the glutes, whose own inner faces a finer mesh puts points on, further back than any the coarser one had.
+        val crotch = (0 until mesh.verts).filter { kotlin.math.abs(rest(it, 0)) < 0.02 && rest(it, 1) in hip - 0.12..hip - 0.05 }
         val glutes = (0 until mesh.verts).filter { kotlin.math.abs(rest(it, 0)) in 0.04..0.12 && rest(it, 2) < -0.06 && rest(it, 1) in hip - 0.08..hip + 0.02 }
         val p = Poser()
         var least = Double.MAX_VALUE
@@ -112,6 +115,28 @@ class FigureTest(private val body: String) {
         assertTrue("the shoulder flesh falls to ${"%.2f".format(least)} of its reach from the joint at $where", least > 0.15)
     }
 
+    /**
+     * A forearm's twist is read off the elbow each frame as the turn nearest none, with no path to follow as a shoulder's
+     * has. Half a turn from rest that nearest turn flips to the other way round, so the twist that runs down the forearm
+     * must have faded out by there: turned steadily all the way round, it never jumps.
+     */
+    @Test fun aForearmsTwistNeverJumpsAsItTurns() {
+        val p = Poser()
+        for (j in Figure.JOINTS.size until Figure.TWISTING.size) {
+            val s = if (Figure.TWISTING[j].second == Bone.FOREARM_L) L else R
+            var last = Double.NaN; var most = 0.0; var full = 0.0
+            for (turn in -360..360) {
+                p.reset(); p.pelvis(V(0.0, STAND, 0.0)); p.arm(s, raise = 30.0, elbow = 60.0, pronate = turn.toDouble()); p.finish()
+                val t = Figure.hinge(p, j)!!.twist
+                if (!last.isNaN()) most = maxOf(most, kotlin.math.abs(t - last))
+                full = maxOf(full, kotlin.math.abs(t))
+                last = t
+            }
+            assertTrue("a forearm's twist jumps ${"%.1f".format(most)} degrees in one of turning", most < 5)
+            assertTrue("the twist never runs down the forearm: at most ${"%.0f".format(full)} degrees", full > Figure.HINGE_FULL - 1)
+        }
+    }
+
     /** The pieces are drawn unless the mesh is asked for, so opening a move must not wait on reading and fitting it. */
     @Test fun thePiecesNeverReadTheMesh() {
         val read = mutableListOf<String>()
@@ -144,7 +169,7 @@ class FigureTest(private val body: String) {
         assertTrue("$body wears the other sex's hair", Figure.hair!!.verts != hair.verts)
     }
 
-    /** The hair rides the head as one piece, so a head laid on the floor could push its back (or a ponytail) under it. */
+    /** The hair rides the head as one piece, so a head laid on the floor could push its back (or a bun) under it. */
     @Test fun theHairNeverGoesBelowTheFloor() {
         val placed = FloatArray(Figure.hair!!.verts * 3)
         val p = Poser()
@@ -160,12 +185,6 @@ class FigureTest(private val body: String) {
 
     companion object {
         const val STRETCH = 1.5
-
-        /**
-         * Measured (2026-11-26), where the limit falls short: the woman's normal build has the shortest longest edge at rest,
-         * so the same inner-thigh edge every body stretches to about 0.10 m (the weights step across it) counts against her.
-         */
-        val TEAR = mapOf("female-normal" to 0.1016)
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun bodies() = Figure.bodies
     }
