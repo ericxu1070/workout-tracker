@@ -52,6 +52,7 @@ import java.time.Duration
 import dev.gzclp.tracker.log.BodyWeight
 import dev.gzclp.tracker.log.BodyWeightLogged
 import dev.gzclp.tracker.log.Deletion
+import dev.gzclp.tracker.engine.NormLift
 import dev.gzclp.tracker.engine.Programs
 import dev.gzclp.tracker.log.Commands
 import dev.gzclp.tracker.log.Entry
@@ -180,13 +181,36 @@ internal enum class Route(val depth: Int) {
 /** The weigh-in just saved at [lb] to entry [id]; [before] is that entry before an edit, null for a new one. */
 private data class WeighInUndo(val id: String, val before: BodyWeight?, val lb: Double)
 
-/** Where Back from [route] lands: the screen back() opens, and the one a Back swipe shows under the finger. */
-internal fun backTo(route: Route?, playerFromPage: Boolean): Route? = when (route) {
+/**
+ * One screen of the stack: [route] at [arg] (null is the tabs). [depth] counts the screens under it, so going back slides
+ * the way it came, and [from] is the route it was opened from.
+ */
+internal data class Screen(val route: Route?, val arg: String = "", val depth: Int = route?.depth ?: 0, val from: Route? = null) : java.io.Serializable
+
+/** The settings screen a settings screen goes back to, whatever opened it; null for a screen that goes back to where it was opened from. */
+internal fun parentOf(route: Route): Route? = when (route) {
     Route.Days, Route.Split -> Route.SettingsPage
     Route.SettingsPage -> Route.Settings
     Route.SplitDay -> Route.Split
-    Route.Stretch -> if (playerFromPage) Route.StretchRoutine else null
     else -> null
+}
+
+/** [route] at [arg] shown over [origins], the screens it was opened from. */
+internal fun screenOf(route: Route?, arg: String, origins: List<Screen>): Screen =
+    if (route == null) Screen(null) else Screen(route, arg, (origins.lastOrNull()?.depth ?: 0) + route.depth, origins.lastOrNull()?.route)
+
+/** The screens left to go back to after opening [to] from [here]: none from the tabs, and [here] unless [to] has a parent or replaces it. */
+internal fun originsAfterPush(origins: List<Screen>, here: Screen, to: Route): List<Screen> = when {
+    here.route == null -> emptyList()
+    here.route == to || parentOf(to) != null -> origins
+    else -> origins + here
+}
+
+/** Where Back from [here] lands: the screen back() opens, and the one a Back swipe shows under the finger. */
+internal fun backTo(here: Screen, origins: List<Screen>): Screen {
+    val r = here.route ?: return here
+    val parent = parentOf(r) ?: return origins.lastOrNull() ?: Screen(null)
+    return Screen(parent, if (r == Route.SplitDay) here.arg.substringBefore('/') else here.arg)
 }
 
 /** A [BackHandler] whose [enabled] is read in this scope alone, so a change to it recomposes only this. */
@@ -201,8 +225,9 @@ private fun App(model: AppModel) {
     var tab by rememberSaveable { mutableStateOf(homeTab(state)) }
     var route by rememberSaveable { mutableStateOf<Route?>(null) }
     var arg by rememberSaveable { mutableStateOf("") }
-    // The player was started from its routine's page, so leaving it goes back there.
-    var playerFromPage by rememberSaveable { mutableStateOf(false) }
+    // The screens under [route], each opened the one above it, so Back returns to each in turn.
+    var origins by rememberSaveable { mutableStateOf(emptyList<Screen>()) }
+    fun here() = screenOf(route, arg, origins)
     // Apart from [arg], so leaving a split for its settings page never changes what the split screen sliding out shows.
     var settingsPage by rememberSaveable { mutableStateOf(SettingsPage.Program) }
     var sheet by remember { mutableStateOf<SheetState?>(null) }
@@ -284,6 +309,7 @@ private fun App(model: AppModel) {
         }, s.at.hour, s.at.minute, DateFormat.is24HourFormat(context)).show()
     }
     fun push(r: Route, a: String = "") {
+        origins = originsAfterPush(origins, here(), r)
         arg = a
         route = r
     }
@@ -409,17 +435,22 @@ private fun App(model: AppModel) {
         if (pending != null) open(SheetState.FiveRm(pending, pending.weight ?: 0)) else finishWorkout(null)
     }
 
+    /** Leaves the pushed screen for the one under it. */
+    fun pop() {
+        val r = route ?: return
+        if (r == Route.Days || r == Route.Split) settingsPage = SettingsPage.Program
+        val to = backTo(here(), origins)
+        if (parentOf(r) == null) origins = origins.dropLast(1)
+        arg = to.arg
+        route = to.route
+    }
     fun back() {
         val r = route
         when {
             sheet != null -> close()
             r == null -> tab = Tab.Exercises
             r == Route.Activities -> closeActivities()
-            else -> {
-                if (r == Route.Days || r == Route.Split) settingsPage = SettingsPage.Program
-                if (r == Route.SplitDay) arg = arg.substringBefore('/')
-                route = backTo(r, playerFromPage)
-            }
+            else -> pop()
         }
     }
     // Read in its own scope: a tab switch would otherwise recompose all of this, and every kept tab's screen with it.
@@ -438,9 +469,11 @@ private fun App(model: AppModel) {
         // In Liquid Glass the sheet and the undo bar blur the screen under them.
         val backdrop = rememberBackdrop()
         BackStack(
-            route, { it?.depth ?: 0 }, { sheet == null && route != null }, { backTo(route, playerFromPage) }, ::back,
+            here(), { it.depth }, { sheet == null && route != null }, { backTo(here(), origins) }, ::back,
             Modifier.backdropSource(backdrop),
-        ) { shown ->
+        ) { screen ->
+            val shown = screen.route
+            val arg = screen.arg
             val session = state.sessions.firstOrNull { it.id == arg }
             val log = if (shown == Route.Exercise) state.exerciseLogs().firstOrNull { it.id == arg } else null
             val run = state.cardioActive
@@ -501,24 +534,26 @@ private fun App(model: AppModel) {
                     state, split, splitDay, { push(Route.Split, split.id) }, ::open, model::dispatch,
                 )
                 shown == Route.Session && session != null -> SessionScreen(
-                    state, session, { route = null }, { open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec)) },
+                    state, session, ::pop, { open(SheetState.SessionTime(session.id, session.startedAt, session.durationSec)) },
                     deleting, { open(SheetState.Delete(it)) }, onExercise = { push(Route.Exercise, it) },
                 )
                 shown == Route.Exercise && log != null -> ExerciseScreen(
-                    state, log, { route = null }, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } },
+                    state, log, ::pop, { logWeight() }, onSaveMeta = { meta -> model.dispatch { listOf(meta) } },
                     female = model.bodyFemale, birthYear = model.birthYear, onStrength = { push(Route.Strength) },
+                    // A lift opened from Strength opens on where it stands, which is what Strength was showing.
+                    initialView = if (screen.from == Route.Strength && NormLift.of(log.id) != null) 2 else 0,
                 )
                 shown == Route.Strength -> StrengthScreen(
-                    state, model.bodyFemale, model.birthYear, LocalDate.now(), { route = null }, model::chooseBirthYear, { push(Route.Exercise, it) }, { logWeight() },
+                    state, model.bodyFemale, model.birthYear, LocalDate.now(), ::pop, model::chooseBirthYear, { push(Route.Exercise, it) }, { logWeight() },
                 )
-                shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), { route = null }, { logWeight() }, ::logWeight, deleting) { open(SheetState.Delete(it)) }
+                shown == Route.BodyWeight -> BodyWeightScreen(state, LocalDate.now(), ::pop, { logWeight() }, ::logWeight, deleting) { open(SheetState.Delete(it)) }
                 shown == Route.Stretch && stretch != null -> GuidedStretchPlayerScreen(
-                    stretch, onBack = { if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
-                    onFinish = { logged -> model.dispatch { listOf(logged) }; if (playerFromPage) push(Route.StretchRoutine, arg) else route = null },
+                    stretch, onBack = ::pop,
+                    onFinish = { logged -> model.dispatch { listOf(logged) }; pop() },
                     sound = model.stretchSound, haptics = model.stretchHaptics, onLeave = { logged -> model.dispatch { listOf(logged) } },
                 )
                 shown == Route.StretchRoutine && routine != null -> StretchRoutineScreen(
-                    routine, onBack = { route = null }, onStart = { playerFromPage = true; push(Route.Stretch, routine.key) },
+                    routine, onBack = ::pop, onStart = { push(Route.Stretch, routine.key) },
                     onDuplicate = {
                         var id: String? = null
                         val name = "My " + routine.name
@@ -545,7 +580,7 @@ private fun App(model: AppModel) {
                                     )
                                     2 -> StretchScreen(
                                         state, model.stretchRoutine,
-                                        onStartRoutine = { playerFromPage = false; push(Route.Stretch, it.key) },
+                                        onStartRoutine = { push(Route.Stretch, it.key) },
                                         onOpenRoutine = { push(Route.StretchRoutine, it.key) }, onNewRoutine = { open(SheetState.StretchName(null, "")) },
                                     )
                                     else -> if (state.active == null) HomeScreen(
