@@ -13,6 +13,9 @@ class SessionTimeTest {
         val s = sheet.endingAt(19, 5)
         assertEquals(start to 55 * 60L, s.startedAt to s.durationSec)
         assertEquals("an end at or before the start is the next day", 23 * 3600L + 50 * 60, sheet.endingAt(18, 0).durationSec)
+        // A start with seconds (a top-sets workout's, worked back from Finish) gives whole minutes to a picked end: 1:30 to 2:48.
+        val odd = SheetState.SessionTime("s1", OffsetDateTime.parse("2026-11-20T13:30:40-08:00"), 50 * 60L).endingAt(14, 48)
+        assertEquals(78 * 60L, odd.durationSec)
     }
 
     @Test fun pickingAStartKeepsTheEnd() {

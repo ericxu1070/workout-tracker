@@ -15,6 +15,8 @@ if [ ! -f local.properties ]; then
 fi
 
 # Warms Gradle's caches so the agent's first build is quick; capped so several worktrees fit in RAM.
-./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g --max-workers=3 compileDebugUnitTestKotlin
+# Not fatal: Orca starts the agent beside setup, so its half-made edits can break this compile.
+./gradlew -q -Dorg.gradle.jvmargs=-Xmx2g --max-workers=3 compileDebugUnitTestKotlin ||
+  echo "Warm-up compile failed (fine if an agent is mid-edit); the worktree is ready." >&2
 
 echo "Ready. Emulator for this worktree: tools/emu.sh start (prints its serial), tools/emu.sh stop when done."

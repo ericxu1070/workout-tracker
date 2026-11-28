@@ -55,10 +55,10 @@ class CardioUiTest {
     }
 
     @Test fun endTimePickerSetsTheDurationWithinBounds() {
-        assertEquals(40 * 60 + 37L, durationEndingAt(start, 7, 46, 4 * 3600))
+        assertEquals(41 * 60L, durationEndingAt(start, 7, 46, 4 * 3600)) // 7:05 to 7:46, the start's 23 s kept
         assertEquals(3600L, durationEndingAt(start, 9, 30, 3600)) // past the stop tap: clamped
-        assertEquals(5 * 3600 + 54 * 60 + 37L, durationEndingAt(start.withHour(19), 1, 0, 86_400)) // crosses midnight
-        assertEquals(60L, durationEndingAt(start, 7, 6, 3600)) // 37 s: lifted to the minute
+        assertEquals(5 * 3600 + 55 * 60L, durationEndingAt(start.withHour(19), 1, 0, 86_400)) // crosses midnight
+        assertEquals(60L, durationEndingAt(start, 7, 6, 3600))
     }
 
     @Test fun rpeSliderStops() {

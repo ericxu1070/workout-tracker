@@ -12,7 +12,9 @@ lockdir="${XDG_RUNTIME_DIR:-/tmp}/repsilon-emu"
 state="$(git rev-parse --show-toplevel)/.gradle/emu-serial"
 mkdir -p "$lockdir" "$(dirname "$state")"
 
-running() { [ -f "$state" ] && adb devices | grep -q "^$(cat "$state")[[:space:]]*device"; }
+# A serial alone is not proof: once this worktree's emulator dies, another worktree's can take its port.
+ours() { [ "$(adb -s "$1" emu avd name 2>/dev/null | head -1 | tr -d '\r')" = "$avd" ]; }
+running() { [ -f "$state" ] && ours "$(cat "$state")"; }
 
 case "${1:-}" in
   start)
@@ -32,11 +34,12 @@ case "${1:-}" in
           kill -0 $! 2>/dev/null || continue # another worktree took the slot first
           serial="emulator-$port"
           echo "$serial" >"$state"
-          for _ in $(seq 1 90); do
-            [ "$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { echo "$serial"; exit 0; }
+          for _ in $(seq 1 180); do
+            ours "$serial" && [ "$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { echo "$serial"; exit 0; }
             sleep 5
           done
-          echo "Emulator $avd did not boot; see $lockdir/$avd.log" >&2; exit 1
+          pkill -f "emulator.*-avd $avd -port" 2>/dev/null || true; rm -f "$state" # free the slot for others
+          echo "Emulator $avd did not boot in 15 min; see $lockdir/$avd.log" >&2; exit 1
         fi
       done
       echo "All $slots emulator slots busy; waiting..." >&2
