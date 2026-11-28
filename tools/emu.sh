@@ -3,6 +3,7 @@
 #   tools/emu.sh start   boot this worktree's AVD (waits for a free slot), print its serial
 #   tools/emu.sh serial  print the serial of this worktree's running emulator
 #   tools/emu.sh stop    shut it down and free the slot
+#   tools/emu.sh view    watch every worktree emulator, view-only (scrcpy)
 set -euo pipefail
 sdk="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' "$(git rev-parse --show-toplevel)/local.properties")}"
 wt="$(basename "$(git rev-parse --show-toplevel)")"
@@ -46,6 +47,11 @@ case "${1:-}" in
       sleep 20
     done ;;
   serial) running && cat "$state" || { echo "No emulator for $wt" >&2; exit 1; } ;;
+  view) # a view-only window per running worktree emulator, titled by its worktree; clicks never reach the agent's device
+    for s in $(adb devices | awk '/^emulator-/{print $1}'); do
+      n="$(adb -s "$s" emu avd name 2>/dev/null | head -1 | tr -d '\r')"
+      case "$n" in wt-*) setsid scrcpy -s "$s" --no-control --no-audio --window-title "${n#wt-} ($s)" -m 1024 >/dev/null 2>&1 & ;; esac
+    done ;;
   stop) if running; then adb -s "$(cat "$state")" emu kill >/dev/null; fi; rm -f "$state" ;;
-  *) sed -n '3,5p' "$0" >&2; exit 2 ;;
+  *) sed -n '3,6p' "$0" >&2; exit 2 ;;
 esac
