@@ -3,6 +3,10 @@ package dev.gzclp.tracker.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -18,26 +22,31 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
-/** Renders, from demo data, the bottom tab bar at rest and with its bubble held and dragged from Workout toward Upcoming. */
+/**
+ * Renders, from demo data, the bottom tab bar at rest and with its bubble held and dragged from Workout toward Upcoming, and held over
+ * History, whose cards run down to the bar.
+ */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h891dp-420dpi")
 class TabBarShots {
     @get:Rule val rule = createComposeRule()
 
-    private fun shots(p: Palette) {
+    private fun shots(p: Palette, tab: Tab = Tab.Workout, name: String = "40-tabs") {
         val out = System.getProperty("gzclp.shots")
         assumeNotNull(out)
-        rule.setContent { GzTheme(p) { TabFrame(Tab.Workout, {}) { HomeScreen(Demo.state, {}, {}) } } }
+        rule.setContent {
+            GzTheme(p) { TabFrame(tab, {}) { if (tab == Tab.History) HistoryScreen(Demo.state, HistoryView.All, {}, {}, {}, Demo.today) {} else HomeScreen(Demo.state, {}, {}) } }
+        }
         rule.waitForIdle()
-        rule.onRoot().captureRoboImage(File(out, "${p.id}-40-tabs-rest.png").path)
-        val bar = rule.onNodeWithText("Workout").fetchSemanticsNode().boundsInRoot
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-$name-rest.png").path)
+        val bar = rule.onNode(hasText(tab.label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).fetchSemanticsNode().boundsInRoot
         rule.onRoot().performTouchInput {
             down(bar.center)
             for (i in 1..10) moveBy(Offset(bar.width * 0.06f, 0f))
         }
         rule.mainClock.advanceTimeBy(600)
-        rule.onRoot().captureRoboImage(File(out, "${p.id}-40-tabs-held.png").path)
+        rule.onRoot().captureRoboImage(File(out, "${p.id}-$name-held.png").path)
         rule.onRoot().performTouchInput { up() }
     }
 
@@ -62,4 +71,8 @@ class TabBarShots {
     @Test fun dark() = shots(Palettes.dark)
     @Test fun light() = shots(Palettes.light)
     @Test fun glass() = shots(Palettes.glass)
+    @Test fun darkOverCards() = shots(Palettes.dark, Tab.History, "42-tabs-over-cards")
+    @Test fun lightOverCards() = shots(Palettes.light, Tab.History, "42-tabs-over-cards")
+    @Test fun tokyoOverCards() = shots(Palettes.tokyo, Tab.History, "42-tabs-over-cards")
+    @Test fun glassOverCards() = shots(Palettes.glass, Tab.History, "42-tabs-over-cards")
 }
