@@ -85,6 +85,8 @@ class FormLookShots {
             tile(Palettes.light, "steady/yaw-${"%02d".format(i)}", Pose("curl", "hammer_curl", 0.6f, 20f + i, 8f))
             tile(Palettes.light, "steady/rep-${"%02d".format(i)}", Pose("squat", "squat", 0.5f + i * 0.01f, 35f, 12f))
         }
+        // The hardest place for a line: a fold with skin close behind it, where the line can break up.
+        for (i in 0 until 12) tile(Palettes.light, "steady/fold-${"%02d".format(i)}", Pose("leg_press", "leg_press", 0.5f, 270f + i, 10f))
         for (i in 0 until 48) tile(Palettes.light, "spin/${"%02d".format(i)}", Pose("squat", "squat", if (i < 24) i / 23f else (47 - i) / 23f, i * 7.5f, 12f), "w200dp-h160dp-420dpi")
         for ((id, yaw) in listOf("pull_up" to 90f, "pull_up" to 0f, "calf_raise" to 200f, "lat_pulldown" to 180f, "leg_press" to 270f, "bench" to 235f)) {
             for (p in listOf(Palettes.light, Palettes.jade)) tile(p, "through/${p.id}-$id-${yaw.toInt()}", Pose(id, id, 0.5f, yaw, 10f))
